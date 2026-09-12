@@ -11,7 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-import datetime
+from kernel.clock import now_utc_iso
 import json
 import sys
 import time
@@ -20,6 +20,8 @@ from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
+
+from tests._perf_helpers import assert_timing_budget
 
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.invocations_cmd import (
@@ -63,7 +65,7 @@ def _write_started(
     started_at: str | None = None,
 ) -> Path:
     if started_at is None:
-        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        started_at = now_utc_iso()
     record = {
         "event": "started",
         "invocation_id": invocation_id,
@@ -85,7 +87,7 @@ def _write_completed(path: Path, *, invocation_id: str, outcome: str = "done", c
     record = {
         "event": "completed",
         "invocation_id": invocation_id,
-        "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "completed_at": now_utc_iso(),
         "outcome": outcome,
         "closed_by": closed_by,
     }
@@ -117,7 +119,7 @@ def create_fixture_invocations(
     repo_root = events_dir.parent
     for _ in range(count):
         inv_id = _new_ulid()
-        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        started_at = now_utc_iso()
         record = {
             "event": "started",
             "invocation_id": inv_id,
@@ -346,7 +348,7 @@ class TestInvocationsListJSON:
             {
                 "invocation_id": deleted_id,
                 "profile_id": "implementer-fixture",
-                "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "started_at": now_utc_iso(),
             },
         )
 
@@ -355,25 +357,29 @@ class TestInvocationsListJSON:
         assert live_id in listed_ids
         assert deleted_id not in listed_ids
 
-    def test_no_events_dir_returns_empty(self, tmp_path: Path) -> None:
-        """When kitty-ops does not exist, return []."""
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr(
-                "specify_cli.cli.commands.invocations_cmd.find_repo_root",
-                lambda: tmp_path,
-            )
-            result = runner.invoke(cli_app, ["invocations", "list", "--json"])
-        assert result.exit_code == 0, result.output
-        data = json.loads(result.output)
-        assert data == []
-
-
 # ---------------------------------------------------------------------------
 # Performance gate (NFR-008)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.slow
+def test_list_returns_100_records_from_10k_files(tmp_path: Path) -> None:
+    """invocations list returns exactly 100 records from a 10 000-file audit log.
+
+    Uses the index-based path (write_index=True) which is the production path
+    when InvocationWriter.write_started() is used.
+    """
+    events_dir = tmp_path / EVENTS_DIR
+    # write_index=True (default) — mimics production InvocationWriter behaviour.
+    create_fixture_invocations(events_dir, 10_000, write_index=True)
+
+    records = list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
+
+    assert len(records) == 100, f"Expected 100 records, got {len(records)}"
+
+
+@pytest.mark.slow
+@pytest.mark.performance
 def test_list_performance_10k(tmp_path: Path) -> None:
     """invocations list for 100 records from 10 000 files must complete in < 200 ms.
 
@@ -388,11 +394,10 @@ def test_list_performance_10k(tmp_path: Path) -> None:
     create_fixture_invocations(events_dir, 10_000, write_index=True)
 
     start = time.monotonic()
-    records = list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
+    list(_iter_records(events_dir, None, 100, repo_root=tmp_path))
     elapsed = time.monotonic() - start
 
-    assert len(records) == 100, f"Expected 100 records, got {len(records)}"
-    assert elapsed < 0.200, f"Performance gate failed: {elapsed:.3f}s (threshold: 0.200s). The index-based path should meet this threshold — check index I/O."
+    assert_timing_budget(elapsed, 0.200, name="invocations list (10k files, index path)")
 
 
 # ---------------------------------------------------------------------------

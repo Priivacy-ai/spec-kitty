@@ -20,10 +20,10 @@ frontmatter values are used unchanged.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
+from kernel.clock import UTC, datetime, now_utc, parse_iso
 from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.status import wp_snapshot_state as _wp_snapshot_state
@@ -219,7 +219,7 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
 
         # Parse ISO format timestamp
         timestamp_str = result.stdout.strip()
-        return datetime.fromisoformat(timestamp_str), True
+        return parse_iso(timestamp_str), True
 
     except subprocess.TimeoutExpired:
         return None, False
@@ -398,7 +398,7 @@ def check_wp_staleness(
                 error=None if not has_own_commits else "Could not determine last commit time",
             )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         # Ensure last_commit is timezone-aware
         if last_commit.tzinfo is None:
             last_commit = last_commit.replace(tzinfo=UTC)
@@ -440,13 +440,17 @@ def _resolve_feature_dir_for_staleness(main_repo_root: Path, mission_slug: str) 
     frontmatter-sourced legacy path (no ``feature_dir`` to read the snapshot from).
     """
     try:
-        from mission_runtime import MissionArtifactKind
-        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+        # read-side-placement-seam-migration WP07: routed through
+        # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+        # instead of the kind-blind ``resolve_planning_read_dir`` — the
+        # surrounding ``except Exception`` already absorbs any resolution
+        # failure into the pre-existing ``None``-degrade contract, independent
+        # of the seam's own fail-loud behavior.
+        from mission_runtime import MissionArtifactKind, placement_seam
 
-        # cast: follow_imports=skip (specify_cli.* boundary) erases the imported
-        # function's real `-> Path` signature, turning the call site's inferred
-        # return type into `Any`; the cast is type-only, no behavior change.
-        return cast(Path, resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK))
+        return placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
+        )
     except Exception:
         return None
 

@@ -1,0 +1,201 @@
+{
+  "event_count": 57,
+  "last_event_id": "01M0R0QE8SGD2W6JSZR10DXCVF",
+  "materialized_at": "2026-08-23T19:14:29.785139+00:00",
+  "mission_number": "196",
+  "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0R0Q16FN9846PEAXKCYHH7Y",
+      "last_transition_at": "2026-08-23T19:14:16.399206+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review. Tracker prerequisite: #2573 is assigned to HiC stijn-dejongh (https://github.com/Priivacy-ai/spec-kitty/issues/2573). RED commit 5dcfa67e6 fails at import because gate_budget is absent; production commit 97ccbb3cc makes 18 focused policy tests pass. Validation: pytest tests/review/test_gate_budget.py -q: 18 passed; ruff check owned files: exit 0; ruff format --check owned files: exit 0; mypy --strict gate_budget.py: exit 0. Pre-review gate explicitly skipped because WP01 is the policy foundation and its deterministic classifier is not wired into the live gate until dependent WP02; running the incumbent synchronous gate here would recreate #2573 rather than exercise this WP's new authority."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: red-first commit 5dcfa67e6 contains importing contract tests while gate_budget.py is absent; final 18 focused tests pass; Ruff check/format and strict mypy pass; pinned identity, exact-atom/superset match, descendant/command unknown behavior, immutability/no learning, public importability, normalization adversarial cases, and #2573 assignment to stijn-dejongh verified. Production caller integration is staged explicitly in dependent WP02.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 42626,
+      "shell_pid_created_at": "1787502330.676078",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0R0QBTS3KSGMRZGK55RM4PK",
+      "last_transition_at": "2026-08-23T19:14:27.289220+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 implemented red-first. Tests-only RED commit 0916d5419: 7 intended failures; production commit 9b16dfaf5. Green evidence: 125 passed across gate budget, engine, aggregation, source-mismatch, and baseline/head parity; Ruff check and format-check green on all owned files; mypy --strict green on both source modules. Exact broad suite also reports 7 pre-existing integration-fixture failures resolving NO_COVERAGE due empty mission-type gate contract; reproduced on pre-WP02 dcf484580 and reported at GitHub #3694. No operational unknown-budget timeout occurred; synthetic fixtures were not appended to tracer. Explicit pre-review skip used because this WP changes that gate and current broad lifecycle scope is not deterministically bounded.",
+        "Review passed: tests-only RED commit independently fails 7 intended budget-engine assertions; production commit greens WP02 coverage; oversized exact/superset routes refuse pre-launch with NOT_STARTED and terminal no-transition; descendant/unknown runs under configured timeout and only unknown timeout emits immutable candidate evidence with separate monotonic elapsed; bounded timeout is not a candidate; typed events remain renderer-neutral and compatibility constructors/source-mismatch/baseline parity pass. Focused final: 122 passed, 1 skipped, 7 independently reproduced pre-existing fixture failures tracked by #3694; strict mypy, Ruff, and format pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: tests-only RED commit independently fails 7 intended budget-engine assertions; production commit greens WP02 coverage; oversized exact/superset routes refuse pre-launch with NOT_STARTED and terminal no-transition; descendant/unknown runs under configured timeout and only unknown timeout emits immutable candidate evidence with separate monotonic elapsed; bounded timeout is not a candidate; typed events remain renderer-neutral and compatibility constructors/source-mismatch/baseline parity pass. Focused final: 122 passed, 1 skipped, 7 independently reproduced pre-existing fixture failures tracked by #3694; strict mypy, Ruff, and format pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 74689,
+      "shell_pid_created_at": "1787504493.143872",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "codex",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M0R0QCN38JJT37G8DSQ1K2G9",
+      "last_transition_at": "2026-08-23T19:14:28.131062+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented dual-route typed observer wiring, human scope/start/30s heartbeat/final rendering, single-document JSON budget/candidate metadata with authoritative transition_applied, prompt oversized no-launch refusal, and skip/disable precedence. Red aacd9c793; green a3ee8efec; 168 focused compatibility tests pass. Seven unrelated integration fixture failures reproduced at dependency base and filed as #3695. Synthetic controlled-clock fixtures produced no operational unknown-timeout candidate, so tracer-append was not used.",
+        "Review-cycle-1 remediation: exact Typer entry now drives the real evaluator on explicit override and unpinned registry routes through controlled monotonic/launch/wait seams, proving identical observer identity, assessment-before-launch, start <=1s, 30s heartbeat bounds, and no post-terminal callback. Disable matrix independently proves implicit daemon suppression and explicit daemon management for SPEC_KITTY_SYNC_DISABLE and SPEC_KITTY_SYNC_MINIMAL_IMPORT, retaining canonical both-set precedence. Evidence: focused 14 passed; owned 46 passed; related 43 passed; engine/source/parity 189 passed; Ruff lint and strict mypy pass; untouched tasks_move_task.py retains base-reproducible format-only finding. No operational timeout occurred; no tracer append.",
+        "Review cycle 2 passed: real-evaluator dual-route controlled-clock proof establishes observer identity, assessment-before-launch, <=1s start, 30s/60s heartbeats and terminal finality without a real test launch; both canonical disable variables independently prove implicit suppression and explicit daemon-management availability; owned and compatibility suites, Ruff, mypy, and diff checks pass; issue #3695 failures remain base-reproduced.",
+        "Acceptance remediation ready: canonical software-dev fixture activates real pre-review binding; full integration module passes"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle-4.md @ dabb8edd7",
+        "reviewer": "Reviewer Renata (Codex)",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 77049,
+      "shell_pid_created_at": "1787511128.540161",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0R0QDETP1AW9VCJ9N1FW5F3",
+      "last_transition_at": "2026-08-23T19:14:28.954134+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 verification-only evidence: owned suites 5 passed, 1 native-Windows node skipped locally; focused incumbent lifecycle regression 16 passed; Ruff clean/format clean. Real timeout and catchable cancellation reap synchronized child/grandchild process groups. Exact CLI-parent SIGKILL preserves independently read lane/event/WP authority before bounded teardown; no orphan-reaping claim (#2762). ci-windows dynamically discovers the @pytest.mark.windows_ci taskkill /T escalation contract. Existing broad pre-review transition gate skipped because this package itself verifies bounded gate interruption behavior.",
+        "Review passed: verification-only commit 27fbd8621 adds only owned tests; POSIX timeout/cancel real child+grandchild cleanup and synchronized parent-SIGKILL authority checks pass repeatedly with no leaked fixture processes; Windows taskkill /T then /F node is deterministic and dynamically collected by ci-windows; #2762 orphan cleanup remains explicitly deferred. Broader gate-contract integration failures reproduce on the WP04 parent and are not introduced by this package."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: verification-only commit 27fbd8621 adds only owned tests; POSIX timeout/cancel real child+grandchild cleanup and synchronized parent-SIGKILL authority checks pass repeatedly with no leaked fixture processes; Windows taskkill /T then /F node is deterministic and dynamically collected by ci-windows; #2762 orphan cleanup remains explicitly deferred. Broader gate-contract integration failures reproduce on the WP04 parent and are not introduced by this package.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6783,
+      "shell_pid_created_at": "1787505892.165091",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      },
+      "tracker_refs": [
+        "#2573",
+        "#2762"
+      ]
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "codex",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M0R0QE8SGD2W6JSZR10DXCVF",
+      "last_transition_at": "2026-08-23T19:14:29.785139+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 evidence complete at 4fe0520d6: exact-node traceability covers all acceptance, precedence, and interruption races with no blank cells; release verdict waiting_upstream on open #3127 plus rebase/integrated/native-Windows checks; no operational timeout candidates observed and post-merge retrospective must inspect diagnostic feedback; #2762 deferred and #3694/#3695 preserved for pre-accept triage. Validation: lane-c 153 passed with Ruff/mypy green; lane-d 5 passed, 1 Windows-only skipped and exact node collected; status validation green.",
+        "Review-cycle-1 remedies at a63bd9867; issue titles at coordination commit 65cefe048. All 38 cited node IDs are fully spelled and collect. US3.1 now states public human/JSON proof is blocked by #3694/#3695 instead of substituting NO_NEW_FAILURES evidence; US3.2 limits passing public proof to override-route JSON and marks human proof unproven. Release readiness separates current accept-diagnose blockers (pending acceptance matrix, unchecked tasks.md projection, #3694/#3695 disposition, integrated/native-Windows proof) from open #3127 release prerequisite. Validation: lane-c 153 passed plus 3 exact warn/block policy/override nodes passed; lane-d 5 passed/1 native-Windows skip and exact Windows node collected; issue-matrix business rules and status validation pass; accept --diagnose confirms documented blockers.",
+        "Review cycle 2 passed: all 38 unique cited pytest nodes are fully expanded and collect; 37 non-blocked nodes run 36 passed/1 native-Windows skip, while the one public NEW_FAILURES node reproduces the explicitly documented #3694/#3695 NO_COVERAGE blocker. US3.1 now labels human/JSON public proof blocked without substituting NO_NEW_FAILURES; US3.2 limits positive evidence to the passing override JSON route and marks human proof unproven. Issue titles/verdicts and validators are correct; accept blockers are separated from open #3127 waiting_upstream; retrospective/tracer authority is preserved with no synthetic pollution.",
+        "Bypass stale checkbox projection after bounded event-journal failure; T020-T024 evidence completed and validated in 8cdc5643e",
+        "Review passed: all 38 cited nodes collect; 145 policy-engine-aggregation-observer + 8 registry pass; integration 22/1 platform skip; process-parent 5/1 Windows skip; #3127 waiting_upstream and #3694/#3695 OPEN preserved; evidence-only change"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "review-cycle-4.md @ 8cdc5643e",
+        "reviewer": "Reviewer Renata (Codex)",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 81717,
+      "shell_pid_created_at": "1787511805.918852",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      },
+      "tracker_refs": [
+        "#2573",
+        "#3127"
+      ]
+    }
+  }
+}

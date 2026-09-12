@@ -1,10 +1,12 @@
 ---
 title: Doctrine Inclusion Assessment
 description: 'Assessment (2026-04-01) of which doctrine artifacts to include, based on PRs #305/#348 and the agent-profile-implementation-rebased branch.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-04-05'
 ---
 # Doctrine Inclusion Assessment
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 Status: assessment as of 2026-04-01, based on PR #305 / #348 and the
 `feature/agent-profile-implementation-rebased` branch.

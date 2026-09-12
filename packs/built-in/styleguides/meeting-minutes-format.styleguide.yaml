@@ -1,0 +1,26 @@
+schema_version: "1.0"
+id: meeting-minutes-format
+title: Meeting Minutes Format Styleguide
+scope: docs
+principles:
+  - "Structure over prose: an attendance table, per-topic notes and decisions, and an attributed action items list - not a free-form narrative."
+  - "Executive brevity: the full page should be readable in 1-2 minutes by someone who did not attend the meeting."
+  - "Bounded notes per topic: no more than 3-4 notes per agenda item or topic, each no longer than about 14 words."
+  - "Attribution is non-negotiable: every action item names an owner; an unattributed action item is a defect, not a stylistic gap."
+  - "Neutral voice: capture what was said and decided, not editorial interpretation of what should have been said (see the documentarian neutrality-ethos convention shared with Scribe Sally)."
+  - "Stand-alone legibility: the page must make sense to a reader who was not in the meeting, without requiring them to also read the raw transcript."
+anti_patterns:
+  - name: Narrative Transcript Dump
+    description: "Reproducing large blocks of transcript prose instead of distilling into bounded, structured notes."
+    bad_example: "A 40-line paragraph summarizing everything said about a topic in the order it was said."
+    good_example: "3 bullet notes capturing the topic's key points and decision, each under 14 words."
+  - name: Unattributed Action Item
+    description: "Listing a follow-up task with no named owner."
+    bad_example: "Follow up on the vendor contract."
+    good_example: "Follow up on the vendor contract - owner: Jordan."
+  - name: Editorial Interpretation
+    description: "Adding a judgment or interpretation not present in the transcript."
+    bad_example: "The team seemed unprepared for this discussion."
+    good_example: "The team requested more time to review before deciding."
+references:
+  - packs/built-in/directives/047-audience-oriented-writing.directive.yaml

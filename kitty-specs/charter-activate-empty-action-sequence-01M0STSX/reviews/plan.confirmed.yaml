@@ -1,0 +1,103 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+- id: PLAN-GOV-001
+  lens: __all__ governance (charter C-007) — independently confirmed by all three lens groups (gov PLAN-GOV-001,
+    arch PLAN-ARCH-001, verify PLAN-VERIFY-001)
+  severity: 3
+  title: '__all__ insertion point claim is factually wrong: case-sensitive alphabetical order puts the
+    new symbol LAST, not "immediately after UnknownMissionTypeError"'
+  evidence:
+  - artifact: plan.md § `__all__` / dead-symbol governance (charter C-007, binding)
+  - code: src/charter/mission_type_profiles.py:71-83 (the current `__all__` list)
+  - cross_check: 'All three lens groups (gov, arch, verify) independently ran python3 sorted() over the
+      live 11-entry list plus the new lowercase symbol name and confirmed the same result: the file''s
+      current order is a plain case-sensitive sorted() (uppercase class names as a group, then lowercase
+      function names as a group — which is why UnknownMissionTypeError happens to precede existing_mission_types
+      today, not because of a class/function grouping rule). Under that same sort, validate_activatable_mission_type
+      sorts AFTER resolve_mission_type_key, i.e. as the 12th/last entry.'
+  claim: 'The plan states `validate_activatable_mission_type` is "inserted alphabetically between `UnknownMissionTypeError`
+    and `existing_mission_types` — i.e. immediately after `\"UnknownMissionTypeError\",` per the list''s
+    existing sort order." This conclusion does not follow from the plan''s own stated methodology (case-sensitive
+    alphabetical sort) — an implementer following the literal instruction produces an `__all__` list that
+    is demonstrably out of the sort order the plan itself invokes as justification. Not CI-enforced (no
+    RUF022/unsorted-dunder-all rule selected in `pyproject.toml`; the dead-symbol gate only checks caller-existence,
+    not order), so this will not fail a gate, but it is a factually wrong instruction three independent
+    reviewers all caught, which is exactly the class of avoidable rework this lens exists to catch.
+
+    '
+  remediation: 'Correct the plan''s `__all__` / dead-symbol governance section: instruct insertion of
+    `"validate_activatable_mission_type",` as the LAST entry in the list (after `"resolve_mission_type_key",`,
+    before the closing bracket), matching the file''s actual case-sensitive alphabetical convention. Drop
+    or correct the "immediately after UnknownMissionTypeError" claim.
+
+    '
+- id: PLAN-GOV-002
+  lens: ATDD/WP sequencing soundness (charter C-011, binding) — mission-derived lens
+  severity: 3
+  title: AC4/FR-005 (a P1 User Story 1 acceptance scenario) is given only unit-level test coverage — no
+    CLI/ATDD-level test ever exercises the extends-fallback activation-succeeds path end-to-end
+  evidence:
+  - artifact: 'plan.md § ATDD Sequencing, commit 2 ("test: fixture-widening + AC4 commit")'
+  - artifact: spec.md § User Story 1, Acceptance Scenario 4 ("Given a type <T> that resolves an action
+      sequence only through a single-level extends chain... When the operator activates <T>, Then activation
+      succeeds")
+  - code: tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py — grep for "extends"
+      returns zero matches; grep in tests/charter/test_mission_type_profiles.py also returns zero matches
+      (verified empirically), confirming no existing CLI-level extends coverage exists to fall back on
+  claim: 'Spec Acceptance Scenario 4 (AC4) is phrased as an operator-facing, CLI-level scenario under
+    User Story 1 — the Priority-P1 story the spec itself says is "the mission''s entire reason for existing."
+    The plan''s commit 2 covers AC4 exclusively by calling `validate_activatable_mission_type()` directly
+    in `tests/charter/test_mission_type_profiles.py` — a unit-level test of the new helper''s internal
+    logic. No commit in the plan adds a `CliRunner`-driven test that invokes `charter activate mission-type
+    <T>` for an extends-resolves-non-empty candidate and asserts the command exits 0 and mutates config
+    as expected. Testing the extracted function directly does not pin the CLI''s observable behavior for
+    this specific scenario — a defect specific to the CLI wrapper''s wiring around the extends-success
+    path would not be caught by unit tests alone, and there is no existing CLI-level extends test to lean
+    on as regression coverage.
+
+    '
+  remediation: 'Add one CLI-level (`CliRunner`) test to `tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py`
+    (or note explicitly why it is deliberately deferred, with a named tracked follow-up) that declares
+    an org-pack candidate `<T>` with empty own `action_sequence` and `extends` to a parent with a non-empty
+    sequence, invokes `charter activate mission-type <T>`, and asserts exit 0 plus the expected config
+    mutation — mirroring commit 1''s CLI-level test shape for AC1/AC2, so AC4 gets the same level of end-to-end
+    verification the other three User Story 1 acceptance scenarios receive.
+
+    '
+- id: PLAN-GOV-003
+  lens: ATDD/WP sequencing soundness (charter C-011, binding) — mission-derived lens
+  severity: 3
+  title: Commit 2's RED status is asserted, not checkpointed — no explicit "Verify RED" instruction (asymmetric
+    with commit 1), and the plan never tells the reviewer which commit(s) to diff for C-011's binding
+    RED/GREEN verification
+  evidence:
+  - artifact: plan.md § ATDD Sequencing (charter C-011, binding), commit 1 ("...Both are legitimate RED,
+      not accidental collection breakage elsewhere (baseline captured above rules that out).")
+  - artifact: plan.md § ATDD Sequencing (charter C-011, binding), commit 2 ("...IS RED at the unit level
+      against the not-yet-existing function, same as commit 1's unit tests.")
+  - artifact: '.kittify/charter/charter.md § ATDD-First Discipline (binding per C-011) — "The reviewer
+      verifies red→green: the test was RED on the WP''s `planning_base_branch` AND GREEN on the WP''s
+      final commit."'
+  claim: 'Commit 1 carries an explicit, bolded checkpoint instruction — "**Verify RED on `main`**... Both
+    are legitimate RED, not accidental collection breakage elsewhere (baseline captured above rules that
+    out)." Commit 2 carries no equivalent instruction: its RED-ness is stated as a plan-time prediction,
+    not as a step the WP implementer is told to actively verify before committing. Because commit 2''s
+    expected failure mode is an `AttributeError`/`ImportError`, it is exactly the kind of RED that can
+    silently stop being RED for the wrong reason without anyone having been told to check. Separately,
+    C-011''s charter text is phrased around a single "the test" being diffed RED-at-`planning_base_branch`
+    / GREEN-at-final; with two test-introducing commits in this WP, the plan never states explicitly which
+    commit(s) a reviewer should diff to perform that binding verification.
+
+    '
+  remediation: 'Add a bolded "**Verify RED**" instruction to commit 2 mirroring commit 1''s, naming the
+    exact expected failure (e.g. `AttributeError: module ''charter.mission_type_profiles'' has no attribute
+    ''validate_activatable_mission_type''`) and confirming it is not accidental collection breakage. Also
+    add one explicit sentence to the ATDD Sequencing section''s lead-in stating which commit(s) the reviewer
+    diffs against `planning_base_branch` for RED (both commit 1 and commit 2) and which commit is diffed
+    for GREEN (commit 3).
+
+    '

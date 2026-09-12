@@ -2,7 +2,7 @@
 
 Mission ``org-doctrine-profile-integrity-activation-closure-01KT1TV1`` WP03
 relocates ``merge_three_layers`` from ``charter.drg`` into
-:mod:`doctrine.drg.merge` (OQ-2(ii) / C-009) and fixes the org-fragment
+:mod:`charter.offering.drg.merge` (OQ-2(ii) / C-009) and fixes the org-fragment
 silent-drop of unknown relations (FR-003 / contract C0.3).
 
 These tests import the merge **directly from the doctrine layer** (not via the
@@ -33,14 +33,16 @@ from pydantic import ValidationError
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-from doctrine.drg.merge import (
+from charter.offering.drg.merge import (
     DuplicateURNError,
+    OrgDRGConflict,
     OrgDRGConflictError,
     UnknownRelationError,
+    _filter_surviving_org_nodes,
     merge_three_layers,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +301,7 @@ class TestSpecializesFromAndUnknownRelation:
         ``Relation.APPLIES`` — no traversal reads ``APPLIES``, so such an alias
         silently turns the authored edge into a no-op. Guards against re-introducing
         the ``refines`` / ``extends`` downgrade."""
-        from doctrine.drg.merge import _RELATION_ALIASES
+        from charter.offering.drg.merge import _RELATION_ALIASES
 
         offenders = {
             k: v for k, v in _RELATION_ALIASES.items() if v is Relation.APPLIES
@@ -315,7 +317,7 @@ class TestSpecializesFromAndUnknownRelation:
         refines-preservation guard above is shadowed by the enum (an alias-only
         ``refines: APPLIES`` regression would resolve canonically and slip past it).
         Paired with the dead-sink ban, this closes that gap."""
-        from doctrine.drg.merge import _RELATION_ALIASES
+        from charter.offering.drg.merge import _RELATION_ALIASES
 
         assert "refines" in {r.value for r in Relation}
         assert "refines" not in _RELATION_ALIASES
@@ -468,7 +470,7 @@ class TestInvariantsPreserved:
             edges=[],
         )
 
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(
                 built_in=built_in, org_fragments=[org], project=None
             )
@@ -487,11 +489,10 @@ class TestInvariantsPreserved:
     def test_same_kind_org_override_records_org_override_conflict(self) -> None:
         """The permitted override is queryable as a non-fatal conflict record
         with ``resolution_applied == 'org_override'``."""
-        from doctrine.drg.merge import (  # noqa: PLC0415 — local-only helper import
-            OrgDRGConflict,
+        from charter.offering.drg.merge import (  # noqa: PLC0415 — local-only helper import
             _resolve_builtin_collision,
         )
-        from doctrine.drg.merge import _tag_source  # noqa: PLC0415
+        from charter.offering.drg.merge import _tag_source  # noqa: PLC0415
 
         built_in_node = _tag_source(
             DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC), "built-in"
@@ -543,8 +544,7 @@ class TestInvariantsPreserved:
         with a built-in whose kind has been desynced from its URN, asserting the
         merge refuses the substitution rather than corrupting the node's kind.
         """
-        from doctrine.drg.merge import (  # noqa: PLC0415
-            OrgDRGConflict,
+        from charter.offering.drg.merge import (  # noqa: PLC0415
             _resolve_builtin_collision,
             _tag_source,
         )
@@ -616,7 +616,7 @@ class TestProvenanceDeclaredField:
         assert edge.provenance is None
 
     def test_tag_source_sets_declared_field_typed_roundtrip(self) -> None:
-        from doctrine.drg.merge import _tag_source
+        from charter.offering.drg.merge import _tag_source
 
         node = DRGNode(urn="directive:x", kind=NodeKind.DIRECTIVE)
         tagged = _tag_source(node, "built-in")
@@ -664,7 +664,7 @@ class TestReplaceableBuiltinsPolicy:
         )
 
     def test_absent_file_forbids_every_override(self, tmp_path: Path) -> None:
-        from doctrine.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_replaceable_builtins
 
         policy = load_replaceable_builtins(tmp_path)
         assert policy.entries == ()
@@ -672,7 +672,7 @@ class TestReplaceableBuiltinsPolicy:
         assert policy.reason_for("directive:anything") is None
 
     def test_unlisted_urn_forbidden_listed_allowed(self, tmp_path: Path) -> None:
-        from doctrine.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_replaceable_builtins
 
         self._write_policy(
             tmp_path,
@@ -691,7 +691,7 @@ class TestReplaceableBuiltinsPolicy:
     def test_directive_override_requires_reason(self, tmp_path: Path) -> None:
         """A built-in *directive* override additionally requires a non-empty
         reason — the governance predicate the architectural test enforces."""
-        from doctrine.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_replaceable_builtins
 
         self._write_policy(
             tmp_path,
@@ -717,7 +717,7 @@ class TestReplaceableBuiltinsPolicy:
     def test_malformed_policy_fails_closed_loud(
         self, tmp_path: Path, body: str
     ) -> None:
-        from doctrine.drg.override_policy import (
+        from charter.offering.drg.override_policy import (
             OverridePolicyError,
             load_replaceable_builtins,
         )
@@ -727,7 +727,7 @@ class TestReplaceableBuiltinsPolicy:
             load_replaceable_builtins(tmp_path)
 
     def test_empty_file_is_empty_policy(self, tmp_path: Path) -> None:
-        from doctrine.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_replaceable_builtins
 
         self._write_policy(tmp_path, "")
         policy = load_replaceable_builtins(tmp_path)
@@ -738,7 +738,7 @@ class TestReplaceableBuiltinsPolicy:
     ) -> None:
         """A ``null`` ``replaceable_builtins`` value and a ``null`` reason both
         normalise to empty (fail-closed-friendly, not an error)."""
-        from doctrine.drg.override_policy import load_replaceable_builtins
+        from charter.offering.drg.override_policy import load_replaceable_builtins
 
         self._write_policy(tmp_path, "replaceable_builtins:\n")
         assert load_replaceable_builtins(tmp_path).entries == ()
@@ -868,3 +868,65 @@ class TestGlobalURNUniquenessScan:
         # Does not raise DuplicateURNError — the override machinery handles it.
         merged = merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
         assert any(n.urn == "tactic:shared" for n in merged.nodes)
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — _filter_surviving_org_nodes (extracted from _merge_org_fragment
+# to keep its cognitive complexity within the ruff C901 limit)
+# ---------------------------------------------------------------------------
+
+
+class TestFilterSurvivingOrgNodes:
+    """Direct unit tests for the layer-rule filtering helper (C-001/FR-005)."""
+
+    def test_all_nodes_survive_when_none_violate_layer_rule(self) -> None:
+        fragment = _fragment(
+            "acme",
+            nodes=[
+                {"id": "policy", "kind": "directives", "title": "Policy"},
+                {"id": "play", "kind": "tactics", "title": "Play"},
+            ],
+            edges=[],
+        )
+        conflicts: list[OrgDRGConflict] = []
+
+        surviving = _filter_surviving_org_nodes(fragment, conflicts, "org:acme")
+
+        assert [n.id for n in surviving] == ["policy", "play"]
+        assert conflicts == []
+
+    def test_violating_node_is_excluded_and_recorded_as_hard_fail(self) -> None:
+        fragment = _fragment(
+            "acme",
+            nodes=[
+                {"id": "policy", "kind": "directives", "title": "Policy"},
+                {
+                    "id": "smuggled",
+                    "kind": "directives",
+                    "title": "Reaches into specify_cli.core",
+                },
+            ],
+            edges=[],
+        )
+        conflicts: list[OrgDRGConflict] = []
+
+        surviving = _filter_surviving_org_nodes(fragment, conflicts, "org:acme")
+
+        assert [n.id for n in surviving] == ["policy"]
+        # golden-count: cardinality-is-contract -- the invariant is "exactly one
+        # conflict is recorded"; the single conflict's full identity is pinned by
+        # the conflicts[0] field assertions immediately below, so the count guards
+        # against a spurious second conflict rather than standing in for membership.
+        assert len(conflicts) == 1  # golden-count: cardinality-is-contract
+        conflict = conflicts[0]
+        assert conflict.kind == "layer_rule_violation"
+        assert conflict.target_id == "smuggled"
+        assert conflict.conflicting_layers == ["org:acme"]
+        assert conflict.resolution_applied == "hard_fail"
+
+    def test_empty_fragment_yields_no_survivors_and_no_conflicts(self) -> None:
+        fragment = _fragment("acme", nodes=[], edges=[])
+
+        surviving = _filter_surviving_org_nodes(fragment, [], "org:acme")
+
+        assert surviving == []

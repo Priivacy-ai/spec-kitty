@@ -1,0 +1,90 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-sweep
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PLAN-FRESH-001
+    lens: cross-section fidelity — does the just-fixed scope figure agree with every other section that restates it
+    severity: 3
+    title: "Charter Check's 'Locality of change' bullet still claims a 5-file touched set, now flatly contradicted by the fix round's corrected 6-production + 4-test-file count"
+    evidence:
+      - artifact: "plan.md § Charter Check, 'Locality of change / smallest-viable-diff' bullet (unchanged by commit d9900ba4a)"
+      - artifact: "plan.md line 71-73: \"the file set is bounded to the four files named in Summary plus the one frozen-contract test file the new command mechanically requires updating\""
+      - artifact: "plan.md § PR Shape (fixed by d9900ba4a): \"the touched-file set is small and coherent (6 production files + 4 test files, including the golden-contract test — see Project Structure below for the full manifest)\""
+      - artifact: "plan.md § Project Structure (unchanged, canonical manifest): 6 production files listed (runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py, runtime_bridge_io.py, doctor.py, _mission_type_audit.py) and 4 test files (test_bridge_cores.py, test_bridge_composition.py, test_doctor_mission_type.py, test_doctor_cli_surface_golden.py)"
+    claim: >
+      The fix round corrected Scale/Scope and PR Shape to reflect the real,
+      combined-precedent scope (_mission_type_audit.py now merges both
+      doctor-identity precedent modules into one file, and the touched-file
+      tally was updated to "6 production files + 4 test files"). But the
+      Charter Check section's "Locality of change / smallest-viable-diff"
+      bullet — one paragraph below the bullet that WAS fixed in this same
+      commit — was left untouched and still asserts the file set is "the
+      four files named in Summary plus the one frozen-contract test file"
+      (5 files total: 4 production + 1 test). This directly contradicts the
+      corrected PR Shape/Project Structure figures (6 production + 4 test =
+      10 files) two sections later in the same document. Cross-checking
+      against Project Structure and the (unmodified) Implementation Concern
+      Map confirms 6 production files is the accurate count and the Charter
+      Check bullet is the stale one — it undercounts by roughly half the
+      actual touched-file set, including test_bridge_composition.py,
+      test_doctor_mission_type.py, and runtime_bridge_io.py, none of which
+      are "the one frozen-contract test file." A reviewer or accept-gate
+      pass that trusts the binding Charter Check gate's own locality claim
+      (rather than cross-referencing Project Structure) would be misled
+      about whether the eventual PR diff has crept beyond the approved
+      "smallest-viable-diff" bound.
+    remediation: >
+      Update the Charter Check "Locality of change / smallest-viable-diff"
+      bullet to match the corrected count: "the file set is bounded to the
+      six production files and four test files named in Project Structure"
+      (or equivalent wording), so it no longer disagrees with PR Shape and
+      Project Structure two sections later in the same document.
+
+  - id: PLAN-FRESH-002
+    lens: spot-checking new/changed CI-gate citations against the actual workflow file and its own governing rationale
+    severity: 2
+    title: "Gate Set's fixed arch-adversarial row invents a 'non-docs-only push' qualifier the job's own governing comment explicitly disclaims"
+    evidence:
+      - artifact: "plan.md § Gate Set, `tests/architectural/test_shared_package_boundary.py` / `test_pyproject_shape.py` row (fixed by d9900ba4a): \"arch-adversarial runs tests/architectural (including these two files) on every non-docs-only push of this PR via an always-on job (.github/workflows/ci-quality.yml:2144-2147, if: always())\""
+      - code: ".github/workflows/ci-quality.yml:2124-2137 — \"runs on EVERY push/PR (`if: always()`, like `lint`) — un-blinding the dead-module / stale-symbol / terminology / status-boundary guards on 100% of PRs\" and \"carries NO dorny filter-group `if:` gate, so it does NOT enter JOB_GROUPS / src_backed_groups / the unmatched loop\""
+      - code: ".github/workflows/ci-quality.yml:2147 — the actual condition is `if: (always()) && !contains(...,'pr:deferred') && !contains(...,'pr:skip-ci')`, gated only by opt-out PR labels, not by path/docs-only filtering"
+    claim: >
+      The fix round's new Gate Set row claims arch-adversarial runs "on
+      every non-docs-only push of this PR." The job's own governing comment
+      says the opposite: it was deliberately extracted from the
+      integration-tests-core-misc matrix specifically so it carries NO
+      dorny filter-group gate and therefore fires on literally every push —
+      including docs-only ones — to close the exact "un-blinding" gap
+      described in the comment. The real gate is two PR-label opt-outs
+      (pr:deferred, pr:skip-ci), not a docs-only/non-docs-only path
+      distinction. The plan's own practical conclusion (the gate runs on
+      this PR and is expected to pass) still holds either way, since this
+      mission's diff is not docs-only — but the stated mechanism is
+      factually wrong and could mislead a future reader into believing the
+      gate is conditionally scoped by path when it explicitly is not, by
+      design.
+    remediation: >
+      Drop the "non-docs-only" qualifier — state that arch-adversarial runs
+      on every push of this PR regardless of which paths changed (per its
+      own no-filter-gate design), gated only by the pr:deferred/pr:skip-ci
+      opt-out labels.
+
+  - id: PLAN-FRESH-003
+    lens: spot-checking new/changed line-number citations against the actual file
+    severity: 1
+    title: "Diff-coverage gate row's line citation is off by one — the quoted flags sit at ci-quality.yml:3516-3517, not 3515-3517"
+    evidence:
+      - artifact: "plan.md § Gate Set, PR diff-coverage row (new in d9900ba4a): \"consumed by the diff-coverage job via --fail-under=90 --include \\\"${critical_paths[@]}\\\" at ci-quality.yml:3515-3517\""
+      - code: "ci-quality.yml:3515 is `--compare-branch=origin/${{ github.base_ref }}`; ci-quality.yml:3516 is `--fail-under=90`; ci-quality.yml:3517 is `--include \"${critical_paths[@]}\"`"
+    claim: >
+      The two quoted flags (--fail-under=90, --include ...) are on lines
+      3516-3517; line 3515 is a third, unquoted flag (--compare-branch).
+      The citation range is one line too wide/starts one line early versus
+      what is actually quoted. Trivial, no implementation impact.
+    remediation: >
+      Tighten the citation to ci-quality.yml:3516-3517, or expand the
+      quoted snippet to include --compare-branch so the citation matches
+      what it spans.

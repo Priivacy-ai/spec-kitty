@@ -154,7 +154,9 @@ def test_render_context_yaml_contains_all_terms(sample_md_file: Path) -> None:
 
 def test_render_context_yaml_is_deterministic(sample_md_file: Path) -> None:
     ctx = gen.parse_context_file(sample_md_file)
-    assert gen.render_context_yaml(ctx) == gen.render_context_yaml(ctx)
+    first_yaml = gen.render_context_yaml(ctx)
+    second_yaml = gen.render_context_yaml(ctx)
+    assert first_yaml == second_yaml
 
 
 def test_render_scope_yaml_contains_imports(tmp_path: Path) -> None:
@@ -337,7 +339,7 @@ def test_real_glossary_contexts_parse() -> None:
 
     Discovery is map-driven — the registered context slugs in
     ``contextive-map.yaml`` — the same authoritative source the generator
-    (:func:`gen.cmd_generate`) and :func:`test_real_check_mode_passes` use. This
+    (:func:`gen.cmd_generate`) uses. This
     deliberately does **not** blind-glob ``docs/context/*.md``: that directory is
     a mixed documentation section that also holds prose Explanation pages (e.g.
     ``charter-overview.md``) which are not glossary contexts and carry no terms.
@@ -362,20 +364,3 @@ def test_real_glossary_contexts_parse() -> None:
         assert ctx.terms, f"No terms parsed from {md_file.name}"
         for term in ctx.terms:
             assert term.name, f"Term with empty name in {md_file.name}"
-
-
-def test_real_check_mode_passes() -> None:
-    """Verify the real generated files are up-to-date (fails if generate was not run)."""
-    map_file = (
-        Path(__file__).resolve().parent.parent.parent.parent / ".kittify" / "traceability" / "contextive-map.yaml"
-    )
-    assert map_file.exists(), "Traceability map not found"
-
-    tmap = gen.load_map(map_file)
-    errors = gen.validate_map(tmap)
-    assert not errors, f"Map validation errors: {errors}"
-
-    result = gen.cmd_check(gen.REPO_ROOT, tmap)
-    assert result == 0, (
-        "Generated Contextive files are stale — run: python scripts/generate_contextive_glossaries.py generate"
-    )

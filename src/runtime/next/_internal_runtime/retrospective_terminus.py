@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
+from kernel.clock import now_utc_iso
 from runtime.next._internal_runtime.retrospective_hook import (
     before_mark_done,
 )
@@ -58,11 +58,6 @@ _TERMINUS_STEP_ID = "terminus"
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-
-def _now_utc() -> str:
-    """Return current UTC time as ISO 8601 string."""
-    return datetime.now(UTC).isoformat()
 
 
 def _mission_slug_from_feature_dir(feature_dir: Path) -> str:
@@ -440,7 +435,7 @@ def _run_hic(
             RecordProvenance,
         )
 
-        now_ts = _now_utc()
+        now_ts = now_utc_iso()
         skip_record = RetrospectiveRecord(
             schema_version="1",
             mission=MissionIdentity(

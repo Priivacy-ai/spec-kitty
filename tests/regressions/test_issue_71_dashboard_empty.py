@@ -16,11 +16,14 @@ Spec IDs: FR-016, FR-017, SC-004
 
 from __future__ import annotations
 
+import traceback
+
 import pytest
 from typer.testing import CliRunner
 
 
 pytestmark = [pytest.mark.unit]
+
 
 @pytest.mark.windows_ci
 def test_dashboard_json_returns_non_empty_on_windows(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,6 +34,7 @@ def test_dashboard_json_returns_non_empty_on_windows(tmp_path: pytest.TempPathFa
     return.  Asserts the JSON output is non-empty and parseable.
     """
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
 
     # Minimal project layout: .kittify/metadata.yaml + kitty-specs/<mission>/meta.json
     kittify_dir = tmp_path / ".kittify"
@@ -60,9 +64,7 @@ def test_dashboard_json_returns_non_empty_on_windows(tmp_path: pytest.TempPathFa
     runner = CliRunner()
     result = runner.invoke(app, ["dashboard", "--json"])
 
+    assert result.exception is None, "".join(traceback.format_exception(*result.exc_info))
     # Non-empty output = at least one non-whitespace character
     output = result.stdout or ""
-    assert output.strip() != "", (
-        f"dashboard --json returned empty output on Windows. "
-        f"rc={result.exit_code} stderr={getattr(result, 'stderr', '')!r}"
-    )
+    assert output.strip() != "", f"dashboard --json returned empty output on Windows. rc={result.exit_code} stderr={getattr(result, 'stderr', '')!r}"

@@ -19,19 +19,28 @@ from collections.abc import Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlsplit
 
+if TYPE_CHECKING:
+    from specify_cli.status.dup_key_repair import ArtifactRepairPlan, DuplicateKeyFinding
+
 from packaging.version import Version
+from pydantic import BaseModel, ConfigDict
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.checkout_identity import (
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.paths import (
     WorkspaceRootNotFound,
     assert_safe_path_segment,
+    load_meta_fail_closed,
     resolve_canonical_root,
 )
 from specify_cli.mission_metadata import (
-    load_meta,
     load_meta_or_empty,
     mission_number_from_slug,
     validate_meta,
@@ -46,7 +55,11 @@ from specify_cli.migration.canonicalization import (
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
-from specify_cli.status import LIFECYCLE_EVENT_TYPES, is_retrospective_lifecycle_event
+from specify_cli.status import (
+    ANNOTATION_KIND,
+    LIFECYCLE_EVENT_TYPES,
+    is_retrospective_lifecycle_event,
+)
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -481,6 +494,20 @@ def deterministic_ulid(seed: bytes | str) -> str:
     return "".join(reversed(chars))
 
 
+def envelope_sha256(envelope: Mapping[str, Any]) -> str:
+    """Canonical-JSON SHA-256 of a TeamSpace envelope (single recipe owner).
+
+    The migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256`` hashes
+    envelopes with this exact shape; hoisted here so callers cannot drift
+    (#2884). (The import-history provenance manifest's own use of this recipe,
+    #2262, was removed with the sync transport -- issue #5 -- and its
+    re-export seam, ``migration.envelope_seam``, was pruned as dead collateral
+    -- issue #116.)
+    """
+    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()  # noqa: TID251 - production raw SHA-256 owner (canonical envelope body checksum)
+
+
 def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     """Re-anchor the invocation root to the canonical PRIMARY main-checkout.
 
@@ -515,6 +542,162 @@ def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     return canonical
 
 
+# ---------------------------------------------------------------------------
+# Checkout-identity reconciliation (WP04, FR-004; #3051/#3541)
+#
+# ``_anchor_repair_root`` above **deliberately** keeps the #2320 primary
+# status-home: a ``--fix`` write always lands on the primary checkout's
+# ``kitty-specs/<slug>`` regardless of CWD. That canonicalization is correct —
+# but when it is triggered from a *foreign* lane worktree it must not happen
+# **silently**. The squad surfaced the tension (#3129/#3051): the same
+# collapse-to-primary is both the deliberate #2320 anchor AND, when unannounced,
+# a defect. Resolution: preserve the primary target, add checkout-identity
+# awareness so a foreign-lane ``--fix`` fails closed, and an ``--audit`` reports
+# the honest invoking-checkout-vs-primary disagreement rather than a false-green
+# produced by reading the redirected primary path at both ends.
+# ---------------------------------------------------------------------------
+
+
+class MissionStateWriteRefused(MissionStateRepairError):
+    """Fail-closed refusal of a foreign-lane ``--fix`` canonicalization.
+
+    Carries the WP01 :class:`FailClosedRefusal` value object (the single
+    write-refusal seam). ``str(exc)`` is ``refusal.message()``, which names the
+    primary ``canonical_target`` verbatim, so the operator sees exactly which
+    checkout the invocation declined to canonicalize.
+    """
+
+    def __init__(self, refusal: FailClosedRefusal) -> None:
+        super().__init__(refusal.message())
+        self.refusal = refusal
+
+
+def enforce_primary_write_ownership(cwd: Path, resolved_root: Path) -> None:
+    """Fail closed when a foreign lane would silently canonicalize the primary.
+
+    ``resolved_root`` is the already-re-anchored ``--fix`` write target (the
+    #2320 primary). Consulting the WP01 guard with :data:`Intent.WRITE`:
+
+    * When the guard's ``canonical_target`` differs from ``resolved_root`` the
+      invocation is writing to a checkout it owns (or to an explicitly supplied
+      root that is *not* this invocation's re-anchored primary) — proceed
+      silently. This keeps owner ``--fix`` and explicit ``repo_root=`` callers
+      (tests, fixtures) unaffected.
+    * When ``canonical_target == resolved_root`` **and** the invoking checkout
+      does not own it (a foreign lane worktree pointing at that primary), raise
+      :class:`MissionStateWriteRefused` naming the primary — never a silent
+      canonicalization.
+
+    An owner invocation (``cwd`` *is* the primary) has ``is_owner`` true, so
+    :meth:`CheckoutIdentity.write_refusal` returns ``None`` and this is a no-op.
+    """
+    identity = resolve_checkout_identity(cwd, Intent.WRITE)
+    if identity.canonical_target != resolved_root:
+        return
+    refusal = identity.write_refusal()
+    if refusal is not None:
+        raise MissionStateWriteRefused(refusal)
+
+
+@dataclass(frozen=True)
+class CheckoutDisagreement:
+    """One honest invoking-checkout-vs-primary mission-state mismatch.
+
+    ``invoking_sha256`` / ``primary_sha256`` are the SHA-256 of the artifact in
+    the invoking checkout and the primary respectively; ``None`` means the
+    artifact is absent on that side. A row exists only when the two differ, so a
+    populated list is exactly the disagreement an ``--audit`` from a foreign lane
+    must surface instead of a false-green.
+    """
+
+    mission_slug: str
+    artifact: str
+    invoking_sha256: str | None
+    primary_sha256: str | None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "mission_slug": self.mission_slug,
+            "artifact": self.artifact,
+            "invoking_sha256": self.invoking_sha256,
+            "primary_sha256": self.primary_sha256,
+        }
+
+
+_DISAGREEMENT_ARTIFACTS: tuple[str, ...] = (STATUS_FILENAME, EVENTS_FILENAME)
+
+
+def _artifact_sha256(path: Path) -> str | None:
+    """SHA-256 of ``path``'s bytes, or ``None`` when it is absent/unreadable."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return hashlib.sha256(data).hexdigest()  # noqa: TID251 - content-identity checksum only
+
+
+def _compare_checkout_mission_state(
+    invoking_root: Path, primary_root: Path, *, mission: str | None
+) -> list[CheckoutDisagreement]:
+    """Return the honest per-artifact mismatches between two checkouts.
+
+    Compares ``kitty-specs/<slug>/status.json`` and ``status.events.jsonl`` in
+    the invoking checkout against the primary. A disagreement is recorded when
+    the two sides' content SHA differs (including one side being absent).
+    """
+    invoking_specs = invoking_root / "kitty-specs"
+    primary_specs = primary_root / "kitty-specs"
+    slugs: set[str] = set()
+    for specs_root in (invoking_specs, primary_specs):
+        if specs_root.is_dir():
+            slugs.update(p.name for p in specs_root.iterdir() if p.is_dir())
+    if mission is not None:
+        slugs &= {mission}
+
+    disagreements: list[CheckoutDisagreement] = []
+    for slug in sorted(slugs):
+        for artifact in _DISAGREEMENT_ARTIFACTS:
+            invoking_sha = _artifact_sha256(invoking_specs / slug / artifact)
+            primary_sha = _artifact_sha256(primary_specs / slug / artifact)
+            if invoking_sha != primary_sha:
+                disagreements.append(
+                    CheckoutDisagreement(
+                        mission_slug=slug,
+                        artifact=artifact,
+                        invoking_sha256=invoking_sha,
+                        primary_sha256=primary_sha,
+                    )
+                )
+    return disagreements
+
+
+def audit_invocation_disagreement(
+    cwd: Path, resolved_root: Path, *, mission: str | None = None
+) -> list[CheckoutDisagreement]:
+    """Report the invoking-checkout-vs-primary disagreement for ``--audit``.
+
+    The false-green this removes: from a foreign lane the audit root is
+    re-anchored to the primary, so the engine reads the primary at *both* ends
+    and reports agreement. Here the invoking checkout is resolved **directly**
+    from its own ``.git`` via the WP01 guard (:data:`Intent.PRIMARY_READ`, which
+    never flips the target) and its own mission state is compared against the
+    primary ``resolved_root``.
+
+    Returns ``[]`` when the invoking checkout *is* the primary (``resolved_root``
+    == ``invoking_root``) or when ``resolved_root`` is not this invocation's
+    re-anchored primary (explicit-root / fixture callers) — there is no
+    cross-checkout read to disagree about in those cases.
+    """
+    identity = resolve_checkout_identity(cwd, Intent.PRIMARY_READ)
+    if identity.invoking_root == resolved_root:
+        return []
+    if identity.canonical_target != resolved_root:
+        return []
+    return _compare_checkout_mission_state(
+        identity.invoking_root, resolved_root, mission=mission
+    )
+
+
 def repair_repo(
     repo_root: Path,
     *,
@@ -525,6 +708,14 @@ def repair_repo(
 ) -> RepairReport:
     """Canonicalize historical mission state on disk and write a manifest."""
     resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
+    # Self-protecting guard (#3567 landing-pass coherence fold): every caller of
+    # ``repair_repo`` -- the CLI shell's ``_refuse_foreign_lane_fix`` (an earlier,
+    # formatted duplicate of this same check) and the TeamSpace gate
+    # (``_teamspace_mission_state_gate.py``, previously ungated) -- must fail
+    # closed on a foreign-lane invocation instead of silently canonicalizing the
+    # primary. No-ops for owner invocations and explicit-root-from-non-lane-cwd
+    # callers (tests/fixtures); see ``enforce_primary_write_ownership``.
+    enforce_primary_write_ownership(Path.cwd(), resolved_repo_root)
     mission_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
     if not mission_dirs:
         raise MissionStateRepairError("No mission directories found to repair.")
@@ -570,6 +761,173 @@ def repair_repo(
             policy=_build_policy(),
         )
         atomic_write(manifest_abs, report.to_json(), mkdir=True)
+        return report
+
+
+# ---------------------------------------------------------------------------
+# Duplicate-key artifact repair (FR-008, #3372)
+#
+# Legacy dual-key ``review_feedback`` artifacts (an empty ``''`` write followed
+# by a real ``review-cycle://`` pointer) are invalid YAML that fails closed at
+# the frontmatter boundary and trips an upgrade. This heals them BEFORE upgrade,
+# reusing this module's ADR 2026-05-10-1 repair framework (git-safety preflight,
+# run lock, ``atomic_write``, ``FileChange`` / ``RepairReport`` evidence). The
+# detector is the raw-text scanner in ``specify_cli.status.dup_key_repair`` (the
+# boundary cannot parse a dup-key file to detect it).
+# ---------------------------------------------------------------------------
+
+_DUP_KEY_MANIFEST_PREFIX = "dup-key-"
+_DUP_KEY_POLICY_TRACKED: tuple[str, ...] = ("kitty-specs/**/*.md",)
+
+
+def _build_dup_key_policy() -> dict[str, list[str]]:
+    """Return the dup-key repair manifest ``policy`` block (deterministic)."""
+    return {
+        "tracked": sorted(_DUP_KEY_POLICY_TRACKED),
+        "optional": [],
+        "ignored": sorted(_POLICY_IGNORED),
+    }
+
+
+def _dup_key_scan_dir(resolved_repo_root: Path, scan_root: Path | None) -> Path:
+    """Resolve the directory tree scanned for dual-key artifacts."""
+    return (scan_root or resolved_repo_root / "kitty-specs").resolve()
+
+
+def _plan_duplicate_key_batch(
+    findings: Sequence[DuplicateKeyFinding],
+) -> list[ArtifactRepairPlan]:
+    """Plan + validate EVERY affected artifact before any write (NFR-004).
+
+    One un-repairable artifact raises ``DuplicateKeyRepairError`` here, before
+    the caller has mutated a single file — the batch-atomic abort.
+    """
+    from specify_cli.status import plan_artifact_repair
+
+    plans: list[ArtifactRepairPlan] = []
+    seen: set[Path] = set()
+    for finding in findings:
+        if finding.path in seen:
+            continue
+        seen.add(finding.path)
+        plan = plan_artifact_repair(finding.path, finding.path.read_text(encoding="utf-8"))
+        if plan is not None:
+            plans.append(plan)
+    return plans
+
+
+def _dup_key_mission_slug(scan_dir: Path, path: Path) -> str:
+    """Best-effort mission slug for report grouping (first path segment)."""
+    try:
+        rel = path.resolve().relative_to(scan_dir)
+    except ValueError:
+        return path.parent.name
+    return rel.parts[0] if len(rel.parts) > 1 else path.name
+
+
+def _compute_dup_key_run_id(repo_root: Path, plans: Sequence[ArtifactRepairPlan]) -> str:
+    """Deterministic run id derived from the repaired-content set."""
+    payload = "spec-kitty:dup-key-repair:v1\n"
+    for plan in sorted(plans, key=lambda item: str(item.path)):
+        payload += _repo_relpath(repo_root, plan.path) + "\0" + plan.repaired_text + "\0"
+    return _sha256_text(payload)[:16]
+
+
+def _write_duplicate_key_plans(
+    repo_root: Path, plans: Sequence[ArtifactRepairPlan]
+) -> list[FileChange]:
+    """Write every validated plan atomically, returning digest evidence."""
+    changes: list[FileChange] = []
+    for plan in plans:
+        before = _file_fingerprint(plan.path)
+        atomic_write(plan.path, plan.repaired_text)
+        after = _file_fingerprint(plan.path)
+        if before != after:
+            changes.append(_file_change(repo_root, plan.path, before, after))
+    return changes
+
+
+def _safe_argv() -> list[str]:
+    try:
+        return list(sys.argv[1:])
+    except Exception:  # pragma: no cover - defensive
+        return []
+
+
+def _build_dup_key_report(
+    repo_root: Path,
+    scan_dir: Path,
+    run_id: str,
+    plans: Sequence[ArtifactRepairPlan],
+    file_changes: Sequence[FileChange],
+    manifest_abs: Path,
+) -> RepairReport:
+    """Assemble the shared :class:`RepairReport` grouped by mission slug."""
+    changes_by_path = {change.path: change for change in file_changes}
+    grouped: dict[str, MissionRepairResult] = {}
+    for plan in plans:
+        slug = _dup_key_mission_slug(scan_dir, plan.path)
+        result = grouped.setdefault(
+            slug,
+            MissionRepairResult(mission_slug=slug, mission_id=None, status="unchanged"),
+        )
+        change = changes_by_path.get(_repo_relpath(repo_root, plan.path))
+        if change is not None:
+            result.file_changes.append(change)
+            result.status = "updated"
+    return RepairReport(
+        run_id=run_id,
+        repo_head=_git_head(repo_root),
+        target_missions=sorted(grouped),
+        manifest_path=_repo_relpath(repo_root, manifest_abs),
+        missions=[grouped[slug] for slug in sorted(grouped)],
+        cli_version=_resolve_cli_version(),
+        command_args=_scrub_secret_args(_safe_argv()),
+        generated_ids=[run_id],
+        policy=_build_dup_key_policy(),
+    )
+
+
+def repair_duplicate_key_artifacts(
+    repo_root: Path,
+    *,
+    scan_root: Path | None = None,
+    manifest_path: Path | None = None,
+    allow_dirty: bool = False,
+) -> RepairReport:
+    """Heal legacy dual-key ``review_feedback`` artifacts (FR-008, #3372).
+
+    BATCH-ATOMIC (NFR-004): every artifact's repair is planned and validated
+    before ANY file is written; a single un-repairable artifact raises
+    ``DuplicateKeyRepairError`` and the corpus is left untouched. NON-DESTRUCTIVE
+    (NFR-002): the keep-last-non-empty policy preserves the recorded pointer.
+    Opt-in — reached only from ``doctor mission-state --fix`` (``doctor`` itself
+    is unconditionally SAFE).
+    """
+    from specify_cli.status import detect_duplicate_key_artifacts
+
+    resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
+    scan_dir = _dup_key_scan_dir(resolved_repo_root, scan_root)
+
+    # Detect + plan + validate the entire batch BEFORE taking the lock or
+    # writing anything (NFR-004 batch-atomicity). Any un-repairable artifact
+    # raises out of the planner here, so nothing on disk is touched.
+    plans = _plan_duplicate_key_batch(detect_duplicate_key_artifacts(scan_dir))
+    run_id = _compute_dup_key_run_id(resolved_repo_root, plans)
+    manifest_rel = manifest_path or MANIFEST_ROOT / f"{_DUP_KEY_MANIFEST_PREFIX}{run_id}.json"
+    manifest_abs = _resolve_repo_relative(resolved_repo_root, manifest_rel)
+
+    rel_paths = [_repo_relpath(resolved_repo_root, plan.path) for plan in plans]
+    _assert_git_safe(
+        resolved_repo_root, [*rel_paths, str(MANIFEST_ROOT)], allow_dirty=allow_dirty
+    )
+    with _git_lock(resolved_repo_root):
+        file_changes = _write_duplicate_key_plans(resolved_repo_root, plans)
+        report = _build_dup_key_report(
+            resolved_repo_root, scan_dir, run_id, plans, file_changes, manifest_abs
+        )
+        if file_changes:
+            atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
 
 
@@ -653,9 +1011,7 @@ def teamspace_dry_run(
                         if row_location is not None
                         else None
                     ),
-                    envelope_sha256=hashlib.sha256(  # noqa: TID251 - production raw SHA-256 owner
-                        json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-                    ).hexdigest(),
+                    envelope_sha256=envelope_sha256(envelope),
                 )
             )
             try:
@@ -825,6 +1181,94 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     return Event, validate_event, str(package_version)
 
 
+class _TeamspaceEnvelope(BaseModel):
+    """The SINGLE TeamSpace replay-envelope shape (#2891, CP001/CP002 #2884).
+
+    The migration ``WPStatusChanged`` builder assembles the 15-key envelope
+    this model owns, so a new envelope-level field cannot be added and silently
+    forgotten elsewhere -- ``extra="forbid"`` turns a mismatched key set into a
+    construction-time error instead of a silent drift. (The history-import
+    creation-prefix builder that formerly shared this recipe via the
+    ``envelope_seam`` re-export was removed with the sync transport -- issue
+    #5 -- and the seam itself was pruned as dead collateral -- issue #116.)
+    Callers compute the field VALUES (``build_id`` /
+    ``correlation_id`` / ... differ per producer); the KEY SET and
+    ``schema_version`` live here.
+
+    Fields deliberately keep their raw wire types (``str`` for ``timestamp``
+    and ``project_uuid``, not ``datetime``/``UUID``): this is a structural
+    shape guard for the replay/synthesis producers, not the
+    ``spec_kitty_events.Event`` wire contract (that separate validation
+    already happens via ``event_cls.model_validate(envelope)`` in
+    ``teamspace_dry_run``). Constructing through ``Event`` here instead would
+    silently drop ``aggregate_type``/``repo_slug`` -- fields ``Event`` does not
+    declare -- and coerce ``timestamp``/``project_uuid`` to
+    ``datetime``/``UUID``, changing the on-wire envelope shape asserted by
+    ``tests/sync/test_history_import_synthesize.py``.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    event_id: str
+    event_type: str
+    aggregate_id: str
+    aggregate_type: str
+    payload: dict[str, Any]
+    timestamp: str
+    build_id: str
+    node_id: str
+    lamport_clock: int
+    causation_id: str | None = None
+    project_uuid: str
+    project_slug: str
+    repo_slug: str | None
+    correlation_id: str
+    schema_version: str = CANONICAL_ENVELOPE_SCHEMA_VERSION
+
+
+def _build_teamspace_envelope(
+    *,
+    event_id: str,
+    event_type: str,
+    aggregate_id: str,
+    aggregate_type: str,
+    payload: dict[str, Any],
+    timestamp: str,
+    build_id: str,
+    node_id: str,
+    lamport_clock: int,
+    project_uuid: str,
+    project_slug: str,
+    repo_slug: str | None,
+    correlation_id: str,
+    causation_id: str | None = None,
+) -> _TeamspaceEnvelope:
+    """Construct the SINGLE TeamSpace replay-envelope shell (#2891).
+
+    Callers that need the wire-format dict (JSONL rows, hashing, upload
+    payloads) call ``.model_dump()`` at their own serialization boundary --
+    this builder's job is only to close the "hand-rolled dict, key typo, or
+    forgotten key" defect class by construction.
+    """
+    return _TeamspaceEnvelope(
+        event_id=event_id,
+        event_type=event_type,
+        aggregate_id=aggregate_id,
+        aggregate_type=aggregate_type,
+        payload=payload,
+        timestamp=timestamp,
+        build_id=build_id,
+        node_id=node_id,
+        lamport_clock=lamport_clock,
+        causation_id=causation_id,
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        repo_slug=repo_slug,
+        correlation_id=correlation_id,
+        schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
+    )
+
+
 # canonical-producer-exempt: #1198 -- historical migration-replay envelope builder.
 def _status_event_to_teamspace_envelope(
     status_event: StatusEvent,
@@ -861,25 +1305,23 @@ def _status_event_to_teamspace_envelope(
         "review_ref": status_event.review_ref,
         "evidence": evidence,
     }
-    return {  # canonical-producer-exempt: #1198 — see function-level comment
-        "event_id": status_event.event_id,
-        "event_type": "WPStatusChanged",
-        "aggregate_id": status_event.wp_id,
-        "aggregate_type": "WorkPackage",
-        "payload": payload,
-        "timestamp": status_event.at,
-        "build_id": "mission-state-dry-run",
-        "node_id": "mission-state-dry-run",
-        "lamport_clock": lamport_clock,
-        "causation_id": None,
-        "project_uuid": str(project_uuid),
-        "project_slug": project_slug,
-        "repo_slug": repo_slug,
-        "correlation_id": deterministic_ulid(
+    return _build_teamspace_envelope(
+        event_id=status_event.event_id,
+        event_type="WPStatusChanged",
+        aggregate_id=status_event.wp_id,
+        aggregate_type="WorkPackage",
+        payload=payload,
+        timestamp=status_event.at,
+        build_id="mission-state-dry-run",
+        node_id="mission-state-dry-run",
+        lamport_clock=lamport_clock,
+        project_uuid=str(project_uuid),
+        project_slug=project_slug,
+        repo_slug=repo_slug,
+        correlation_id=deterministic_ulid(
             f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"
         ),
-        "schema_version": CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    }
+    ).model_dump()
 
 
 def _historical_teamspace_evidence(
@@ -1163,7 +1605,7 @@ def _canonicalize_meta(
     *,
     generated_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
-    loaded = load_meta(mission_dir, allow_missing=True, on_malformed="raise")
+    loaded = load_meta_fail_closed(mission_dir)
     meta = dict(loaded or {})
     actions: list[str] = []
     mission_slug = str(
@@ -1254,6 +1696,10 @@ def _canonicalize_status_rows(
         actions = list(result.actions)
         if event_id in seen_event_ids:
             actions.append("duplicate_event_id_dropped")
+            # Quarantine before dropping: duplicates observed so far have been
+            # byte-identical to their survivor, but a *divergent* duplicate would
+            # otherwise be deleted leaving only a sha256 behind.
+            quarantine_lines.append(row.text)
             row_changes.append(
                 RowTransformation(
                     artifact_path=rel,
@@ -1280,7 +1726,7 @@ def _canonicalize_status_rows(
                 )
             )
 
-    sorted_rows = sorted(canonical_rows, key=lambda item: (str(item.get("at", "")), str(item.get("event_id", ""))))
+    sorted_rows = sorted(canonical_rows, key=_row_sort_key)
     return sorted_rows, row_changes, quarantine_lines, errors
 
 
@@ -1294,13 +1740,25 @@ def _canonicalize_status_rows(
 _Row = dict[str, Any]
 
 
+def _row_sort_key(item: Mapping[str, Any]) -> tuple[str, str]:
+    """Chronological sort key for a status-log row.
+
+    Lane rows date themselves with ``at``; the preserved non-lane rows
+    (lifecycle / retrospective envelopes) use ``timestamp``. Reading only ``at``
+    collapses every one of the latter to ``""`` and hoists them to the head of
+    an append-only log, so both spellings are honoured here.
+    """
+    when = item.get("at") or item.get("timestamp") or ""
+    return (str(when), str(item.get("event_id", "")))
+
+
 def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     """Return True for non-lane rows the repair MUST keep in status.events.jsonl.
 
     ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
     flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
-    ``event_type`` / ``type`` rows. Two of those classes have **no other
-    per-mission home**, so quarantining them is real data loss (issue #2376):
+    ``event_type`` / ``type`` / ``kind`` rows. Three of those classes have **no
+    other per-mission home**, so quarantining them is real data loss (#2376):
 
     - **Retrospective lifecycle rows** (``type`` envelope) — contracted
       provenance read back by retrospective consumers.
@@ -1309,6 +1767,11 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
       ``WPCreated``, …). :mod:`specify_cli.status.lifecycle_events` is their
       sole durable per-mission writer and declares this stream "a safe target
       for repair / replay tooling".
+    - **``InnerStateChanged`` annotations** (``kind: "annotation"`` envelope) —
+      load-bearing runtime state the reducer folds into the per-WP slots. They
+      carry no lane fields by construction, so omitting them here does not just
+      drop data: the row reaches ``_rule_require_to_lane`` and hard-errors the
+      entire mission repair.
 
     Other ``event_type`` rows (e.g. Decision-Moment ``DecisionPoint*``) are NOT
     preserved here: their canonical store is elsewhere
@@ -1328,6 +1791,17 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     deliberately NOT mirrored here: the repair's ``LIFECYCLE_EVENT_TYPES``
     narrowing is the intentional pruning divergence for Decision-Moment mirrors.
     """
+    # ``InnerStateChanged`` annotations are preserved FIRST, mirroring the
+    # placement of the durable reader's own leading branch
+    # (:func:`specify_cli.status.store.is_non_lane_event`). They carry no
+    # ``from_lane``/``to_lane`` by construction, so without this branch they
+    # fall through to ``_rule_require_to_lane`` and hard-error the whole
+    # mission repair. Quarantining them is NOT an option: the reducer folds
+    # their typed ``WPInnerStateDelta`` into the per-WP runtime slots, so
+    # dropping them is the #2376 data-loss class in a fourth event format.
+    if row.get("kind") == ANNOTATION_KIND:
+        return True
+
     event_name = row.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
@@ -1337,11 +1811,50 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     )
 
 
+_LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
+_LEGACY_TYPED_LANE_FIELDS = ("wp_id", "from_lane", "to_lane")
+
+
+def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
+    """Return True for a legacy canonical-writer ``WPStatusChanged`` lane row.
+
+    The mission's own ``WPStatusChanged`` writer emits
+    ``event_type == "WPStatusChanged"`` alongside the TOP-LEVEL lane fields
+    ``wp_id`` / ``from_lane`` / ``to_lane`` (see
+    :func:`_status_event_to_teamspace_envelope`, which stamps the same
+    ``event_type``). Such a row is a fully-formed lane transition that merely
+    carries a typed discriminator: routing it via passthrough lets the rest of
+    the canonicalization pipeline strip ``event_type`` through the
+    ``_build_canonical_row`` allowlist and fold it into ``status.json``.
+
+    Quarantining it — the shipped defect #3066, where
+    :func:`_is_preserved_non_lane_row` omits ``WPStatusChanged`` and the
+    ``event_type`` branch of :func:`_rule_reject_non_status_event` sweeps it out
+    — drops live lane history and regenerates a **zero-WP** ``status.json``, a
+    data-destroying repair.
+
+    ONLY the flat canonical-writer shape passes here. TeamSpace replay envelopes
+    also carry ``event_type == "WPStatusChanged"`` but nest ``wp_id`` /
+    ``from_lane`` / ``to_lane`` under ``payload`` (their top level is
+    ``aggregate_id`` / ``aggregate_type``), and ``DecisionPoint*`` mirrors carry
+    a different ``event_type`` — both fail this predicate and stay quarantined.
+    """
+    if row.get("event_type") != _LEGACY_TYPED_LANE_EVENT_TYPE:
+        return False
+    return all(field in row for field in _LEGACY_TYPED_LANE_FIELDS)
+
+
 def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
+    - Legacy typed lane transitions (:func:`_is_legacy_typed_lane_transition`:
+      the mission's own ``WPStatusChanged`` writer shape, with top-level
+      ``wp_id`` / ``from_lane`` / ``to_lane``) are PASSED THROUGH to the rest of
+      the pipeline, which strips the typed discriminator and folds them into
+      ``status.json``. This check runs FIRST, ahead of the quarantine branches,
+      so #3066's zero-WP regeneration can no longer eat live lane history.
     - Rows whose only per-mission home is this file
       (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
       events) are PRESERVED in place — the runtime reader skips them during lane
@@ -1351,6 +1864,8 @@ def _rule_reject_non_status_event(
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
       class before a TeamSpace dry-run.
     """
+    if _is_legacy_typed_lane_transition(row):
+        return CanonicalStepResult.passthrough(row)
     if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(
             state=row,
@@ -1513,7 +2028,13 @@ def _default_force_and_mode(new_row: _Row, new_actions: list[str]) -> None:
 
 
 def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
-    """Build the canonical shape from a normalized row."""
+    """Build the canonical shape from a normalized row.
+
+    This is an allowlist: any ``StatusEvent`` field omitted here is dropped from
+    the repaired log. ``review_result`` in particular is a hard FSM guard input
+    (every transition out of ``in_review`` is rejected without it), so omitting
+    it silently converts valid history into unvalidatable events.
+    """
     return {
         "event_id": str(new_row["event_id"]),
         "mission_slug": str(new_row["mission_slug"]),
@@ -1525,8 +2046,10 @@ def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
         "force": bool(new_row["force"]),
         "execution_mode": str(new_row["execution_mode"]),
         "reason": new_row.get("reason"),
+        "reason_source": new_row.get("reason_source"),
         "review_ref": new_row.get("review_ref"),
         "evidence": new_row.get("evidence"),
+        "review_result": new_row.get("review_result"),
         "policy_metadata": new_row.get("policy_metadata"),
         "mission_id": mission_id,
     }
@@ -1554,6 +2077,12 @@ def _rule_normalize_lanes(
     _default_force_and_mode(new_row, new_actions)
 
     canonical = _build_canonical_row(new_row, ctx.mission_id)
+    # FR-009 manifest honesty: ``_build_canonical_row`` is an allowlist, so any
+    # field present on the normalized row but absent from the canonical shape is
+    # dropped. Enumerate those removals so the manifest lists every field the
+    # repair touches — including removed fields — not just renames/normalizations.
+    for dropped in sorted(set(new_row) - set(canonical)):
+        new_actions.append(f"removed_field:{dropped}")
     try:
         StatusEvent.from_dict(canonical)
     except Exception as exc:
@@ -1973,10 +2502,23 @@ __all__ = [
     # MissionEventRebuildResult, RepairReport, TeamspaceDryRunRowMapping,
     # deterministic_ulid: demoted — migration-internal; no cross-module
     # src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # The former sanctioned cross-module surface, migration/envelope_seam.py
+    # (#2262/#2884), re-exported the shared subset (envelope constants,
+    # deterministic_ulid, envelope_sha256, the status-envelope builder, and the
+    # selection/audit seams) under public names for the import-history
+    # pipeline. That pipeline was deleted with the sync transport (issue #5)
+    # and the seam itself was pruned as dead collateral (issue #116); any new
+    # cross-module consumer of these internals would need a fresh seam, not a
+    # direct import.
+    "CheckoutDisagreement",
     "MissionStateDryRunError",
     "MissionStateRepairError",
+    "MissionStateWriteRefused",
     "TeamspaceDryRunReport",
+    "audit_invocation_disagreement",
+    "enforce_primary_write_ownership",
     "rebuild_mission_event_log",
+    "repair_duplicate_key_artifacts",
     "repair_repo",
     "teamspace_dry_run",
 ]

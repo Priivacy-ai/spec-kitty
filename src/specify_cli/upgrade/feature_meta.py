@@ -10,12 +10,13 @@ upgrade-specific logic and remain implemented here.
 from __future__ import annotations
 
 from kernel._safe_re import re
-from datetime import datetime, timezone, UTC
+from kernel.clock import datetime, from_epoch, Clock, DEFAULT_CLOCK
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.mission_metadata import write_meta
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -30,17 +31,20 @@ _BRANCH_PATTERNS = (
 
 
 def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json``.  Delegates to :func:`feature_metadata.load_meta`.
+    """Load ``meta.json``.  Delegates to the ONE fail-closed reader.
 
     Kept for backward compatibility with migration code.
-    ``load_meta()`` raises ``ValueError`` for malformed JSON, but frozen
-    migrations catch ``json.JSONDecodeError``.  This wrapper converts
-    ``ValueError`` to ``None`` so callers that treat missing/unreadable
-    meta as "needs repair" continue to work.
+    Routed through :func:`specify_cli.core.paths.load_meta_fail_closed`
+    (FR-007 / #3162): a corrupt or non-object ``meta.json`` raises the typed
+    :class:`MissionMetaReadError` instead of a raw ``ValueError``.  This
+    wrapper converts that typed read failure to ``None`` so callers that
+    treat missing/unreadable meta as "needs repair" continue to work
+    (frozen migrations catch ``json.JSONDecodeError`` and never saw the
+    raw ``ValueError`` either).
     """
     try:
-        return load_meta(feature_dir)
-    except ValueError:
+        return load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
         return None
 
 
@@ -105,16 +109,22 @@ def infer_created_at(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> str:
-    """Infer a stable ``created_at`` timestamp from the earliest file mtime."""
+    """Infer a stable ``created_at`` timestamp from the earliest file mtime.
+
+    ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+    FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only as the
+    no-files fallback, and only when ``now`` (an explicit value) is omitted.
+    """
     timestamps = [path.stat().st_mtime for path in feature_dir.rglob("*") if path.is_file()]
     if feature_dir.exists():
         timestamps.append(feature_dir.stat().st_mtime)
 
     if timestamps:
-        created_at = datetime.fromtimestamp(min(timestamps), tz=UTC)
+        created_at = from_epoch(min(timestamps))
     else:
-        created_at = now or datetime.now(UTC)
+        created_at = now if now is not None else clock.now()
     return created_at.isoformat()
 
 

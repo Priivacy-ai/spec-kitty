@@ -1,0 +1,94 @@
+# Metadata-only bridge. The existing workflows remain the sole test producer.
+name: CI Fleet Verdict
+on:
+  workflow_run:
+    workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
+    types: [requested, in_progress, completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  identify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      prs: ${{ steps.source.outputs.prs }}
+      main: ${{ steps.source.outputs.main }}
+    steps:
+      # All jobs use trusted default-branch code, never source PR code/artifacts.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+      - id: source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_REPOSITORY: ${{ github.repository }}
+          REPORT_ID: ${{ github.run_id }}
+          REPORT_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 scripts/ci/fleet_verdict.py --event "$GITHUB_EVENT_PATH" \
+            --repository "$REPORT_REPOSITORY" --reporter-id "$REPORT_ID" --attempt "$REPORT_ATTEMPT"
+
+  report:
+    needs: identify
+    if: needs.identify.outputs.prs != '' && needs.identify.outputs.prs != '[]'
+    strategy:
+      matrix:
+        pr: ${{ fromJSON(needs.identify.outputs.prs) }}
+    # A superseding queued event is safe only within the same PR: its survivor
+    # re-reads every current gate. Global concurrency could lose another PR.
+    concurrency:
+      group: ci-fleet-verdict-pr-${{ matrix.pr }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+      - name: Reconcile fleet verdict from current Actions evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_REPOSITORY: ${{ github.repository }}
+          REPORT_ID: ${{ github.run_id }}
+          REPORT_ATTEMPT: ${{ github.run_attempt }}
+          REPORT_PR: ${{ matrix.pr }}
+        run: |
+          python3 scripts/ci/fleet_verdict.py --pr "$REPORT_PR" \
+            --repository "$REPORT_REPOSITORY" --reporter-id "$REPORT_ID" --attempt "$REPORT_ATTEMPT"
+
+  report-main:
+    needs: identify
+    if: needs.identify.outputs.main == 'true'
+    # Serialize across main heads: the survivor always rereads current main.
+    concurrency:
+      group: ci-fleet-verdict-main
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+      - name: Reconcile main CI into the fleet P0 intake
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT_REPOSITORY: ${{ github.repository }}
+          REPORT_ID: ${{ github.run_id }}
+          REPORT_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 -m scripts.ci.fleet_main \
+            --repository "$REPORT_REPOSITORY" --reporter-id "$REPORT_ID" --attempt "$REPORT_ATTEMPT"

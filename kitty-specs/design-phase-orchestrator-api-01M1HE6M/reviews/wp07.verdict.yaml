@@ -1,0 +1,86 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP07
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  Both parts of this dispatch hold up under independent re-derivation. WP08-001 (the
+  host-CLI parity fold-in fix) adds _validate_answer_result_or_fail
+  (src/specify_cli/orchestrator_api/commands.py:3216-3253), called at commands.py:3293
+  right after _resolve_mission_dir_or_fail and before any decision resolution/
+  persistence. I read next_cmd.py's real control flow directly: mission_slug is
+  resolved at next_cmd.py:200, _validate_result_and_answer runs at line 211, and
+  _maybe_handle_answer (which triggers NO_PENDING_DECISION etc.) runs at line 212 --
+  the same relative position the new verb reproduces (mission-existence gate, then
+  enum validation, then decision resolution). I re-ran the ground-truth test
+  (test_host_cli_rejects_invalid_result_before_no_pending_decision) and confirmed it
+  genuinely drives the real Typer app via CliRunner.invoke(cli_app, ["next", ...]),
+  not a stub. Reverting commands.py/upstream_contract.json to the pre-fix commit and
+  re-running the three new tests reproduced exactly "2 failed, 1 passed"; restoring
+  and re-running gave 11/11 for the whole test_answer_decision.py file. WP07's own RED
+  test (test_contract_version.py) reproduced "2 failed, 1 passed" pre-fix and "3/3"
+  post-fix on envelope.py revert/restore. Baseline re-run over the four specified
+  paths gave exactly 404 passed, 2 skipped, 0 failed; tests/contract/test_orchestrator_api.py
+  gave 14 passed; the NFR-002 archive-identity test gave 2 passed -- all matching the
+  implementer's claims exactly. Live-tested contract-version --provider-version for
+  both below-minimum (0.0.1) and unparseable ("not-a-version") inputs: both return
+  exit 1, success:false, error_code CONTRACT_VERSION_MISMATCH -- never silent.
+  Independently enumerated the shipped surface via @app.command grep (21 total, 11
+  new, matching exactly) and via upstream_contract.json's allowed_error_codes diffed
+  against the pre-mission baseline (a40a9f510^): 27 codes before, 51 after, 24 new --
+  not 23. The extra one is DIRTY_WORKTREE, added by WP04 for record-analysis's
+  preflight guard (first appears in commit 804c7019f, absent from the 27-code
+  baseline, referenced live in wp04.verdict.yaml). This is not a defect in WP07's own
+  work: WP07's task never asked it to count or claim a specific error-code total (only
+  to name the 11 verbs in the changelog comment, which it does correctly), and
+  commands.py's own "Error codes used" docstring already lists and WP-tags all 24
+  correctly, DIRTY_WORKTREE included -- the shipped artifacts are internally
+  consistent. The "23" figure that needed reconciling lived only in review-dispatch
+  framing, not in anything the implementer committed, so it is recorded as an
+  informational finding rather than a rejection ground. Scope confirmed clean: the
+  diff touches only envelope.py, commands.py, upstream_contract.json, and the two
+  owned test files -- docs/api/orchestrator-api.md, CHANGELOG.md, and the operator
+  skill reference are untouched, correctly deferred to WP09. Gates: ruff clean except
+  a pre-existing E501 on upstream_contract.json:2, confirmed present at the
+  pre-mission baseline; mypy --strict clean on both envelope.py (meaningful) and
+  commands.py (vacuous -- confirmed commands.py is still in pyproject.toml's
+  ignore_errors=true quarantine, so the clean result proves only that the file
+  parses, not type-correctness, exactly as the implementer caveated); TID251 clean;
+  check_patch_targets.py reports 5259/5259. Marker/CI routing verified by reading the
+  real .github/workflows/ci-quality.yml shard definitions: test_contract_version.py
+  (pytest.mark.fast) and WP08-001's three new tests (pytest.mark.integration +
+  git_repo) both fall under the specify-cli-rest shard's tests/specify_cli path (which
+  ignores tests/specify_cli/next but not tests/specify_cli/orchestrator_api) in both
+  fast-tests-core-misc (-m "fast and not windows_ci and not regression") and
+  integration-tests-core-misc (-m 'not windows_ci and (git_repo or integration or
+  architectural) and not timing and not regression'), matching the dispatch's claim.
+  No silent-success paths found. No secrets/credentials/private material in the diff.
+  Main checkout and both lane worktrees (lane-a, lane-b) confirmed clean at the end of
+  review; no tree mutation left in place (production files were reverted and restored
+  from saved copies, never via git checkout).
+findings:
+  - id: WP07-001
+    severity: 1
+    title: "The '23 new error codes' figure is stale; the shipped surface adds 24, not 23"
+    evidence:
+      - code: "src/specify_cli/core/upstream_contract.json (allowed_error_codes; 27 entries at pre-mission baseline a40a9f510^, 51 entries on this branch)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:30-105 (\"Error codes used\" docstring; correctly lists and WP-tags all 24 new codes, including DIRTY_WORKTREE (WP04))"
+    claim: >
+      Independently diffing upstream_contract.json's allowed_error_codes against the
+      pre-mission baseline commit (a40a9f510^, immediately before WP03's first commit)
+      yields 24 new codes, not 23: the 23 commonly attributed to WP03/WP05/WP06/WP08
+      plus DIRTY_WORKTREE, added by WP04 for record-analysis's dirty-worktree preflight
+      guard (first appears at commit 804c7019f; also referenced live in
+      reviews/wp04.verdict.yaml). This is not a defect introduced by WP07's own work --
+      WP07's task file never directs it to claim or verify an error-code count (only
+      the 11-verb changelog comment, which is verified correct), and commands.py's own
+      cumulative "Error codes used" docstring already lists all 24 correctly,
+      DIRTY_WORKTREE included and properly WP-tagged. The stale "23" figure exists only
+      in review/dispatch framing, not in anything the implementer committed.
+    remediation: >
+      No change required to WP07's shipped diff. When WP09 authors
+      docs/api/orchestrator-api.md and the operator-skill reference, it must enumerate
+      the added error-code surface independently (e.g. by diffing
+      upstream_contract.json's allowed_error_codes against the pre-mission baseline, or
+      by reading commands.py's own docstring) rather than carrying forward a "23"
+      figure from elsewhere, so the published count is 24 and includes DIRTY_WORKTREE.

@@ -1,0 +1,134 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M00FFEDGRS54XYP8V9AR781B",
+  "materialized_at": "2026-08-14T15:50:30.064869+00:00",
+  "mission_number": "",
+  "mission_slug": "write-path-integrity-01KZZD69",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M0098CDBGYKZ7VA1Z6QM7VE1",
+      "last_transition_at": "2026-08-14T14:01:47.179412+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "unblock->in_progress after rebase-SHA recovery",
+        "WP01 #3373 primitive unification; NESTED guard preserved; suites green",
+        "Reviewed: behavior-preserving #3373 primitive unification; NESTED guard preserved; consumer suites green; pre-review gate non-blocking."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Reviewed: behavior-preserving #3373 primitive unification; NESTED guard preserved; consumer suites green; pre-review gate non-blocking.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3132501,
+      "shell_pid_created_at": "1786715873.79",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M00C4QWMHDG96EX52W6SGBVG",
+      "last_transition_at": "2026-08-14T14:52:13.588672+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "P0 #3371 fixed at transaction layer; #2549 closed; SC-001 non-vacuous RED->GREEN; pinned tests rewritten",
+        "Reviewed: P0 #3371 fixed at root (transaction commit_to_primary_target opt-in, default False, only PRIMARY planning callers opt in). #2549 leak (_mt_commit_lane_deliverables safe_commit) closed via Seam A. T007 SC-001 non-vacuous RED->GREEN verified. 1 failing test confirmed pre-existing baseline-red. Protected-target fail-loud behavior change noted+accepted."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3201981,
+      "shell_pid_created_at": "1786719112.37",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M00EBE40CX3QBX0FXGJX3M85",
+      "last_transition_at": "2026-08-14T15:30:50.112675+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Option A: guard at real chokepoint workspace/context.py:738; review guarded via workflow_executor:1543; CheckoutIdentityError not-swallowable; reads/planning safe (152 passed); NFR-004 met",
+        "Reviewed: Option A faithful OD-1 fix. Review path guarded (the missed case). Distinct exception verified not-ActionContextError. Reads/planning unrefused. NFR-004 (no git subprocess) met. SC-004 10/10."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3237589,
+      "shell_pid_created_at": "1786721435.88",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M00FFEDGRS54XYP8V9AR781B",
+      "last_transition_at": "2026-08-14T15:50:30.064869+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Static call-shape arch gate (destination-ref classification, no whitelist) + crash-recovery pin + baseline-red manifest; caught+fixed a WP02 fake rebaseline miss",
+        "Reviewed: gate passes+bites (6/6); destination-ref classification correctly allows flat-arm-to-primary, forbids raw-batch-to-coord; crash-recovery pin proves #2702 shape absent; FR coverage complete; WP02 fake rebaseline miss folded."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3262869,
+      "shell_pid_created_at": "1786722617.09",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    }
+  }
+}

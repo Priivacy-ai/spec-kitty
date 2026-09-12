@@ -1,0 +1,48 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: PLAN-FRESH2-001
+    lens: conceptual-alignment
+    severity: 2
+    title: "Plan names a different error class than spec.md for the \"no resolvable YAML at all\" edge case, without bridging the two"
+    evidence:
+      - artifact: "plan.md § New helper — exact module, name, signature (validate_activatable_mission_type docstring), lines 138-144"
+      - artifact: "spec.md § Edge Cases, bullet \"What happens when the candidate type id has no resolvable YAML definition in any layer at all\", lines 190-194"
+      - code: "src/charter/activation_engine.py:193-208 (plan_activation's available_ids membership check, UnknownActivationIdError)"
+      - code: "src/charter/mission_type_profiles.py:975-981 (mission is None -> UnknownMissionTypeError, read path)"
+    claim: >
+      spec.md's Edge Cases says the "candidate has no resolvable YAML in any
+      layer" case "is already governed by UnknownMissionTypeError on the read
+      path". plan.md's validate_activatable_mission_type docstring instead
+      says this case "is already governed by plan_activation's
+      UnknownActivationIdError (raised moments later, inside
+      CharterPackManager.activate() via the available_ids membership check)"
+      — a different, activation_engine.py-defined error class from a
+      different module. Verified against the current checkout this is
+      accurate for the activation-time flow (list_available's mission-type
+      scan only admits ids with a resolvable id: field, so plan_activation's
+      membership check is what actually fires first for an unresolvable
+      candidate on this path) — so the plan is not wrong, and it does satisfy
+      spec's own hedge ("whichever check the type trips first"). But neither
+      artifact says in one place "spec.md names the read-path check because
+      that's the general-purpose governance; plan.md names
+      UnknownActivationIdError because that's the specific check that fires
+      earlier, before this mission's new gate is even reached, on the
+      activation path". A reader diffing spec vs. plan for this edge case
+      will see two different named error classes for what reads as the same
+      scenario and may flag it as a drift/inconsistency during
+      implementation or a later review pass, costing a re-verification cycle
+      like this one.
+    remediation: >
+      Add one clause to validate_activatable_mission_type's docstring (or a
+      short parenthetical in the plan's Edge Cases coverage, if one is added)
+      making the bridge explicit, e.g.: "(spec.md's Edge Cases names the
+      read-path's UnknownMissionTypeError as the general governance for this
+      configuration inconsistency; on the activation-time path specifically,
+      plan_activation's own available_ids membership check — a distinct,
+      pre-existing gate — is what actually fires first, before this
+      function's caller is ever reached for such a candidate; this function
+      correctly no-ops rather than duplicating either check)".

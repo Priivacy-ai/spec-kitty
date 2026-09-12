@@ -12,6 +12,7 @@ from glossary.exceptions import SeedFileValidationError
 from glossary.semantic_events import iter_semantic_conflicts
 
 from ..api_types import GlossaryHealthResponse, GlossaryTermRecord
+from ..csp import send_csp_header
 from .base import DashboardHandler
 
 __all__ = ["GlossaryHandler"]
@@ -125,7 +126,7 @@ def _recover_valid_senses(
             )
             return []
 
-        from datetime import datetime
+        from kernel.clock import now_utc
 
         from ruamel.yaml import YAML
 
@@ -160,7 +161,7 @@ def _recover_valid_senses(
                     definition=term_data["definition"],
                     provenance=Provenance(
                         actor_id="system:seed_file",
-                        timestamp=datetime.now(),
+                        timestamp=now_utc(),
                         source="seed_file",
                     ),
                     confidence=term_data.get("confidence", 1.0),
@@ -204,6 +205,7 @@ class GlossaryHandler(DashboardHandler):
     def handle_glossary_health(self) -> None:
         """Return GET /api/glossary-health with a GlossaryHealthResponse."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "application/json")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
@@ -276,6 +278,7 @@ class GlossaryHandler(DashboardHandler):
     def handle_glossary_terms(self) -> None:
         """Return GET /api/glossary-terms with a list of GlossaryTermRecord."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "application/json")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
@@ -308,6 +311,7 @@ class GlossaryHandler(DashboardHandler):
     def handle_glossary_page(self) -> None:
         """Serve GET /glossary — return the static glossary browser HTML."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
         self.wfile.write(_GLOSSARY_HTML_BYTES)

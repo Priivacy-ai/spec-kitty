@@ -17,15 +17,14 @@ mission_id resolution:
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
 import ulid as _ulid_mod
 
+from kernel.clock import now_utc
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
@@ -36,7 +35,7 @@ from specify_cli.decisions.models import (
     IndexEntry,
     OriginFlow,
 )
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
@@ -83,11 +82,6 @@ def _mint_decision_id() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _now_utc() -> datetime:
-    """Return current UTC datetime (timezone-aware)."""
-    return datetime.now(UTC)
-
-
 _TERMINAL_STATUSES = {
     DecisionStatus.RESOLVED,
     DecisionStatus.DEFERRED,
@@ -128,26 +122,30 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     # ledger itself resolves under coord topology (C-001: no over-claiming a
     # funnel beyond what each site's own contract needs).
     feature_dir = _mission_dir(repo_root, mission_slug)
-    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
-    # (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would MASK
-    # that guard and silently re-introduce the removed legacy tolerance.
+    # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
+    # meta.json (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would
+    # MASK that guard and silently re-introduce the removed legacy tolerance.
+    # Routed through the ONE fail-closed reader: a missing file returns None
+    # (same MISSION_NOT_FOUND diagnostic as before), and a corrupt/unreadable
+    # one raises the typed MissionMetaReadError, wrapped here into the same
+    # MISSION_NOT_FOUND DecisionError the pre-#2091 local try/except produced.
     try:
-        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
-        raise DecisionError(
-            code=DecisionErrorCode.MISSION_NOT_FOUND,
-            details={"mission_slug": mission_slug},
-            message=f"meta.json not found for mission {mission_slug!r}",
-        ) from exc
-    except ValueError as exc:
-        # load_meta(on_malformed="raise") wraps both a JSON syntax error and
-        # a read/decode (OSError) failure into ValueError -- the same two
-        # failure modes the pre-#2091 local try/except caught directly.
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
+        # The fail-closed reader wraps both a JSON syntax error and a
+        # read/decode (OSError) failure into MissionMetaReadError -- the same
+        # two failure modes the pre-#2091 local try/except caught as ValueError.
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
             details={"mission_slug": mission_slug},
             message=f"Failed to read meta.json for mission {mission_slug!r}: {exc}",
         ) from exc
+    if meta is None:
+        raise DecisionError(
+            code=DecisionErrorCode.MISSION_NOT_FOUND,
+            details={"mission_slug": mission_slug},
+            message=f"meta.json not found for mission {mission_slug!r}",
+        )
     mission_id = meta.get("mission_id")
     if not mission_id:
         raise DecisionError(
@@ -165,14 +163,15 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     companion ``status.events.jsonl`` entries are coord-authority-owned
     STATUS-partition state -- the SAME directory ``decisions/emit.py``'s
     permanent kind-blind write target resolves to (data-model.md:31, the 2
-    permanent-by-design coord_authority writes). Routed through a
-    STATUS-partition kind (not PRIMARY_METADATA) so this read stays
+    permanent-by-design coord_authority writes). Routed through
+    ``placement_seam(...).read_dir(STATUS_STATE)`` so this read stays
     topology-aware and agrees with where emit.py writes; splitting reads onto
     PRIMARY here would read/write split-brain the ledger under coord topology.
     """
-    return resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
     )
+    return mission_dir
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:
@@ -370,7 +369,7 @@ def open_decision(
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
     decision_id = decision_id if decision_id is not None else _mint_decision_id()
-    created_at = _now_utc()
+    created_at = now_utc()
     entry = IndexEntry(
         decision_id=decision_id,
         origin_flow=origin_flow,
@@ -490,7 +489,7 @@ def _terminal_command(
         )
 
     # Apply the terminal transition
-    resolved_at = _now_utc()
+    resolved_at = now_utc()
     updated_index = _store.update_entry(
         mission_dir,
         decision_id,
@@ -560,7 +559,22 @@ def resolve_decision(
 
     Returns:
         DecisionTerminalResponse
+
+    Raises:
+        DecisionError(MISSING_STEP_OR_SLOT): if ``final_answer`` is empty or
+            whitespace-only. Rejected here, in the ONE shared authority both
+            the host CLI's ``cmd_resolve`` (``cli/commands/decision.py``) and
+            the orchestrator-api's ``resolve-decision`` verb
+            (``orchestrator_api/commands.py``) call directly -- so this check
+            cannot drift between callers the way the analogous ``rationale``
+            emptiness check (duplicated per-caller for defer/cancel) can.
     """
+    if not final_answer.strip():
+        raise DecisionError(
+            code=DecisionErrorCode.MISSING_STEP_OR_SLOT,
+            details={"field": "final_answer"},
+            message="final_answer must be a non-empty string",
+        )
     return _terminal_command(
         repo_root,
         mission_slug,

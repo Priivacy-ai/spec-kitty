@@ -22,14 +22,23 @@
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KKBSG4XEVF0WP7983SMR823K",
-      "last_transition_at": "2026-03-10T11:53:13.902676+00:00"
+      "last_transition_at": "2026-03-10T11:53:13.902676+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KKBT5ATFVXFNSGXGMX7KWZA8",
-      "last_transition_at": "2026-03-10T12:04:48.079345+00:00"
+      "last_transition_at": "2026-03-10T12:04:48.079345+00:00",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done"
+      }
     }
   }
 }

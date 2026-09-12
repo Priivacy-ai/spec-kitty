@@ -9,7 +9,7 @@ Spec Kitty is the current documentation set for the Spec Kitty CLI, Charter gove
 - Current runtime model: Charter-era Spec Kitty
 - Current project governance source: `.kittify/charter/charter.md`
 - Current mission loop command: `spec-kitty next --agent <name> --mission <slug>`
-- Historical 1.x and 2.x pages are archived under `/archive/` and are not the starting point for new projects.
+- Historical 1.x and 2.x pages are archived under `/changelog/1x/` and `/changelog/2x/` and are not the starting point for new projects.
 
 ## Best Entry Points
 
@@ -21,7 +21,7 @@ Spec Kitty is the current documentation set for the Spec Kitty CLI, Charter gove
 - Architecture and living design: https://docs.spec-kitty.ai/architecture/
 - Architecture decision records: https://docs.spec-kitty.ai/adr/
 - Upgrading projects: https://docs.spec-kitty.ai/migrations/
-- Historical archive: https://docs.spec-kitty.ai/archive/
+- Historical archive: https://docs.spec-kitty.ai/changelog/
 
 ## Documentation Sections
 
@@ -54,7 +54,7 @@ When the question is about X, read Y first (each section has its own `index.md` 
 - Why something works the way it does (mental model, architecture, tradeoffs) — read `architecture/index.md`.
 - A specific architectural decision and its rationale — read `adr/index.md`.
 - Governance, Charter, doctrine, glossary, or agent profiles — read `context/index.md`.
-- Upgrading from 1.x or 2.x, or finding archived behavior — read `migrations/index.md`, then `archive/index.md`.
+- Upgrading from 1.x or 2.x, or finding archived behavior — read `migrations/index.md`, then the archived tracks under `changelog/`.
 - Recovering from a failed or interrupted operation — read `operations/index.md`.
 - Roadmap, investigations, or research traces — read `plans/index.md`.
 - Release history — read `changelog/index.md`.

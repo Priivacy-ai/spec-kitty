@@ -1,0 +1,105 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-sweep
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-sweep
+    severity: 3
+    title: "Decision Record 3 cites the wrong line for `_resolve_directive_base`'s selected_directives check and mislabels the PackContext-fallback line range"
+    evidence:
+      - artifact: "spec.md § Decision Record 3, finding 1 (new in this fix round)"
+      - code: "src/charter/activation/resolver.py:716"
+      - code: "src/charter/activation/resolver.py:728-737"
+    claim: >
+      Decision Record 3 (entirely new content added in this fix round) quotes
+      `_resolve_directive_base` as: "it is consulted ONLY when
+      `doctrine.selected_directives` is empty (line 707: `if
+      doctrine.selected_directives: ... return list(doctrine.selected_directives),
+      "charter"`)." The real code has `if doctrine.selected_directives:` at
+      resolver.py:716, not 707 — verified by direct grep against the current
+      checkout. The same paragraph also labels "lines 716-728" as the
+      "`PackContext.activated_directives`-aware fallback" — but lines 716-726 are
+      actually the charter-priority/validation branch (the `if
+      doctrine.selected_directives:` block itself, including the
+      `GovernanceResolutionError` validation), not the PackContext fallback. The
+      real PackContext-aware fallback (the `from charter.activation.pack_context
+      import PackContext` / `activated_directives = ...` / three-state branch) is
+      lines 728-737, entirely outside the cited 716-728 range. The Decision
+      Record's own function-range citation (`resolver.py:675-732`) is also short
+      by 5 lines — the function's actual last line (`return
+      sorted(activated_directives), "activation"`) is at line 737. A reviewer or
+      WP implementer following these exact citations to locate and modify the
+      fallback code for FR-011 would be pointed at the wrong lines.
+    remediation: >
+      Correct Decision Record 3's citations: function range
+      `resolver.py:675-737` (not 675-732); the charter-priority/validation
+      branch is lines 716-726 (not "716-728" mislabeled as the fallback); the
+      PackContext.activated_directives-aware fallback is lines 728-737 (not
+      716-728); and the `if doctrine.selected_directives:` line is 716 (not
+      707). Re-verify all four numbers against the live file before merge.
+
+  - id: SPEC-FRESH-002
+    lens: fresh-sweep
+    severity: 2
+    title: "FR-004's new call-chain trace cites a function name (`render_skill`) that does not exist in the codebase"
+    evidence:
+      - artifact: "spec.md § FR-004 (rewritten in this fix round)"
+      - code: "src/specify_cli/skills/command_installer.py:264-265"
+      - code: "src/specify_cli/skills/command_renderer.py:384"
+    claim: >
+      FR-004's rewritten call-chain justification (added in this fix round to
+      resolve the readiness-probe deferral) reads: "`_render_command_skill`
+      (:260) → `render_skill(..., repo_root=repo_root)` (:265) →
+      `command_renderer.py`'s `apply_spdd_blocks_for_project` (:441-443)". No
+      function named `render_skill` exists anywhere under `src/` (grep
+      confirms zero matches for `def render_skill`). The actual call at
+      command_installer.py:264-265 is `command_renderer.render(template,
+      agent_key, version, repo_root=repo_root)` — the module-qualified function
+      is `command_renderer.render`, defined at command_renderer.py:384. The
+      line number (265) and the overall chain are otherwise correct; only the
+      function name is fabricated.
+    remediation: >
+      Replace `render_skill(..., repo_root=repo_root)` with
+      `command_renderer.render(..., repo_root=repo_root)` (command_renderer.py:384)
+      in FR-004's call-chain trace so an implementer grepping for the cited
+      symbol finds it.
+
+  - id: SPEC-FRESH-003
+    lens: fresh-sweep
+    severity: 3
+    title: "Decision Record 3's \"four real, verified call sites\" of resolve_project_governance is not exhaustive — a fifth call site exists inside resolver.py itself"
+    evidence:
+      - artifact: "spec.md § Decision Record 3 and § Non-Goals / Out of Scope (both edited in this fix round)"
+      - code: "src/charter/activation/resolver.py:945 (collect_governance_diagnostics)"
+      - code: "src/charter/__init__.py:125,202 (public facade re-export of collect_governance_diagnostics)"
+    claim: >
+      Decision Record 3 states `GovernanceResolution.directives`/`.paradigms`
+      are "consumed by four real, verified call sites" and lists exactly four:
+      prompt_builder.py, context_json.py, compact.py, doctor.py. Grepping
+      `resolve_project_governance(` in `src/` turns up a fifth call site:
+      `collect_governance_diagnostics` (resolver.py:937-950), which is itself
+      re-exported as a public facade symbol from `src/charter/__init__.py`
+      (lines 125, 202) — i.e. a real, potentially externally-consumed API
+      surface, not a test-only helper. The Non-Goals section (also edited this
+      round) goes further, asserting the audit is now "the *complete* remaining
+      set" and "not a residual, unaudited category" — but this fifth call site
+      is neither named as a fifth fixed consumer nor confirmed display-only
+      alongside the `_render_selection_block` carve-out. Because
+      `collect_governance_diagnostics` only forwards
+      `resolve_project_governance`'s `.diagnostics`/exception `.issues` (not
+      `.directives`/`.paradigms` directly), fixing FR-011 likely fixes this path
+      too as a side effect — but the spec's own exhaustiveness claim is
+      factually incomplete, and the review instructions for this Decision
+      Record explicitly rely on R1–R6/sk-review being able to audit the
+      decision as stated, not re-derive it.
+    remediation: >
+      Either (a) add `collect_governance_diagnostics` as a fifth named,
+      verified call site in Decision Record 3's list (noting it is
+      diagnostics-only, fixed as a side effect of FR-011, no new FR needed), or
+      (b) explicitly state in the Non-Goals carve-out why it was excluded from
+      the count. Either way, stop claiming the audit is "complete"/"not
+      residual" until the actual call-site count is reconciled with `grep -rn
+      "resolve_project_governance(" src/`.

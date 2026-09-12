@@ -1,21 +1,27 @@
 """Tests for documentation gap analysis."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 
 from specify_cli.doc_analysis.gap_analysis import (
+    DEVELOPMENT_CONCERN_SUBDIRS,
     DocFramework,
     DivioType,
     GapPriority,
     GapAnalysis,
     CoverageMatrix,
+    analyze_documentation_gaps,
     detect_doc_framework,
+    detect_project_areas,
+    infer_area_from_path,
     classify_divio_type,
     prioritize_gaps,
 )
 
 pytestmark = pytest.mark.fast
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # T068: Test Framework Detection
 def test_detect_sphinx_framework(tmp_path):
@@ -323,6 +329,42 @@ def test_gaps_sorted_by_priority():
     assert sorted(priorities, key=lambda p: {"high": 0, "medium": 1, "low": 2}[p.value]) == priorities
 
 
+# WP10: docs/development/ concern-subdir pin (FR-018)
+def test_development_concern_subdirs_pinned():
+    """The pinned concern subdirs match the live docs/development/ structure.
+
+    Renaming or adding a ``docs/development/`` concern directory without updating
+    ``DEVELOPMENT_CONCERN_SUBDIRS`` (so gap analysis keeps classifying dev docs by
+    concern) turns this guard red — the FR-018 subdir-name pin.
+    """
+    dev_dir = _REPO_ROOT / "docs" / "development"
+    on_disk = {p.name for p in dev_dir.iterdir() if p.is_dir()}
+    assert set(DEVELOPMENT_CONCERN_SUBDIRS) == on_disk
+
+
+def test_detect_project_areas_surfaces_development_concerns(tmp_path):
+    """detect_project_areas surfaces each development concern subdir as an area."""
+    docs = tmp_path / "docs"
+    for concern in DEVELOPMENT_CONCERN_SUBDIRS:
+        (docs / "development" / concern).mkdir(parents=True)
+    (docs / "guides").mkdir(parents=True)
+
+    areas = detect_project_areas(docs, tmp_path)
+
+    for concern in DEVELOPMENT_CONCERN_SUBDIRS:
+        assert f"development/{concern}" in areas
+    # the plain top-level section is still surfaced too
+    assert "development" in areas
+
+
+def test_infer_area_prefers_most_specific_match():
+    """A path is attributed to the longest (most specific) matching area."""
+    project_areas = ["development", "development/how-to", "guides"]
+    doc = Path("docs/development/how-to/pr-landing.md")
+
+    assert infer_area_from_path(doc, project_areas) == "development/how-to"
+
+
 # Additional tests for GapAnalysis dataclass
 def test_gap_analysis_dataclass():
     """Test GapAnalysis dataclass construction."""
@@ -330,7 +372,7 @@ def test_gap_analysis_dataclass():
 
     analysis = GapAnalysis(
         project_name="test-project",
-        analysis_date=datetime.now(),
+        analysis_date=now_utc(),
         framework=DocFramework.SPHINX,
         coverage_matrix=matrix,
         gaps=[],
@@ -339,3 +381,38 @@ def test_gap_analysis_dataclass():
     assert analysis.framework == DocFramework.SPHINX
     assert analysis.coverage_matrix == matrix
     assert isinstance(analysis.analysis_date, datetime)
+
+
+def test_analyze_documentation_gaps_analysis_date_is_aware_utc(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-011 (kernel-clock-single-door, WP13c): ``analyze_documentation_gaps``
+    stamps ``analysis_date`` via the door's aware-UTC ``now_utc()``, not a
+    naive local ``datetime.now()``.
+
+    Byte-changing: ``GapAnalysis.to_markdown()`` renders
+    ``self.analysis_date.strftime('%Y-%m-%d %H:%M:%S')`` into the persisted
+    ``gap-analysis.md`` report -- the format string carries no offset marker,
+    so the rendered STRING SHAPE is unchanged, but the VALUE shifts whenever
+    the build host's local time differs from UTC (a naive read would render
+    local wall-clock hours; this pins the frozen UTC instant instead).
+
+    C-009 mutation verified: reverting the site to a naive ``datetime.now()``
+    would make ``analysis_date.tzinfo`` ``None`` and the exact-instant
+    assertion below would fail (the real host-local clock, not the frozen
+    stub, would leak in).
+    """
+    import kernel.clock as clock_module
+    from kernel.clock import UTC, FrozenClock
+
+    frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    analysis = analyze_documentation_gaps(docs_dir, project_root=tmp_path)
+
+    assert analysis.analysis_date.tzinfo is not None
+    assert analysis.analysis_date == frozen_instant
+    assert "2026-03-04 05:06:07" in analysis.to_markdown()

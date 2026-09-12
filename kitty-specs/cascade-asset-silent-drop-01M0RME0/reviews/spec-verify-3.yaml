@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: SC-007 asserts the Scenario 4 negative behavior concretely (FR-004 message must NOT print while per-node Skipped-out-of-scope lines remain), carries its own Fails-if clause, and the Test-run scope note now correctly lists SC-001-004, SC-006-007 as six test-verified criteria.

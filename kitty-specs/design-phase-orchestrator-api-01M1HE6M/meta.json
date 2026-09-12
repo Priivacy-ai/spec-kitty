@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-09-02T16:11:00.155095+00:00",
+  "flattened": false,
+  "friendly_name": "orchestrator-api: design-phase verbs for external hosts",
+  "mission_id": "01M1HE6MNSX2ED6MXG05SX3K4G",
+  "mission_number": null,
+  "mission_slug": "design-phase-orchestrator-api-01M1HE6M",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances orchestrator-api: design-phase verbs for external hosts on feat/design-phase-orchestrator-api-3837 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "orchestrator-api: design-phase verbs for external hosts",
+  "slug": "design-phase-orchestrator-api-01M1HE6M",
+  "status_phase": "1",
+  "target_branch": "feat/design-phase-orchestrator-api-3837",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-02T20:17:07.746725+00:00"
+}

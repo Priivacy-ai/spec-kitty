@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-08-12T18:51:47Z",
+  "base_branch": "feat/docs-plans-tier3-closeout",
+  "base_commit": "cf9b5f2325d6a860b788f2c6b4d2319bab6e0de0",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

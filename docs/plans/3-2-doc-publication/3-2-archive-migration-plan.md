@@ -1,16 +1,19 @@
 ---
 title: Spec Kitty 3.2 — Archive & Migration Plan
 description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP09 / FR-013): how legacy and version-tiered pages are archived and redirected in the refresh.'
-doc_status: draft
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
-- docs/archive/2x/index.md
+- docs/changelog/2x/index.md
 - docs/migrations/from-charter-2x.md
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # Spec Kitty 3.2 — Archive & Migration Plan
 
 **Mission**: `spec-kitty-3-2-docs-01KS4KSZ`
-**Work Package**: WP09 (FR-013)
+**work package**: WP09 (FR-013)
 **Authoring agent**: `curator-carla` (claude:opus-4-7)
 **Status**: Planning artifact only. **No live page is moved in this WP.**
 
@@ -31,7 +34,7 @@ and reviewers can audit.
 - **Inventory** (WP02): `docs/development/3-2-page-inventory.yaml` — 13
   archival rows (5 under `docs/1x/**`, 8 under `docs/2x/**`) and 12 migration
   rows (11 already in `docs/migration/`, 1 in `docs/guides/`).
-- **Occurrence map** (WP01): `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml`
+- **occurrence map** (WP01): `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml`
   — `filesystem_paths.rewrite` rules:
   - `docs/1x/` → `docs/archive/1x/`
   - `docs/2x/` → `docs/archive/2x/`
@@ -50,7 +53,7 @@ and reviewers can audit.
 
 ## Banner templates (literal text, banner-regex compliant)
 
-Each banner is exactly one markdown line beginning with `> `, matching the
+Each banner is exactly one markdown line beginning with `>` followed by a space, matching the
 contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 
 - **Archive notice (1.x)**:
@@ -81,7 +84,7 @@ contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 | `docs/2x/adr-coverage.md` | archival | move | `docs/archive/2x/adr-coverage.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/doctrine-and-charter.md` | archival | move | `docs/archive/2x/doctrine-and-charter.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/glossary-system.md` | archival | move | `docs/archive/2x/glossary-system.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
-| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/context/index.md:81` as `[\`docs/2x/\`](../../archive/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/context/index.md`). |
+| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/context/index.md:81` as `[\`docs/2x/\`](../../changelog/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/context/index.md`). |
 | `docs/2x/model-discipline-routing.md` | archival | move | `docs/archive/2x/model-discipline-routing.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/model-to-task_type.md` | archival | move | `docs/archive/2x/model-to-task_type.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/orchestration-and-api.md` | archival | move | `docs/archive/2x/orchestration-and-api.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |

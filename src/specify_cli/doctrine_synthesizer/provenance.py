@@ -28,7 +28,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.retrospective.schema import ActorRef, Proposal
 
 # ---------------------------------------------------------------------------

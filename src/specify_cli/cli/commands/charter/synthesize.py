@@ -11,7 +11,9 @@ import json
 from typing import Any
 
 import typer
-from rich.console import Console
+from charter.activation.evidence.orchestrator import ConfigShapeError
+from charter.bundle import CHARTER_YAML
+from kernel.errors import KittyInternalConsistencyError
 from specify_cli.cli.console import err_console
 
 from specify_cli.diagnostics import mark_invocation_succeeded
@@ -19,18 +21,24 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 # Helpers that tests never patch (``_has_generated_artifacts``,
-# ``_materialize_fresh_doctrine``, ``_planned_fresh_doctrine_paths``) can be
-# imported directly. The patchable helpers
-# (``_build_synthesis_request``, ``_collect_evidence_result``,
+# ``_materialize_fresh_doctrine``, ``_planned_fresh_doctrine_paths``, and the
+# WP03 reconciliation-reporting helpers below) can be imported directly. The
+# patchable helpers (``_build_synthesis_request``, ``_collect_evidence_result``,
 # ``_load_written_artifacts_from_manifest``,
 # ``_run_synthesis_dry_run_with_artifacts``) are routed via ``_charter_pkg``
 # below.
 from specify_cli.cli.commands.charter._synthesis import (
+    _emit_dry_run_report,
+    _emit_orphan_refusal,
+    _emit_real_run_report,
     _has_generated_artifacts,
     _materialize_fresh_doctrine,
+    _orphaned_removals,
     _planned_fresh_doctrine_deletes,
     _planned_fresh_doctrine_paths,
+    _print_synthesis_commit_reminder,
     _raise_if_bundle_incomplete,
+    _reconciliation_preview,
 )
 
 # NOTE: ``find_repo_root`` and the patchable synthesis helpers are intentionally
@@ -44,13 +52,23 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["charter_synthesize"]
 
 
-def _print_synthesis_commit_reminder(console: Console) -> None:
-    console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
-    console.print(
-        "  git add .kittify/charter/synthesis-manifest.yaml "
-        ".kittify/charter/provenance/ .kittify/doctrine/"
-    )
-    console.print("  git commit -m 'chore: charter synthesis artifacts'")
+def _coerce_cli_bool(value: bool) -> bool:
+    """Coerce a non-``bool`` Typer sentinel to ``False`` (defense in depth).
+
+    WP03 amendment #3 (charter-synthesize-reconciliation-01KZJQN6):
+    ``charter_synthesize`` is also invoked **in-process** by
+    ``activate.py``/``deactivate.py`` (WP05). When such a caller omits the
+    ``prune``/``dry_run`` keyword, Python's own default-argument mechanism
+    supplies whatever ``typer.Option(False, "--prune", ...)`` returned at
+    *function-definition* time -- an ``OptionInfo`` sentinel object, never
+    the declared ``False`` -- because Typer's CLI parser (not Python) is
+    normally the one that resolves that sentinel to a real value before
+    calling the function. WP05 owns the authoritative fix (always pass the
+    flag explicitly); this coercion is a belt-and-braces guard so a future
+    in-process caller that forgets the explicit flag can never silently
+    trigger a prune or dry-run.
+    """
+    return value if isinstance(value, bool) else False
 
 
 @charter_app.command("synthesize")
@@ -72,7 +90,22 @@ def charter_synthesize(  # noqa: C901
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Stage and validate artifacts but do not promote to live tree.",
+        help=(
+            "Stage and validate artifacts but do not promote to live tree. "
+            "Also reports the reconciliation delta --prune would remove. "
+            "Wins over --prune when both are given (preview only, no write)."
+        ),
+    ),
+    prune: bool = typer.Option(
+        False,
+        "--prune",
+        help=(
+            "Remove on-disk content the current run no longer targets and "
+            "list every deletion. Without this flag, that content is "
+            "preserved (default) unless it is orphaned (backing artifact "
+            "deleted), which refuses instead of silently keeping a "
+            "dangling reference."
+        ),
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
     skip_code_evidence: bool = typer.Option(
@@ -108,12 +141,12 @@ def charter_synthesize(  # noqa: C901
     **minimal artifact set** the runtime requires:
 
     1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-       project-root resolver (``src/charter/_doctrine_paths.py``) is a
+       project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
        presence-only check; an empty directory is a valid project layer.
     2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
 
-    The runtime falls back to the built-in doctrine (``src/doctrine/``) for
+    The runtime falls back to the built-in doctrine (``packs/built-in/``) for
     all artifact lookups until the harness writes per-target YAML and the
     operator re-runs ``synthesize`` (which then takes the normal adapter
     path). The fresh-project path is **idempotent**: re-running produces
@@ -134,9 +167,26 @@ def charter_synthesize(  # noqa: C901
     Dry-run (stage + validate, no promote)::
 
         spec-kitty charter synthesize --dry-run
-    """
-    from charter.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
 
+    Preserve-and-warn default (WP03): a plain run never drops backed
+    content -- it exits 0 and reports what it retained. Remove divergent
+    content explicitly::
+
+        spec-kitty charter synthesize --prune
+
+    Only orphaned content (backing artifact deleted) or an unparseable
+    on-disk overlay make a plain run refuse (exit 1); backed divergence is
+    always preserved and reported, never a refusal.
+    """
+    from charter.activation.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
+    from charter.activation.synthesizer.reconcile import DRGLoadError
+
+    # WP03 amendment #3 (defense in depth): coerce a non-bool prune/dry_run
+    # sentinel to False before any mode-selection logic acts on it. See
+    # _coerce_cli_bool's docstring for the in-process-call footgun this
+    # guards against.
+    prune = _coerce_cli_bool(prune)
+    dry_run = _coerce_cli_bool(dry_run)
 
     # FR-001: warnings collected so far. Initialised here (outside the
     # try/except) so failure-branch envelopes can carry the same
@@ -168,8 +218,8 @@ def charter_synthesize(  # noqa: C901
         # synthesize fell through to the production adapter and crashed.
         # charter.yaml is the canonical fresh-project signal; when it is absent
         # we fall through to the existing pipeline so callers that mock
-        # charter.synthesizer.synthesize keep their established behaviour.
-        charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+        # charter.activation.synthesizer.synthesize keep their established behaviour.
+        charter_yaml = repo_root / CHARTER_YAML
         is_fresh_project_synthesize = (
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
@@ -178,6 +228,19 @@ def charter_synthesize(  # noqa: C901
         )
 
         if is_fresh_project_synthesize:
+            from specify_cli.cli.commands.charter._fresh_doctrine import _synthesize_project_doctrine
+
+            project_result = _synthesize_project_doctrine(repo_root, dry_run=dry_run)
+            if project_result is not None:
+                if json_output:
+                    print(json.dumps(project_result, indent=2, sort_keys=True))
+                else:
+                    operation = "would preserve" if dry_run else "preserved"
+                    console.print(f"[green]Charter synthesis[/green]: {operation} project doctrine and provenance.")
+                    for warning in project_result["warnings"]:
+                        console.print(f"[yellow]Warning[/yellow]: {warning}")
+                mark_invocation_succeeded()
+                return
             # FR-002 / FR-003 / FR-005: fresh-project seed mode emits the
             # strict four-field envelope. ``written_artifacts`` is built from
             # the already-known minimal seed file list (PROVENANCE.md). No
@@ -272,7 +335,7 @@ def charter_synthesize(  # noqa: C901
             )
             for f in written:
                 console.print(f"  ✓ {f}")
-            _print_synthesis_commit_reminder(console)
+            _print_synthesis_commit_reminder()
             return
 
         # FR-001: when --json is set, evidence warnings MUST live inside the
@@ -357,43 +420,71 @@ def charter_synthesize(  # noqa: C901
             # path uses. Paths are byte-equal to what a non-dry-run with the
             # same SynthesisRequest would write (the parity guarantee that
             # tests/charter/synthesizer/test_synthesize_path_parity.py
-            # locks in).
+            # locks in). FR-010: planned_deletes/conflicts is the NEW
+            # reconciliation-delta preview (_reconciliation_preview, adapter
+            # free) added to the same envelope by _emit_dry_run_report. An
+            # unparseable on-disk overlay raises DRGLoadError here, caught
+            # below (FR-007 fail-closed, no write in either branch).
             staged_files, written_artifacts_dr = _charter_pkg._run_synthesis_dry_run_with_artifacts(
                 request, syn_adapter, repo_root
             )
-
-            if json_output:
-                print(json.dumps({
-                    # Contracted fields (FR-002):
-                    "result": "dry_run",
-                    "adapter": {
-                        "id": getattr(syn_adapter, "id", adapter),
-                        "version": getattr(syn_adapter, "version", "unknown"),
-                    },
-                    "written_artifacts": written_artifacts_dr,
-                    "warnings": warnings_collected,
-                    # Legacy compatibility fields (data-model.md §E-1):
-                    "staged_artifacts": staged_files,
-                    "artifact_count": len(staged_files),
-                    "validated": True,
-                }, indent=2, sort_keys=True))
-                mark_invocation_succeeded()
-                return
-
-            console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
-            for f in staged_files:
-                console.print(f"  [dim]staged:[/dim] {f}")
+            delta = _reconciliation_preview(request, repo_root)
+            _emit_dry_run_report(
+                json_output=json_output,
+                adapter_name=adapter,
+                syn_adapter=syn_adapter,
+                warnings_collected=warnings_collected,
+                staged_files=staged_files,
+                written_artifacts_dr=written_artifacts_dr,
+                delta=delta,
+            )
             return
 
         # #2758: fail closed BEFORE the real-run write path can persist an
         # un-healable None bundle-content hash into the synthesis manifest
         # (see _raise_if_bundle_incomplete docstring). Dry-run never reaches
-        # write_pipeline.promote(), so it is intentionally not gated here.
+        # write_pipeline.promote(), so it is intentionally not gated there.
         _raise_if_bundle_incomplete(repo_root)
 
-        from charter.synthesizer import synthesize
+        from charter.activation.synthesizer import synthesize
+        from charter.activation.synthesizer.reconcile import SynthesizeMode
 
-        result = synthesize(request, adapter=syn_adapter, repo_root=repo_root)
+        # FR-007: an unparseable on-disk overlay raises DRGLoadError from
+        # INSIDE this call (reconcile_synthesis runs before any write, in
+        # every mode) -- caught below, no write happens either way.
+        result = synthesize(
+            request,
+            adapter=syn_adapter,
+            repo_root=repo_root,
+            mode=SynthesizeMode.prune if prune else SynthesizeMode.preserve,
+        )
+
+        # #4121 (MAJOR 2): unresolved project-profile reference warnings from
+        # the overlay emission ride on the result — surface them on the CLI
+        # and in the --json envelope instead of leaving them in logging
+        # output only. ``getattr`` keeps a mocked ``synthesize`` (tests never
+        # write a manifest, let alone emit references) on the empty default.
+        reference_warnings = list(getattr(result, "reference_warnings", ()))
+        warnings_collected.extend(reference_warnings)
+        if not json_output:
+            for warning in reference_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
+
+        # FR-014 / T014: narrow refusal -- a plain (non-`--prune`) run that
+        # dropped (preserve mode never deletes, so nothing was actually
+        # destroyed by the write above) orphaned (backing-artifact-deleted)
+        # content refuses instead of reporting success, so a dangling
+        # reference is never silently reported as a clean preserve. Backed
+        # divergence is never a refusal case (US2 AC4) -- it is preserved
+        # and reported below.
+        orphaned = _orphaned_removals(getattr(result, "reconciliation", None))
+        if orphaned and not prune:
+            _emit_orphan_refusal(
+                json_output=json_output,
+                adapter_name=adapter,
+                warnings_collected=warnings_collected,
+                orphaned=orphaned,
+            )
 
         # FR-003: ``written_artifacts`` is sourced from the on-disk
         # synthesis manifest the write pipeline wrote last (KD-2 commit
@@ -404,34 +495,37 @@ def charter_synthesize(  # noqa: C901
         # fields are still emitted (INV-E-2: empty list != absent field).
         written_artifacts_real = _charter_pkg._load_written_artifacts_from_manifest(repo_root)
 
-        if json_output:
-            print(json.dumps({
-                # Contracted fields (FR-002):
-                "result": "success",
-                "adapter": {
-                    "id": result.effective_adapter_id,
-                    "version": result.effective_adapter_version,
-                },
-                "written_artifacts": written_artifacts_real,
-                "warnings": warnings_collected,
-                # Legacy compatibility fields (data-model.md §E-1):
-                "target_kind": result.target_kind,
-                "target_slug": result.target_slug,
-                "inputs_hash": result.inputs_hash,
-                "adapter_id": result.effective_adapter_id,
-                "adapter_version": result.effective_adapter_version,
-            }, indent=2, sort_keys=True))
-            mark_invocation_succeeded()
-            return
-
-        console.print("[green]Charter synthesis complete[/green]")
-        console.print(f"Primary artifact: {result.target_kind}:{result.target_slug}")
-        console.print(f"Adapter: {result.effective_adapter_id} v{result.effective_adapter_version}")
-        if written_artifacts_real:
-            _print_synthesis_commit_reminder(console)
+        _emit_real_run_report(
+            json_output=json_output,
+            result=result,
+            written_artifacts_real=written_artifacts_real,
+            warnings_collected=warnings_collected,
+            prune=prune,
+        )
 
     except typer.Exit:
         raise
+    except DRGLoadError as e:
+        # FR-007 / T014: the on-disk project overlay could not be parsed.
+        # The library seam (reconcile.py) already failed closed -- no write
+        # happened -- this branch only turns that library exception into the
+        # CLI's clean, actionable refusal instead of falling through to the
+        # generic "Unexpected error" branch below.
+        detail = (
+            f"Refused: the on-disk doctrine overlay could not be parsed ({e}). "
+            "No write was made. Repair or remove the corrupt overlay under "
+            ".kittify/doctrine/ and re-run `spec-kitty charter synthesize`."
+        )
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [detail],
+            }, indent=2, sort_keys=True))
+        else:
+            err_console.print(f"[red]Error:[/red] {detail}")
+        raise typer.Exit(code=1) from e
     except NeutralityGateViolation as e:
         # Stderr-only (R-001): human-readable progress remains permitted on
         # stderr in --json mode. The error panel never reaches stdout.
@@ -453,7 +547,7 @@ def charter_synthesize(  # noqa: C901
             }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
-        from charter.synthesizer.errors import GeneratedArtifactMissingError as _GAME
+        from charter.activation.synthesizer.errors import GeneratedArtifactMissingError as _GAME
 
         render_error_panel(e, err_console)
         if isinstance(e, _GAME):
@@ -483,7 +577,11 @@ def charter_synthesize(  # noqa: C901
                 "warnings": warnings_collected + [f"SynthesisError: {e}"],
             }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
-    except TaskCliError as e:
+    except (TaskCliError, ConfigShapeError) as e:
+        # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
+        # SK-16) is a controlled, expected diagnostic -- treated the same as
+        # TaskCliError, not routed through the generic "Unexpected error"
+        # branch below.
         if json_output:
             print(json.dumps({
                 "result": "failure",
@@ -493,6 +591,22 @@ def charter_synthesize(  # noqa: C901
             }, indent=2, sort_keys=True))
         else:
             console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except KittyInternalConsistencyError as e:
+        # Contract (kernel.errors): CLI/UI layers catch this base type to render
+        # the diagnostic uniformly. Surface both the code AND the informative
+        # `.body` instead of swallowing it into "Unexpected error: <code>"
+        # (#2850 follow-up — the CHARTER_PACK_CONFIG_INVALID body was invisible).
+        detail = f"{e.code}: {e.body}" if e.body else e.code
+        if json_output:
+            print(json.dumps({
+                "result": "failure",
+                "adapter": {"id": adapter, "version": "unknown"},
+                "written_artifacts": [],
+                "warnings": warnings_collected + [detail],
+            }, indent=2, sort_keys=True))
+        else:
+            console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(code=1) from e
     except Exception as e:
         if json_output:

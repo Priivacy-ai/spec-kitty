@@ -1,7 +1,7 @@
 ---
 title: '13 — Dialectic: Is "Mission" the same as "Mission Run"?'
 description: Dialectical research (Phase 2) on whether Mission is the same as Mission Run, corroborating then refuting and reconciling, for the runtime and state overhaul.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 13 — Dialectic: Is "Mission" the same as "Mission Run"?
@@ -41,6 +41,7 @@ If Mission and Mission Run were one concept, a Mission could never have more tha
 Different persistence + different identifier scheme + different durability = **different aggregate.**
 
 ## The governing decision + enforcement
+
 - ADR `2026-04-04-2` (**Accepted**) defines three distinct layers and **explicitly rejected Option 3**
   ("use Mission Run as the canonical tracked item") because it "directly collides with the existing
   runtime/session use" (`:235`). Rule: `mission_run_id` "must never alias a tracked mission slug" (`:122-123`).
@@ -54,6 +55,7 @@ Different persistence + different identifier scheme + different durability = **d
 The dialectic is not "you were wrong, move on." T surfaced three findings worth keeping:
 
 ### 1. Mission Run is **degenerate in the current implementation** (a real smell)
+
 The affirmative case landed here: `mission_run_id` is minted as `uuid.uuid4()` (`dossier/indexer.py:82`)
 or faked as a `snapshot.snapshot_id` "proxy" (`dossier/api.py:473`); it appears in ~3 live lines; and
 `MissionRunSnapshot`/`MissionRunRef` store `run_id` + `mission_key` (the **type**) but **no mission
@@ -63,6 +65,7 @@ exactly why it *feels* redundant. This is **adjacent to #1619**: a run layer tha
 own Mission is a weak "sense of self/purpose" at the runtime boundary.
 
 ### 2. The history is real but the direction is inverted
+
 "Mission" did predate distinct Mission Types (mission system 2025-10-29 vs `mission_types/` 2026-02-16),
 and the three-noun ontology was **retrofitted** onto one undifferentiated "mission" (ADR #378/#383).
 **But** "Mission" is **not** the old term *for the Mission Run* — the record shows Mission Run is the
@@ -71,6 +74,7 @@ and the three-noun ontology was **retrofitted** onto one undifferentiated "missi
 old MissionRun" direction is **backwards**.
 
 ### 3. Model correction — our own `12` §5a conflated them
+
 This is the most useful outcome. In `12` §5a I labelled the two-layer state (mission-level + WP-level)
 as **"MissionRun"**. That is wrong: that durable, layered state lives on the **Mission**
 (`kitty-specs/<slug>/` — meta + status events + WP frontmatter, all git-tracked). The **Mission Run**
@@ -104,6 +108,7 @@ the *Mission Run* is the ephemeral driver, 1:many to the Mission."**
 | The distinction is fully realized in code | **Refuted-ish** — it is *real by design* but **degenerate in implementation** (the smell that motivated T) |
 
 ## Implications for the overhaul
+
 1. **Correct `12` §5a:** the layered state is the **Mission**; the **Mission Run** is the ephemeral
    1:many driver. (Done — see `12` §5a banner.)
 2. **`MissionStatus` aggregate (`07`/`09` F5) belongs to the Mission**, not the Run — it is the

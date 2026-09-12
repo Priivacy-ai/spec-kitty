@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from doctrine.agent_profiles.diagnostics import SkippedProfile
+from charter.offering.agent_profiles.diagnostics import SkippedProfile
 from specify_cli.cli.commands._doctrine_health import (
     DoctrineHealthReport,
     PackHealth,
@@ -343,18 +343,29 @@ def test_doctor_doctrine_human_and_json_share_one_report(
 # ---------------------------------------------------------------------------
 
 
-def test_doctor_doctrine_within_two_second_budget(
+@pytest.mark.performance
+def test_doctor_doctrine_within_budget(
     repo_with_invalid_project_profile: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """NFR-001: report build stays well under the 2s budget (generous margin)."""
+    """NFR-001: report build stays well under budget (generous margin).
+
+    Budget is 4.0s, not 2.0s: the timed ``_collect_profile_health`` call is
+    ~0.74s locally on a warm process, but the shared CI runner's cold-start /
+    loaded-runner variance was observed at 2.43s — a false red on the old 2.0s
+    ceiling with no corresponding slowdown in the timed code (the doctor path
+    does not exercise the M3 artifact-name seam; measured identical pre/post
+    #3596-#3407). 4.0s still catches a real >5x regression against the warm
+    baseline while tolerating CI wall-clock jitter (testing-flakiness policy:
+    tune budget gates, never retry-to-green).
+    """
     from specify_cli.cli.commands.doctor import _collect_profile_health
 
     monkeypatch.chdir(repo_with_invalid_project_profile)
     start = time.perf_counter()
     _collect_profile_health(repo_with_invalid_project_profile)
     elapsed = time.perf_counter() - start
-    assert elapsed < 2.0, f"report build exceeded 2s budget: {elapsed:.3f}s"
+    assert elapsed < 4.0, f"report build exceeded 4s budget: {elapsed:.3f}s"
 
 
 # ---------------------------------------------------------------------------
@@ -489,9 +500,12 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
 
     payload = json.loads(result.output)
     # Contract pin: stable top-level + health keys cannot silently regress.
+    # WP05 (glossary-pack-doctrine-kind): ``glossary_packs`` is a new nested
+    # health dimension (FR-012/SC-001) folded into ``DoctrineHealthReport``
+    # alongside the pre-existing agent-profile ``packs``/``org_drg`` keys.
     assert "profile_health" in payload
     health = payload["profile_health"]
-    assert set(health) == {"healthy", "packs", "org_drg"}
+    assert set(health) == {"healthy", "packs", "org_drg", "glossary_packs"}
     assert health["healthy"] is False
 
     # Surfaced invalid profile with the stable fields + readable error.
@@ -555,7 +569,7 @@ def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
 
     # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
     # so patch it at its definition site to force the load to crash.
-    with patch("doctrine.service.DoctrineService", side_effect=_boom):
+    with patch("charter.offering.service.DoctrineService", side_effect=_boom):
         report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
 
     assert report.healthy is False, "a crashed collector must not be green"

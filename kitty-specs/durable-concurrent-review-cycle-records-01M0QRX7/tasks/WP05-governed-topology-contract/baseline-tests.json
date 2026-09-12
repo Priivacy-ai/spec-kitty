@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP05",
+  "captured_at": "2026-08-24T07:34:30Z",
+  "base_branch": "mission/durable-concurrent-review-cycle-records",
+  "base_commit": "ade3ca734750605279cd8541f32e34030416bb39",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

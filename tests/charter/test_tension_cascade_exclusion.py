@@ -2,7 +2,7 @@
 
 T032 (``tests/charter/test_cascade.py``) proves the exclusion at the
 data-structure level: ``in_tension_with``/``reconciles_tension``/``rejects``
-are never members of ``charter.cascade.REFERENCE_RELATIONS``. This module
+are never members of ``charter.activation.cascade.REFERENCE_RELATIONS``. This module
 proves the exclusion matters at the CLI/cascade level (INV-003): activating
 one side of a real, built-in tension pair never auto-activates the other
 side via ``--cascade all``, and activating the built-in reconciliation
@@ -63,8 +63,15 @@ def project_root(tmp_path: Path) -> Path:
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
+    # ``mission_type_activations`` is unrelated to the directive/tactic
+    # cascade-exclusion behavior this module pins, but WP04 (C-A1) made it a
+    # hard construction precondition for ``PackContext.from_config`` -- a
+    # genuinely absent key now raises rather than defaulting. Provision it so
+    # the ``charter activate`` CLI invocation below can construct at all.
     (kittify / "config.yaml").write_text(
-        "activated_directives: []\nactivated_tactics: []\n", encoding="utf-8"
+        "mission_type_activations:\n  - software-dev\n"
+        "activated_directives: []\nactivated_tactics: []\n",
+        encoding="utf-8",
     )
     return tmp_path
 

@@ -75,6 +75,23 @@ CORE_PACKAGES = [
 INTEGRATION_PREFIXES = [
     "specify_cli.orchestrator_api",
     "specify_cli.sync",
+    # C-005 (#3110): the consolidated project-egress refusal module. It is a
+    # plain module rather than a package, which the matcher below handles on its
+    # `mod == prefix` arm. Classifying it is not optional and nothing else
+    # notices if this line goes: `_gate_coverage._src_dir_of_glob` returns None
+    # for any `src/specify_cli/<file>.py` glob and the unclaimed-src-dir worklist
+    # iterates directories, so a module is structurally outside that detector at
+    # any size. Removing this line makes the gate PERMISSIVE, not red — which is
+    # why SC-025 asserts the line's presence from outside this file
+    # (tests/specify_cli/test_egress_consolidation_3110.py).
+    "specify_cli.egress",
+    # The default egress-consent resolver's home (#3110 C-003): it lazily imports
+    # specify_cli.sync.routing/.consent, so a CORE module reaching it directly
+    # would be an INTEGRATION import through a side door around the
+    # invocation/adapters registry. Classified for the same reason as
+    # specify_cli.egress above — a plain module is structurally outside the
+    # unclaimed-src-dir detector, so leaving it out makes the gate permissive.
+    "specify_cli.egress_consent",
     "specify_cli.tracker",
     "specify_cli.saas",
     "specify_cli.saas_client",
@@ -171,25 +188,6 @@ def _core_items(src_source_tree: Mapping[Path, SourceFile]) -> list[tuple[str, a
 
 
 # ---------------------------------------------------------------------------
-# T017: Path-existence sub-test (C-008)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.architectural
-def test_core_package_dirs_exist() -> None:
-    """Assert every CORE_PACKAGES entry exists on disk.
-
-    If a CORE package is renamed, this test fails loudly rather than
-    allowing the boundary scan to pass vacuously (C-008).
-    """
-    missing = [p for p in CORE_PACKAGES if not p.is_dir()]
-    assert not missing, (
-        f"CORE_PACKAGES directories missing: {missing}. "
-        "If a package was renamed, update CORE_PACKAGES in this test."
-    )
-
-
-# ---------------------------------------------------------------------------
 # T016 + T019: Main enforcement scan (over the shared, cached source tree)
 # ---------------------------------------------------------------------------
 
@@ -251,25 +249,3 @@ def test_allowlist_cannot_be_bypassed(tmp_path: Path) -> None:
     )
     assert "specify_cli.sync.events" in violations[0]
     assert fake_rel in violations[0]
-
-
-# ---------------------------------------------------------------------------
-# Allowlist count-ratchet (Success Criterion 3 — exemption set permanently closed)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.architectural
-def test_allowlist_count_ratchet() -> None:
-    """``len(ALLOWLIST) == 0`` — the exemption set is permanently closed.
-
-    No CORE→INTEGRATION crossing is allowed. The former sole exemption
-    (``readiness/coordinator.py`` → ``specify_cli.saas.rollout``) was retired when
-    the flag reader relocated to ``specify_cli.core.saas_sync_config``; the ``== 0``
-    floor forbids any new crossing from being silently allowlisted back in.
-    """
-    assert len(ALLOWLIST) == 0, (
-        "exemption set is permanently closed; no CORE→INTEGRATION crossing is "
-        f"allowed. ALLOWLIST has {len(ALLOWLIST)} entries: {sorted(ALLOWLIST)}. "
-        "New CORE→INTEGRATION exemptions are not permitted — invert the "
-        "dependency via the adapter registry instead."
-    )

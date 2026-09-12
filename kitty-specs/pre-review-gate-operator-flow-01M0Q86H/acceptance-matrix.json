@@ -1,0 +1,168 @@
+{
+  "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "mission_number": "196",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Public review submission reports start, continuing human progress, one final outcome, and one final JSON document in structured mode.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US1.1; integrated exact-entry human progress and singular JSON tests",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:12.171844+00:00",
+      "notes": "Verify exact public-entry human and structured-output behavior."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Review admission is atomic: transition occurs only after admission; timeout, cancellation, and blocking preserve the prior lane.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US1.2/US1.3; integrated success, timeout, cancellation, and mutation assertions",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:13.736236+00:00",
+      "notes": "Verify mutation ordering and zero-transition terminal outcomes."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Explicit per-invocation skip bypasses gate execution and reports the skip reason in human and structured output.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US2.1; integrated exact-entry skip precedence tests",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:15.338330+00:00",
+      "notes": "Verify no validation subprocess or wait occurs."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Truthy disable controls suppress gate execution and implicit daemon startup without suppressing explicit daemon management.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US2.2; integrated disable controls and daemon-exception tests",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:16.939863+00:00",
+      "notes": "Verify both canonical disable controls and daemon exception."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Canonical new failures warn and admit by default, while explicit project policy can block the same verdict.",
+      "proof_type": "automated_test",
+      "evidence": "integrated test_pre_review_gate_integration warn/block/force scenarios through the real ACTIVE binding",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:18.537838+00:00",
+      "notes": "Verify real public auto-derived warn, block, and force paths."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Timeout and catchable cancellation reap the owned validation tree without transition; abrupt parent death preserves lane/event integrity.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md interruption rows; integrated process-tree and parent-death tests",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:20.140207+00:00",
+      "notes": "Uncatchable hard-kill orphan cleanup remains explicitly out of scope."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Skip, disable controls, gate execution, policy, and deadline races follow the specified deterministic precedence.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md precedence and deadline-race rows; integrated public and process-tree suites",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:21.709314+00:00",
+      "notes": "Verify precedence combinations and both deadline race outcomes."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The ordinary successful review-submission flow remains compatible when no exceptional control or verdict applies.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US1.2/US2.3; integrated registered-binding and existing-transition scenarios",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:23.257803+00:00",
+      "notes": "Verify normal registered binding and existing transition behavior."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Deterministically oversized scope is refused before candidate launch, without transition or automatic skip, and reports both recovery choices.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md US1.4; integrated exact-entry oversized refusal and gate-budget tests",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:24.908379+00:00",
+      "notes": "Verify exact and superset oversized scopes plus unknown descendant behavior."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Unknown-budget timeout reports normalized identity, targets, configured budget, monotonic elapsed time, unchanged lane, and metadata-candidate guidance.",
+      "proof_type": "automated_test",
+      "evidence": "traceability.md unknown-timeout row; integrated real-evaluator exact-entry human and JSON evidence",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-23T19:10:26.609998+00:00",
+      "notes": "Verify diagnostic evidence without runtime policy mutation."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "C-001",
+      "description": "No asynchronous review job or pending-review lane/state is introduced.",
+      "verification_method": "grep_absence",
+      "verification_command": "review_gate_pending",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli"
+    },
+    {
+      "invariant_id": "C-002",
+      "description": "New regressions remain warn-by-default unless blocking is explicitly configured.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_pre_review_gate_integration.py::test_new_failure_surfaced_by_the_real_gate_red_first tests/review/test_pre_review_gate_integration.py::test_block_mode_blocks_without_force",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 5.35s"
+    },
+    {
+      "invariant_id": "C-003",
+      "description": "No alternate pending_review lifecycle vocabulary or status authority is introduced.",
+      "verification_method": "grep_absence",
+      "verification_command": "pending_review",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli"
+    },
+    {
+      "invariant_id": "C-004",
+      "description": "Existing pre-review behavior is preserved while only demonstrated gaps are changed.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_pre_review_gate_integration.py",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ......................s                                                  [100%]\n22 passed, 1 skipped in 18.65s"
+    },
+    {
+      "invariant_id": "C-005",
+      "description": "Skip and disable recovery paths use supported lifecycle controls without direct event or lane mutation.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py -k skip_disable_collision_precedence",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..........                                                               [100%]\n10 passed, 28 deselected in 4.57s"
+    },
+    {
+      "invariant_id": "C-006",
+      "description": "Structured mode emits one final JSON document without NDJSON or mixed progress output.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py -k exact_entry_json_suppresses_observer_and_emits_one_authoritative_document",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed, 36 deselected in 1.99s"
+    },
+    {
+      "invariant_id": "C-007",
+      "description": "Runtime observations never mutate or promote deterministic budget metadata automatically.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_gate_budget.py::test_policy_values_are_frozen tests/review/test_pre_review_gate_engine.py::test_unknown_timeout_is_classification_candidate_with_separate_elapsed",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 1.13s"
+    }
+  ]
+}

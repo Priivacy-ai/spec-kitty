@@ -1,0 +1,14 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: WP1's Revert test now has a genuine two-point Case B assertion (missing_paths/warnings stay project_root-relative and unchanged for the else-branch build path, plan.md:456-470), and the Test Strategy table's US1/Scenario-2 row (plan.md:762) now names "WP1 revert test's build-path companion assertion" which is exactly what Case B is, so the cross-reference now points at real text.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: WP1's field description now explicitly states values are NOT uniformly feature_dir-relative (plan.md:403-430), and WP2 structurally excludes placeholder entries by recomputing the same artifact_tokens membership check validate_mission_paths computes internally (plan.md:533-543); independent read of src/specify_cli/validators/paths.py:182-192 confirms artifact_tokens is exactly {_normalize_path_token(name) for name in (*required, *optional)} over getattr(mission.config,"artifacts",None), and summary_core.py's evaluate_path_conventions (src/specify_cli/acceptance/summary_core.py:110-127) already receives the full mission object and already reads mission.config.paths/artifacts, so it genuinely has what it needs to recompute the identical set as the plan describes.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: WP1's new-field bullets now cover all 3 mutually-exclusive branches of validate_mission_paths (artifact-tagged, build/repo-root, and the added absolute-path bullet at plan.md:421-430), folding the absolute case into the same placeholder bucket and citing spec.md's Edge Case pin that absolute-path resolution/reporting is unaffected by this mission, consistent with spec.md:219-222.

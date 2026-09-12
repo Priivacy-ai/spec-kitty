@@ -31,12 +31,9 @@ from pathlib import Path
 
 import pytest
 
-from mission_runtime import (
-    CommitTarget,
-    MissionArtifactKind,
-    artifact_home_for,
-    resolve_placement_only,
-)
+from mission_runtime import CommitTarget, MissionArtifactKind, MissionTopology, resolve_placement_only
+from mission_runtime.artifacts import artifact_home_for
+from mission_runtime.artifacts import kind_is_coordination_residue
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -105,7 +102,9 @@ def test_artifact_home_for_spec_is_primary() -> None:
     # The commit target for a primary kind is the resolved primary ref, not the
     # coordination ref the caller happened to pass.
     assert home.commit_target == placement_ref
-    assert home.ignores_primary_coord_residue is False
+    # The dead ``ignores_primary_coord_residue`` field was retired (IC-07g /
+    # WP17, zero external consumers) — assert the real residue authority instead.
+    assert kind_is_coordination_residue(MissionArtifactKind.SPEC, MissionTopology.COORD) is False
 
 
 def test_artifact_home_for_status_state_stays_placement() -> None:
@@ -113,22 +112,32 @@ def test_artifact_home_for_status_state_stays_placement() -> None:
 
     home = artifact_home_for(MissionArtifactKind.STATUS_STATE, placement_ref)
 
-    assert home.read_surface == "placement"
-    assert home.write_surface == "placement"
+    assert home.read_surface == "coord"
+    assert home.write_surface == "coord"
     assert home.commit_target == placement_ref
-    assert home.ignores_primary_coord_residue is True
+    assert kind_is_coordination_residue(MissionArtifactKind.STATUS_STATE, MissionTopology.COORD) is True
 
 
-def test_artifact_home_for_primary_metadata_unchanged() -> None:
-    """``PRIMARY_METADATA`` keeps its read-anchored, never-committed contract."""
+def test_artifact_home_for_primary_metadata_is_partition_aware() -> None:
+    """``PRIMARY_METADATA`` resolves the PRIMARY surface with a routed commit target.
+
+    coord-write-placement-closure-01KYCF83 WP02 (T006, FR-002): the prior
+    read-anchored ``commit_target=None`` special-case arm was deleted so
+    ``PRIMARY_METADATA`` falls through to the generic ``_PRIMARY_ARTIFACT_KINDS``
+    arm like every other primary planning kind, carrying the resolved
+    ``placement_ref`` -- required for meta writes (``write_meta`` /
+    ``_flip_phase`` / ``_bake_mission_number``) to route through the port. The
+    sentinel-inertness audit (T005) confirmed the sole port consumer
+    (``resolution.py:949``) never branched on ``None``-as-skip-commit, so this
+    flip is a pure widening, not a behavioral break for existing consumers.
+    """
     placement_ref = CommitTarget(ref=_COORD_BRANCH)
 
     home = artifact_home_for(MissionArtifactKind.PRIMARY_METADATA, placement_ref)
 
     assert home.read_surface == "primary"
     assert home.write_surface == "primary"
-    # The metadata arm is read-anchored: it is never committed through a ref.
-    assert home.commit_target is None
+    assert home.commit_target == placement_ref
 
 
 # ---------------------------------------------------------------------------

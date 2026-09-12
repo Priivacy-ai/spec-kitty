@@ -1,0 +1,62 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: TASKS-DECOMP-001
+    lens: single-concern / cross-artifact fidelity (requirement traceability)
+    severity: 3
+    title: "WP03's own prompt-file frontmatter omits FR-005a, which the finalize-tasks FR-coverage machinery cannot detect anyway (non-canonical ID)"
+    evidence:
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § frontmatter (requirement_refs)"
+      - code: "kitty-specs/cascade-asset-silent-drop-01M0RME0/tasks/WP03-no-cascade-warning-path.md:6-10 — requirement_refs: [FR-005, C-002, NFR-001, NFR-004] (FR-005a absent)"
+      - artifact: "wps.yaml (WP03 entry) and tasks.md § WP03"
+      - code: "kitty-specs/cascade-asset-silent-drop-01M0RME0/wps.yaml:52-58 — requirement_refs: [FR-005, FR-005a, C-002, NFR-001, NFR-004]"
+      - code: "kitty-specs/cascade-asset-silent-drop-01M0RME0/tasks.md:24 — **Requirement Refs**: FR-005, FR-005a, C-002, NFR-001, NFR-004"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:889 — \"PRIMARY: WP frontmatter (map-requirements writes here directly)\" res.wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)"
+      - code: "src/specify_cli/requirement_mapping.py:15-16 — _REF_PATTERN = re.compile(r\"^(?:FR|NFR|C)-\\d+$\"); _REF_FIND_PATTERN = re.compile(r\"\\b(?:FR|NFR|C)-\\d+\\b\")"
+      - code: "src/specify_cli/requirement_mapping.py:68 — _TABLE_ROW_ID_PATTERN = re.compile(r\"^\\s*\\|\\s*(?:\\*\\*|~~){0,2}((?:FR|NFR|C)-\\d+)(?:\\*\\*|~~){0,2}\\s*\\|\", re.IGNORECASE)"
+      - artifact: "spec.md line 234 — table row: \"| FR-005a | `has_skipped`-equivalent render guard must also fire...\""
+    claim: >
+      WP03's own prompt-file frontmatter `requirement_refs` list is missing FR-005a, even
+      though wps.yaml and the generated tasks.md both list FR-005a for WP03, and WP03's prompt
+      body substantively covers FR-005a throughout (Objective, Context item 2, Subtask T014,
+      Definition of Done, Reviewer Guidance). This is a real drift between the three
+      requirement-ref sources for the same WP. Verified empirically why: `finalize-tasks`'s
+      FR-coverage validator (`mission_finalize.py:889`, comment "PRIMARY: WP frontmatter")
+      treats each WP prompt file's OWN frontmatter as authoritative for coverage checking, not
+      wps.yaml — so WP03's frontmatter, not wps.yaml/tasks.md, is what the mechanical gate
+      actually reads. Separately, and more fundamentally: the coverage-gate's own id-detection
+      regexes (`requirement_mapping.py:15-16,68`, `\b(?:FR|NFR|C)-\d+\b` and the table-row
+      variant) require a plain `-\d+` suffix with a word boundary immediately after the digits.
+      "FR-005a" fails this pattern on both counts (the trailing letter is a word character, so
+      `\b` never fires after "005", and the table-row pattern's literal match of spec.md line
+      234 was empirically confirmed to return `None`). I ran both regexes directly against the
+      actual spec.md row and against the bare string "FR-005a" and both returned no match/empty
+      list. This means FR-005a is invisible to `_declared_ids()` and thus to
+      `functional_spec_requirement_ids` — the mechanical FR-coverage gate can neither flag
+      FR-005a as "unmapped" nor validate that any WP correctly claims it, regardless of what any
+      WP's frontmatter says. The mission's own doctrine (stated explicitly in WP01's "Mission-wide
+      instructions" item 2, restated as authoritative in this same review) leans on that gate as
+      the mechanism guaranteeing every FR maps to a WP with "no exemption mechanism for
+      process-gate FRs" — but FR-005a slips past it entirely by virtue of its non-canonical
+      `FR-###a` id shape, a gap the mission authors evidently did not know about (or WP03's
+      frontmatter would likely have been written to include FR-005a deliberately, matching
+      wps.yaml). Net effect: FR-005a's coverage today rests entirely on this review's manual
+      read of WP03's prose, not on the tool's safety net — if a future edit to WP03 dropped the
+      has_skipped-guard fix, no automated FR-coverage check would catch it.
+    remediation: >
+      Within this mission's tasks-phase artifacts: add `FR-005a` to WP03's own prompt-file
+      frontmatter `requirement_refs` list (kitty-specs/cascade-asset-silent-drop-01M0RME0/tasks/WP03-no-cascade-warning-path.md)
+      so all three sources (wps.yaml, tasks.md, WP03's own frontmatter) agree — this does not
+      fix the underlying regex gap but at least removes the cross-artifact drift and keeps a
+      human/reviewer grep of WP03's own file consistent with the manifest. Separately (outside
+      this mission's remediation scope but worth flagging at PR-open or as a ledger candidate):
+      `requirement_mapping.py`'s id-detection regexes should be widened to accept an optional
+      trailing lowercase-letter suffix (`(?:FR|NFR|C)-\d+[a-z]?`) so sub-lettered requirement ids
+      like FR-005a are declared, findable, and coverage-checked like any other FR — otherwise any
+      future mission that reaches for the same "FR-00Na" sub-id convention (used here precisely
+      because FR-005 and FR-005a are two genuinely distinct, separately-testable bugs sharing one
+      user story) will silently lose FR-coverage enforcement the same way.

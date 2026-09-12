@@ -1,6 +1,6 @@
 """Behavioral tests for MissionTemplateRepository and value objects.
 
-Targets mutation-prone areas in doctrine.missions.repository:
+Targets mutation-prone areas in charter.offering.missions.repository:
 - list_missions: root-dir guard, mission.yaml existence filter, sorted output
 - get_command_template / get_content_template: path construction, None on absent
 - list_command_templates / list_content_templates: extension filtering, README exclusion
@@ -15,7 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import (
+    MalformedManifestError,
+    MissionTemplateRepository,
+)
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -393,3 +396,114 @@ class TestGetExpectedArtifacts:
         assert result.content == yaml_text
         assert result.origin == "doctrine/software-dev/expected-artifacts.yaml"
         assert isinstance(result.parsed, dict)
+
+    def test_malformed_manifest_fails_loud_distinct_from_absent(self, tmp_path: Path):
+        """SC-005/#3412: a present-but-YAML-broken manifest must FAIL LOUD.
+
+        The whole point of the fix is that a syntactically-corrupt manifest is
+        NOT conflated with an absent one. Absence degrades to ``None``
+        ("absent"); a broken-syntax file surfaces a distinct, operator-legible
+        failure instead of the identical ``None``.
+        """
+        repo = MissionTemplateRepository(tmp_path)
+
+        # Contrast control: an ABSENT manifest degrades to "absent" (None).
+        absent_outcome = repo.get_expected_artifacts("nonexistent")
+
+        # A PRESENT-but-YAML-broken manifest fails loud rather than masquerading
+        # as "absent".
+        mission_dir = tmp_path / "broken-mission"
+        mission_dir.mkdir()
+        manifest_path = mission_dir / "expected-artifacts.yaml"
+        manifest_path.write_text("invalid: yaml: {")
+
+        with pytest.raises(MalformedManifestError) as excinfo:
+            repo.get_expected_artifacts("broken-mission")
+
+        # The two outcomes must NOT be conflated: absence -> None; malformed ->
+        # raised, distinct, operator-legible signal naming the offending file.
+        assert absent_outcome is None
+        assert excinfo.value.path == manifest_path
+
+    def test_present_but_non_mapping_manifest_fails_loud(self, tmp_path: Path) -> None:
+        """#3412/FR-008 symmetry: a PRESENT built-in manifest that parses to a
+        non-mapping (a top-level scalar/sequence) fails loud via
+        ``MalformedManifestError`` -- the SAME sibling type the org tier uses
+        for this class -- distinct from absence and from a schema/extra=forbid
+        violation. Before this guard the value flowed to ``model_validate`` and
+        surfaced as ``ManifestSchemaError``, an asymmetry with the org tier the
+        consolidation review flagged.
+        """
+        mission_dir = tmp_path / "list-mission"
+        mission_dir.mkdir()
+        manifest_path = mission_dir / "expected-artifacts.yaml"
+        manifest_path.write_text("- just\n- a\n- list\n")
+        repo = MissionTemplateRepository(tmp_path)
+
+        with pytest.raises(MalformedManifestError) as excinfo:
+            repo.get_expected_artifacts("list-mission")
+        assert excinfo.value.path == manifest_path
+        assert "list" in str(excinfo.value)
+
+    @pytest.mark.regression
+    def test_present_but_unreadable_manifest_fails_loud(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#3412 FR-012 [RED-first]: a manifest that EXISTS on disk but
+        raises ``OSError``/``UnicodeDecodeError`` on read must fail loud via
+        ``MalformedManifestError``, not degrade silently to ``None``.
+
+        Was RED on pre-WP03 code -- ``get_expected_artifacts`` caught
+        ``(OSError, UnicodeDecodeError)`` and returned ``None`` for a
+        PRESENT file, indistinguishable from genuine absence. GREEN after
+        FR-012's widening (this WP) folds that except-branch into the same
+        ``MalformedManifestError`` raise as the pre-existing ``YAMLError``
+        case (shipped in ``1763bf2ae3``).
+
+        Injection: monkeypatch ``pathlib.Path.read_text`` to raise
+        ``OSError`` for the target manifest path only, passing through for
+        every other path (the real ``packs/built-in`` tree is read-only, so
+        this is the lighter-weight alternative to an undecodable-bytes
+        fixture).
+        """
+        mission_dir = tmp_path / "unreadable-mission"
+        mission_dir.mkdir()
+        manifest_path = mission_dir / "expected-artifacts.yaml"
+        manifest_path.write_text("artifacts:\n  - id: spec.md\n")
+
+        original_read_text = Path.read_text
+
+        def fake_read_text(self: Path, *args: object, **kwargs: object) -> str:
+            if self == manifest_path:
+                raise OSError("simulated unreadable file")
+            return original_read_text(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(Path, "read_text", fake_read_text)
+
+        repo = MissionTemplateRepository(tmp_path)
+
+        # Contrast control: an ABSENT manifest still degrades to None.
+        absent_outcome = repo.get_expected_artifacts("nonexistent")
+
+        with pytest.raises(MalformedManifestError) as excinfo:
+            repo.get_expected_artifacts("unreadable-mission")
+
+        assert absent_outcome is None
+        assert excinfo.value.path == manifest_path
+
+    def test_malformed_manifest_error_names_file_and_cause(self, tmp_path: Path) -> None:
+        """T014 / NFR-005 / Invariant I2: ``str(MalformedManifestError)``
+        names both the source file and the underlying cause, without
+        requiring exception-note inspection.
+        """
+        mission_dir = tmp_path / "broken-mission"
+        mission_dir.mkdir()
+        manifest_path = mission_dir / "expected-artifacts.yaml"
+        manifest_path.write_text("invalid: yaml: {")
+        repo = MissionTemplateRepository(tmp_path)
+
+        with pytest.raises(MalformedManifestError) as excinfo:
+            repo.get_expected_artifacts("broken-mission")
+
+        message = str(excinfo.value)
+        assert str(manifest_path) in message
+        assert str(excinfo.value.cause) in message
+        assert "broken-mission" in str(excinfo.value)

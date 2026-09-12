@@ -1,0 +1,96 @@
+schema_version: test-sanitation/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+work_package: WP09
+profile: architect-alphonso
+decision_rule: >-
+  Retain only a current negative invariant or behavioral contract with a
+  nonzero live corpus and a realistic authority-violating fault that reaches
+  its assertion. Delete historical proof, names, self-presence, exact counts,
+  positive placement, prose pins, synthetic self-tests, and advisory findings.
+base_census:
+  path: ../assertive-test-suite-sanitation-01KZME3P-lane-a/docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json
+  content_sha256: 08ef931c46e9d6a2608baec729203442640933bf2970cc83e794bf2f78011e08
+  exact_nodeids: >-
+    For each path below, base nodeids are collection.nodes whose path_ref maps
+    through collection.tables.paths to that path. The cycle_3_reconciliation
+    block in wp09-results.json records the fail-closed 37-path partition of all
+    418 frozen identities into exact terminal families and the independently
+    collected 36 current identities. Net reduction is 382 nodes.
+
+screening:
+  - {path: tests/architectural/test_arch_pole_deserialized.py, scanner: [structural], baseline: 2, current: 1, verdict: MODIFY_KEEP, corpus: .github/workflows/*.yml, polarity: negative-route, oracle: architectural-marked tests have a running CI owner, authority: "open #1931", ci_role: live-route-gate, removed_shape: performance dependency/name/self-tests}
+  - {path: tests/architectural/test_arch_shard_marker_completeness.py, scanner: [structural], baseline: 7, current: 2, verdict: MODIFY_KEEP, corpus: live collected arch+next roots, polarity: negative-partition, oracle: every node has exactly one group shard marker, authority: "tests._shard_registry + open #1931", ci_role: shard-integrity, removed_shape: duplicate partition helpers}
+  - {path: tests/architectural/test_arch_unblind_matrix.py, scanner: [source, structural], baseline: 3, current: 0, verdict: DELETE, corpus: historical workflow matrix, polarity: positive-shape, oracle: null, authority: null, ci_role: duplicated, removed_shape: historical mission/name/prose pins}
+  - {path: tests/architectural/test_ci_architectural_gate_coverage.py, scanner: [source, structural], baseline: 5, current: 0, verdict: DELETE, corpus: workflow text, polarity: positive-shape, oracle: null, authority: null, ci_role: superseded, removed_shape: exact job/trigger/path names}
+  - {path: tests/architectural/test_ci_collection_completeness.py, scanner: [ast, source, structural, text], baseline: 46, current: 2, verdict: MODIFY_KEEP, corpus: full live pytest collection + modeled workflows, polarity: negative-route, oracle: zero primary-push orphan nodes + serial-orphan-sweep/parallel-pool disjointness, authority: "open #1931 + GC-2/C-007", ci_role: end-to-end-route-and-disjointness-gate, removed_shape: parser self-tests/closed-issue pins/count scaffold/generic duplicate reporter}
+  - {path: tests/architectural/test_ci_fast_jobs_have_timeout.py, scanner: [source, structural, text], baseline: 10, current: 2, verdict: MODIFY_KEEP, corpus: live ci-quality fast jobs, polarity: negative-safety, oracle: timeout or explained exemption, authority: "open #3143", ci_role: timeout-gate, removed_shape: eight synthetic classifier tests}
+  - {path: tests/architectural/test_ci_topology_worklist.py, scanner: [source, structural], baseline: 14, current: 0, verdict: DELETE, corpus: historical topology plan, polarity: advisory, oracle: null, authority: null, ci_role: none, removed_shape: worklist/prose/history}
+  - {path: tests/architectural/test_coverage_consumer_needs.py, scanner: [source, structural], baseline: 4, current: 2, verdict: MODIFY_KEEP, corpus: live coverage job graph, polarity: negative-dependency, oracle: emitters reach consumers and consumers have no phantom needs, authority: "open #1931 + ADR 2026-05-28-1", ci_role: coverage-graph-gate, removed_shape: synthetic graph/self-tests}
+  - {path: tests/architectural/test_coverage_root_collisions.py, scanner: [source, structural], baseline: 5, current: 2, verdict: MODIFY_KEEP, corpus: live --cov targets + source tree, polarity: negative-coverage, oracle: targets resolve and roots cannot overwrite equal relative paths, authority: "open #1931", ci_role: coverage-output-gate, removed_shape: "closed #2975 self-tests"}
+  - {path: tests/architectural/test_cross_gate_churn_agreement.py, scanner: [source, structural], baseline: 4, current: 0, verdict: DELETE, corpus: exact helper names, polarity: positive-shape, oracle: null, authority: null, ci_role: none, removed_shape: symbol agreement pin}
+  - {path: tests/architectural/test_cross_grain_builtin_gate.py, scanner: [structural], baseline: 1, current: 0, verdict: DELETE, corpus: shipped mission types, polarity: positive-roster, oracle: null, authority: "closed #2666", ci_role: duplicate, removed_shape: duplicates tests/doctrine/drg/test_cross_grain_integrity.py}
+  - {path: tests/architectural/test_docs_scoped_arch_coverage.py, scanner: [ast, source, structural], baseline: 10, current: 0, verdict: DELETE, corpus: historical docs shard, polarity: positive-shape, oracle: null, authority: null, ci_role: duplicate, removed_shape: exact job/test/marker pins}
+  - {path: tests/architectural/test_gate_coverage.py, scanner: [source, structural], baseline: 37, current: 0, verdict: DELETE, corpus: mixed scanner self-tests and live route guards, polarity: mixed, oracle: zero primary-push orphan nodes, authority: "open #1931 for route members only", ci_role: folded, removed_shape: scanner tests/baseline ratchets/positive pins; live Windows and cross-job route members map to retained collection oracle}
+  - {path: tests/architectural/test_gate_coverage_parse_model.py, scanner: [source, structural], baseline: 17, current: 0, verdict: DELETE, corpus: scanner parser, polarity: self-test, oracle: null, authority: null, ci_role: none, removed_shape: parser implementation pin}
+  - {path: tests/architectural/_gate_read_callshape.py, scanner: [ast, source, structural], baseline: 39, current: 0, verdict: MODIFY_SUPPORT, corpus: live coord-read source callers via importing gate, polarity: negative-authority, oracle: coord-aware identity/lanes reads require primary fold, authority: "ADR 2026-06-26-1", ci_role: support-only, removed_shape: synthetic and file-local collected cases; renamed after review so pytest does not collect a zero-test module}
+  - {path: tests/architectural/test_inline_meta_read_gate.py, scanner: [ast, source, structural], baseline: 40, current: 0, verdict: DELETE, corpus: AST names, polarity: positive-shape, oracle: null, authority: null, ci_role: none, removed_shape: exact helper/call spelling}
+  - {path: tests/architectural/test_job_count_ceiling.py, scanner: [structural], baseline: 3, current: 0, verdict: DELETE, corpus: workflow job count, polarity: count-ceiling, oracle: null, authority: null, ci_role: anti-change, removed_shape: exact counts}
+  - {path: tests/architectural/test_marker_baseline.py, scanner: [source, structural], baseline: 5, current: 0, verdict: DELETE, corpus: historical marker baseline, polarity: self-presence, oracle: null, authority: null, ci_role: anti-sanitation, removed_shape: frozen node names/counts}
+  - {path: tests/architectural/test_marker_registry_single_source.py, scanner: [source, structural], baseline: 2, current: 0, verdict: DELETE, corpus: registry source names, polarity: positive-shape, oracle: null, authority: null, ci_role: duplicate, removed_shape: exact names/source placement}
+  - {path: tests/architectural/test_mission_resolver_walker_gate.py, scanner: [ast, source, structural], baseline: 5, current: 1, verdict: MODIFY_KEEP, corpus: nonzero src/**/*.py, polarity: negative-authority, oracle: no unsanctioned raw kitty-specs enumeration, authority: "ADR 2026-07-08-1", ci_role: resolver-boundary-gate, removed_shape: caller ceilings/scope counts/synthetic self-tests}
+  - {path: tests/architectural/test_next_shard_marker_completeness.py, scanner: [structural], baseline: 3, current: 0, verdict: DELETE, corpus: live next collection, polarity: duplicate, oracle: null, authority: null, ci_role: folded, removed_shape: merged into arch_shard_marker_completeness}
+  - {path: tests/architectural/test_no_primary_anchored_gates.py, scanner: [ast, source, structural], baseline: 2, current: 0, verdict: DELETE, corpus: helper names, polarity: positive-shape, oracle: null, authority: null, ci_role: none, removed_shape: implementation/callee spelling}
+  - {path: tests/architectural/test_plugin_validate_workflow.py, scanner: [source, structural], baseline: 2, current: 0, verdict: DELETE, corpus: retyped trigger path set, polarity: positive-placement, oracle: null, authority: null, ci_role: historical, removed_shape: exact path-list mirror}
+  - {path: tests/architectural/test_pytest_marker_convention.py, scanner: [ast, source, structural], baseline: 2, current: 0, verdict: DELETE, corpus: test source prose, polarity: convention, oracle: null, authority: null, ci_role: none, removed_shape: name/placement policy}
+  - {path: tests/architectural/test_pytest_marker_correctness.py, scanner: [ast, source, structural, text], baseline: 2, current: 0, verdict: DELETE, corpus: source text, polarity: convention, oracle: null, authority: null, ci_role: none, removed_shape: marker-name/prose pins}
+  - {path: tests/architectural/test_resolution_authority_gates.py, scanner: [ast, source, structural], baseline: 47, current: 0, verdict: DELETE, corpus: exact resolver symbols, polarity: positive-shape, oracle: null, authority: historical missions, ci_role: duplicate, removed_shape: count ceilings/name pins/synthetic scanners}
+  - {path: tests/architectural/test_shard_universe_bounded.py, scanner: [structural], baseline: 2, current: 0, verdict: DELETE, corpus: historical shard count, polarity: count-ceiling, oracle: null, authority: null, ci_role: anti-change, removed_shape: exact counts}
+  - {path: tests/architectural/test_src_filter_coverage.py, scanner: [source, structural, text], baseline: 11, current: 3, verdict: MODIFY_KEEP, corpus: live ci-quality filters+pytest gates, polarity: negative-route, oracle: no unrouted src group or unowned catch-all ignore, authority: "open #1931 + ADR 2026-05-28-1", ci_role: path-filter-gate, removed_shape: boolean/synthetic/reorder/trigger-presence scaffolds}
+  - {path: tests/architectural/test_tasks_domain_gate_visibility.py, scanner: [structural], baseline: 2, current: 0, verdict: DELETE, corpus: exact task gate names, polarity: positive-placement, oracle: null, authority: null, ci_role: none, removed_shape: test self-presence}
+  - {path: tests/architectural/test_trigger_registry_coverage.py, scanner: [source, structural], baseline: 5, current: 0, verdict: DELETE, corpus: retyped trigger registry, polarity: positive-placement, oracle: null, authority: null, ci_role: duplicate, removed_shape: exact path/name mirror}
+  - {path: tests/architectural/test_ui_e2e_coverage_discovered.py, scanner: [source, structural, text], baseline: 7, current: 0, verdict: DELETE, corpus: exact UI artifact wiring, polarity: positive-placement, oracle: null, authority: "closed #2623", ci_role: historical, removed_shape: completed-migration workflow spelling + self-tests}
+  - {path: tests/architectural/test_unit_contract_residual_gate.py, scanner: [source, structural], baseline: 6, current: 0, verdict: DELETE, corpus: residual marker names, polarity: positive-placement, oracle: null, authority: null, ci_role: historical, removed_shape: exact marker/job layout}
+  - {path: tests/architectural/test_workflow_coherence.py, scanner: [source, structural, text], baseline: 16, current: 0, verdict: DELETE, corpus: workflow prose/names, polarity: positive-shape, oracle: null, authority: null, ci_role: duplicate, removed_shape: name/count/prose coherence}
+  - {path: tests/architectural/test_workflow_dist_lint.py, scanner: [source, structural, text], baseline: 14, current: 0, verdict: DELETE, corpus: exact xdist command shape, polarity: implementation-pin, oracle: null, authority: "closed #2590", ci_role: historical, removed_shape: completed migration constraints + synthetic self-tests}
+  - {path: tests/merge/test_push_preflight.py, scanner: [ast, source], baseline: 20, current: 15, verdict: MODIFY_KEEP, corpus: push states + mocked/real git boundaries, polarity: behavioral-negative, oracle: unsafe remote state blocks push without losing local results, authority: "ADR 2026-06-05-1", ci_role: product-contract, removed_shape: five no-op tests that invoked no no-push path}
+  - {path: tests/review/test_pre_review_gate_sole_caller_audit.py, scanner: [ast, source], baseline: 5, current: 0, verdict: DELETE, corpus: exact caller symbols, polarity: positive-shape, oracle: null, authority: null, ci_role: none, removed_shape: sole-caller/name audit}
+  - {path: tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py, scanner: [ast, source], baseline: 13, current: 6, verdict: MODIFY_KEEP, corpus: real git repos and conflicts, polarity: behavioral-negative, oracle: coord residue is tolerated but author/primary conflicts are never swallowed, authority: "current artifact partition + stale-lane ADR", ci_role: product-contract, removed_shape: exact imports/caller kwargs/local-literal self-tests}
+
+handoff:
+  shared_map_owner: WP07
+  authoritative_node_delta: {baseline: 418, current: 36, removed: 382, removed_percent: 91.3876}
+  cycle_3_reconciliation: >-
+    wp09-results.json records all 418 frozen nodeids and all 36 current
+    nodeids, with a total terminal mapping for every frozen identity. The
+    Windows route guard folds to the retained full-collection oracle (23
+    observed Windows orphans under route loss). The distinct GC-2/C-007
+    cross-job boundary folds only its real-topology member to the retained
+    disjointness guard; its helper self-test and generic report remain deleted.
+  action: remove every deleted path below from tests/_arch_shard_map.py; do not remove support-only path
+  deleted_paths:
+    - tests/architectural/test_arch_unblind_matrix.py
+    - tests/architectural/test_ci_architectural_gate_coverage.py
+    - tests/architectural/test_ci_topology_worklist.py
+    - tests/architectural/test_cross_gate_churn_agreement.py
+    - tests/architectural/test_cross_grain_builtin_gate.py
+    - tests/architectural/test_docs_scoped_arch_coverage.py
+    - tests/architectural/test_gate_coverage.py
+    - tests/architectural/test_gate_coverage_parse_model.py
+    - tests/architectural/test_inline_meta_read_gate.py
+    - tests/architectural/test_job_count_ceiling.py
+    - tests/architectural/test_marker_baseline.py
+    - tests/architectural/test_marker_registry_single_source.py
+    - tests/architectural/test_next_shard_marker_completeness.py
+    - tests/architectural/test_no_primary_anchored_gates.py
+    - tests/architectural/test_plugin_validate_workflow.py
+    - tests/architectural/test_pytest_marker_convention.py
+    - tests/architectural/test_pytest_marker_correctness.py
+    - tests/architectural/test_resolution_authority_gates.py
+    - tests/architectural/test_shard_universe_bounded.py
+    - tests/architectural/test_tasks_domain_gate_visibility.py
+    - tests/architectural/test_trigger_registry_coverage.py
+    - tests/architectural/test_ui_e2e_coverage_discovered.py
+    - tests/architectural/test_unit_contract_residual_gate.py
+    - tests/architectural/test_workflow_coherence.py
+    - tests/architectural/test_workflow_dist_lint.py
+    - tests/review/test_pre_review_gate_sole_caller_audit.py

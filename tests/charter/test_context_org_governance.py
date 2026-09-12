@@ -42,8 +42,9 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import CharterContextResult, _reset_agent_profile_cache, build_charter_context
-from doctrine.drg.models import DRGGraph
+from charter.activation.context import CharterContextResult, build_charter_context
+from charter.activation.profile_resolution import _reset_agent_profile_cache
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = pytest.mark.fast
 
@@ -87,7 +88,14 @@ def _write_org_pack(repo_root: Path) -> Path:
 
 
 def _write_config(repo_root: Path, pack_root: Path, *, activated: list[str] | None) -> None:
+    # ``mission_type_activations`` is provisioned unconditionally (WP04,
+    # C-A1: the provisioned charter is the sole activation authority for
+    # mission types) so ``PackContext.from_config`` -- read on every
+    # ``build_charter_context`` call, regardless of the agent-profile
+    # activation state under test here -- does not hard-fail on a
+    # genuinely absent key.
     data: dict[str, object] = {
+        "mission_type_activations": ["software-dev"],
         "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
     }
     if activated is not None:
@@ -144,18 +152,36 @@ class TestNoOrgPacksGovernanceRegression:
     def test_builtin_profile_path_unchanged_and_deterministic(self, tmp_path: Path) -> None:
         repo = tmp_path / "no_packs"
         repo.mkdir()
-        # No .kittify/config.yaml org packs at all.
+        # No .kittify/config.yaml org packs at all, but mission_type_activations
+        # is still provisioned (WP04, C-A1) since PackContext.from_config always
+        # needs it, even on the no-org-packs path this test pins.
+        kittify = repo / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         first = _governance_text(repo, _BUILTIN_ID)
         _reset_agent_profile_cache()
         second = _governance_text(repo, _BUILTIN_ID)
 
-        # Byte-identical across calls — the no-org-packs path is unchanged.
+        # Byte-identical across calls — the no-org-packs governance path is
+        # deterministic.
         assert first == second
         # The org sentinel can never appear without a declared pack.
         assert _ORG_SENTINEL not in first
-        # A built-in profile still resolves through the unchanged fast path.
-        assert _BUILTIN_ID in first
+        # The built-in profile still resolves through the fast path and emits a
+        # governance payload. (#3079 — doctrine-delivery-activation: the
+        # profile-channel `suggests`-walk now enriches this built-in's
+        # profile-citations section past the per-section budget, so it is
+        # delivered as a links-not-bodies fetch pointer rather than inline
+        # (NFR-003 context-bloat guard). The profile-id string is therefore no
+        # longer emitted inline in the compact `advise` render, so we pin the
+        # stable structural anchors + a profile-cited directive instead of the
+        # now-budget-substituted profile-id header.)
+        assert first.strip()
+        assert "Directive IDs:" in first
+        assert "DISCIPLINED_REFACTORING" in first
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +258,11 @@ def _register_activation_org_pack(repo_root: Path, pack_root: Path) -> None:
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump(
             {
+                # Provisioned (WP04, C-A1) so PackContext.from_config -- read
+                # by _resolve_bootstrap's build_charter_context call -- does
+                # not hard-fail on a genuinely absent key. This test targets
+                # mission_type="software-dev" (see _resolve_bootstrap).
+                "mission_type_activations": ["software-dev"],
                 "doctrine": {
                     "org": {"packs": [{"name": _ACTIVATION_ORG_PACK_NAME, "local_path": str(pack_root)}]}
                 }
@@ -245,10 +276,10 @@ def _resolve_bootstrap(repo_root: Path) -> CharterContextResult:
     mock_graph = DRGGraph.model_validate(yaml.load(StringIO(_ACTIVATION_MINIMAL_GRAPH_YAML)))
 
     with (
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=repo_root),
-        patch("doctrine.drg.validator.assert_valid"),
-        patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.offering.drg.validator.assert_valid"),
+        patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         return build_charter_context(
             repo_root, action="implement", depth=2, mark_loaded=False,
@@ -290,7 +321,15 @@ class TestActivationUnionShadowPathAndByteIdentity:
         repo = tmp_path / "no_org_pack"
         repo.mkdir()
         _write_activation_project_fixture(repo)
-        # Deliberately no .kittify/config.yaml org packs at all.
+        # Deliberately no .kittify/config.yaml org packs at all, but
+        # mission_type_activations is still provisioned (WP04, C-A1) since
+        # PackContext.from_config always needs it, even on this no-org-pack
+        # path the test pins.
+        kittify = repo / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         first = _resolve_bootstrap(repo)
         second = _resolve_bootstrap(repo)

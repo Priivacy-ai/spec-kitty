@@ -1,0 +1,85 @@
+schema: review-findings/v1
+phase: plan
+lens_group: fresh2
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: PLAN-FRESH2-001
+    lens: conceptual-alignment
+    severity: 3
+    title: "§2's C-002-symmetry code example still shows unqualified `kind_filtered` unpacking at all three call sites, contradicting §12 WP-A's new underscore-prefix instruction"
+    evidence:
+      - artifact: "plan.md § 2 (\"C-002 symmetry as an architectural requirement\"), line ~226"
+      - artifact: "plan.md § 12, WP-A bullet, lines 632-646"
+    claim: >
+      §2 states: "Each of these three call sites unpacks BOTH partitions from the single
+      updated call (`activatable, kind_filtered = _referenced_artifacts(graph, source_urn)`)"
+      — implying all three call sites (`cascade_activation_targets`,
+      `referenced_but_not_cascaded`, `deactivation_plan`) bind the second tuple element as
+      unqualified `kind_filtered`. This round's rewrite of §12's WP-A bullet introduces a new,
+      more specific rule that directly contradicts this: two of the three call sites
+      (`referenced_but_not_cascaded`, `deactivation_plan`) MUST bind `_kind_filtered`
+      (leading-underscore) at WP-A's own commit boundary, or ruff's F841 (unused-variable,
+      selected repo-wide, no per-file exemption for `cascade.py` — confirmed in
+      `pyproject.toml`'s `[tool.ruff.lint]`/`per-file-ignores`) fires, contradicting §5's "No
+      `# noqa`/`# type: ignore` additions planned" line. §2 was not touched by this round's diff
+      (only "WP1"→"WP-A" was renamed in it) so it still carries the pre-round-2, now-incorrect
+      unpacking pattern for all three sites. A WP-A implementer or tasks-phase author who reads
+      §2's snippet as authoritative (it appears first, and is the section that names the "single
+      shared seam") would write lint-failing code and need rework.
+    remediation: >
+      Update §2's parenthetical unpacking example to show all three real forms used by WP-A's
+      own commit (`activatable, kind_filtered = ...` for `cascade_activation_targets`;
+      `activatable, _kind_filtered = ...` for the other two), or add an explicit forward
+      pointer to §12 WP-A's underscore-prefix rule so the two sections cannot be read as
+      independently authoritative and contradictory.
+
+  - id: PLAN-FRESH2-002
+    lens: cross-reference-integrity
+    severity: 3
+    title: "§1 Project Structure table still attributes tests/charter/test_cascade.py's engine-level tests to WP-A only; §12's WP-D bullet and closing paragraph (both rewritten this round) now say WP-D also lands an engine-level test there"
+    evidence:
+      - artifact: "plan.md § Project Structure (\"Source code\"), lines 124-129"
+      - artifact: "plan.md § 12, WP-D bullet item 2, lines 713-722"
+      - artifact: "plan.md § 12, closing paragraph, lines 724-732"
+    claim: >
+      The Project Structure table's comment on `tests/charter/test_cascade.py` reads
+      "engine-level ATDD tests land here (WP-A)" — this specific line was only rename-touched
+      ("WP1"→"WP-A") by this round's diff and was not otherwise updated. But this same round
+      rewrote WP-D's bullet to add a second, engine-level ATDD test ("Engine-level, in
+      `tests/charter/test_cascade.py` ... the deactivation-side half of the C-006 required
+      test") and rewrote §12's closing paragraph to say "WP-A's and WP-D's engine-level tests
+      land in `tests/charter/test_cascade.py`". The Project Structure table at the top of the
+      document — the first place a reader learns which WP touches which test file — was left
+      attributing that file to WP-A alone, an inconsistency introduced by this round's partial
+      edit.
+    remediation: >
+      Update the Project Structure table's `test_cascade.py` comment to read "engine-level ATDD
+      tests land here (WP-A, WP-D)" (or equivalent), matching §12's closing paragraph.
+
+  - id: PLAN-FRESH2-003
+    lens: decision-documentation
+    severity: 2
+    title: "WP-A's text promises WP-C's own diff will explicitly restate the `_kind_filtered`→`kind_filtered` rename \"not an afterthought,\" but WP-C's actual bullet omits it (only WP-D's bullet restates it)"
+    evidence:
+      - artifact: "plan.md § 12, WP-A bullet, lines 647-650"
+      - artifact: "plan.md § 12, WP-C bullet, lines 689-697"
+      - artifact: "plan.md § 12, WP-D bullet, line 701 (\"Rename `_kind_filtered` to `kind_filtered` in `deactivation_plan` (per WP-A's instruction above)\")"
+    claim: >
+      WP-A's bullet states: "WP-C (for `referenced_but_not_cascaded`) and WP-D (for
+      `deactivation_plan`) each rename `_kind_filtered` back to `kind_filtered` ... this rename
+      is an explicit, required step of WP-C's and WP-D's own diffs, not an afterthought left
+      for the WP author to discover." WP-D's own bullet honors this by opening with an explicit
+      rename instruction. WP-C's own bullet ("no-cascade warning path") does not — it jumps
+      straight to "Thread the field through `NoCascadeReport` via `referenced_but_not_cascaded`"
+      with no mention of the underscore rename at all, leaving exactly the "afterthought left
+      for the WP author to discover" situation WP-A's text says will not happen. This is new
+      content this round (the underscore convention did not exist in the prior revision), so
+      the asymmetry between the WP-C and WP-D bullets is a gap this round introduced rather than
+      inherited. Functionally harmless if missed (the field can still be populated from a
+      variable literally named `_kind_filtered`), but it breaks the plan's own stated symmetry
+      guarantee between WP-C and WP-D.
+    remediation: >
+      Add a parallel opening clause to the WP-C bullet: "Rename `_kind_filtered` to
+      `kind_filtered` in `referenced_but_not_cascaded` (per WP-A's instruction above) and..."
+      mirroring WP-D's bullet.
+complete: true

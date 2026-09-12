@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -17,6 +17,7 @@ from uuid import uuid4
 import yaml
 from pydantic import BaseModel, ConfigDict
 
+from kernel.clock import now_utc, now_utc_iso
 from runtime.next._internal_runtime.contracts import RemediationPayload
 from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
 from spec_kitty_events.mission_next import (
@@ -112,11 +113,18 @@ def _append_event(run_dir: Path, event_type: str, payload: dict[str, Any]) -> No
     # canonical-producer-exempt: #1248 -- local runtime journal mirrors package-retired schema.
     event = {
         "event_type": event_type,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now_utc_iso(),
         "payload": payload,
     }
+    # Serialize before appending, then flush and fsync for durability. Append
+    # mode preserves earlier records, but a failed write or crash can still
+    # leave a partial final line; this is not an atomic record publication.
+    # The journal is per-run, single-writer.
+    line = json.dumps(event, sort_keys=True, default=str) + "\n"
     with open(event_file, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
+        handle.write(line)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
@@ -126,8 +134,17 @@ def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
 
 
 def _write_snapshot(run_dir: Path, snapshot: MissionRunSnapshot) -> None:
-    with open(run_dir / "state.json", "w", encoding="utf-8") as handle:
+    # FR-015: stage the cursor in a same-directory tmp file (same filesystem),
+    # fsync, then publish with os.replace (atomic on POSIX and NTFS) -- the
+    # ``reducer.materialize`` shape. A crash at any point leaves either the
+    # previous complete state.json or the new one, never a torn file.
+    target = run_dir / "state.json"
+    tmp = run_dir / "state.json.tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(snapshot.model_dump(mode="json"), handle, indent=2, sort_keys=True, default=str)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp, target)
 
 
 def _freeze_template(run_dir: Path, template: MissionTemplate, template_path: str) -> str:
@@ -458,7 +475,7 @@ def next_step(  # noqa: C901
                 question=decision.question or "",
                 options=decision.options or [],
                 requested_by=dr_actor,
-                requested_at=datetime.now(UTC),
+                requested_at=now_utc(),
             )
             pending_decisions[decision.decision_id] = req.model_dump(mode="json")
 
@@ -633,7 +650,7 @@ def provide_decision_answer(  # noqa: C901
         decision_id=decision_id,
         answer=answer,
         answered_by=actor,
-        answered_at=datetime.now(UTC),
+        answered_at=now_utc(),
     )
     decision_record = answer_data.model_dump(mode="json")
     decision_record.update(_authority_metadata(
@@ -670,7 +687,7 @@ def provide_decision_answer(  # noqa: C901
                 decision_id=decision_id,
                 action=_soft_gate_action,
                 actor=RACIRoleBinding(actor_type=_actor_type_lit, actor_id=actor.actor_id),
-                timestamp=datetime.now(UTC),
+                timestamp=now_utc(),
                 significance_score=_sig_score_obj,
                 outcome=_soft_gate_action if answer == "decide_solo" else None,
             )

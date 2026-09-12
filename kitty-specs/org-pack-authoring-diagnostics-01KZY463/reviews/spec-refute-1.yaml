@@ -1,0 +1,71 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      Live gh checks confirm the claim exactly: `gh pr view 3378` shows headRefOid
+      37a38274553f868de31cf77e900a3f2418f632bf and state OPEN; fetching the ADR at that SHA
+      shows frontmatter `status: Accepted`, `date: '2026-08-13'`, and body `**Status:**
+      Accepted`, `**Deciders:** Operator (ATDD)` — directly contradicting spec.md's A1 wording
+      that the ADR is "Proposed, unratified... no date"; `gh pr diff 3378 | grep '^+status:'`
+      confirms exactly one `Accepted` (this ADR) among five `Proposed` siblings, matching the
+      finding's characterization precisely.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Read pack_assembler.py:335 (`validate_pack(output_dir)` call with rollback on
+      `!ok`) and :488 (`_copy_drg_fragments` writes only to `output_dir/drg/`, never a
+      pack-root graph) confirming the cited shape; ran
+      `test_force_dedup_prunes_duplicate_edges_via_canonical_serializer` and `test_drg_conflict`
+      directly (both PASS today) — the former concretely proves an assembled pack with
+      DRG fragments only under `drg/` and no pack-root graph currently passes the assembler's
+      internal `validate_pack` call, exactly the shape FR-004's default-error severity would
+      break; the spec's Verified Code Surfaces table and Reflexivity section indeed never
+      mention pack_assembler.py, and it is absent from FR-004's targeted test surface and
+      C-004's test-package list, confirmed by direct read of spec.md.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      Read pack_validator.py:136-149 confirming `ValidationResult.to_dict()` emits exactly
+      `{ok, errors, advisories}` today with no fourth key; the spec's FR-002 Requirement
+      paragraph explicitly commits to `ValidationIssue`s with category `profile_skipped`
+      (singular, adjective-style) while User Story 2's Acceptance Scenario 1 and AC-1 use
+      "a skipped_profiles entry" (plural, echoing the `skipped_profiles()` method name,
+      reading naturally as a distinct top-level key) — the spec never reconciles these two
+      shapes, and the "(or equivalently-named)" hedge covers only the name, not the
+      structural question of top-level key vs. nested category.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >-
+      `grep -rn "_ARTIFACT_BUCKETS" src/ tests/` returns only its own definition at
+      snapshot.py:53, confirming zero consumers exist anywhere in the repo, so the spec's
+      own FR-001 wording relegating removal to a parenthetical ("or fold it away, an
+      implementation-phase call") rather than the default action is exactly as claimed.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Read repository.py:392-393 confirming the exact guard `if not directory.exists():
+      return loaded`, and directly re-read spec.md's FR-002 Acceptance Criteria (AC-1
+      through AC-4) — none tests the agent_profiles/-directory-entirely-absent scenario
+      named in Edge Cases bullet 2; AC-3 ("no profile issues") is a distinct scenario from
+      "directory absent entirely."
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Directly re-read spec.md's FR-001 Acceptance Criteria (AC-1 through AC-4) against the
+      Edge Cases section's first bullet (both foo.contract.yaml and foo.step-contract.yaml
+      present) — no AC covers this co-existence scenario; pack_validator.py:181's registry
+      entry and :202-206's `_scan_files` were confirmed as cited, supporting the surrounding
+      technical claim.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Directly re-read spec.md's FR-003 (AC-1 through AC-3) and FR-004 (AC-1 through AC-4) —
+      neither has an AC for the assets/-directory-absent case or the notes.graph.yaml.bak
+      near-miss case named in Edge Cases bullets 3 and 4; pack_validator.py:373-375's
+      directory-absent guard and :506's `drg_dir.glob("*.graph.yaml")` were confirmed as
+      cited.

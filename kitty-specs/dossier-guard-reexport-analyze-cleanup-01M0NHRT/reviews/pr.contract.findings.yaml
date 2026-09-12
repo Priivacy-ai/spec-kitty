@@ -1,0 +1,43 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: pr-contract-001
+    lens: contract
+    severity: 3
+    title: FR-007 hash-input path relativization and the FR-006 commit-subject change have no CHANGELOG entry
+    evidence:
+      - code: "docs/changelog/CHANGELOG.md:57"
+      - code: "src/specify_cli/analysis_report.py:186-266"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:374"
+    claim: >
+      Only the dossier re-export trim (#3677) got a CHANGELOG entry (line 57).
+      Two other durable-contract changes in this same diff are undocumented: (1)
+      `collect_input_artifact_hashes`/`_artifact_hash_entry` now write
+      repo-relative paths (was absolute) into the `input_artifacts.*.path`
+      field of the committed, git-tracked `analysis-report.md` frontmatter --
+      a format change to a persisted artifact, and previously a portability/
+      leakage defect (absolute local paths, including the operator's home
+      directory, committed to repo history) that this PR silently fixes going
+      forward; and (2) `record-analysis`'s emitted commit subject changed from
+      `"Add analysis report for mission {slug}"` to `"docs(record-analysis):
+      record analysis report for mission {slug}"` (#3678/FR-006), a message
+      any git-history tooling or ignore-list keyed on the old literal would
+      miss. Neither is mentioned anywhere in the CHANGELOG diff. This repo's
+      own CHANGELOG discipline is otherwise exhaustive -- every other entry in
+      this same "Unreleased" section, including internal-only fail-loud fixes,
+      carries an explicit Before/After writeup -- so the omission is a real
+      traceability gap for an operator or downstream tooling maintainer
+      scanning the changelog for "did the analysis-report.md format change".
+    remediation: >
+      Add a CHANGELOG entry (or fold into the existing #3677 entry, renamed to
+      cover the whole mission) documenting: the `input_artifacts.*.path` field
+      is now repo-relative for all four hash-input keys (spec/plan/tasks/
+      charter), not just charter; `write_analysis_report` now raises
+      `PathRelativizationError` (a subclass of `AnalysisReportError`) if a
+      hash-input path cannot be relativized, while `check_analysis_report_current`
+      catches it and reports `ok=False`/stale instead of raising; and the
+      `record-analysis` commit subject is now conventional-commit-shaped.

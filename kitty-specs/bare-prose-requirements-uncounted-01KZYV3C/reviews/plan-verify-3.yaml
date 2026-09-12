@@ -1,0 +1,11 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      Both the "## ATDD-First (C-011)" heading (line 667) and its cross-reference in the
+      Governing Principles/Charter Check section (line 88) now read "ATDD-First (charter
+      C-011 / spec C-002)"; a full-file grep confirms these are the only two C-011
+      occurrences and neither is bare/ambiguous anymore.

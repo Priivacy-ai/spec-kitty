@@ -1,14 +1,15 @@
-"""Integration tests for the software-dev v1 mission YAML.
+"""Integration tests for the built-in software-dev mission YAML.
 
 Verifies:
-- Loading the real mission.yaml from disk and detecting it as v1
-- Passing JSON Schema validation (validate_mission_v1)
-- State machine structure: 6 states starting at 'discovery'
-- Transition graph: 5 forward advances + 1 rework rollback
-- Guard conditions on gated transitions
-- Rollback transition (review -> implement) has no guards
-- v0 legacy keys coexist alongside v1 keys
+- Loading the real mission.yaml from disk
+- Named guards section documents the guard expressions
+- v0 legacy keys coexist alongside the tolerated v1 keys
 - Typed inputs and outputs present and correctly structured
+
+The mission-DSL v1 runtime (schema validator, state machine, transition
+graph) was retired in mission dead-port-disposition-01M1TZVN; the
+``states:``/``transitions:`` blocks were deleted from the built-in packs at
+the same time, so the structure/graph/reachability tests went with them.
 """
 
 from __future__ import annotations
@@ -17,11 +18,7 @@ from pathlib import Path
 
 import yaml
 
-from doctrine.missions.repository import MissionTemplateRepository
-from specify_cli.mission_v1.schema import (
-    is_v1_mission,
-    validate_mission_v1,
-)
+from charter.offering.missions.repository import MissionTemplateRepository
 
 import pytest
 
@@ -43,161 +40,15 @@ def software_dev_config() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Detection & validation
+# Presence
 # ---------------------------------------------------------------------------
 
 
-class TestV1Detection:
-    """The software-dev mission.yaml must be recognized as v1."""
+class TestMissionYamlPresence:
+    """The built-in software-dev mission.yaml ships with the pack."""
 
     def test_file_exists(self) -> None:
         assert MISSION_YAML_PATH.exists(), f"Missing: {MISSION_YAML_PATH}"
-
-    def test_is_v1_mission(self, software_dev_config: dict) -> None:
-        assert is_v1_mission(software_dev_config) is True
-
-    def test_passes_v1_schema_validation(self, software_dev_config: dict) -> None:
-        # Should not raise
-        validate_mission_v1(software_dev_config)
-
-
-# ---------------------------------------------------------------------------
-# State machine structure
-# ---------------------------------------------------------------------------
-
-
-class TestStateMachineStructure:
-    """States, initial, and transitions match the expected graph."""
-
-    def test_initial_state_is_discovery(self, software_dev_config: dict) -> None:
-        assert software_dev_config["initial"] == "discovery"
-
-    def test_six_states_defined(self, software_dev_config: dict) -> None:
-        states = software_dev_config["states"]
-        assert frozenset(s["name"] for s in states) == frozenset(
-            {"discovery", "specify", "plan", "implement", "review", "done"}
-        )
-
-    def test_state_names(self, software_dev_config: dict) -> None:
-        names = [s["name"] for s in software_dev_config["states"]]
-        expected = ["discovery", "specify", "plan", "implement", "review", "done"]
-        assert names == expected
-
-    def test_all_states_have_display_name(self, software_dev_config: dict) -> None:
-        for state in software_dev_config["states"]:
-            assert "display_name" in state, f"State '{state['name']}' missing display_name"
-
-    def test_all_states_have_on_enter(self, software_dev_config: dict) -> None:
-        for state in software_dev_config["states"]:
-            assert "on_enter" in state, f"State '{state['name']}' missing on_enter"
-            assert isinstance(state["on_enter"], list)
-
-    def test_six_transitions_defined(self, software_dev_config: dict) -> None:
-        transitions = software_dev_config["transitions"]
-        assert frozenset(
-            (t["source"], t["trigger"]) for t in transitions
-        ) == frozenset(
-            {
-                ("discovery", "advance"),
-                ("specify", "advance"),
-                ("plan", "advance"),
-                ("implement", "advance"),
-                ("review", "advance"),
-                ("review", "rework"),
-            }
-        )
-
-    def test_advance_transitions_count(self, software_dev_config: dict) -> None:
-        advance_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "advance"]
-        assert frozenset(t["source"] for t in advance_transitions) == frozenset(
-            {"discovery", "specify", "plan", "implement", "review"}
-        )
-
-    def test_rework_transition_exists(self, software_dev_config: dict) -> None:
-        rework_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "rework"]
-        assert frozenset(t["source"] for t in rework_transitions) == frozenset({"review"})
-        rework = rework_transitions[0]
-        assert rework["source"] == "review"
-        assert rework["dest"] == "implement"
-
-
-# ---------------------------------------------------------------------------
-# Forward transition graph
-# ---------------------------------------------------------------------------
-
-
-class TestForwardTransitions:
-    """Advance transitions form the correct forward path."""
-
-    def _advance_map(self, config: dict) -> dict[str, str]:
-        """Build source -> dest map for advance transitions."""
-        result = {}
-        for t in config["transitions"]:
-            if t["trigger"] == "advance":
-                result[t["source"]] = t["dest"]
-        return result
-
-    def test_discovery_to_specify(self, software_dev_config: dict) -> None:
-        m = self._advance_map(software_dev_config)
-        assert m["discovery"] == "specify"
-
-    def test_specify_to_plan(self, software_dev_config: dict) -> None:
-        m = self._advance_map(software_dev_config)
-        assert m["specify"] == "plan"
-
-    def test_plan_to_implement(self, software_dev_config: dict) -> None:
-        m = self._advance_map(software_dev_config)
-        assert m["plan"] == "implement"
-
-    def test_implement_to_review(self, software_dev_config: dict) -> None:
-        m = self._advance_map(software_dev_config)
-        assert m["implement"] == "review"
-
-    def test_review_to_done(self, software_dev_config: dict) -> None:
-        m = self._advance_map(software_dev_config)
-        assert m["review"] == "done"
-
-
-# ---------------------------------------------------------------------------
-# Guard conditions
-# ---------------------------------------------------------------------------
-
-
-class TestGuardConditions:
-    """Gated transitions must have the expected guard expressions."""
-
-    def _get_transition(self, config: dict, source: str, trigger: str) -> dict:
-        for t in config["transitions"]:
-            if t.get("source") == source and t["trigger"] == trigger:
-                return t
-        raise AssertionError(f"No transition: {trigger} from {source}")
-
-    def test_discovery_to_specify_no_guard(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "discovery", "advance")
-        assert "conditions" not in t
-
-    def test_specify_to_plan_requires_spec(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "specify", "advance")
-        assert 'artifact_exists("spec.md")' in t["conditions"]
-
-    def test_plan_to_implement_requires_plan_and_tasks(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "plan", "advance")
-        conditions = t["conditions"]
-        assert 'artifact_exists("plan.md")' in conditions
-        assert 'artifact_exists("tasks.md")' in conditions
-
-    def test_implement_to_review_requires_all_wp_accepted_ready(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "implement", "advance")
-        assert 'all_wp_status("approved_or_done")' in t["conditions"]
-
-    def test_review_to_done_requires_review_approved(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "review", "advance")
-        assert 'gate_passed("review_approved")' in t["conditions"]
-
-    def test_rework_has_no_guards(self, software_dev_config: dict) -> None:
-        t = self._get_transition(software_dev_config, "review", "rework")
-        assert "conditions" not in t
-        assert "unless" not in t
 
 
 # ---------------------------------------------------------------------------
@@ -324,51 +175,3 @@ class TestMissionBlock:
     def test_mission_description(self, software_dev_config: dict) -> None:
         desc = software_dev_config["mission"]["description"]
         assert "state machine" in desc.lower() or "software" in desc.lower()
-
-
-# ---------------------------------------------------------------------------
-# State reachability (graph integrity)
-# ---------------------------------------------------------------------------
-
-
-class TestStateReachability:
-    """Every state is reachable from the initial state via transitions."""
-
-    def test_all_states_reachable_from_initial(self, software_dev_config: dict) -> None:
-        initial = software_dev_config["initial"]
-        state_names = {s["name"] for s in software_dev_config["states"]}
-        transitions = software_dev_config["transitions"]
-
-        # Build adjacency from transitions
-        adj: dict[str, set[str]] = {s: set() for s in state_names}
-        for t in transitions:
-            source = t.get("source")
-            dest = t["dest"]
-            if isinstance(source, str):
-                adj.setdefault(source, set()).add(dest)
-            elif isinstance(source, list):
-                for s in source:
-                    adj.setdefault(s, set()).add(dest)
-
-        # BFS from initial
-        visited: set[str] = set()
-        queue = [initial]
-        while queue:
-            node = queue.pop(0)
-            if node in visited:
-                continue
-            visited.add(node)
-            for neighbor in adj.get(node, set()):
-                if neighbor not in visited:
-                    queue.append(neighbor)
-
-        assert visited == state_names, f"Unreachable states: {state_names - visited}"
-
-    def test_triggers_available_from_review(self, software_dev_config: dict) -> None:
-        """Review state should have both 'advance' and 'rework' triggers."""
-        triggers = set()
-        for t in software_dev_config["transitions"]:
-            if t.get("source") == "review":
-                triggers.add(t["trigger"])
-        assert "advance" in triggers
-        assert "rework" in triggers

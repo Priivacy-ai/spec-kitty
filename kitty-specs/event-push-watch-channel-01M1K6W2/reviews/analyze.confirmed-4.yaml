@@ -1,0 +1,23 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: confirmed-round-4-final
+mission: event-push-watch-channel-01M1K6W2
+source: reviews/analyze-fresh-3.yaml; both findings are severity<=3, this is the FINAL R4 round per R6
+  gate (single R5a to follow, no further fresh sweep)
+findings:
+- id: ANALYZE-FRESH3-001
+  severity: 2
+  title: WP01's own Context section still asserts the retired shell-owns-the-loop narrative, only patched
+    with a bolted-on addendum below it
+  remediation: Edit WP01-core-tail-reader-primitives.md's stale sentence directly to state the corrected
+    architecture in the first place (core's tail_events() owns the poll-then-sleep loop; shell merely
+    iterates it in a plain for loop), then delete or substantially shorten the now-redundant Addendum
+    paragraph beneath it, since a correctly-stated root sentence no longer needs a follow-up disclaimer
+    contradicting it.
+- id: ANALYZE-FRESH3-002
+  severity: 1
+  title: spec.md C-005's "(see the dashboard precedent, C-006)" cites the wrong constraint
+  remediation: Correct the cross-reference to whichever constraint (if any) actually documents the dashboard-polling
+    precedent, or drop the parenthetical and replace it with an inline description or direct file:line
+    citation, matching this spec's existing evidence-citation convention.

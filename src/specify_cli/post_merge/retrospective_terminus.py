@@ -23,10 +23,14 @@ from __future__ import annotations
 import contextlib
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +55,7 @@ def run_retrospective_postcondition(
     *,
     mission_slug: str,
     repo_root: Path,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> None:
     """Run the post-merge retrospective postcondition check.
 
@@ -66,6 +71,11 @@ def run_retrospective_postcondition(
     Args:
         mission_slug: The mission slug (e.g. ``"017-my-feature"``).
         repo_root: Absolute path to the repository root (primary checkout).
+        provenance_kind: Provenance to stamp on a freshly captured record
+            (#3716). The ``mission close --discard`` leg passes
+            ``"runtime_abandoned"`` so an abandoned mission is not tagged with
+            completion provenance; the default keeps the merge/close-completion
+            behaviour (``runtime_post_completion``).
 
     Note:
         ``run_terminus`` (the old dead-code stub in the lifecycle module) is
@@ -99,27 +109,40 @@ def run_retrospective_postcondition(
         # mission_id; fall back to empty string so the event is still valid.
         mission_id = _resolve_mission_id(feature_dir)
 
+        # fsm-write-path-integrity WP01 (FR-003 b / NFR-003): this runs on the
+        # ``spec-kitty merge`` completion path, under the merge-global sentinel
+        # (L5). Every mission status-lock (L1) take the retrospective appenders
+        # make from here -- ``emit_captured`` reached through the runtime
+        # bridge, and ``emit_capture_failed`` below -- is bounded by the scoped
+        # timeout, so a stalled status writer surfaces as a structured
+        # ``FeatureStatusLockTimeoutError`` (caught by the fail-open handlers
+        # below, i.e. a failed retrospective step) instead of converting into
+        # an unbounded, repo-wide merge refusal (R7).
+        from specify_cli.retrospective.lifecycle_events import bounded_lock_timeout
+
         # T032 — Call the live capture path (not a duplicate implementation).
-        try:
-            _invoke_capture(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                feature_dir=feature_dir,
-                repo_root=repo_root,
-            )
-        except Exception as exc:  # noqa: BLE001 — fail-open: record but don't abort
-            logger.warning(
-                "post-merge retrospective capture failed for mission %s: %s",
-                mission_slug,
-                exc,
-            )
-            # T033 — Emit capture_failed event so the gap is auditable.
-            _emit_capture_failed(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-            )
+        with bounded_lock_timeout(BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+            try:
+                _invoke_capture(
+                    mission_id=mission_id,
+                    mission_slug=mission_slug,
+                    feature_dir=feature_dir,
+                    repo_root=repo_root,
+                    provenance_kind=provenance_kind,
+                )
+            except Exception as exc:  # noqa: BLE001 — fail-open: record but don't abort
+                logger.warning(
+                    "post-merge retrospective capture failed for mission %s: %s",
+                    mission_slug,
+                    exc,
+                )
+                # T033 — Emit capture_failed event so the gap is auditable.
+                _emit_capture_failed(
+                    mission_id=mission_id,
+                    mission_slug=mission_slug,
+                    repo_root=repo_root,
+                    exc=exc,
+                )
 
     # #2119 follow-up: commit whatever the capture wrote — the RetrospectiveCaptured
     # event + retrospective.yaml on success, or the capture_failed event append on
@@ -140,6 +163,22 @@ def run_retrospective_postcondition(
 # ---------------------------------------------------------------------------
 
 
+def _primary_target_branch(feature_dir: Path) -> str | None:
+    """Return the mission's PRIMARY ``target_branch`` from ``meta.json``, or None.
+
+    Used as a fail-closed-avoiding degrade ref for the bookkeeping commit (#3716):
+    a legacy mission whose ``meta.json`` is missing/malformed or lacks
+    ``target_branch`` yields ``None`` (unchanged pre-#3716 behaviour — the commit
+    then raises-and-warns rather than silently degrading to a null ref).
+    """
+    data = load_meta_or_empty(feature_dir)
+    if isinstance(data, dict):
+        target = str(data.get("target_branch") or "").strip()
+        if target:
+            return target
+    return None
+
+
 def _resolve_mission_id(feature_dir: Path) -> str:
     """Return the ULID mission_id from meta.json, or empty string for legacy missions."""
     # T034 — use the canonical feature_dir path (already resolved by the caller);
@@ -156,14 +195,22 @@ def _invoke_capture(
     mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> None:
     """Delegate to the runtime-bridge capture implementation (T032).
 
-    Reuses ``_run_retrospective_learning_capture`` from
-    ``runtime.next.runtime_bridge`` — does NOT duplicate the implementation.
-    ``block_on_failure=False`` keeps the merge fail-open.
+    Reuses ``_run_retrospective_learning_capture`` from the
+    ``runtime.next.runtime_bridge_retrospective`` seam — does NOT duplicate the
+    implementation. ``block_on_failure=False`` keeps the merge/close fail-open.
+
+    The seam is imported directly (rather than through the thin
+    ``runtime_bridge`` compat delegate) so the ``provenance_kind`` override
+    (#3716) reaches the facilitator: the delegate's signature is a fixed
+    five-kwarg forward that cannot carry the new argument. The seam's own
+    intra-cluster calls still route through the live ``runtime_bridge`` lookup,
+    so per-symbol monkeypatch observation is unchanged.
     """
-    from runtime.next.runtime_bridge import (  # noqa: PLC0415
+    from runtime.next.runtime_bridge_retrospective import (  # noqa: PLC0415
         _run_retrospective_learning_capture,
     )
 
@@ -173,6 +220,7 @@ def _invoke_capture(
         feature_dir=feature_dir,
         repo_root=repo_root,
         block_on_failure=False,
+        provenance_kind=provenance_kind,
     )
 
 
@@ -232,32 +280,35 @@ def _commit_captured_retrospective(
     if not paths:
         return  # nothing the capture wrote is dirty — already committed or absent
 
-    # Canonical branch resolution (core.git_ops.get_current_branch already returns
-    # None for detached HEAD / non-git worktrees — no hand-rolled duplicate).
-    from specify_cli.core.git_ops import get_current_branch  # noqa: PLC0415
-
-    branch = get_current_branch(repo_root)
-    if branch is None:
-        logger.warning(
-            "retrospective for mission %s was captured but NOT committed: %s is not on a "
-            "branch (detached HEAD or not a git worktree). Commit it manually so the "
-            "durable event log is not left with an uncommitted append.",
-            mission_slug,
-            repo_root,
-        )
-        return
-
+    # coord-write-placement-closure-01KYCF83 WP03/FR-003: the destination is
+    # resolved through the placement port (mission_slug -> commit_merge_bookkeeping)
+    # rather than an ambient ``get_current_branch(repo_root)`` HEAD read — the
+    # CWD-dependent branch-detection fallback this mission retires. Any failure
+    # to resolve/commit (unresolvable mission, detached HEAD/HEAD-mismatch,
+    # non-git worktree, ...) is caught below and reported, never raised — the
+    # caller must not abort the merge/close.
     from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping  # noqa: PLC0415
+
+    # #3716: on the ``mission close --discard`` leg the coordination context is
+    # being torn down, so ``resolve_write_target_or_degrade`` fails closed and —
+    # with no degrade ref — the retrospective commit degrades, leaving the durable
+    # event log + retrospective.yaml uncommitted. Supply the mission's PRIMARY
+    # ``target_branch`` as the degrade path so the commit lands on the primary
+    # surface (never the now-deleted coordination branch). Consulted ONLY when
+    # placement resolution genuinely fails; the merge path (which resolves) is
+    # unaffected.
+    degrade_ref = _primary_target_branch(feature_dir)
 
     try:
         commit_merge_bookkeeping(
             repo_root=repo_root,
             worktree_root=repo_root,
-            branch=branch,
+            mission_slug=mission_slug,
             message=f"chore({mission_slug}): capture mission retrospective",
             paths=paths,
+            branch=degrade_ref,
         )
-        logger.debug("committed retrospective bookkeeping for mission %s onto %s", mission_slug, branch)
+        logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
     except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
         joined = " ".join(str(p) for p in paths)
         logger.warning(
@@ -310,6 +361,8 @@ def _emit_capture_failed(
             missing_artifacts=None,
             actor=system_actor,
             execution_mode="main",
+            # FR-003 (b): explicit finite bound on the merge-path L1 take.
+            lock_timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
         )
     except Exception as emit_exc:  # noqa: BLE001
         logger.warning(

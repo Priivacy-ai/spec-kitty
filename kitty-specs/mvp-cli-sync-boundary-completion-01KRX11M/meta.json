@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-18T07:50:41.311843+00:00",
+  "flattened": false,
   "friendly_name": "MVP CLI Sync Boundary Completion",
   "mission_id": "01KRX11MCY70M5NFBBHT4DQHJ2",
   "mission_number": null,
@@ -10,6 +11,7 @@
   "slug": "mvp-cli-sync-boundary-completion-01KRX11M",
   "status_phase": "1",
   "target_branch": "kitty/pr/mvp-sync-boundary-cli-01KRVCQS",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-18T08:21:09.070629+00:00"
 }

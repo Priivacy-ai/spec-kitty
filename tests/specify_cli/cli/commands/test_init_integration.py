@@ -7,7 +7,9 @@ to avoid touching ~/.kittify/ in CI.
 
 from __future__ import annotations
 
+import inspect
 import io
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -255,6 +257,126 @@ def test_gitignore_written(
     assert len(content.strip()) > 0, ".gitignore is empty"
 
 
+def test_init_in_existing_git_repo_effectively_ignores_worktrees_root(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#3689: the real init path protects a populated execution-worktrees root."""
+    app, _console = cli_app
+    project = tmp_path / "existing-repo"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    # Reproduce the false-safe shape from the adversarial review: textual
+    # presence alone is insufficient when a later rule negates it.
+    project.joinpath(".gitignore").write_text(
+        ".worktrees/\n!.worktrees/\n.worktrees/*\n!.worktrees/demo-mission-abc123/\n!.worktrees/demo-mission-abc123/**\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(
+        app,
+        ["init", ".", "--ai", "claude", "--non-interactive"],
+    )
+
+    assert result.exit_code == 0, result.output
+    nested = project / ".worktrees" / "demo-mission-abc123"
+    nested.mkdir(parents=True)
+    nested.joinpath("file.txt").write_text("x\n", encoding="utf-8")
+    ignored = subprocess.run(
+        [
+            "git",
+            "check-ignore",
+            "--quiet",
+            ".worktrees/demo-mission-abc123/file.txt",
+        ],
+        cwd=project,
+        check=False,
+    )
+    assert ignored.returncode == 0
+    porcelain = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert ".worktrees" not in porcelain
+
+
+def test_init_fails_for_tracked_worktrees_content_without_mutating_index(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Init cannot make already-indexed worktree content safe via .gitignore."""
+    app, console = cli_app
+    project = tmp_path / "tracked-worktree-repo"
+    tracked = project / ".worktrees" / "demo" / "file.txt"
+    tracked.parent.mkdir(parents=True)
+    tracked.write_text("tracked\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "add", ".worktrees/demo/file.txt"], cwd=project, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Spec Kitty Test",
+            "-c",
+            "user.email=spec-kitty@example.invalid",
+            "commit",
+            "-qm",
+            "track worktree fixture",
+        ],
+        cwd=project,
+        check=True,
+    )
+
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", ".", "--ai", "claude", "--non-interactive"])
+
+    output = " ".join(console.file.getvalue().split())
+    assert result.exit_code == 1
+    assert "Tracked paths exist under .worktrees" in output
+    assert "git rm -r --cached -- .worktrees" in output
+    assert "rerun `spec-kitty upgrade`" in output
+    assert not project.joinpath(".kittify", "config.yaml").exists()
+    indexed = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", ".worktrees/demo/file.txt"],
+        cwd=project,
+        capture_output=True,
+        check=False,
+    )
+    assert indexed.returncode == 0
+    assert tracked.read_text(encoding="utf-8") == "tracked\n"
+
+    subprocess.run(["git", "rm", "-r", "--cached", "--", ".worktrees"], cwd=project, check=True)
+    recovered = _run(app, ["init", ".", "--ai", "claude", "--non-interactive"])
+
+    assert recovered.exit_code == 0, recovered.output
+    config = yaml.safe_load(project.joinpath(".kittify", "config.yaml").read_text(encoding="utf-8"))
+    assert config["mission_type_activations"]
+    assert project.joinpath(".kittify", "metadata.yaml").exists()
+    assert init_module._EVENT_LOG_GITATTRIBUTES_ENTRY in project.joinpath(".gitattributes").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        subprocess.run(
+            ["git", "check-ignore", "--quiet", ".worktrees/demo/file.txt"],
+            cwd=project,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 # ---------------------------------------------------------------------------
 # FR-012: .claudeignore exists after init (when template source is available)
 # ---------------------------------------------------------------------------
@@ -325,6 +447,38 @@ def test_metadata_written(
     assert "version" in data["spec_kitty"]
 
 
+def test_metadata_initialized_at_is_aware_utc(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """kernel-clock-single-door FR-011: ``initialized_at`` is aware-UTC, not naive local time.
+
+    Regression guard for the naive ``datetime.now()`` site formerly in
+    ``cli.commands.init`` (research/migration-notes.md): a naive value
+    persists to ``metadata.yaml`` WITHOUT a UTC offset suffix; the door's
+    ``now_utc()`` always carries ``+00:00``. Non-vacuity: reverting the
+    door call back to a bare ``datetime.now()`` drops the offset and this
+    assertion fails.
+    """
+    app, console = cli_app
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "meta-aware-test", "--ai", "claude", "--non-interactive"])
+
+    assert result.exit_code == 0, result.output
+    metadata_file = tmp_path / "meta-aware-test" / ".kittify" / "metadata.yaml"
+    data = yaml.safe_load(metadata_file.read_text(encoding="utf-8"))
+    initialized_at = data["spec_kitty"]["initialized_at"]
+    assert isinstance(initialized_at, str), "expected an unquoted ISO string in the raw YAML"
+    assert initialized_at.endswith("+00:00"), (
+        f"initialized_at={initialized_at!r} is missing the aware-UTC offset suffix "
+        "-- the naive datetime.now() regression has returned"
+    )
+
+
 # ---------------------------------------------------------------------------
 # FR-014: config.yaml has no `selection` key
 # ---------------------------------------------------------------------------
@@ -335,10 +489,10 @@ def test_config_has_no_selection_block(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """FR-014: After WP01, config.yaml should not include a selection block.
+    """FR-014: config.yaml does not include a selection block.
 
-    In the current (pre-WP01) codebase the selection block is still written.
-    This test documents the target state; it is marked xfail until WP01 lands.
+    WP01 has landed: ``AgentSelectionConfig``'s ``selection`` key is no
+    longer written; this asserts the landed target state directly.
     """
     app, console = cli_app
     monkeypatch.chdir(tmp_path)
@@ -352,8 +506,6 @@ def test_config_has_no_selection_block(
     assert config_file.exists()
     config = yaml.safe_load(config_file.read_text())
     agents_section = config.get("agents", config.get("tools", {}))
-    # After WP01 the `selection` key must not be present
-    # xfail in pre-WP01 lane-c since AgentSelectionConfig still exists
     assert "available" in agents_section
 
 
@@ -449,3 +601,86 @@ def test_reinit_is_idempotent(
     assert parsed1.get("agents", parsed1.get("tools")) == parsed2.get(
         "agents", parsed2.get("tools")
     ), "Config changed between re-init runs"
+
+
+def test_selection_key_landmine_disposition_is_documented_accurately() -> None:
+    """WP06 (T028/T030, FR-015 fix-before-wiring): re-validate this test's
+    xfail landmine claim.
+
+    Re-validated on the current tree: ``test_config_has_no_selection_block``
+    carries no active xfail marker and passes plainly -- WP01 already landed
+    and ``config.yaml`` no longer writes a ``selection`` block. The
+    function's own docstring/comment ("marked xfail until WP01 lands" /
+    "xfail in pre-WP01 lane-c") describe a state that no longer holds; this
+    guard fails if that stale claim survives alongside an absent marker, so
+    the test cannot silently keep documenting an already-retired landmine.
+    """
+    marks = getattr(test_config_has_no_selection_block, "pytestmark", [])
+    assert not any(m.name == "xfail" for m in marks), (
+        "WP01 landed; this test should carry no active xfail marker"
+    )
+    source = inspect.getsource(test_config_has_no_selection_block)
+    assert "xfail" not in source.lower(), (
+        "test source still references a pending xfail landmine, but WP01 "
+        "already landed and no active marker exists -- update the stale "
+        "comment/docstring instead of leaving landmine language"
+    )
+
+
+# ---------------------------------------------------------------------------
+# #4166 — first init must not import a removed private installer function
+# ---------------------------------------------------------------------------
+
+
+def test_init_source_has_no_removed_private_installer_import() -> None:
+    """#4166: init never imports the removed private ``_sync_global_skill``.
+
+    The candidate installer no longer exports that function; the old
+    standalone global-skill phase imported it and failed with an ImportError
+    on every first run while still reporting ``Project ready``. Global skill
+    installation is owned by the CLI root callback's retained
+    ``ensure_global_agent_skills()`` owner, and selected-agent skills by the
+    per-agent installer seams below — a static guard keeps the removed
+    private writer from being reintroduced here.
+    """
+    source = Path(inspect.getsourcefile(init_module)).read_text(encoding="utf-8")
+    # Import or call forms only: prose comments may still name the removed
+    # symbol for provenance (#4166).
+    assert "import _sync_global_skill" not in source
+    assert "_sync_global_skill(" not in source
+    assert "Skill installation incomplete" not in source
+
+
+def test_command_skill_failure_is_truthfully_signaled(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#4166: a failed selected-agent installation is reported, never masked.
+
+    ``init --ai codex`` delivers command skills after config is saved. When
+    that required installation cannot complete, init must say so and keep the
+    pending delivery record for resume — it must not print a clean success
+    summary over a failed phase.
+    """
+    app, console = cli_app
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    from specify_cli.skills import command_installer
+
+    def _boom(repo_root: Path, agent_key: str) -> object:
+        raise RuntimeError("command-skill disk unavailable")
+
+    monkeypatch.setattr(command_installer, "install", _boom)
+
+    result = _run(app, ["init", ".", "--ai", "codex", "--non-interactive"])
+
+    output = " ".join(console.file.getvalue().split())
+    assert result.exit_code == 0, result.output
+    assert "Could not install skills for Codex CLI" in output
+    assert "command-skill disk unavailable" in output
+    assert "Command delivery is incomplete; retry init after resolving the reported error." in output
+    # Delivery is honestly recorded as unfinished so a retry can resume it.
+    assert (tmp_path / ".kittify" / "init-command-skills.pending.json").is_file()

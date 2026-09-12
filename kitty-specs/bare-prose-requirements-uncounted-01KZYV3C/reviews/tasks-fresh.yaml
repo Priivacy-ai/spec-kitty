@@ -1,0 +1,115 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-FRESH-001
+    lens: "broken cross-reference (subtask index vs. newly-inserted subtasks)"
+    severity: 3
+    title: "Subtask Index (Reference) table's WP06 row still says 'T029–T033', omitting the fix round's newly-inserted T030a and T032a"
+    evidence:
+      - artifact: "tasks.md line 845: '| T029–T033 | `finalize-tasks`/`map-requirements` CLI wiring, ATDD-first | WP06 | P0 | Yes (WP-level, with WP07) |'"
+      - artifact: "tasks.md WP06 body (lines 496-565) actually lists, in order: T029, T030, T030a (line 517), T031, T032a (line 545), T032, T033 — seven subtasks, not five"
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md frontmatter `subtasks:` list correctly enumerates all seven IDs including T030a and T032a"
+    claim: >
+      Fix commit b5e89e4b3 added T030a (byte-contract re-freeze) and T032a
+      (MappingRequest plumbing) to WP06 to resolve TASKS-SEQ-001 and
+      TASKS-DECOMP-002, and correctly updated WP06's own frontmatter and body to
+      include them. The mission-wide "Subtask Index (Reference)" summary table in
+      tasks.md was not updated to match: its WP06 row still reads the pre-fix range
+      "T029–T033", which — read as a literal range — omits T030a and T032a entirely.
+      Anyone using the index table as a quick-reference or status-tracking aid (rather
+      than reading WP06's full body) would not know these two subtasks exist.
+    remediation: >
+      Update the Subtask Index row for WP06 to explicitly list all seven IDs (e.g.
+      "T029, T030, T030a, T031, T032a, T032, T033") rather than an implied contiguous
+      range, or add an explicit footnote noting the two lettered insertions.
+
+  - id: TASKS-FRESH-002
+    lens: write-scopes / #3395 rebase-overlap disclosure (C-005)
+    severity: 4
+    title: "The '#3395 overlap' disclosure is now stale: it still frames WP06 as only 'one file removed' from #3395's touched-file list, but the fix round's new T032a has WP06 directly edit tasks_map_requirements.py — including the exact same byte-frozen JSON case #3395 itself already changed"
+    evidence:
+      - artifact: "tasks.md 'Parallelism & Chokepoints' § '#3395 overlap is expected' (lines 78-93): 'WP06 touches `tasks_mapping_core.py` directly, a file #3395's stated touched-file list does **not** literally name (#3395 names its CLI-facing sibling, `tasks_map_requirements.py`...) — so WP06's primary edit surface is one file removed from #3395's own named list'"
+      - artifact: "tasks.md WP06/T032a (line 545-556) and tasks/WP06-finalize-tasks-map-requirements-wiring.md T032a: 'Update its construction site in `tasks_map_requirements.py` (`_mr_plan`, the `MappingRequest(...)` call)...' — WP06's own `owned_files` list literally includes `tasks_map_requirements.py`"
+      - code: "`git diff --stat main...origin/op/3394-requirement-citation-scope -- src/specify_cli/cli/commands/agent/tasks_map_requirements.py` shows #3395 changes that exact file (16 lines) — confirming it IS on #3395's touched-file list, directly contradicting the 'one file removed' framing now that T032a has WP06 edit it too."
+      - code: "`git diff main...origin/op/3394-requirement-citation-scope -- tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json` shows #3395's own diff modifies the `expected_stdout` string of the exact `map_requirements_success` case (adding `\"requirement_extraction_warnings\": []`) that WP06/T030a is separately tasked with re-freezing (to add `bare_prose_requirement_ids`) — both changes land on the same JSON string, on the same line, in the same fixture."
+    claim: >
+      Before the fix round, WP06 (as originally scoped) plausibly did only touch
+      `mission_finalize.py` and `tasks_mapping_core.py` — the latter genuinely not named
+      by #3395 — supporting the "one file removed" framing. The fix round's T032a
+      (added to resolve TASKS-DECOMP-002's spec_content-plumbing gap) now has WP06 edit
+      `tasks_map_requirements.py` directly, and T030a (added to resolve TASKS-SEQ-001)
+      has WP06 re-freeze `byte_contracts.json`'s `map_requirements_success` case — both
+      of which #3395's own still-open, unreviewed diff already touches, with the
+      byte-contract case being a near-certain textual conflict on the identical JSON
+      string (both branches add a new key to the same `expected_stdout` value). Neither
+      new collision is disclosed in tasks.md's "#3395 overlap" section, which is the
+      mission's designated, charter-C-005-mandated place for exactly this kind of
+      rebase-risk transparency — a bar this same fix round already met for the four
+      overlapping *test* files (TASKS-SEQ-003) but did not extend to the two *source/fixture*
+      files newly touched by its own T030a/T032a additions. A careless rebase/re-freeze
+      of `byte_contracts.json` risks silently dropping #3395's own
+      `requirement_extraction_warnings` field addition.
+    remediation: >
+      Update the "#3395 overlap is expected" section to (a) name
+      `tasks_map_requirements.py` alongside `mission_finalize.py` as a file WP06 directly
+      edits that #3395 also changes, dropping the now-inaccurate "one file removed"
+      framing, and (b) explicitly flag that WP06/T030a's re-freeze of
+      `byte_contracts.json`'s `map_requirements_success` case lands on the exact same
+      string #3395's own diff already modifies (adds `requirement_extraction_warnings`),
+      instructing whoever executes T030a to preserve that field when re-freezing rather
+      than overwrite it.
+
+  - id: TASKS-FRESH-003
+    lens: "decomposition (contradicts existing code)"
+    severity: 3
+    title: "WP06/T032a claims spec_content is read 'earlier in the same function' as the MappingRequest(...) construction; it is actually read in a different function, threaded via shared state"
+    evidence:
+      - artifact: "tasks.md line 545-556 (T032a) and tasks/WP06-finalize-tasks-map-requirements-wiring.md T032a: 'call `find_bare_prose_requirement_ids(spec_content)` — using the `spec_content` the shell already reads earlier in the same function — and pass the resulting ids into the new field'"
+      - code: "src/specify_cli/cli/commands/agent/tasks_map_requirements.py — `MappingRequest(...)` is constructed inside `_mr_plan` (def at line 328, 'Phase D'); `spec_content` is actually read inside a separate function, `_mr_resolve_read_dirs` (def at line 268, 'Phase C'), around line 306 — not inside `_mr_plan` itself. The two phases share data via a `_MapReqState` object, not a local variable in a common function scope."
+    claim: >
+      T032a instructs the implementer to reuse "the `spec_content` the shell already
+      reads earlier in the same function" when constructing the `MappingRequest(...)`
+      call. This is factually wrong: `spec_content` is read in `_mr_resolve_read_dirs`
+      (Phase C), a different function from `_mr_plan` (Phase D) where the
+      `MappingRequest(...)` construction actually happens. An implementer following the
+      instruction literally would look for a local `spec_content` variable inside
+      `_mr_plan` and not find one, requiring exploration of the `_MapReqState`
+      threading pattern to discover where the value actually lives — a small but real
+      gap likely to cause rework within this one subtask, unlike other claims in this
+      same tasks.md that carry an explicit "re-verify live" hedge (e.g. T030's grep
+      caveat).
+    remediation: >
+      Correct T032a to state that `spec_content` is read in `_mr_resolve_read_dirs`
+      ("Phase C") and threaded into `_mr_plan` ("Phase D") via the shared `_MapReqState`
+      object (e.g. `st.spec_content` or equivalent field) — not "the same function" — so
+      the implementer knows to look at the state object rather than local scope.
+
+  - id: TASKS-FRESH-004
+    lens: red-first-stated-per-wp
+    severity: 2
+    title: "WP04 (new architectural test, no production behaviour change) lacks the ATDD/C-011 non-applicability disclosure that WP02 and WP08 — the same class of WP — now both carry explicitly"
+    evidence:
+      - artifact: "tasks.md § Work Package WP04 (lines 321-364) and tasks/WP04-bridge-cores-import-boundary.md (whole file) — no mention of charter C-011 / ATDD applicability anywhere"
+      - artifact: "tasks/WP02-campsite-clean-validate-requirement-mapping.md lines 58-64: explicit 'No new user-observable behaviour is introduced here... this is a tasks-authoring judgment call' disclosure"
+      - artifact: "tasks/WP08-corpus-fixture-ratchet.md lines 79-86 (added by this fix round to resolve TASKS-VERIFY-001): explicit 'ATDD/C-011 applicability (mirrors WP02's own disclosure)' section stating T040's self-mutation test is the load-bearing RED-then-GREEN substitute"
+    claim: >
+      WP04 ships a brand-new test file (`test_bridge_cores_import_boundary.py`) that
+      pins an already-true invariant with no accompanying production code change — the
+      same shape as WP02 (behaviour-preserving refactor, no new behaviour) and WP08
+      (test-only CI gate), both of which this mission now explicitly states do not carry
+      a literal C-011 failing-first requirement and name their substitute regression
+      guard. WP04 has no equivalent statement, even though it is the same class of WP and
+      the fix round just established this exact disclosure pattern for WP08. A reviewer
+      applying C-011 literally to WP04 could reasonably ask why no RED-first commit
+      exists for its new test, with no answer recorded in the artifact.
+    remediation: >
+      Add a short note to tasks/WP04-bridge-cores-import-boundary.md (and a parenthetical
+      in tasks.md's WP04 section) mirroring WP02/WP08's disclosure: state that C-011's
+      literal failing-first-separate-commit form does not apply because there is no
+      production behaviour change to pin RED against, and that the test's own
+      negative-case verification (manually confirmed once during development per WP04's
+      own Test Strategy) is the substitute evidence.

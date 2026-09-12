@@ -1,0 +1,15 @@
+schema: review-verify/v1
+complete: true
+phase: analyze
+results:
+  - id: ANALYZE-ARCH-001
+    status: unresolved
+    remaining_severity: 3
+    reason: >-
+      FR-011 and the Architectural Seam section were fixed correctly (core owns the
+      sleep_fn-driven poll loop, shell is a plain for-loop consumer), but the same
+      "shell owns the infinite/poll loop" defect class survives untouched in two more
+      narrative spots the fixer missed — plan.md's subsection header "How this avoids
+      ever exercising the shell's infinite loop in tests" (line 229) and spec.md's
+      NFR-001 ("separate from the infinite-poll CLI shell"), the latter now directly
+      contradicting the corrected FR-011 in the same table.

@@ -274,11 +274,11 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
     # "corrupt json" message via ``on_malformed="raise"`` + a local catch,
     # rather than folding it into the generic on_malformed="empty" adapter
     # (which would lose the distinct error text).
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     try:
-        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
-    except ValueError as exc:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
         return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}"}
     if meta is None:
         return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found"}

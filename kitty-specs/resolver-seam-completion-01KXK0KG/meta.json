@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "059daa275ea2d6a90e43175e9a4b4d523bcacb1e",
-  "coordination_branch": "kitty/mission-resolver-seam-completion-01KXK0KG",
   "created_at": "2026-07-15T13:49:03.302799+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Mission-Type DRG Node + Cross-Grain Integrity Gate (S0 + seam completion)",
   "mission_id": "01KXK0KGE6MSVWDDC8JQ1M5ZY2",
   "mission_number": 179,
@@ -14,7 +13,7 @@
   "slug": "resolver-seam-completion-01KXK0KG",
   "status_phase": "1",
   "target_branch": "feat/2651-resolver-seam-completion",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-15T15:44:02.530913+00:00"
 }

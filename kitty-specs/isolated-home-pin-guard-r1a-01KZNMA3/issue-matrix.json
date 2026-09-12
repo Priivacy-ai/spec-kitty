@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2296": {
+      "evidence_ref": "CLOSED upstream. Cited as context only: the orphan-baseline drain is why test_gate_coverage.py::test_no_new_orphan_surfaces has an empty committed baseline, which R1a's IC-08 relies on. Nothing for R1a to change.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2564": {
+      "evidence_ref": "CLOSED upstream. Cited as a landed constraint R1a must comply with: the positional line-anchor ban's #2564 clause forbids a module-level seed constant embedding path:NNN, which is why E uses content-addressed keys resolved at runtime.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2642": {
+      "evidence_ref": "Follow-up: #2642 (OPEN upstream, framework defect). Staged tasks-outline cannot advance because the runtime exit guard still requires tasks.md, which only finalize-tasks writes. Same root as #3226; both cited in R1a's analysis report as known-and-accepted, neither in scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#2991": {
+      "evidence_ref": "Follow-up: #2991 (OPEN upstream, framework defect, not R1a's to fix). finalize-tasks ERASES SC-### from WP prompt frontmatter \u2014 a delete, not a drop: _flush_frontmatter_writes replaces requirement_refs with the FR|NFR|C-parsed subset. Measured 15 -> 0 across all six WPs; wps.yaml retains all 15 and is the surviving record. Measured evidence posted to the issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3108": {
+      "evidence_ref": "CLOSED upstream (merged in #3135). Cited as the arrival source: it landed the pytest.MonkeyPatch.context() receiver form at test_tracker_egress_refusal_3108.py:1165 inside R1a's measurement window. Context, not scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3121": {
+      "evidence_ref": "The issue this mission serves. R1a is the GUARD half \u2014 census, ratchet, owner fixture, probes \u2014 and deliberately does not converge the 40 sites; adoption is R1b, for which R1a's census is the worklist. Not closable by R1a.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#3170": {
+      "evidence_ref": "Follow-up: #3170 (OPEN upstream, not R1a's to fix). Upstream tooling gap \u2014 the requirement-ID scraper cannot distinguish a mission's own IDs from citations of another mission's. R1a works around it with the U+2011 citation convention in spec.md, which closed both the phantom-block and the silent C-009/C-010 false-coverage modes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3226": {
+      "evidence_ref": "Follow-up: #3226 (OPEN upstream, framework defect). tasks-outline mandates finalize-tasks --validate-only, but that gate reads WP prompt files the NEXT step creates. R1a worked around it by generating tasks.md through the repo's own generate_tasks_md_from_manifest so the artefact is byte-identical to finalize's output.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3285": {
+      "evidence_ref": "Follow-up: #3285 (OPEN upstream). Coordination dependency of R1b per C-010, explicitly not an R1a blocker: 35 files all under kitty-specs/, intersection with the 40 member files empty. NOTE: C-010 calls it a PR; it is an issue (test: assertively sanitize low-signal suite cruft).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

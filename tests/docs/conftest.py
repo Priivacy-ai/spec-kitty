@@ -9,6 +9,7 @@ that staging directory so tests can run the script with ``cwd=staging``.
 from __future__ import annotations
 
 import shutil
+import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -50,7 +51,50 @@ def missing_workspace(tmp_path: Path) -> Iterator[Path]:
     workspace = tmp_path / "missing"
     workspace.mkdir()
     (workspace / "docs").mkdir()
-    shutil.copy(
-        FIXTURES_DIR / "missing_inventory.yaml", workspace / "inventory.yaml"
-    )
+    shutil.copy(FIXTURES_DIR / "missing_inventory.yaml", workspace / "inventory.yaml")
     yield workspace
+
+
+# --------------------------------------------------------------------------- #
+# Diff-scope test git helpers (#3147, B-WP02).
+#
+# Shared by test_guards.py, test_relative_link_fixer.py, test_related_validator.py,
+# and test_rulers_blocking.py: each exercises a ``--changed-from BASE_REF`` /
+# :func:`scripts.docs._guards.resolve_changed_files` diff-scope path, which needs
+# a real (throwaway, tmp_path-scoped) git repo with a distinguishable "base"
+# commit and a later "head" state to diff against. Centralised here so the
+# four call sites don't drift on the git-init incantation.
+# --------------------------------------------------------------------------- #
+
+
+def _run_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+def init_git_repo_with_base(root: Path) -> str:
+    """Init a git repo at *root* and commit the current on-disk state as "base".
+
+    Returns the base commit's SHA. Callers stage further changes under *root*
+    and pass them to :func:`commit_all_changes` to produce a "head" commit; the
+    diff-scope code under test is then invoked with ``--changed-from <base
+    sha>`` (or :func:`scripts.docs._guards.resolve_changed_files` directly) to
+    diff the two.
+    """
+    _run_git(root, "init", "-q")
+    _run_git(root, "config", "user.email", "spec-kitty-tests@example.com")
+    _run_git(root, "config", "user.name", "Spec Kitty Tests")
+    _run_git(root, "add", "-A")
+    _run_git(root, "commit", "-q", "-m", "base", "--allow-empty")
+    return _run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def commit_all_changes(root: Path, message: str) -> None:
+    """Stage and commit every current change under *root* (the diff's "head")."""
+    _run_git(root, "add", "-A")
+    _run_git(root, "commit", "-q", "-m", message, "--allow-empty")

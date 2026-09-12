@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 3
+    title: "Plan misclassifies Bandit as effectively informational; the lint job's post-step turns its continue-on-error outcome into a real, quality-gate-blocking failure"
+    evidence:
+      - artifact: "plan.md § (f) Gate set — row \"Bandit\""
+      - code: ".github/workflows/ci-quality.yml:917-931 (\"[ENFORCED] Run Bandit security scan\", id: bandit, continue-on-error: true)"
+      - code: ".github/workflows/ci-quality.yml:977-986 (\"[ENFORCED] Fail job if security checks failed\": `if [ \"${{ steps.bandit.outcome }}\" != \"success\" ] ... exit 1`)"
+      - code: ".github/workflows/ci-quality.yml:4277-4283 (quality-gate job's `needs:` includes `lint`, the job containing the bandit step)"
+    claim: >
+      Plan.md's Gate table states Bandit is "Labeled `[ENFORCED]` in CI but runs with
+      `continue-on-error: true` and is not in the `has_failures` output set feeding
+      `quality-gate`'s blocking check" and is "Effectively informational in the current CI
+      wiring despite its label." This is verified false against the live workflow: unlike
+      ruff/mypy (which really are advisory — they only populate a `has_failures` output
+      consumed by the non-blocking `lint-feedback` PR-comment job), Bandit's step sets
+      `continue-on-error: true` only so later artifact-upload steps still run; a dedicated
+      later step in the same `lint` job, `"[ENFORCED] Fail job if security checks failed"`,
+      explicitly reads `steps.bandit.outcome` and does `exit 1` if it isn't `"success"`. Since
+      `quality-gate` lists `lint` in its own `needs:`, a Bandit finding fails the `lint` job and
+      therefore blocks `quality-gate` — the opposite of "effectively informational." (pip-audit
+      is checked by the same step and is equally enforced, though the plan's pip-audit row is
+      separately correct that this mission's diff introduces no dependency change and so is
+      unaffected either way.)
+    remediation: >
+      Correct the Bandit row in plan.md § (f) to state that Bandit IS a real, blocking gate
+      (enforced via the `lint` job's dedicated "Fail job if security checks failed" step, not
+      via the `has_failures`/`lint-feedback` mechanism ruff/mypy use), while keeping the
+      substantive conclusion (no `src/` change in this mission introduces a Bandit-flaggable
+      pattern) if that conclusion is still believed true — do not base that belief on a false
+      "it's advisory anyway" premise.
+
+  - id: PLAN-VERIFY-002
+    lens: "Three-state truthiness fidelity through the consuming guard (mission-derived)"
+    severity: 4
+    title: "Plan scopes the delivery_table.py/action_doctrine_bundle.py fix to \"only the guard at line 238\" but two other unguarded iteration sites over the same three-state project_directives value will crash on None"
+    evidence:
+      - artifact: "plan.md § (a), item 3 (\"delivery_table.py (FR-006/014) — same signature, three-state-aware body\"): \"no signature change is needed at the call boundary, only the type of what flows through it ... and the guard at line 238\""
+      - artifact: "plan.md § (a) table row: \"`_classify_artifact_urns`'s exclusion guard (line 238) becomes three-state-aware (`is not None` instead of bare truthiness)\" — the only code-level change plan.md commits to for this file"
+      - code: "src/charter/activation/context_renderers/delivery_table.py:213 — `start_urns = {f\"directive:{directive_id}\" for directive_id in project_directives}` (unconditional iteration, no None-guard)"
+      - code: "src/charter/activation/action_doctrine_bundle.py:230-234 — `roots = (action_urn, *(f\"directive:{d}\" for d in project_directives), ...)` (same unconditional iteration, same variable)"
+      - code: "src/charter/activation/resolver.py:722-735 (`_resolve_directive_base`'s existing three-state guard, cited by plan.md itself at § (a) item 4): converts the `None` sentinel to a concrete `sorted(doctrine_catalog.directives)` list via an explicit `if activated_directives is None:` branch BEFORE the value is ever iterated/sorted — the codebase's own established pattern for this three-state value never lets `None` reach an unconditional iteration site"
+      - artifact: "plan.md § (m) row for delivery_table.py: \"`None` (all built-ins) and `frozenset()` (explicit empty) must never be conflated at the point of use\" — confirms `None` is an intended, real value flowing into this function, not merely a theoretical case"
+    claim: >
+      FR-006 requires `project_directives` (re-derived from `pack_context.activated_directives`)
+      to preserve its three-state value — `None` (absent key, all built-ins), `frozenset()`
+      (explicit empty), or a non-empty set — all the way to `delivery_table.py`'s consuming
+      guard. Plan.md's own design commitment for this is explicit and narrow: "only ... the
+      guard at line 238" changes. But the live code shows `project_directives` is iterated
+      directly, with no None-guard, at two other sites carrying the exact same three-state
+      value: `delivery_table.py:213`'s `start_urns` set-comprehension, and
+      `action_doctrine_bundle.py:230-234`'s `roots` tuple construction (both already read for
+      this plan per its own §(a) item 4 citation of the neighboring `resolver.py` file). If
+      `activated_directives` resolves to `None` — a real, common, non-hypothetical state for any
+      project that has not explicitly narrowed activation, and one the plan's own § (m) table
+      says must reach this function distinctly from `frozenset()` — implementation following the
+      plan's literal scope ("only line 238") will hit `TypeError: 'NoneType' object is not
+      iterable` at `delivery_table.py:213` before the line-238 guard is ever reached, or, if that
+      line is patched too but `action_doctrine_bundle.py:230-234` is missed, at the `roots`
+      construction instead. `resolver.py`'s own already-existing `_resolve_directive_base` (cited
+      approvingly by this same plan section) demonstrates the established, correct pattern for
+      this exact three-state value: branch on `is None` and convert to a concrete value BEFORE
+      any iteration — a pattern plan.md does not carry over to the two additional call sites in
+      `delivery_table.py`/`action_doctrine_bundle.py`. Because WP2 (§ i) bundles FR-006's
+      implementation and FR-007/008/014's tests into one commit sequence with FR-014 asserting
+      only the explicit-empty (`frozenset()`) state — never the absent-key (`None`) state — none
+      of WP2's own red-first tests would catch this crash before it reaches review/CI on a
+      fixture or real project where `activated_directives` is unset.
+    remediation: >
+      Expand plan.md § (a) item 3's design commitment (and the § (a) table row / § (m) row) to
+      name all three consumption sites of the re-derived `project_directives` explicitly:
+      `delivery_table.py:213`'s `start_urns` construction, `delivery_table.py:238`'s exclusion
+      guard, and `action_doctrine_bundle.py`'s `roots` construction (~lines 230-234). State the
+      same early-conversion pattern `resolver.py`'s `_resolve_directive_base` already uses for
+      this value — branch on `activated_directives is None` once, near where `project_directives`
+      is assigned in `action_doctrine_bundle.py`, and convert `None` to a concrete (possibly
+      empty, possibly catalog-derived) set/frozenset there — OR, if the sentinel is meant to
+      survive to `_classify_artifact_urns` as designed, guard every iteration site
+      (`project_directives or set()`/an explicit `if project_directives is not None`) rather than
+      only the one at line 238. Add a WP2 test fixture with `activated_directives` absent
+      (`None`, not `[]`) exercising both `_load_action_doctrine_bundle` and
+      `_classify_artifact_urns` end-to-end, distinct from FR-014's explicit-empty fixture, so this
+      crash path is red-first caught rather than discovered at implementation or CI time.

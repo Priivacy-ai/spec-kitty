@@ -41,7 +41,7 @@ def enriched_procedure_data() -> dict:
 
     Post-WP02: step-level ``tactic_refs`` is removed; ``extra="forbid"``
     rejects it at the model layer. Cross-artifact relationships live in
-    ``src/doctrine/graph.yaml``.
+    ``src/charter/offering/graph.yaml``.
     """
     return {
         "schema_version": "1.0",

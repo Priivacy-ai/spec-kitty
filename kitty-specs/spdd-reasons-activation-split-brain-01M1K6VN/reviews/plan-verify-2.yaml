@@ -1,0 +1,59 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+round: 2
+verifications:
+  - id: PLAN-FRESH-001
+    status: unresolved
+    evidence: >
+      Mechanical parts of the fix are real and verified against the live tree: plan.md § (a)
+      item 3 (commit b3d92431e) now names the early-conversion pattern for all three
+      re-derived values, not just directives — "branch on `is None` once per value, at the
+      point in `action_doctrine_bundle.py` where `project_directives`, `selected_tactics`,
+      and `selected_paradigms` are each assigned"; it enumerates
+      `delivery_table.py`'s `selected_tactics = selected_tactics or set()` /
+      `selected_paradigms = selected_paradigms or set()` and cites lines 211-212, which match
+      the live file exactly (`grep -n` confirms lines 211/212 today); it enumerates
+      `action_doctrine_bundle.py`'s `roots` tuple's tactic/paradigm generator expressions and
+      cites lines 230-235 (tactic/paradigm exprs at 233-234), which also match the live file
+      exactly. § (m)'s design-commitment table row (line 594) and the WP2 phasing bullet
+      (§ "Work package sequencing", the WP2 entry) were both updated in the same commit and
+      are mutually consistent — this is not a case of only one place getting the extension.
+
+      But the substance of the chosen fix reproduces the defect it claims to close, so the
+      finding is not properly addressed. Plan.md's conversion target for
+      `selected_tactics`/`selected_paradigms` is "convert `None` to an explicit empty set...
+      there is no catalog enumeration available at this call site to materialize 'all
+      built-ins' as concrete tactic/paradigm IDs" (§ (a) item 3, repeated verbatim in § (m)
+      line 594). This rationale is factually wrong: `src/charter/activation/catalog.py`'s
+      `DoctrineCatalog` dataclass carries `tactics: frozenset[str]` and
+      `paradigms: frozenset[str]` fields symmetric to `directives: frozenset[str]`, populated
+      by `load_doctrine_catalog()` — already imported and used for exactly this purpose
+      (`catalog.tactics`, `catalog.paradigms`) in the same `charter.activation` package
+      (`compiler.py:202,209`). `action_doctrine_bundle.py` already does function-local imports
+      from sibling modules (its own docstring notes this pattern for
+      `_build_doctrine_service`/`_normalize_directive_id`), so nothing blocks a
+      `load_doctrine_catalog()` call there either — the "no catalog enumeration available"
+      claim does not hold.
+
+      More importantly, this is not merely a citation error: `pack_context.py:150-167`
+      defines `None` identically for all three fields — "key absent from config (all
+      built-ins available)" — and the codebase's own established convention for that state
+      (`drg_activation.py`'s `_node_is_activated`, lines 412-418: "`None` (key absent from
+      config) means all IDs are allowed... A non-empty frozenset gates by full URN
+      membership") treats `None` as "everything passes," not "nothing." Plan.md's § (m) row
+      itself has to invent a second meaning to paper over this — "`None` (all built-ins, or
+      for tactics/paradigms, 'no widening seed')" — assigning the SAME sentinel two
+      contradictory meanings depending on which of the three fields is being read, with no
+      justification beyond the false catalog-availability claim above. Converting `None`
+      ("all built-ins activated," the ordinary default-configuration shape for any project
+      that never explicitly picked tactics/paradigms) into an empty widening seed is exactly
+      Decision Record 2's "softer failure" (silent under-seeding of `start_urns`/`roots`
+      relative to what is genuinely activated) — the same mechanism spec.md documents as
+      "confirmed live on this repo's own dogfook state" for the pre-fix stale-`selected_*`
+      case. The round-1 fix does not eliminate this failure mode; it relocates it from an
+      accidental `x or set()` idiom at consumption time to an explicit, rationalized design
+      decision at assignment time, for the single most common project shape (no explicit
+      tactic/paradigm selection at all). Per the anti-laziness standard, a fix that moves a
+      defect rather than closing it is not a resolution.

@@ -30,7 +30,7 @@ Gates are ordered alphabetically within each axis group.
 ### Axis 1 — Layer Direction
 
 - **`test_layer_rules.py`** — Enforces import direction: `kernel` must not import from `doctrine`, `doctrine` must not import from `charter`, `charter` must not import from `specify_cli`. Any upward import fails this gate.
-- **`test_runtime_charter_doctrine_boundary.py`** — Verifies the internal runtime (`runtime.next._internal_runtime`) accesses doctrine only through the charter facade, never by direct imports from `src/doctrine/`.
+- **`test_runtime_charter_doctrine_boundary.py`** — Verifies the internal runtime (`runtime.next._internal_runtime`) accesses doctrine only through the charter facade, never by direct imports from `src/charter/offering/`.
 
 ### Axis 2 — Surface Completeness
 
@@ -38,11 +38,9 @@ Gates are ordered alphabetically within each axis group.
 - **`test_all_declarations_required.py`** — Confirms every artifact declared in doctrine packs has a matching implementation file. No orphaned declarations.
 - **`test_artifact_selection_completeness.py`** — Confirms every artifact selection the charter surface offers resolves to a real doctrine artifact. No catalog misses in the shipped selection surface.
 - **`test_charter_facades_reexport_doctrine.py`** — Confirms `charter.*` public surfaces re-export every symbol they claim. No facade drift.
-- **`test_dossier_sync_boundary.py`** — Confirms dossier sync routes only through the declared sync boundary; no direct DB writes from outside the boundary.
 - **`test_retrospective_events_boundary.py`** — Confirms retrospective event emission is mediated; no direct event writes from the retrospective runtime.
 - **`test_safety_registry_completeness.py`** — Confirms the safety registry lists every file with a declared safety exemption; no undeclared exemptions.
 - **`test_shim_registry_schema.py`** — Confirms the shim registry YAML schema matches every shim record used at runtime.
-- **`test_status_sync_boundary.py`** — Confirms status-sync writes route only through the declared sync adapter.
 - **`test_template_governance_payload_contract.py`** — Confirms `charter context --json` payload matches the declared governance payload schema (no extra or missing keys).
 
 ### Axis 3 — Closed-Vocabulary Integrity
@@ -62,7 +60,7 @@ Gates are ordered alphabetically within each axis group.
 - **`test_compat_shims.py`** — Confirms every compat shim under `src/specify_cli/` is registered, follows the naming convention, and has a target removal version declared.
 - **`test_events_tracker_public_imports.py`** — Confirms `spec-kitty-events` and `spec-kitty-tracker` are consumed only via their public `spec_kitty_events.*` / `spec_kitty_tracker.*` import surfaces. No private-module access.
 - **`test_no_runtime_pypi_dep.py`** — Confirms the CLI does not depend on `spec-kitty-runtime` at runtime. The standalone runtime package is retired.
-- **`test_pyproject_shape.py`** — Confirms `pyproject.toml` does not contain path/editable/branch overrides in `[tool.uv.sources]` (dev-only overrides must stay out of committed config).
+- **`test_pyproject_shape.py`** — Confirms shared-package dependencies and `uv.lock` use exact public git-SHA references and reject path/editable/branch overrides.
 - **`test_shared_package_boundary.py`** — Confirms `spec_kitty_events` and `spec_kitty_tracker` are not vendored into `src/specify_cli/`. Boundary enforcement for external contract packages.
 - **`test_unregistered_shim_scanner.py`** — Scans for shim-shaped files not registered in the shim registry. Catches unregistered shims that bypass the compat audit.
 - **`test_uv_lock_pin_drift.py`** — Detects drift between `pyproject.toml` declared ranges and the `uv.lock` pinned versions; fails if any pinned package falls outside the declared range.

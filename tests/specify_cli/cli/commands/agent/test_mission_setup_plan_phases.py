@@ -21,10 +21,10 @@ from typing import Any, cast
 import pytest
 import typer
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
-from specify_cli.mission_metadata import OnMalformed, load_meta as canonical_load_meta
+from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -62,57 +62,9 @@ def _resolution(path: Path) -> ResolutionResult:
     )
 
 
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_auth_refusal
-# ---------------------------------------------------------------------------
-
-
-def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    # No exception even with no auth scope available.
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_credentials", lambda: None)
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_auth_refusal(json_output=True)
-    assert exc.value.exit_code == 2
-
-
-def test_auth_refusal_passes_with_scope(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: "scope-x")
-    # Returns without raising (scope resolved).
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_boundary_preflight
-# ---------------------------------------------------------------------------
-
-
-def test_boundary_preflight_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    seam._enforce_saas_sync_boundary_preflight(tmp_path)
-
-
-def test_boundary_preflight_exits_on_incoherence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    class _Result:
-        ok = False
-
-        def render(self, _console: object) -> None:
-            return None
-
-    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_k: _Result())
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_boundary_preflight(tmp_path)
-    assert exc.value.exit_code == 2
-
+# The ``_enforce_saas_sync_auth_refusal`` / ``_enforce_saas_sync_boundary_preflight``
+# gate sections retired with the hosted-sync transport they guarded (issue #5): both
+# seam helpers and their sync-package primitives are gone.
 
 # ---------------------------------------------------------------------------
 # _resolve_setup_plan_feature_dir
@@ -200,6 +152,57 @@ def test_spec_gate_passes_when_committed_and_substantive(monkeypatch: pytest.Mon
     assert blocked is False
 
 
+def test_spec_gate_evaluator_builds_missing_result_without_reporting(
+    tmp_path: Path,
+) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+
+    outcome, message = seam._evaluate_spec_gate(
+        feature_dir / "spec.md",
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is not None
+    assert outcome.exit_code == 1
+    assert outcome.render_kind == "error"
+    assert outcome.payload["error_code"] == "SPEC_FILE_MISSING"
+    assert message is not None
+    assert "Required spec not found" in message
+
+
+def test_spec_gate_evaluator_builds_blocked_result_without_reporting(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# stub")
+    monkeypatch.setattr("specify_cli.missions._substantive.is_committed", lambda *a, **k: True)
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: False)
+
+    outcome, message = seam._evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is not None
+    assert outcome.exit_code == 0
+    assert outcome.render_kind == "blocked"
+    assert outcome.payload["error_code"] == "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED"
+    assert message is not None
+    assert "Blocked" in message
+
+
 # ---------------------------------------------------------------------------
 # _scaffold_plan_template
 # ---------------------------------------------------------------------------
@@ -251,45 +254,47 @@ def test_resolve_plan_template_uses_context_and_configured_seam(monkeypatch: pyt
     assert calls == [("plan", tmp_path, context)]
 
 
-def test_resolve_plan_template_accepts_supported_legacy_mission_field(
+def test_resolve_plan_template_rejects_legacy_only_mission_field(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Legacy metadata is typed configuration, not the meta-less fallback."""
+    """Legacy-only metadata is typeless post-retirement, not typed configuration.
+
+    rc3 M5 (FR-002, ADR 2026-08-22-1) retires the legacy ``mission`` field from
+    every mission-type reader; only the canonical ``mission_type`` field is
+    read. A meta.json carrying *only* the legacy ``mission`` key therefore
+    resolves to a typeless mission and can no longer reach a configured plan
+    template as a resolved legacy type -- it must fail closed with guidance to
+    backfill ``mission_type`` (``spec-kitty migrate backfill-mission-type``),
+    never silently fall back to a guessed template.
+    """
     from specify_cli.cli.commands.agent import mission as mission_mod
 
     feature_dir = tmp_path / "kitty-specs" / "001-legacy-meta"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text('{"mission":"software-dev"}', encoding="utf-8")
-    context = _resolved_mission_type()
-    template_src = tmp_path / "configured-plan-source.md"
-    template_src.write_text("CONFIGURED", encoding="utf-8")
-    context_calls: list[str] = []
 
-    def _context(_repo_root: Path, *, mission_type: str) -> ResolvedMissionType:
-        context_calls.append(mission_type)
-        return context
-
-    monkeypatch.setattr(seam, "resolve_mission_type_context", _context)
+    monkeypatch.setattr(
+        seam,
+        "resolve_mission_type_context",
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached mission-type context resolution"),
+    )
     monkeypatch.setattr(
         mission_mod,
         "resolve_template",
-        lambda *_a, **_k: pytest.fail("legacy metadata reached the meta-less fallback"),
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached the meta-less fallback"),
     )
     monkeypatch.setattr(
         mission_mod,
         "resolve_configured_template",
-        lambda artifact_kind, project_dir, resolved: (
-            _resolution(template_src)
-            if (artifact_kind, project_dir, resolved) == ("plan", tmp_path, context)
-            else pytest.fail("configured resolver received the wrong authority")
-        ),
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached the configured resolver"),
     )
 
-    result = seam._resolve_plan_template(tmp_path, feature_dir)
+    with pytest.raises(TemplateConfigurationError) as exc_info:
+        seam._resolve_plan_template(tmp_path, feature_dir)
 
-    assert result.path == template_src
-    assert context_calls == ["software-dev"]
+    assert "non-blank string field 'mission_type'" in str(exc_info.value)
+    assert "backfill-mission-type" in str(exc_info.value)
 
 
 def test_resolve_plan_template_preserves_missing_meta_legacy_boundary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -385,8 +390,6 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         state_changes.append("plan-commit")
         return None, None, True
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(
@@ -400,7 +403,6 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         _unexpected_plan_commit,
     )
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
@@ -437,27 +439,27 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
     (feature_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
     meta_path = feature_dir / "meta.json"
     meta_path.write_text('{"mission_type":"software-dev"}', encoding="utf-8")
+    # WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    # authority, so ``resolve_mission_type_context`` fails closed without this.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     load_calls = 0
     configured_calls: list[str | None] = []
     legacy_calls: list[str] = []
 
-    def _load_then_mutate(
-        feature_dir_arg: Path,
-        *,
-        allow_missing: bool = True,
-        on_malformed: OnMalformed = "raise",
-        encoding: str = "utf-8",
-    ) -> dict[str, Any] | None:
+    def _load_then_mutate(feature_dir_arg: Path) -> dict[str, Any] | None:
+        # FR-007: the seam now reads through ``load_meta_fail_closed`` (one
+        # positional arg), so the stub mirrors THAT signature. The test's
+        # intent is unchanged: count the reads and mutate the file immediately
+        # after, proving the caller uses its single loaded snapshot.
         nonlocal load_calls
         load_calls += 1
-        loaded = canonical_load_meta(
-            feature_dir_arg,
-            allow_missing=allow_missing,
-            on_malformed=on_malformed,
-            encoding=encoding,
-        )
+        loaded = canonical_load_meta_fail_closed(feature_dir_arg)
         if mutation == "unlink":
             meta_path.unlink()
         else:
@@ -476,15 +478,12 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
         legacy_calls.append(name)
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "load_meta", _load_then_mutate)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
+    monkeypatch.setattr(seam, "load_meta_fail_closed", _load_then_mutate)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -523,6 +522,13 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
     coord_dir.mkdir(parents=True)
     (primary_dir / "meta.json").write_text('{"mission_type":"software-dev"}', encoding="utf-8")
     (primary_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
+    # WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    # authority, so ``resolve_mission_type_context`` fails closed without this.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     configured_calls: list[tuple[str, Path, ResolvedMissionType]] = []
@@ -535,14 +541,11 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
         configured_calls.append((artifact_kind, project_dir, resolved))
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: coord_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -767,8 +770,11 @@ def test_commit_plan_substantive_commits_with_no_scaffold_flag(monkeypatch: pyte
 
 
 def test_documentation_wiring_noop_for_non_doc_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP04: the ``feature_dir``
+    # positional argument was dropped -- the function now resolves its own
+    # PRIMARY-partition dir through the seam (FR-013, #2886).
     monkeypatch.setattr(seam, "get_mission_type", lambda _fd: "software-dev")
-    gap, gens = seam._run_documentation_wiring(tmp_path, "001-demo", tmp_path, target_branch="main", json_output=True)
+    gap, gens = seam._run_documentation_wiring("001-demo", tmp_path, target_branch="main", json_output=True)
     assert gap is None
     assert gens == []
 
@@ -788,7 +794,6 @@ def test_documentation_wiring_runs_both_documentation_phases(monkeypatch: pytest
     )
 
     gap, generators = seam._run_documentation_wiring(
-        tmp_path,
         "001-docs",
         tmp_path,
         target_branch="main",
@@ -797,6 +802,58 @@ def test_documentation_wiring_runs_both_documentation_phases(monkeypatch: pytest
 
     assert gap == "gap-analysis.md"
     assert generators == [generator]
+
+
+def test_documentation_wiring_on_coord_husk_writes_gap_analysis_to_primary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """T024 (WP04 review, WP08 T039 nice-to-have): a documentation mission whose
+    coordination worktree is a HUSK (materialised, no ``meta.json``) still
+    anchors ``gap-analysis.md`` on the PRIMARY dir, never the husk.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP04 closed the #2886
+    one-of-two documentation-wiring hole (both reads route through
+    ``placement_seam(...).read_dir(PRIMARY_METADATA)``), but its reviewer
+    flagged there was no committed BEHAVIOURAL test: both phase tests above
+    monkeypatch the read (``get_mission_type``) so a regression that routed
+    only ONE of the two reads back onto the coord husk would still pass them.
+    This test drives the REAL seam (no ``placement_seam``/``get_mission_type``
+    mock) against a real coord-husk fixture and asserts on the observable
+    contract: which directory ``_run_documentation_gap_analysis`` is handed as
+    its write target.
+    """
+    mission_slug = "001-docs-on-husk"
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    coord_dir = tmp_path / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    coord_dir.mkdir(parents=True)  # materialised coord root, but NO meta.json: a husk
+    (primary_dir / "meta.json").write_text(
+        '{"mission_type": "documentation", "coordination_branch": "kitty/mission-001-docs-on-husk"}',
+        encoding="utf-8",
+    )
+    assert not (coord_dir / "meta.json").exists(), "husk invariant: no coord meta.json"
+
+    captured: dict[str, object] = {}
+
+    def _capture_gap_analysis(
+        primary_dir_arg: Path, *args: object, **kwargs: object
+    ) -> str:
+        captured["primary_dir_arg"] = primary_dir_arg
+        return "gap-analysis.md"
+
+    monkeypatch.setattr(seam, "_run_documentation_gap_analysis", _capture_gap_analysis)
+    monkeypatch.setattr(seam, "_detect_and_configure_generators", lambda *a, **k: [])
+
+    gap, _generators = seam._run_documentation_wiring(
+        mission_slug, tmp_path, target_branch="main", json_output=True
+    )
+
+    assert gap == "gap-analysis.md"
+    assert captured["primary_dir_arg"] == primary_dir, (
+        "gap-analysis.md's write target must be the PRIMARY dir, never the "
+        f"coord husk {coord_dir} — got {captured['primary_dir_arg']}"
+    )
+    assert captured["primary_dir_arg"] != coord_dir
 
 
 @pytest.mark.parametrize("json_output", [True, False])
@@ -819,8 +876,6 @@ def test_setup_plan_renders_configured_template_failure_without_traceback(
         reason="maps to unresolved filename 'missing-plan.md'",
     )
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_resolve_plan_template", lambda *_a: (_ for _ in ()).throw(error))
@@ -935,3 +990,28 @@ def test_emit_result_json_scaffold_only(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert emitted["scaffold_only"] is True
     assert emitted["phase_complete"] is False
     assert "blocked_reason" not in emitted
+
+
+def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(seam, "_emit_json", lambda *_args: pytest.fail("builder emitted JSON"))
+
+    outcome = seam._build_setup_plan_result(
+        plan_file=tmp_path / "plan.md",
+        spec_file=tmp_path / "spec.md",
+        feature_dir=tmp_path,
+        mission_slug="001-demo",
+        plan_is_substantive=False,
+        plan_blocked_reason=None,
+        plan_commit_result=None,
+        gap_analysis_path=None,
+        generators_detected=[],
+        target_branch="main",
+        current_branch="main",
+        plan_scaffold_only=True,
+    )
+
+    assert outcome.exit_code == 0
+    assert outcome.render_kind == "scaffold"
+    assert outcome.payload["result"] == "success"
+    assert outcome.payload["scaffold_only"] is True
+    assert outcome.payload["phase_complete"] is False

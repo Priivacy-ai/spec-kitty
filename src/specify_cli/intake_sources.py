@@ -62,6 +62,16 @@ HARNESS_PLAN_SOURCES: list[tuple[str, str | None, list[str]]] = [
         "gemini",
         [".gemini/plans"],
     ),
+    # Generic handoff packet — Verified-docs (this repository).
+    # Tool-agnostic Markdown packets (optional YAML frontmatter `handoff_packet: 1`)
+    # dropped at the project root by any upstream requirements producer.
+    # Listed after harness-specific hidden dirs (ordering rule: generic last).
+    # Source: docs/contracts/handoff-packet-v1.md
+    (
+        "handoff",
+        None,
+        [".handoff"],
+    ),
 ]
 
 
@@ -196,7 +206,7 @@ def scan_for_plans(cwd: Path) -> list[tuple[Path, str, str | None]]:
                     except (ValueError, OSError):
                         continue
                     # Expand directory: collect all *.md files (non-recursive)
-                    for child in sorted(abs_path.iterdir()):
+                    for child in sorted(abs_path.iterdir(), key=lambda p: p.name):
                         try:
                             # T023: Symlink exclusion
                             if child.is_symlink():

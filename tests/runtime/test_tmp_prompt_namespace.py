@@ -59,7 +59,9 @@ class TestPromptTmpDir:
         assert result.is_dir()
 
     def test_stable_for_same_repo_root(self, tmp_path: Path) -> None:
-        assert prompt_tmp_dir(tmp_path) == prompt_tmp_dir(tmp_path)
+        first_dir = prompt_tmp_dir(tmp_path)
+        second_dir = prompt_tmp_dir(tmp_path)
+        assert first_dir == second_dir
 
     def test_distinct_for_distinct_repo_roots(self, tmp_path: Path) -> None:
         other = tmp_path / "other-repo"
@@ -117,7 +119,7 @@ class TestDecisionComposedMarkersNamespaced:
     def test_fast_path_marker_is_namespaced(self, tmp_path: Path) -> None:
         """The ``_is_composed_action`` fast path (~decision.py:610)."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=["specify", "plan"]),
         ):
             path_str, error = _build_prompt_or_error(

@@ -1,0 +1,59 @@
+{
+  "mission_slug": "short-help-flag-01KW6N7D",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-28T14:28:35Z",
+      "notes": "Root `-h` help exits successfully and exposes root help markers."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-28T14:28:35Z",
+      "notes": "Two command groups (`agent`, `auth`) accept `-h` and expose command group markers."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-28T14:28:35Z",
+      "notes": "Two nested command groups (`agent mission`, `agent tasks`) accept `-h` and expose nested command markers."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-28T14:28:35Z",
+      "notes": "`-h` and `--help` both exit successfully for tested paths; long help advertises `-h`."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": ".venv/bin/pytest tests/specify_cli/cli/commands/test_short_help_flag.py tests/docs/test_check_cli_reference_freshness.py tests/docs/test_build_cli_reference.py tests/architectural/test_docs_cli_reference_parity.py -q (76 passed)",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-06-28T14:28:35Z",
+      "notes": "Tests bypass command startup side effects; docs reference tests verify regenerated help output remains aligned with CLI surface."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,39 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      The non-goals bullet now states PR #3707 also touches
+      tests/charter/test_mission_type_profiles.py (an optional-args widening
+      to _write_org_mission_step_yaml plus one new call site) and expects a
+      routine rebase, mirroring the #3703/PR#3708 bullet; verified against
+      the live PR #3707 diff via gh pr view/diff, which confirms exactly
+      that change shape and confirms the production diff stays in
+      doctrine/, matching the now-narrowed "production diff" wording.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      C-003 now states the guard is invoked from activate_cmd in activate.py
+      (mirroring the existing _emit_step_removal_warnings call) calling a
+      new helper in mission_type_profiles.py, never touching
+      activation_engine.py/pack_manager.py, dropping the non-viable "inside
+      plan_activation" option; verified plan_activation at
+      activation_engine.py:193, commit_plan at :358, the no-filesystem
+      docstring at :36-43, the commit_plan call at pack_manager.py:643, and
+      activate.py:553/:560 all match the spec's citations exactly, and this
+      reading is now consistent with C-007's two-file blast radius.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      Edge Cases now pins the required fixture shape: call
+      _write_org_pack_config with <T>'s org pack declared via packs but
+      activated_mission_types omitting <T>, and assert <T> absent from
+      mission_type_activations before invoking activation; verified
+      _write_org_pack_config's signature at
+      tests/charter/test_mission_type_profiles.py:846 and confirmed all 8
+      existing call sites in that file populate activated_mission_types
+      alongside packs together, matching the finding's conflation claim and
+      the remediation's required addition.

@@ -1,0 +1,53 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: pr-tests-001
+    verdict: confirmed
+    reason: >-
+      Independently reproduced end-to-end: tests/dossier/test_reexport_trim.py is the only file
+      in tests/dossier/ with no pytestmark (all 15 siblings carry unit/fast or fast); `.venv/bin/python
+      -m pytest tests/dossier/test_reexport_trim.py -m "fast"` and `-m "git_repo or integration or
+      architectural"` both deselect all 33 tests; no pytest.ini/conftest.py autouse hook injects a
+      default unit/fast/integration/architectural marker (only windows_ci/quarantine/performance/shard
+      marks are auto-applied); the CI misc integration shard explicitly lists tests/dossier as an owned
+      path but filters on `(git_repo or integration or architectural)`, which an unmarked file never
+      matches; and tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main
+      actually FAILS on HEAD (242bb99a5) with "33 of 40386 collected test NODES (1 files)" naming
+      exactly tests/dossier/test_reexport_trim.py (33 == the file's real collected-test count), while
+      the same test PASSES at the pre-mission base commit 03cda7bbf in a throwaway worktree — proving
+      this is a genuine regression introduced by this diff, not pre-existing noise. The gate is
+      baseline-free by design (no allowlist), so this is a real, currently-red, self-detected CI hole.
+  - id: pr-contract-001
+    verdict: confirmed
+    reason: >-
+      The premise "exhaustive per-entry" overstates the actual norm (sampled entries show one bullet
+      per PR/mission, sometimes bundling several issues with sub-bullets, e.g. the "Fail-loud sweep"
+      entry cites #3578/#3548/#3517/#3412/#2991/#3590 together) — but the real norm, evidenced across
+      dozens of sampled entries, is that every issue number materially touched by a bundled change is
+      cited in its entry's parenthetical, and every user/operator-visible behavior change is narrated
+      somewhere. Here the diff shows two real, distinct, issue-tracked changes bundled into this same
+      PR alongside the documented #3677 trim: FR-007's path-relativization (analysis_report.py: a new
+      PathRelativizationError, relativized hash-input paths, committed analysis-report.md frontmatter
+      format change) and FR-006/#3678's commit-subject format change (mission_record_analysis.py:374,
+      switching auto-committed subjects from a non-conventional-commit string to `docs(record-analysis):
+      ...` for commitlint compliance). `grep -n "3678\|3676" docs/changelog/CHANGELOG.md` returns
+      nothing, and the only new bullet added by this diff is the single #3677 entry (CHANGELOG.md:57),
+      which does not mention either FR-007 or FR-006/#3678 even in passing. No automated changelog gate
+      catches this (tests/release/test_validate_changelog_entry.py only checks version-section
+      presence), so this is a real, silent documentation gap, correctly scoped at severity 3.
+  - id: pr-tests-002
+    verdict: refuted
+    reason: >-
+      Factually accurate but not an actionable finding: verified the regex proxy in
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py (module carries
+      pytest.mark.unit/fast at line 26) and confirmed via WP03's own task file
+      (kitty-specs/.../tasks/WP03-commit-subject-fix.md, subtask T012) that a live
+      `commitlint --from <sha> --to <sha>` run was explicitly planned and executed manually during the
+      WP as the authoritative verification step, with the RED-first regex proxy scoped deliberately to
+      stay inside the file's unit/fast tier (no subprocess/network, per pytest.ini's own tier
+      definitions) — exactly the tradeoff the finding describes. The finding's own remediation is
+      "None required" and its severity is self-rated 1/non-blocking; it identifies no defect to fix, so
+      there is nothing here for the merge gate to act on.

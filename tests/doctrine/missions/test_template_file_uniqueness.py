@@ -1,7 +1,7 @@
 """T026 -- cross-type ``template_file`` uniqueness guard (NFR-006).
 
 Each built-in mission type projects its own ``template_set`` mapping (see
-:func:`~doctrine.missions.step_projection.project_template_set`) --
+:func:`~charter.offering.missions.step_projection.project_template_set`) --
 ``{artifact_key: template_file}`` -- from the ``template`` refs its own
 sequence steps author. Nothing in the step-authority model itself prevents
 two *different* mission types from independently authoring the SAME
@@ -26,9 +26,9 @@ from collections import Counter
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
-from doctrine.missions.step_projection import project_template_set
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.step_projection import project_template_set
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

@@ -12,7 +12,7 @@ Covers:
 
 from __future__ import annotations
 
-import datetime as _dt
+from kernel.clock import UTC, datetime as _dt_datetime, timedelta as _dt_timedelta
 from pathlib import Path
 
 import pytest
@@ -41,10 +41,10 @@ from specify_cli.invocation.record import ProfileInvocationRecord
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-def _at(seconds: int = 0) -> _dt.datetime:
+def _at(seconds: int = 0) -> _dt_datetime:
     """Build a deterministic UTC timestamp offset by ``seconds``."""
-    base = _dt.datetime(2026, 4, 28, 12, 0, 0, tzinfo=_dt.timezone.utc)
-    return base + _dt.timedelta(seconds=seconds)
+    base = _dt_datetime(2026, 4, 28, 12, 0, 0, tzinfo=UTC)
+    return base + _dt_timedelta(seconds=seconds)
 
 
 def _started(
@@ -464,7 +464,7 @@ def test_read_lifecycle_records_skips_blank_and_corrupt_lines(tmp_path: Path) ->
 
 def test_doctor_orphan_report_handles_naive_datetimes(tmp_path: Path) -> None:
     """A naive datetime gets formatted as UTC by the doctor surface."""
-    naive = _dt.datetime(2026, 4, 28, 12, 0, 0)  # no tzinfo
+    naive = _dt_datetime(2026, 4, 28, 12, 0, 0)  # no tzinfo
     record = ProfileInvocationRecord(
         canonical_action_id="x::y",
         phase="started",

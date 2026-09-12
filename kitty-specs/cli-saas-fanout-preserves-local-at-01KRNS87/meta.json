@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-15T12:19:47.398406+00:00",
+  "flattened": false,
   "friendly_name": "CLI SaaS fan-out preserves local at",
   "mission_id": "01KRNS87258Q1CSZS8HESTRBDK",
   "mission_number": null,
@@ -10,6 +11,7 @@
   "slug": "cli-saas-fanout-preserves-local-at-01KRNS87",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-15T12:22:15.555923+00:00"
 }

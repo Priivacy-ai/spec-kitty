@@ -269,13 +269,13 @@ The command file provides all instructions; the agent executes them.
 
 ## Try It
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Non-Interactive Init](../guides/non-interactive-init.md)
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
 
 ## Reference
 

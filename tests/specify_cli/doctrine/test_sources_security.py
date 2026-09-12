@@ -351,7 +351,7 @@ class TestHttpsBundleSourceSizeLimits:
             [],
             headers={"Content-Length": "5"},
         )
-        monkeypatch.setattr(source, "_get_with_retry", lambda: response)
+        monkeypatch.setattr(source, "_get_with_retry", lambda _url: response)
 
         result = source.fetch(tmp_path)
 
@@ -368,7 +368,7 @@ class TestHttpsBundleSourceSizeLimits:
         monkeypatch.setattr(https_source, "MAX_ARCHIVE_BYTES", 3)
         source = HttpsBundleSource(url="https://example.com/pack.zip")
         response = _make_stream_response([b"ab", b"cd"])
-        monkeypatch.setattr(source, "_get_with_retry", lambda: response)
+        monkeypatch.setattr(source, "_get_with_retry", lambda _url: response)
 
         result = source.fetch(tmp_path)
 

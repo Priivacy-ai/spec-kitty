@@ -137,7 +137,7 @@ class TestNormalizeLastSync:
 
     def test_datetime_coerced_to_iso_string(self) -> None:
         """A ``datetime`` is coerced to its ISO 8601 string form."""
-        from datetime import UTC, datetime
+        from kernel.clock import UTC, datetime
 
         from specify_cli.cli.commands.charter._status_collectors import (
             _normalize_last_sync,
@@ -228,7 +228,7 @@ class TestCharterStatusNoMutator:
                 "(C2-a / NFR-006 — read-only consumer)"
             )
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", _boom):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", _boom):
             result = _collect_charter_sync_status(charter_repo)
 
         assert result["available"] is True, result

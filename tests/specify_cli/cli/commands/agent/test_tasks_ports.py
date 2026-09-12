@@ -437,23 +437,37 @@ def test_exactly_four_ports_in_bundle() -> None:
     assert len(fields) == 4
 
 
-def test_canonicalizer_fold_is_co_located_inside_the_adapter_method() -> None:
-    """C-002: the ``_canonicalize_primary_read_handle`` fold and the blind
-    primitive call are BOTH inside ``RealFsReader.primary_anchor_dir``.
+def test_primary_anchor_dir_has_no_separate_canonicalizer_fold() -> None:
+    """C-002 (WP08 T036 update): no caller-side canonicalizer fold is
+    co-located in ``RealFsReader.primary_anchor_dir`` any more — the fold is
+    now entirely internal to the seam.
 
-    Splitting the fold across the port boundary turns the intra-function
-    canonicalizer gate RED. This static proof pins the co-location.
+    read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004) first
+    routed this method off the topology-blind ``primary_feature_dir_for_mission``
+    wrapper onto ``placement_seam(...).read_dir(PRIMARY_METADATA)`` — the
+    wrapper's own body was exactly this seam call. This test used to also pin
+    a co-located ``_canonicalize_primary_read_handle`` fold call PRECEDING the
+    seam call (the C-002 "the fold and the primitive call must live in the
+    same function" invariant), but that invariant's subject was the primitive
+    call itself — since ``primary_anchor_dir`` calls ``read_dir``, never the
+    canonicalizer primitive directly, there was nothing left for a co-located
+    fold to feed. WP08 (T036) drained the redundant caller-side fold (the
+    seam's PRIMARY leg already folds the handle internally via the SAME
+    ``_canonicalize_primary_read_handle`` primitive before composing), so this
+    test now pins the drained shape: exactly one seam call, no separate fold.
     """
     import inspect
 
     source = inspect.getsource(RealFsReader.primary_anchor_dir)
-    assert "_canonicalize_primary_read_handle" in source
-    assert "primary_feature_dir_for_mission" in source
-    # The fold result must feed the primitive within the SAME method body: the
-    # canonicalizer call precedes the blind-primitive call.
-    assert source.index("_canonicalize_primary_read_handle") < source.index(
-        "primary_feature_dir_for_mission("
+    # A CALL, not a bare textual mention -- the method's own comment names the
+    # primitive in prose to explain why the fold was dropped (redundant with
+    # the seam's internal fold); only an actual call would mean it was not.
+    assert "_canonicalize_primary_read_handle(" not in source, (
+        "primary_anchor_dir should no longer pre-fold the handle -- the seam's "
+        "PRIMARY leg already does so internally (WP08 T036)"
     )
+    assert "placement_seam" in source
+    assert "MissionArtifactKind.PRIMARY_METADATA" in source
 
 
 # ===========================================================================

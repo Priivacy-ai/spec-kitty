@@ -15,15 +15,17 @@ always either the old version or the new version, never a partial write.
 
 from __future__ import annotations
 
-import datetime as _dt
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
+from kernel.clock import now_utc_iso
+from kernel.meta_decode import MetaDecodeError, decode_meta
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -84,6 +86,8 @@ class MissionMetaOptional(TypedDict, total=False):
     source_description: str
     mission_branch: str
     change_mode: str
+    retain_branches: bool
+    retain_worktrees: bool
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +127,7 @@ class MissionIdentity:
 
 def _now_iso() -> str:
     """Current UTC time in ISO 8601."""
-    return _dt.datetime.now(_dt.UTC).isoformat()
+    return now_utc_iso()
 
 
 def mission_number_from_slug(mission_slug: str) -> int | None:
@@ -212,7 +216,14 @@ def mission_identity_fields(
     if not resolved_number:
         slug_number = mission_number_from_slug(resolved_slug)
         resolved_number = str(slug_number) if slug_number is not None else ""
-    resolved_type = str(mission_type or "").strip() or "software-dev"
+    # rc3 M5 (FR-003/AC-3): the identity payload carries the mission's TRUE type
+    # or neutral typeless ("") — it does NOT re-mask a typeless/legacy-only
+    # mission back to "software-dev". This normalizer is on the machine-facing
+    # read/serialize path (context/status/acceptance/merge/decision payloads);
+    # re-defaulting here would silently defeat the reader convergence one layer
+    # downstream (and regress a pre-backfill legacy-only mission from its real
+    # type to software-dev). Callers degrade on typeless at their own boundary.
+    resolved_type = str(mission_type or "").strip()
     return {
         "mission_slug": resolved_slug,
         "mission_number": resolved_number,
@@ -230,8 +241,13 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     - Stored as JSON int    → ``int``
     - Stored as string "042" → ``42`` (leading zeros stripped)
     - Stored as "pending" / sentinel → raises ``ValueError``
+
+    A missing meta.json degrades to an empty identity (legacy-tolerant,
+    unchanged). A CORRUPT meta.json raises the typed ``MissionMetaReadError``
+    (FR-007 route) instead of the raw ``ValueError`` that used to leak from
+    this module's own ``load_meta`` call.
     """
-    meta = load_meta(feature_dir) or {}
+    meta = _load_meta_fail_closed(feature_dir) or {}
     raw_number = meta.get("mission_number")
     mission_number: int | None = _coerce_mission_number(raw_number)
 
@@ -246,7 +262,12 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     raw_slug = meta.get("mission_slug") or meta.get("slug")
     raw_slug_str = str(raw_slug) if raw_slug is not None else None
     resolved_slug = safe_mission_slug(raw_slug_str, feature_dir.name)
-    resolved_type = str(meta.get("mission_type") or meta.get("mission") or "").strip() or "software-dev"
+    # rc3 M5 (FR-002/FR-003): canonical field only via the one shared reader —
+    # the legacy `mission` fallback and the silent `software-dev` default are
+    # retired. A typeless mission resolves to "" (neutral); callers degrade at
+    # their own boundary. The machine-facing `mission_identity_fields` normalizer
+    # (above) no longer re-masks that neutral result to "software-dev" either.
+    resolved_type = read_mission_type(meta) or ""
 
     return MissionIdentity(
         mission_slug=resolved_slug,
@@ -331,24 +352,99 @@ def _parse_meta_text(
 ) -> dict[str, Any] | None:
     """Decode and parse an existing ``meta.json`` per *on_malformed*.
 
-    A read/decode error (``OSError``) or a JSON syntax error or a non-object top
-    level is "malformed".  Under ``"raise"`` it surfaces as :class:`ValueError`;
-    under ``"empty"``/``"none"`` it is absorbed to ``{}``/``None``.
+    L2 reads the file, then delegates the *malformed definition* to the L1
+    kernel primitive :func:`kernel.meta_decode.decode_meta` (str/bytes → dict),
+    while retaining L2's own responsibilities:
+
+    - **File I/O**: an :class:`OSError` reading the file is "malformed" here (a
+      read failure) and, under ``"raise"``, surfaces as the legacy path-named
+      :class:`ValueError`.
+    - **Legacy path-named message** (load-bearing regression pins:
+      ``test_mission_metadata.py:95,101`` / ``test_feature_metadata.py:85,92``):
+      L1 raises a path-less :class:`MetaDecodeError`; L2 re-raises a
+      :class:`ValueError` carrying the exact historical text
+      (``"Malformed JSON in {path}"`` / ``"Expected JSON object in {path}, got
+      {type}"``). L1 owns the malformed *definition*; L2 owns the path-named
+      *message*.
+
+    A non-UTF-8 ``meta.json`` (``UnicodeDecodeError`` -- a :class:`ValueError`
+    subclass, NOT an :class:`OSError`, #3163) is raised by ``Path.read_text``'s
+    own decode, alongside a plain read failure (:class:`OSError`), in a single
+    read step -- deliberately :meth:`Path.read_text`, not ``read_bytes`` +
+    manual ``.decode()``: callers (audit classifiers, #4 regression) invoke
+    ``meta_path.read_text`` as the read primitive to simulate an unreadable
+    file, and the single-step read keeps the exception chain a single hop
+    (the legacy ``ValueError`` raised below chains directly ``from`` the raw
+    :class:`OSError`/:class:`UnicodeDecodeError`) so ``exc.cause.__cause__``
+    at the ``MissionMetaReadError`` boundary is the real underlying error.
+    Under ``"empty"``/``"none"`` any malformed input is absorbed to ``{}``/``None``.
     """
     try:
         text = meta_path.read_text(encoding=encoding)
-        data = json.loads(text)
-    except (json.JSONDecodeError, OSError) as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         if on_malformed == "raise":
             raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
         return {} if on_malformed == "empty" else None
-    if not isinstance(data, dict):
+    try:
+        data = decode_meta(text, on_malformed="raise")
+    except MetaDecodeError as exc:
         if on_malformed == "raise":
-            raise ValueError(
-                f"Expected JSON object in {meta_path}, got {type(data).__name__}"
-            )
+            raise _legacy_parse_error(meta_path, exc) from exc
         return {} if on_malformed == "empty" else None
+    # decode_meta("raise") returns a dict on success (never None here).
     return data
+
+
+# L1's non-object error message; L2 rewrites it to the path-named legacy form.
+_L1_NON_OBJECT_PREFIX = "Expected JSON object, got "
+
+
+def _legacy_parse_error(meta_path: Path, exc: MetaDecodeError) -> ValueError:
+    """Restore L2's historical path-named message from L1's path-less error.
+
+    L1 (``kernel.meta_decode``) owns the malformed *definition* and raises a
+    path-less :class:`MetaDecodeError`; L2 owns the path-named *message* that the
+    message-pinned regressions assert (``test_mission_metadata.py:95,101`` /
+    ``test_feature_metadata.py:85,92``). Two arms, byte-identical to the legacy
+    text: a non-object top level → ``"Expected JSON object in {path}, got
+    {type}"``; any other decode failure → ``"Malformed JSON in {path}: {exc}"``.
+    """
+    message = str(exc)
+    if message.startswith(_L1_NON_OBJECT_PREFIX):
+        type_name = message[len(_L1_NON_OBJECT_PREFIX) :]
+        return ValueError(f"Expected JSON object in {meta_path}, got {type_name}")
+    return ValueError(f"Malformed JSON in {meta_path}: {message}")
+
+
+def parse_meta_file(
+    path: Path,
+    *,
+    on_malformed: OnMalformed = "raise",
+    encoding: str = _UTF8,
+) -> dict[str, Any] | None:
+    """Public path-holding L2 reader over :func:`_parse_meta_text` (FR-002).
+
+    Path-holding callers (e.g. the merge-driver blob reader, WP04) that already
+    hold a concrete ``meta.json`` :class:`~pathlib.Path` — rather than a mission
+    *directory* — route here instead of reaching into the private
+    ``_parse_meta_text``. Semantics are identical to :func:`load_meta`'s parse
+    stage: reads *path*, delegates the malformed definition to L1, and preserves
+    L2's legacy path-named messages under ``on_malformed="raise"``.
+
+    Args:
+        path: The concrete ``meta.json`` file path to read and parse.
+        on_malformed: ``"raise"`` (default) → path-named :class:`ValueError`;
+            ``"empty"`` → ``{}``; ``"none"`` → ``None`` on malformed content.
+        encoding: Decode encoding (``"utf-8"`` by default; ``"utf-8-sig"`` for a
+            BOM-tolerant decode).
+
+    Returns:
+        The parsed mapping, or the absorbed sentinel per *on_malformed*.
+
+    Raises:
+        ValueError: When *path* is malformed and ``on_malformed="raise"``.
+    """
+    return _parse_meta_text(path, on_malformed=on_malformed, encoding=encoding)
 
 
 def load_meta_strict(feature_dir: Path, *, bom_tolerant: bool = True) -> dict[str, Any]:
@@ -458,9 +554,83 @@ def write_meta(
     atomic_write(meta_path, content)
 
 
+def restore_meta_text(feature_dir: Path, original_text: str) -> None:
+    """Restore ``meta.json`` to previously-captured, byte-exact text (rollback primitive).
+
+    Unlike :func:`write_meta`, which re-serializes a ``dict`` through the
+    canonical ``json.dumps(..., indent=2, sort_keys=True)`` format, this
+    writes *original_text* verbatim -- no parsing, no re-serialization, no
+    validation. It exists for revert/rollback call sites (SK3466-R-001) that
+    captured meta.json's exact pre-mutation bytes (e.g. via ``Path.
+    read_text``) before calling one of this module's mutation helpers, and
+    must undo that write on a later failure by restoring PRECISELY the prior
+    on-disk state -- key order, indentation, and trailing newline included.
+    Routing such a revert through ``write_meta`` would re-serialize from a
+    parsed dict and could silently change any of those, leaving a spurious
+    formatting-only diff in the working tree even though the *value* was
+    correctly restored.
+
+    This keeps ``mission_metadata.py`` the sole physical writer of
+    ``meta.json`` (DIRECTIVE_044): the raw file write for a revert happens
+    here, through the same :func:`~specify_cli.core.atomic.atomic_write`
+    primitive every other mutation helper in this module uses -- not as a
+    direct ``Path.write_text`` at the caller's own call site.
+
+    Args:
+        feature_dir: Directory containing meta.json.
+        original_text: The exact text to restore, written as-is (including
+            whatever trailing newline / formatting the caller captured).
+    """
+    meta_path = feature_dir / META_FILENAME
+    atomic_write(meta_path, original_text)
+
+
 # ---------------------------------------------------------------------------
 # Mutation helpers
 # ---------------------------------------------------------------------------
+
+
+def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
+    """Read meta.json via the one public fail-closed reader (FR-007).
+
+    Deferred import (LOAD-BEARING -- do NOT hoist to module level): this
+    module defines the canonical parser (:func:`load_meta`) that
+    ``core.paths.load_meta_fail_closed`` itself calls back into via its OWN
+    deferred import (see that function's docstring in ``core/paths.py``).
+    This module already imports from ``core.paths`` at module level
+    (``safe_mission_slug`` above), so a module-level import here would
+    re-form the exact same ``core.paths <-> mission_metadata`` circular
+    import that function documents and avoids. Keeping this import
+    in-function mirrors that established, working pattern (the "authority"
+    classification these mutation helpers used to carry in the NFR-003
+    ledger claimed routing them was circular for this reason -- it is not,
+    once the import is deferred the same way).
+
+    Returns ``None`` when meta.json is absent; never raised for a missing
+    file. Raises :class:`~specify_cli.core.paths.MissionMetaReadError` when
+    meta.json exists but is corrupt, non-object, or unreadable.
+    """
+    from specify_cli.core.paths import load_meta_fail_closed  # noqa: PLC0415
+
+    result: dict[str, Any] | None = load_meta_fail_closed(feature_dir)
+    return result
+
+
+def _require_meta(feature_dir: Path) -> dict[str, Any]:
+    """Read meta.json fail-closed, or raise if missing (FR-007 route).
+
+    Shared guard for the mutation helpers below: a MISSING meta.json is the
+    ``None`` answer from :func:`_load_meta_fail_closed` (raised here as
+    ``FileNotFoundError``, matching every one of these callers' historical
+    contract unchanged); a CORRUPT one raises the typed
+    ``MissionMetaReadError`` and propagates undisturbed -- previously a raw
+    ``ValueError`` leaked out of this module's own ``load_meta(feature_dir)``
+    call instead.
+    """
+    meta = _load_meta_fail_closed(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    return meta
 
 
 def record_acceptance(
@@ -472,9 +642,7 @@ def record_acceptance(
     accept_commit: str | None = None,
 ) -> dict[str, Any]:
     """Record acceptance metadata.  Appends to bounded history."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     now = _now_iso()
     entry: dict[str, Any] = {
@@ -516,9 +684,7 @@ def set_vcs_lock(
     locked_at: str | None = None,
 ) -> dict[str, Any]:
     """Set VCS type and lock timestamp."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["vcs"] = vcs_type
     if locked_at is not None:
@@ -533,9 +699,7 @@ def set_documentation_state(
     state: dict[str, Any],
 ) -> dict[str, Any]:
     """Set or replace ``documentation_state`` subtree."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["documentation_state"] = state
 
@@ -558,9 +722,7 @@ def set_origin_ticket(
         FileNotFoundError: If meta.json does not exist in *feature_dir*.
         ValueError: If any required key is missing from *origin_ticket*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     required_keys = {
         "provider",
@@ -585,9 +747,7 @@ def set_target_branch(
     branch: str,
 ) -> dict[str, Any]:
     """Set ``target_branch`` field."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["target_branch"] = branch
 
@@ -602,9 +762,7 @@ def set_purpose_summary(
     purpose_context: str,
 ) -> dict[str, Any]:
     """Set mission-purpose summary fields in ``meta.json``."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     errors = validate_purpose_summary(purpose_tldr, purpose_context)
     if errors:
@@ -617,12 +775,17 @@ def set_purpose_summary(
 
 
 def set_change_mode(
-    feature_dir: Path,
+    feature_dir: str | Path,
     mode: str,
 ) -> dict[str, Any]:
     """Set ``change_mode`` field.
 
     Validates *mode* is in :data:`VALID_CHANGE_MODES` before writing.
+
+    *feature_dir* accepts a :class:`~pathlib.Path` or a plain ``str``; the
+    latter is coerced to ``Path`` so a caller (e.g. the documented shell
+    one-liner in the bulk-edit classification skill) that passes a bare string
+    does not trip a ``TypeError`` deep inside the path-joining reader (#3436).
 
     Raises:
         ValueError: If *mode* is not a recognized change mode.
@@ -632,9 +795,8 @@ def set_change_mode(
         raise ValueError(
             f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
         )
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    feature_dir = Path(feature_dir)
+    meta = _require_meta(feature_dir)
 
     meta["change_mode"] = mode
     write_meta(feature_dir, meta)
@@ -669,9 +831,7 @@ def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     cleared: dict[str, Any] = {}
     for field in _MERGE_FIELDS:
@@ -701,9 +861,7 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     cleared: dict[str, Any] = {}
     if "coordination_branch" in meta:
@@ -714,12 +872,76 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     return cleared
 
 
+def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
+    """Canonically flatten a mission's coordination metadata (#3219 / FR-015 / D-PLAN-17).
+
+    The single, canonical primitive performing all THREE coordination-flatten
+    mutations in one ``load -> mutate -> write_meta(validate=False)``: pop
+    ``coordination_branch``, pop the now-stale ``topology``, and set
+    ``flattened: True`` -- persisted via a SINGLE write. This closes the
+    double-write / mid-flatten-crash window a caller invited by doing the
+    mutations across two separate ``write_meta`` calls (e.g. one call to clear
+    ``coordination_branch`` followed by a second call popping ``topology`` and
+    setting ``flattened``): a crash between the two writes could leave a
+    mission with ``coordination_branch`` gone but a stale ``topology`` still
+    routing it through coordination.
+
+    This is the fourth touch on this mutation set (#2069 -> #2120 -> #2614 ->
+    #3086/#3218) -- every prior touch re-inlined a partial or two-write copy
+    of these three mutations at its own call site instead of converging on one
+    shared primitive.  Every canonical call site (``merge/executor.py``'s
+    post-branch-delete flatten, ``doctor coordination --fix``, and
+    ``mission close --discard``) MUST route through this function; a
+    dedicated architectural guard
+    (``tests/coordination/test_flatten_primitive_single_source.py``) fails
+    the build if a future change re-inlines the three-mutation set anywhere
+    else.
+
+    A no-op (no write, empty snapshot) when ``coordination_branch`` is absent
+    -- a non-coord Mission (``SINGLE_BRANCH``/``LANES``) or an
+    already-flattened one carries no such key, so repeated calls are
+    idempotent and never spuriously stamp ``flattened: True`` onto a mission
+    that was never coordinated.
+
+    Returns a snapshot of the cleared ``coordination_branch``/``topology``
+    values (empty when there was nothing to flatten).
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): the
+    # ``specify_cli.migration`` package's ``__init__.py`` imports
+    # ``backfill_identity``, which itself imports THIS module
+    # (``specify_cli.mission_metadata``) -- a module-level import here would
+    # re-form that exact cycle (empirically verified: a partially-initialized
+    # ``mission_metadata`` module fails resolving names ``backfill_identity``
+    # needs). Mirrors the established deferred-import pattern this module
+    # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
+    from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
+
+    meta = _require_meta(feature_dir)
+
+    if "coordination_branch" not in meta:
+        return {}
+
+    cleared: dict[str, Any] = {"coordination_branch": meta.pop("coordination_branch")}
+    if TOPOLOGY_KEY in meta:
+        cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
+    meta[FLATTENED_KEY] = True
+
+    write_meta(feature_dir, meta, validate=False)
+    return cleared
+
+
 def get_change_mode(feature_dir: Path) -> str | None:
     """Read ``change_mode`` from meta.json.
 
-    Returns ``None`` if meta.json is missing or the field is absent.
+    Returns ``None`` if meta.json is missing or the field is absent. A
+    CORRUPT meta.json raises the typed ``MissionMetaReadError`` (FR-007
+    route) rather than absorbing it -- corruption is a read failure, not a
+    field-absent case, so it must not be reported the same way.
     """
-    meta = load_meta(feature_dir)
+    meta = _load_meta_fail_closed(feature_dir)
     if meta is None:
         return None
     return meta.get("change_mode")

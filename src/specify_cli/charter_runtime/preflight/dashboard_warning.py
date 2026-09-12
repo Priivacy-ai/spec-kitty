@@ -37,8 +37,9 @@ def preflight_warning_path(repo_root: Path) -> Path:
 
 
 def write_preflight_warning(repo_root: Path, blocked_reason: str) -> None:
-    """Persist a preflight ``blocked_reason`` for the dashboard SPA to render.
+    """Persist a blocking reason or passed advisory for the dashboard SPA.
 
+    The legacy ``blocked_reason`` JSON key stays stable for compatibility.
     The ``.kittify/`` directory is created if missing so this helper works
     in test fixtures that pre-create only the project root.
     """
@@ -54,7 +55,7 @@ def clear_preflight_warning(repo_root: Path) -> None:
 
 
 def read_preflight_warning(repo_root: Path) -> str | None:
-    """Return the persisted ``blocked_reason`` or ``None``.
+    """Return the persisted blocking reason/advisory or ``None``.
 
     Returns ``None`` for any failure mode (missing file, corrupt JSON,
     wrong shape) so the dashboard API stays operational even when the

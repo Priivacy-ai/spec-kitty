@@ -105,7 +105,7 @@ def test_saas_emits_after_commit_success(repo: Path, mock_saas_sink: Any) -> Non
     assert mock_saas_sink.call_count == 1, (
         f"expected 1 SaaS emission; got {mock_saas_sink.call_count}"
     )
-    assert mock_saas_sink.last_kwargs["causation_id"] == event.event_id
+    assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
     assert mock_saas_sink.last_kwargs["wp_id"] == event.wp_id
     assert mock_saas_sink.last_kwargs["from_lane"] == str(event.from_lane)
     assert mock_saas_sink.last_kwargs["to_lane"] == str(event.to_lane)
@@ -133,6 +133,9 @@ def test_saas_emission_preserves_mission_slug_and_repo_root(
     assert kwargs["mission_slug"] == MISSION_SLUG
     assert kwargs["mission_id"] == MISSION_ID
     assert kwargs["ensure_daemon"] is True
+    # #125: the emitting checkout root travels with the fan-out kwargs so the
+    # Zeitgeist bridge can resolve credentials from it instead of cwd.
+    assert kwargs["repo_root"] == repo
 
 
 # ---------------------------------------------------------------------------

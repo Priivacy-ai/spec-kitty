@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: WP02 T009's new (d-iii) sub-case uses docs/contracts vs api/contracts against the live _normalize_path_token (slash-strip only, confirmed in validators/paths.py), and tracing both the correct full-token comparison and a hypothetical Path(t).name-basename comparison by hand shows they diverge (["api/contracts"] vs []), so the fixture genuinely falsifies a basename-reduction bug; the Risks section's claim that (d-iii) restores this coverage alongside (not instead of) (d-i)/(d-ii)'s filter-presence guard matches the actual test construction.
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: NFR-002 now appears in requirement_refs for all four WPs in both wps.yaml and each WP's frontmatter (WP01/WP02/WP03/WP04), and a fresh re-run of `.venv/bin/spec-kitty agent mission finalize-tasks --mission accept-path-remediation-honesty-01M0TWZP --validate-only --json` reports validation_passed with empty requirement_extraction_warnings and ownership_warnings.

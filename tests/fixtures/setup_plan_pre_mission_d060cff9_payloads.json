@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "source_commit": "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a",
+  "source_tree": "b0921b556c12a39032d1e44ac94a4a0e19517bd2",
+  "source_provenance": "Parent of first mission artifact commit 74ff71861. Tests verify this commit's Git tree, archive it, import mission_setup_plan from that archive in an isolated subprocess, replay all cases, and compare full normalized payloads plus exits directly to HEAD.",
+  "capture_clock": "2026-08-23T00:00:00Z",
+  "normalization": "Only the isolated repository root, including its resolved /private alias, is replaced by {{ROOT}}. No payload fields are discarded."
+}

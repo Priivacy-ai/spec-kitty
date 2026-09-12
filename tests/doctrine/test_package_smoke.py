@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 import pytest
-pytestmark = [pytest.mark.doctrine, pytest.mark.non_sandbox, pytest.mark.integration]
+pytestmark = [pytest.mark.doctrine, pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.corpus]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ENV = {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
 
@@ -30,7 +30,7 @@ def test_doctrine_import_and_profile_repo_smoke() -> None:
             sys.executable,
             "-c",
             (
-                "from doctrine.agent_profiles import AgentProfileRepository; "
+                "from charter.offering.agent_profiles import AgentProfileRepository; "
                 "repo = AgentProfileRepository(project_dir=None); "
                 "assert repo.get('implementer-ivan') is not None"
             ),

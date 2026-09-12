@@ -11,6 +11,7 @@ Every test pins both the platform (``sys.platform``, which drives both
 ``_tracker_root()`` and ``get_runtime_root()``) and ``$HOME`` via monkeypatch, so
 the suite is deterministic on every OS.
 """
+
 from __future__ import annotations
 
 import sys
@@ -62,9 +63,7 @@ def _set_platform(monkeypatch: pytest.MonkeyPatch, platform: str) -> None:
     monkeypatch.setattr(sys, "platform", platform)
 
 
-def test_tracker_root_posix_flat_under_env_home(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_root_posix_flat_under_env_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """POSIX: ``_tracker_root()`` is the env base itself (flat); creds at base/credentials."""
     base = tmp_path / "env-home"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(base))
@@ -74,9 +73,7 @@ def test_tracker_root_posix_flat_under_env_home(
     assert credentials._credentials_path() == base / "credentials"
 
 
-def test_tracker_root_windows_nested_under_env_home(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_root_windows_nested_under_env_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Windows: ``_tracker_root()`` keeps the nested ``base/tracker`` suffix."""
     base = tmp_path / "env-home"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(base))
@@ -86,9 +83,7 @@ def test_tracker_root_windows_nested_under_env_home(
     assert credentials._credentials_path() == base / "tracker" / "credentials"
 
 
-def test_tracker_db_path_under_env_home(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_db_path_under_env_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The tracker DB resolves to ``base/trackers/<scope>.db`` under the env root."""
     base = tmp_path / "env-home"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(base))
@@ -97,9 +92,7 @@ def test_tracker_db_path_under_env_home(
     assert _resolved_db_path() == base / "trackers" / f"{_expected_scope()}.db"
 
 
-def test_tracker_db_path_flat_on_windows_under_env_home(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_db_path_flat_on_windows_under_env_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The store has no platform branch: the DB stays ``base/trackers`` on Windows too."""
     base = tmp_path / "env-home"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(base))
@@ -108,9 +101,7 @@ def test_tracker_db_path_flat_on_windows_under_env_home(
     assert _resolved_db_path() == base / "trackers" / f"{_expected_scope()}.db"
 
 
-def test_tracker_root_posix_default_when_env_unset(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_root_posix_default_when_env_unset(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """POSIX, env unset: creds fall back to ``~/.spec-kitty/credentials`` (NFR-001)."""
     fake_home = tmp_path / "home"
     monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
@@ -121,9 +112,7 @@ def test_tracker_root_posix_default_when_env_unset(
     assert credentials._credentials_path() == fake_home / ".spec-kitty" / "credentials"
 
 
-def test_tracker_db_path_posix_default_when_env_unset(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tracker_db_path_posix_default_when_env_unset(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """POSIX, env unset: DB falls back to ``~/.spec-kitty/trackers/<scope>.db`` (NFR-001)."""
     fake_home = tmp_path / "home"
     monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)

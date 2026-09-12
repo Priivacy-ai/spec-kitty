@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP17",
+  "captured_at": "2026-07-24T10:03:52Z",
+  "base_branch": "remediation/coord-lifecycle-gates",
+  "base_commit": "2b4e6314440d943c3f0b578190021e61f9ce7f15",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

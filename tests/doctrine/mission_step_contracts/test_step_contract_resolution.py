@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.missions.step_contracts import (
+from charter.offering.missions.step_contracts import (
     MissionStepContractRepository,
     resolve_step_contract_ids,
 )

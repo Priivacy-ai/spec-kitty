@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      The "Net effect" parenthetical (spec.md:118-131) no longer uses "evict"/"not fixed by
+      this mission" defect framing (repo-wide grep confirms zero remaining "evict" occurrences);
+      it now says "not a defect this mission changes" / "does not change the gate's general
+      selectivity," consistent with User Story 1 (:150-152) and Acceptance Scenario 5's
+      (:200-202) "selective by design, not a defect this mission changes," and it explicitly
+      attributes the exclusion to the general `_node_is_activated` step 3 gate
+      (src/charter/drg.py:467-473), disclaiming the default.yaml-completeness framing ("it is
+      not an org-specific gap in default.yaml's enumeration... the same exclusion would equally
+      apply to an unlisted built-in or project artifact, not only to org ones").
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      A proportionate Out of Scope bullet was added ("The per-artifact-ID gate's general
+      selectivity," spec.md:400-403) mirroring Acceptance Scenario 5 without introducing a
+      VC-NNN entry or tracked issue, matching the finding's own remediation guidance that this
+      is a documented by-design property, not a deferred defect.

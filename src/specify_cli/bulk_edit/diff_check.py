@@ -24,11 +24,12 @@ YAMLs, CLI command modules, test fixtures, user-facing docs, etc.).
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
 
-from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
+from specify_cli.bulk_edit.occurrence_map import OccurrenceMap, _is_narrow_structural_path
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 
 # ---------------------------------------------------------------------------
 # Path-to-category heuristics
@@ -135,6 +136,19 @@ def classify_path(path: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _glob_match(posix: str, pattern: str) -> bool:
+    """Return ``True`` if *pattern* (``*``/``?``/``**``) matches *posix*.
+
+    Shared by :func:`_path_matches` and :func:`_exception_for`, which both
+    need "plain fnmatch, with a ``**`` recursive fallback" glob semantics —
+    this is the single place that logic lives so the two call sites cannot
+    drift apart.
+    """
+    if fnmatch(posix, pattern):
+        return True
+    return "**" in pattern and _fnmatch_recursive(posix, pattern)
+
+
 def _move_for(path: str, omap: OccurrenceMap) -> tuple[str, str] | None:
     """Return ``(role, reason)`` when *path* participates in a declared move.
 
@@ -156,6 +170,41 @@ def _move_for(path: str, omap: OccurrenceMap) -> tuple[str, str] | None:
     return None
 
 
+def _structural_target_for(path: str, omap: OccurrenceMap) -> str | None:
+    """Return the declared reason when *path* matches a structural target.
+
+    A structural target (``structural_targets:`` in ``occurrence_map.yaml``)
+    is an explicit, reviewer-declared exemption naming ONE file or glob whose
+    changes in THIS mission are a genuine structural code edit (new
+    function, refactor) rather than a bulk find/replace occurrence. It is
+    matched the same way as a declared move — :func:`_path_matches`
+    (glob/directory-prefix) — so ``path: src/foo/*.py`` covers every ``.py``
+    file directly under ``src/foo/``. Deliberately narrow: only paths named
+    here, one at a time, are exempted — never a blanket "ignore all
+    src/*.py". Returns ``None`` when no target matches, meaning the ordinary
+    classifier (and its ``do_not_change`` enforcement) still applies.
+
+    Defense-in-depth (MINOR, second-opinion squad): narrowness is normally
+    enforced at finalize-time by
+    :func:`specify_cli.bulk_edit.occurrence_map.validate_occurrence_map`, but
+    THIS function is the actual consumption point that grants the exemption
+    at review time — and it must not trust that every ``omap`` it is handed
+    was validated by the current code (a map finalized by a pre-hardening
+    version, or hand-edited after finalize, could still carry a broad entry
+    such as ``path: "src/**/*.py"``). Every candidate is re-checked against
+    :func:`_is_narrow_structural_path` here, INDEPENDENTLY of validation, so
+    a non-narrow entry can never grant an exemption regardless of how it
+    entered the map.
+    """
+    posix = Path(path).as_posix()
+    for target in omap.structural_targets:
+        if not _is_narrow_structural_path(target.path):
+            continue
+        if _path_matches(posix, target.path):
+            return target.reason or "declared structural target"
+    return None
+
+
 def _path_matches(posix: str, declared: str) -> bool:
     """Match *posix* against a declared move path (glob or directory prefix)."""
     declared = declared.strip()
@@ -163,9 +212,7 @@ def _path_matches(posix: str, declared: str) -> bool:
         return False
     normalized = Path(declared).as_posix().rstrip("/")
     if "*" in normalized or "?" in normalized:
-        if fnmatch(posix, normalized):
-            return True
-        return "**" in normalized and _fnmatch_recursive(posix, normalized)
+        return _glob_match(posix, normalized)
     if posix == normalized:
         return True
     # Directory-prefix match: ``src/auth`` covers ``src/auth/login.py``.
@@ -173,9 +220,18 @@ def _path_matches(posix: str, declared: str) -> bool:
 
 
 def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
-    """Return the first exception whose glob matches *path*, if any."""
+    """Return the first WHOLE-FILE exception whose glob matches *path*, if any.
+
+    Field-scoped exceptions (``field_path`` set, WP02, FR-002) are excluded
+    here: they narrow the exemption to one field inside a file that also
+    carries entries the category-level action must still classify normally,
+    so they must never override the whole file's verdict — see
+    :func:`_field_path_pins_for`, which is where they are actually honoured.
+    """
     posix = Path(path).as_posix()
     for exception in omap.exceptions:
+        if exception.get("field_path"):
+            continue
         pattern = exception.get("path", "")
         if not pattern:
             continue
@@ -183,11 +239,38 @@ def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
         # globs (``src/**/*.py``). fnmatch understands ``*`` and ``?`` but
         # not ``**``, so we also try a recursive-glob fallback when the
         # pattern contains ``**``.
-        if fnmatch(posix, pattern):
-            return exception
-        if "**" in pattern and _fnmatch_recursive(posix, pattern):
-            return exception
+        if _glob_match(posix, pattern):
+            # `omap.exceptions` is declared `list[dict[str, str]]` on
+            # OccurrenceMap, but mypy resolves it as `Any` when this module is
+            # type-checked as a standalone narrow-file target (the
+            # `specify_cli.*` / `follow_imports = "skip"` override in
+            # pyproject.toml treats non-explicitly-listed sibling modules —
+            # including occurrence_map.py — as untyped in that mode). An
+            # annotated local (not `cast()`, which mypy flags as redundant
+            # once whole-package checking resolves the real type) narrows
+            # explicitly so the declared return type holds under both
+            # invocation shapes.
+            matched: dict[str, str] = exception
+            return matched
     return None
+
+
+def _field_path_pins_for(path: str, omap: OccurrenceMap) -> tuple[str, ...]:
+    """Return every field name pinned ``do_not_change`` by a field-scoped
+    exception matching *path* (WP02, FR-002).
+
+    Unlike :func:`_exception_for`, ALL matches apply, sorted for determinism
+    — a single file can carry several distinct protected fields (e.g. an
+    agent profile's ``directive-references`` AND ``tactic-references``,
+    each declared as its own ``exceptions[]`` entry).
+    """
+    posix = Path(path).as_posix()
+    pins = {
+        fpe.field_path
+        for fpe in omap.field_path_exceptions
+        if _glob_match(posix, fpe.path)
+    }
+    return tuple(sorted(pins))
 
 
 def _fnmatch_recursive(path: str, pattern: str) -> bool:
@@ -208,6 +291,91 @@ def _fnmatch_recursive(path: str, pattern: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Runtime-state gate exemption (FR-007, C-004)
+# ---------------------------------------------------------------------------
+
+# IC-07e retirement (WP15, C-010): the former named-tuple runtime-state
+# allowlist mechanism is gone. Its basenames split into two genuinely
+# different concerns:
+#
+# * ``status.events.jsonl`` / ``status.json`` / ``issue-matrix.md`` /
+#   ``acceptance-matrix.json`` are COORD-partition mission artifacts —
+#   toolchain-generated churn a dirty-state gate must ignore. That
+#   classification already has ONE canonical owner,
+#   :func:`specify_cli.coordination.coherence.is_toolchain_generated_churn`
+#   (FR-012); duplicating its basenames here was exactly the "ninth list" the
+#   registry (WP10) forbids, so this exemption now delegates to it instead of
+#   restating the basenames.
+# * ``review-cycle-*.md`` / ``notes.md`` are the running mission's own
+#   human-authored review/handoff commentary — NOT toolchain churn (the owner
+#   deliberately has no opinion on them: neither has a ``MissionArtifactKind``,
+#   and empirically ``is_toolchain_generated_churn`` returns ``False`` for
+#   both). Routing them onto the owner would either pollute its boundary with
+#   a review-commentary kind it has no business knowing about, or silently
+#   drop the exemption and reintroduce a false block (a C-010 regression).
+#   This is a genuine, justified must-keep (plan.md L233-235) — NOT a silent
+#   survivor: it is registered as an explicit ``justified-survivor`` row,
+#   ``tests/architectural/tool_artifact_enrolment/registry/
+#   _is_review_lifecycle_basename.md``, so it stays visible to any audit of
+#   unowned filename exemptions.
+
+
+def _is_review_lifecycle_basename(basename: str) -> bool:
+    """Return ``True`` for the mission's own review/handoff commentary files.
+
+    A registered survivor mechanism (registry row
+    ``_is_review_lifecycle_basename.md``, ``status: justified-survivor``): these
+    two patterns are bulk-edit-review-specific domain knowledge that is
+    genuinely outside :func:`is_toolchain_generated_churn`'s toolchain-generated-
+    write scope, so it is kept here rather than grown onto the owner — see the
+    registry row for the full C-010 justification.
+    """
+    return basename == "notes.md" or _glob_match(basename, "review-cycle-*.md")
+
+
+def _under_feature_dir(posix: str, feature_dir_rel: str) -> bool:
+    """Return ``True`` if *posix* lives under *feature_dir_rel* (repo-root-relative)."""
+    anchor = feature_dir_rel.strip("/")
+    if not anchor:
+        return False
+    return posix == anchor or posix.startswith(f"{anchor}/")
+
+
+def _own_bookkeeping_exemption(path: str, feature_dir_rel: str | None) -> FileAssessment | None:
+    """Return an exemption verdict when *path* is the RUNNING mission's own runtime state.
+
+    Anchored to *feature_dir_rel* — the running mission's OWN feature_dir,
+    repo-root-relative — so this can only exempt paths under the mission
+    currently being reviewed (C-004). ``None`` (no *feature_dir_rel*, the path
+    is outside it, or the path is neither toolchain-generated churn nor a
+    review-lifecycle file) means "not exempt here"; the caller falls through
+    to the ordinary classifier.
+    """
+    if not feature_dir_rel:
+        return None
+    posix = Path(path).as_posix()
+    if not _under_feature_dir(posix, feature_dir_rel):
+        return None
+    basename = Path(posix).name
+    mission_slug = Path(feature_dir_rel).name or None
+    if not is_toolchain_generated_churn(
+        path, mission_slug=mission_slug
+    ) and not _is_review_lifecycle_basename(basename):
+        return None
+    return FileAssessment(
+        path=path,
+        category=None,
+        source="runtime-state",
+        action=None,
+        violation=False,
+        reason=(
+            f"'{basename}' is the mission's own runtime-state bookkeeping file "
+            "(FR-007 allowlist) — exempt from occurrence classification."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Compliance check
 # ---------------------------------------------------------------------------
 
@@ -218,10 +386,11 @@ class FileAssessment:
 
     path: str
     category: str | None           # None => unclassified
-    source: str                    # "path-heuristic" | "exception"
+    source: str                    # "path-heuristic" | "exception" | "move" | "structural-target" | "runtime-state"
     action: str | None             # None => no action defined in map
     violation: bool                # True when this file blocks approval
     reason: str                    # Human-readable rationale
+    field_path_pins: tuple[str, ...] = ()  # WP02: fields pinned do_not_change
 
 
 @dataclass(frozen=True)
@@ -234,8 +403,36 @@ class DiffCheckResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
-    """Classify a single file and determine whether it violates the map."""
+def assess_file(
+    path: str,
+    omap: OccurrenceMap,
+    feature_dir_rel: str | None = None,
+) -> FileAssessment:
+    """Classify a single file and determine whether it violates the map.
+
+    *feature_dir_rel* is the RUNNING mission's own ``feature_dir``, expressed
+    as a repo-root-relative POSIX path. When provided, it anchors the
+    runtime-state gate exemption (FR-007, C-004) so only this mission's own
+    bookkeeping files are exempted — never another mission's.
+
+    Field-scoped exceptions (WP02, FR-002) never change the base verdict
+    computed below — they only ADD a :attr:`FileAssessment.field_path_pins`
+    annotation naming the protected field(s), which
+    :func:`check_diff_compliance` turns into a targeted warning.
+    """
+    base = _classify_file(path, omap, feature_dir_rel)
+    pins = _field_path_pins_for(path, omap)
+    if not pins:
+        return base
+    return replace(base, field_path_pins=pins)
+
+
+def _classify_file(
+    path: str,
+    omap: OccurrenceMap,
+    feature_dir_rel: str | None,
+) -> FileAssessment:
+    """The whole-file classification :func:`assess_file` pins fields onto."""
     # 1) Exceptions take precedence over path heuristics.
     exception = _exception_for(path, omap)
     if exception is not None:
@@ -274,7 +471,31 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             reason=f"Declared structural {role}: {move_reason}",
         )
 
-    # 3) Path heuristic classification.
+    # 3) Declared structural target. A reviewer-declared, per-file exemption
+    #    (``structural_targets:``) naming a file whose changes in THIS
+    #    mission are a genuine structural code edit rather than a bulk
+    #    find/replace occurrence — narrow by construction (one path/glob at
+    #    a time), never a blanket "ignore all src/*.py".
+    structural_reason = _structural_target_for(path, omap)
+    if structural_reason is not None:
+        return FileAssessment(
+            path=path,
+            category=None,
+            source="structural-target",
+            action="structural_edit",
+            violation=False,
+            reason=f"Declared structural target: {structural_reason}",
+        )
+
+    # 4) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
+    #    path-heuristic classifier, mirroring the move/exception/structural
+    #    exemptions above — but only for the RUNNING mission's own
+    #    bookkeeping files.
+    runtime_state = _own_bookkeeping_exemption(path, feature_dir_rel)
+    if runtime_state is not None:
+        return runtime_state
+
+    # 5) Path heuristic classification.
     category = classify_path(path)
     if category is None:
         return FileAssessment(
@@ -290,7 +511,7 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
             ),
         )
 
-    # 4) The classified category must appear in the map.
+    # 6) The classified category must appear in the map.
     category_entry = omap.categories.get(category)
     if category_entry is None:
         return FileAssessment(
@@ -335,14 +556,17 @@ def assess_file(path: str, omap: OccurrenceMap) -> FileAssessment:
 def check_diff_compliance(
     changed_files: list[str],
     omap: OccurrenceMap,
+    feature_dir_rel: str | None = None,
 ) -> DiffCheckResult:
     """Assess every changed file and aggregate the verdict.
 
     *changed_files* is a list of repo-relative path strings obtained from
-    ``git diff --name-only``. The function is pure — no I/O — so it can be
-    unit-tested directly.
+    ``git diff --name-only``. *feature_dir_rel* is the running mission's own
+    ``feature_dir`` as a repo-root-relative POSIX path — see
+    :func:`assess_file` for how it anchors the runtime-state exemption. The
+    function is pure — no I/O — so it can be unit-tested directly.
     """
-    assessments = [assess_file(p, omap) for p in changed_files]
+    assessments = [assess_file(p, omap, feature_dir_rel) for p in changed_files]
     violations = [a for a in assessments if a.violation]
     errors = [f"{a.path}: {a.reason}" for a in violations]
 
@@ -353,6 +577,8 @@ def check_diff_compliance(
         f"{a.path}: category '{a.category}' requires manual_review — document justification"
         for a in manual_review_files
     ]
+    warnings.extend(_field_path_pin_warnings(assessments))
+    warnings.extend(_structural_target_warnings(assessments))
 
     return DiffCheckResult(
         passed=len(violations) == 0,
@@ -360,3 +586,40 @@ def check_diff_compliance(
         errors=errors,
         warnings=warnings,
     )
+
+
+def _field_path_pin_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Targeted per-field warnings (WP02, FR-002) — the reviewer reviews
+    exceptions, not a whole-file sweep.
+
+    Without field-path granularity, a file that carries both migrating AND
+    protected content can only be flagged generically (blanket
+    ``manual_review``), forcing a reviewer to eyeball every changed line. A
+    field-scoped exception names exactly which field(s) must be verified
+    unchanged, so the warning names them too.
+    """
+    return [
+        f"{a.path}: field-path exception pins {', '.join(a.field_path_pins)} "
+        "as do_not_change — verify only those fields were left untouched"
+        for a in assessments
+        if a.field_path_pins
+    ]
+
+
+def _structural_target_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Per-file visibility warnings for every structural-target exemption.
+
+    A MAJOR review finding: without this, a ``structural_targets`` exemption
+    is invisible in gate output — a WP passes review with no trace that a
+    ``do_not_change`` category was bypassed for a specific file. Mirrors
+    :func:`_field_path_pin_warnings`'s per-file visibility idiom so every
+    exemption that fires is named, with its reviewer-declared reason, in the
+    same warnings list a human actually reads.
+    """
+    return [
+        f"{a.path}: structural-target exemption applied ({a.reason}) — "
+        "do_not_change bypass; verify this is a genuine structural edit, "
+        "not a bulk-occurrence change"
+        for a in assessments
+        if a.source == "structural-target"
+    ]

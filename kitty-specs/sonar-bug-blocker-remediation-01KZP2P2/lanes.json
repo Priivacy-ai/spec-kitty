@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "mission_slug": "sonar-bug-blocker-remediation-01KZP2P2",
+  "mission_id": "01KZP2P2J6CRP74QW89EK5ZPRP",
+  "mission_branch": "kitty/mission-sonar-bug-blocker-remediation-01KZP2P2",
+  "target_branch": "fix/sonar-bug-blocker-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/_support/git_template/test_git_template.py",
+        "tests/audit/test_audit_serializer.py",
+        "tests/core/test_batch_partition.py",
+        "tests/cross_cutting/encoding/test_contextive_traceability.py",
+        "tests/doctrine/missions/test_step_projection.py",
+        "tests/glossary/test_drg_builder.py",
+        "tests/runtime/test_tmp_prompt_namespace.py",
+        "tests/specify_cli/lanes/test_resolve_lanes_dir.py",
+        "tests/specify_cli/skills/test_manifest_store.py",
+        "tests/specify_cli/tool_surface/profiles/test_renderers.py",
+        "tests/sync/test_clock.py",
+        "tests/sync/test_leak_guard_fingerprint_3115.py",
+        "tests/sync/test_namespace.py",
+        "tests/sync/tracker/test_origin_models.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/lint.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/sync.py",
+        "src/specify_cli/sync/events.py",
+        "tests/architectural/test_compat_shims.py",
+        "tests/cross_cutting/versioning/test_version_detection.py",
+        "tests/cross_cutting/versioning/test_version_fallback.py",
+        "tests/next/test_plan_mission_runtime.py",
+        "tests/specify_cli/coordination/test_transaction.py",
+        "tests/specify_cli/migration/test_strip_frontmatter.py",
+        "tests/specify_cli/skills/test_command_renderer.py",
+        "tests/status/test_status_read_worktree_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/bookkeeping_projection.py",
+        "src/specify_cli/skills/verifier.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/pack_manager.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "src/specify_cli/compat/remediation.py",
+        "src/specify_cli/core/file_lock.py",
+        "src/specify_cli/status/reducer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-10T15:07:12.595209+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4fbe42115b19eda8152f91a70dea4930f92cf446"
+}

@@ -1,0 +1,58 @@
+# review-findings/v1 — R3 output: merged findings whose refute verdict is
+# `confirmed`. Refuted findings are NOT copied here — they stay in
+# pr.merged.yaml (with their reasons in pr-refute-1.yaml) for the audit
+# trail, per protocol. This mission is REPORT-ONLY (R1-R3 only, no fix
+# round in this phase): confirmed findings below are routed OUT to a fresh
+# fix dispatch by the orchestrator, never fixed inside this squad.
+#
+# Evidence chain: pr.merged.yaml (the finding, in full) + pr-refute-1.yaml
+# (the refuter's verdict and reasoning) are both required to make sense of
+# this file; commit all three together.
+schema: review-findings/v1
+complete: true
+phase: pr
+mission: mission-type-guard-registry-01KZY2FG
+source:
+  merged: pr.merged.yaml
+  refute_batches: [pr-refute-1.yaml]
+findings:
+  - id: PR-CONTRACT-003
+    lens: silent-success / exception-handling scope
+    severity: 2
+    title: "classify_mission_type's try/except covers only the meta.json read, not the classification helpers that run after it — a bug there would crash the whole audit run, not degrade to one mission's error state"
+    evidence:
+      - artifact: "spec.md § Edge Cases (last bullet): \"It must classify that mission into an explicit error state in the report (never silently skip it and never crash the whole audit run)\""
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:194-220 (classify_mission_type: try/except (OSError, MissionMetaReadError) wraps only load_meta_fail_closed; the _classify_present_key/_classify_absent_key calls execute after the try block has already exited, unguarded)"
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:260-267 (audit_mission_types's for-loop calls classify_mission_type with no surrounding try/except, so any exception from the unguarded classification helpers propagates straight out and aborts the whole audit)"
+    claim: >
+      FR-008's Edge Case requires that a per-mission classification failure "never
+      crash the whole audit run." `classify_mission_type` only narrows the blast radius
+      of exceptions from the `meta.json` read itself (`OSError`/`MissionMetaReadError`);
+      the classification logic that runs afterward (`_classify_present_key` /
+      `_classify_absent_key`, which call `canonical_mission_type_key` and
+      `MissionTypeRepository.get`) is not covered by any try/except in this function,
+      and `audit_mission_types`'s calling loop has no try/except around the
+      `classify_mission_type` call either. Confirmed not a live bug today (both helper
+      functions are pure/exception-free for current inputs, verified by the refuter),
+      but the isolation contract the spec asks for is only accidentally satisfied by
+      the current implementation's simplicity, not structurally guaranteed. A later
+      change to `canonical_mission_type_key` or `MissionTypeRepository.get` would crash
+      `doctor mission-type` for every mission in the tree, not just the offending one.
+    remediation: >
+      Widen the try/except in `classify_mission_type` to cover the full classification
+      body (the `if "mission_type" in raw: ... else: ...` block as well as the
+      `load_meta_fail_closed` call), catching a broad-but-intentional exception class
+      (or bare `Exception`) and routing it to the `error` state with the exception
+      message, exactly mirroring the isolation `doctor identity`'s `orphan` state
+      already provides.
+    refute_verdict: confirmed
+    refute_reason: >
+      Read classify_mission_type (lines 173-220) and audit_mission_types (lines
+      228-262) at lane-b tip 15ca2324 directly — the try/except wraps only
+      load_meta_fail_closed, the _classify_present_key/_classify_absent_key calls
+      execute after the try block exits unguarded, and the for-loop's
+      classify_mission_type call has no surrounding try/except either;
+      canonical_mission_type_key and MissionTypeRepository.get are confirmed
+      pure/exception-free today so this is not a live crash, but the "never crash the
+      whole audit run" isolation contract is structurally unenforced, not guaranteed,
+      matching the finding's own framing. (Full reasoning: pr-refute-1.yaml)

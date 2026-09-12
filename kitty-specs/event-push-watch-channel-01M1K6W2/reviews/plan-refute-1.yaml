@@ -1,0 +1,85 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Verified directly: scripts/generate_contextive_glossaries.py's cmd_check() (lines 329-353)
+      only diffs committed .contextive/*.yml against generate() over committed docs/context/*.md
+      and never inspects src/specify_cli/**, so it is agnostic to whether IC-04 touches
+      docs/context/system-events.md at all; the CI path-filter at ci-quality.yml:851-872 only
+      gates whether the check step runs (on src/specify_cli/** changes, which happen regardless),
+      not what it checks — confirming the plan's "keeps the gate green" causal claim (plan.md:433,
+      457) is false, and plan.md contains zero occurrences of "generate_contextive_glossaries.py
+      generate", so the regeneration step the plan's own "register now" path would require is
+      genuinely missing; charter.md:113-144 RECONCILE_CHANGE_SCOPE_TENSIONS text matches the
+      finding's citation exactly.
+
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      Verified byte-for-byte: agent_retrospect.py line 415 falls inside the MissionNotFoundError
+      branch's `_console.print_json(...)` (stdout, imported as `console` per console.py:126) with
+      the richer schema_version/command/status/outcome/error/handle/next_action shape, not the
+      err_console + {"error","detail"} pattern the plan describes — that shape is actually at
+      lines 593 and 600 (`_err_console.print_json(json.dumps({"error": ..., "detail": ...}))`),
+      exactly as the finding claims; console.py:126-127 confirms console vs err_console are
+      distinct stdout/stderr objects.
+
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      Verified plan.md never states an fd-sharing invariant (grep for "fstat"/"file descriptor"
+      returns zero hits) despite describing poll_once() as "ONE reopen-by-path → stat →
+      dual-truncation-check → drain" and only prescribing an inter-call inode-swap test (IC-01),
+      never an intra-call same-fd test; store.py:392 (os.replace inode swap) and
+      transaction.py:938 (in-place fh.truncate via a fresh open(path,"ab")) are real, confirmed
+      concurrent-writer hazards under NFR-004's stated "day one" concurrent-writer requirement, so
+      the unstated discipline gap is real and untested by the plan's own IC-01/IC-02 test list.
+
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Verified exactly: ci-quality.yml has a `diff-coverage` job at line 3308 with
+      `'src/specify_cli/status/*'` in its critical_paths array at line 3374 and
+      `--fail-under=90 --include` at the diff-cover invocation, and quality-gate's `needs:` list
+      (~line 4276) includes `diff-coverage`, confirming it is a required, applicable gate; plan.md
+      contains zero occurrences of "diff-coverage" or "diff coverage" despite enumerating every
+      other gate candidate, so the omission is real and the module in question (tail_reader.py)
+      does fall under the listed critical path.
+
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Verified against spec.md: User Story 2 Acceptance Scenario 1 (lines ~169-173) is the plain
+      size-check-alone case; Acceptance Scenario 3 (178-186) is the truncate-then-regrow race; and
+      IC-02's ATDD bullet (plan.md ~525-529) names exactly two tests — the mid-line tear
+      (IC-01's, an unrelated negative case) and the AC3 regrow/hash test — neither of which
+      constructs the plain shape-(b) truncation-with-parseable-remainder case that Edge Cases and
+      FR-007 literally require and that IC-01 (Covers: FR-002/003/006/008) also does not cover, so
+      the FR-007 coverage claim in IC-02's "Covers" line is unsubstantiated by the two named tests.
+
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Plan.md's IC-02 ATDD bullet (line 525) literally says only "named separately" with no
+      further constraint, and no other passage in plan.md restricts this to top-level pytest
+      functions (grep confirms); the finding's core claim — that two asserts sharing one function
+      body would let the first failure mask whether the other shape's assertion would also have
+      failed — is a real ambiguity the plan's wording does not foreclose, even though the
+      finding's framing overstates the equivalent risk for a properly `ids`-parametrized case
+      (which pytest does report as distinguishable CI node IDs); the underlying gap and the
+      remediation are still valid.
+
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: >
+      Verified: the `current_size >= O` regrow requirement appears only as descriptive prose in
+      the Truncation Detection Design section (plan.md ~253-257), and IC-02's ATDD bullet
+      (~525-529) states the "cannot pass by accident" conclusion without requiring the test itself
+      to assert `regrown_size >= O` as a precondition, so a reviewer must currently re-derive the
+      byte-arithmetic from a separate section rather than read it off the test body, exactly as
+      claimed.

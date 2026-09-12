@@ -81,14 +81,14 @@ flowchart TB
 
 ## Domain-to-Container Allocation
 
-See [2.x Domain Breakdown](../README.md#domain-breakdown) for the domain-level model.
+See [2.x Domain Breakdown](../README.md) for the domain-level model.
 
 | Domain | Primary Containers | Secondary Containers |
 |---|---|---|
 | Project and Governance Onboarding | CLI Command Surface, Charter and Governance Engine | Runtime and Mission Resolver, Runtime Asset Lifecycle |
 | Mission Runtime and Flow Control | Runtime and Mission Resolver, CLI Command Surface | Doctrine Artifact Catalog, Status and Event Model Layer |
 | Doctrine and Knowledge Governance | Doctrine Artifact Catalog, Glossary Corpus and Runtime Hook Layer | Charter and Governance Engine |
-| Work Package State and Evidence | Status and Event Model Layer, Runtime and Mission Resolver | Sync Reliability Core, Tracker Connector Boundary |
+| `Work Package State and Evidence` | Status and Event Model Layer, Runtime and Mission Resolver | Sync Reliability Core, Tracker Connector Boundary |
 | External Integration Boundaries | Orchestrator API Boundary, Tracker Connector Boundary | Status and Event Model Layer, Sync Reliability Core |
 
 ## Behavioral Collaboration Loops
@@ -115,7 +115,7 @@ See [2.x Domain Breakdown](../README.md#domain-breakdown) for the domain-level m
 
 ## Usage Flow Reference
 
-See [Usage Flow High-Level User Journey](../README.md#usage-flow-high-level-user-journey)
+See [Usage Flow High-Level User Journey](../README.md)
 for a generic end-to-end execution narrative.
 
 ## Runtime/Execution Domain Detail
@@ -137,8 +137,8 @@ for canonical lifecycle FSM, transition guard summary, and execution/routing inv
 
 ## Traceability
 
-- Domain map: `../README.md#domain-breakdown`
-- Usage flow reference: `../README.md#usage-flow-high-level-user-journey`
+- Domain map: `../README.md`
+- Usage flow reference: `../README.md`
 - Runtime/execution detail: `runtime-execution-domain.md`
 - Context view: `../01_context/README.md`
 - Component view: `../03_components/README.md`

@@ -1,0 +1,37 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: cascade-org-inert-01M07E9P
+findings:
+  - id: SPEC-GOV-001
+    lens: base-branch-drift-disclosure-completeness
+    severity: 2
+    title: "Base-Branch Drift section cites the wrong file as evidence for the missing symbol"
+    evidence:
+      - artifact: "spec.md § Base-Branch Drift, lines 19-22 (\"Reason for the dependency\")"
+      - code: "src/charter/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
+    claim: >
+      The spec states: "the fix this issue prescribes threads
+      `doctrine.drg.org_pack_config.resolve_existing_org_roots` into three call sites. That
+      symbol is **verified absent** from `src/charter/_drg_helpers.py` on `main`." The symbol
+      is actually *defined* in `src/doctrine/drg/org_pack_config.py:474` (verified: this branch
+      has it, `git show main:src/doctrine/drg/org_pack_config.py` does not). `_drg_helpers.py`
+      only ever *mentions* the symbol's name in its docstring (as a cross-reference for
+      callers) — it neither defines nor imports it, on either branch. `_drg_helpers.py` itself
+      exists on `main` in a materially different (pre-#3525) form; it is not new. The underlying
+      dependency claim (this mission needs #3520/#3525's commits) is correct, but the specific
+      file cited as the place where the symbol's absence was "verified" is not where the symbol
+      lives, so a reviewer who tries to independently verify this sentence by diffing
+      `_drg_helpers.py` between `main` and this branch will find a file that already existed and
+      is merely enhanced, not a newly-introduced symbol — a confusing, easy-to-misread checkpoint
+      for exactly the kind of independent verification this mandatory section exists to invite.
+    remediation: >
+      Change the citation to name the actual defining module: "...threads
+      `doctrine.drg.org_pack_config.resolve_existing_org_roots` into three call sites. That
+      module/function is verified absent from `src/doctrine/drg/org_pack_config.py` on `main`
+      (confirmed via `git show main:src/doctrine/drg/org_pack_config.py`, which does not define
+      `resolve_existing_org_roots`) — it is introduced by #3520/#3525's commits." Optionally note
+      that `src/charter/_drg_helpers.py` (which consumes the symbol) also changes substantially
+      between `main` and this branch, so both files are worth diffing, but only
+      `org_pack_config.py` is where the symbol itself is missing.

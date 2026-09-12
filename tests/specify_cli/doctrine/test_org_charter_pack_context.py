@@ -6,7 +6,7 @@ T063 — Audit: no config.yaml reads in _resolve_chain() or _merge_chain()
 ``specify_cli.doctrine.org_charter`` operate entirely on the
 ``pack_set: dict[str, OrgCharterPolicy]`` argument.  The only path
 that reads ``.kittify/config.yaml`` is ``PackContext.from_config()``
-in ``charter.pack_context``, which is in the *charter* layer (not the
+in ``charter.activation.pack_context``, which is in the *charter* layer (not the
 doctrine layer).  When a ``PackContext`` is supplied to
 ``load_org_charter_policies()``, the function delegates immediately to
 ``_load_with_pack_context()`` which builds the pack set from
@@ -17,7 +17,7 @@ T064 — Coordination note: caller updates are in owning WPs
 -----------------------------------------------------------
 This file (WP10) does NOT modify:
 - ``src/charter/drg.py``     — owned by WP11 (T064-drg wires PackContext there)
-- ``src/charter/context.py`` — owned by WP01 (T006 adds the interim TODO comment)
+- ``src/charter/activation/context.py`` — owned by WP01 (T006 adds the interim TODO comment)
 
 WP10's value is this integration test suite (T065) that proves the full
 ``extends:`` chain works end-to-end when a ``PackContext`` is supplied.
@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from specify_cli.doctrine.org_charter import (
     OrgCharterPolicy,
     load_org_charter_policies,

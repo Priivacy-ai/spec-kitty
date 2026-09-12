@@ -1,9 +1,14 @@
 ---
 title: 'Issue #1111 Analysis — Branch Alignment Report'
 description: "Architect Alphonso's branch-alignment analysis for issue #1111: how the affected branches diverge and what alignment is needed (2026-05-18)."
-doc_status: draft
-updated: '2026-05-19'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+> **RETIRED (shipped)** — Epic [#1111](https://github.com/Priivacy-ai/spec-kitty/issues/1111)
+> closed 2026-06-02 as COMPLETED; its close-out comment confirms the primary 3.2.0
+> Charter/Doctrine release-critical scope this branch-alignment report analyzed shipped.
+> Retained for historical reference; do not consult for current behavior.
+
 # Issue #1111 Analysis — Branch Alignment Report
 
 **Author:** Architect Alphonso (ad-hoc profile session)  

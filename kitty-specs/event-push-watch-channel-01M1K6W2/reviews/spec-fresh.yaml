@@ -1,0 +1,127 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: SPEC-FRESH-001
+    lens: falsifiability / trace-based-observability
+    severity: 4
+    title: >-
+      FR-013's resume-offset validation only checks structural validity (out-of-range,
+      negative, misaligned); it never re-establishes or checks FR-005's own new content
+      invariant, so a rollback-then-regrow that straddles a process restart reopens the
+      exact silent-desync blind spot FR-005(b) was just added to close
+    evidence:
+      - artifact: "spec.md § FR-013 (\"greater than the current file size, negative, or\
+          \ not aligned on a line boundary\")"
+      - artifact: "spec.md § FR-005 (\"on EVERY poll ... re-verify that a content invariant\
+          \ ... still matches the current file at that position before trusting anything\
+          \ read from O onward\")"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 3 (\"e.g. a persisted offset\
+          \ predating a rollback the consumer never saw\") — the illustrative example\
+          \ implies exactly this scenario, but the FR-013 requirement it cites never operationalizes\
+          \ a content check for it"
+      - artifact: "spec.md § Key Entities → Tail cursor (\"Persisting the offset (and, if\
+          \ the consumer wants cross-restart truncation safety, the content invariant)\
+          \ across restarts is exclusively the calling consumer's responsibility, via the\
+          \ `--from-offset` input and the per-envelope offset output FR-004 defines.\")"
+      - artifact: "spec.md § FR-004 (\"emit its current offset in each envelope\" — no\
+          \ content-invariant field is ever defined as part of the envelope output)"
+    claim: >-
+      FR-005 was extended this round specifically because a size-only truncation check
+      cannot see a rollback that truncates and then regrows past the last-seen offset O
+      within one poll interval — so it added a content invariant (hash/raw bytes of the
+      boundary immediately preceding O) re-verified on every poll. FR-013 was added the
+      same round to handle an invalid `--from-offset` on resume, but its three listed
+      invalid conditions are purely structural (too large, negative, not line-aligned).
+      A rollback-then-regrow that happens entirely while the consumer process is down
+      (the normal case User Story 3/FR-002/FR-004 exist to serve) can easily leave the
+      persisted offset O structurally valid — in range, on a line boundary — while the
+      bytes preceding O no longer match what the previous process actually consumed
+      (retried events commonly carry a different event_id/lamport-equivalent ordering
+      field even when byte-length coincidentally lines up). FR-013 as written does not
+      require checking this, and no FR defines a mechanism for the command to emit the
+      content invariant to the consumer for it to supply back on `--from-offset` resume
+      in the first place — the Tail cursor entity gestures at the consumer persisting
+      "the content invariant" "via ... the per-envelope offset output FR-004 defines,"
+      but FR-004's envelope output only ever carries an offset, never an invariant value.
+      The result: the identical silent-desync failure class FR-005(b) was invented this
+      round to close is left open at the process-restart boundary — arguably the more
+      likely place for a rollback to land undetected, since the consumer was offline and
+      never saw the rollback signal FR-005 would have emitted had it been running.
+    remediation: >-
+      Either (a) extend FR-013 to require a content check at resume too — e.g. require
+      the consumer to supply (or the command to re-derive/verify) the content invariant
+      at the resumed offset before trusting it, treating a mismatch the same as any other
+      FR-013 failure — and add the FR-004 envelope field needed to carry that invariant
+      value out to the consumer for persistence; or (b) explicitly scope FR-013/US3 AC3
+      to structural validity only and add a named Edge Case + Constraint stating that
+      cross-restart content-invariant verification is out of scope for MVP (so a future
+      reviewer does not read the Tail cursor bullet's "cross-restart truncation safety"
+      language as already covering it).
+
+  - id: SPEC-FRESH-002
+    lens: trace-based-observability
+    severity: 3
+    title: >-
+      `read_events_raw()`'s Clarifications §3 citation range (`store.py:533-556`) still
+      undershoots the function's real end by 4 lines, missed by this round's own citation
+      sweep
+    evidence:
+      - artifact: "spec.md § Clarifications §3 — Verification pointers: \"`:533` (`read_events_raw`)\""
+      - artifact: "spec.md § The Corrected Premise section: \"`read_events_raw()` (`src/specify_cli/status/store.py:533-556`)\
+          \ is one-shot, non-resumable...\""
+      - code: "src/specify_cli/status/store.py:533 (`def read_events_raw`) through :560\
+          \ (`    return results`) — the function's actual span, confirmed by grep of the\
+          \ next top-level statement at :563"
+    claim: >-
+      This fix round corrected two store.py off-by-N citations (`:390`→`:392`, `:549`→`:554`,
+      per reviews/spec.confirmed.yaml SPEC-GOV-004) and reports having swept for more, but
+      the range citation "store.py:533-556" for `read_events_raw()` was not among the
+      citations SPEC-GOV-004 claims were "spot-checked and are exact," and it is itself
+      still wrong: the function runs from line 533 to line 560 (`return results`), not
+      556 — line 556 lands mid-body, inside the `if not isinstance(obj, dict)` branch,
+      four lines before the function's actual close. A reviewer or plan-phase author who
+      opens the file at the cited range would see the function cut off mid-statement and
+      might reasonably conclude the citation itself is unreliable, undermining the trust
+      Clarifications §3 explicitly asks the review squad to place in these pointers
+      ("verify the above directly rather than trust this prose").
+    remediation: >-
+      Correct the range to `store.py:533-560` in both places it appears (Clarifications
+      §2 and §3), or drop the line-range suffix and cite the function name only, per
+      SPEC-GOV-004's own remediation suggestion for avoiding future drift.
+
+  - id: SPEC-FRESH-003
+    lens: falsifiability
+    severity: 2
+    title: >-
+      SC-002's measurable outcome still frames rollback-truncation detection only as
+      "file shrinks," not updated to cover the new content-invariant detection path
+      where the file does not appear shrunk at poll time
+    evidence:
+      - artifact: "spec.md § SC-002: \"A rollback truncation (file shrinks) is detected\
+          \ on the very next poll after it occurs and produces an explicit `log_truncated`-shaped\
+          \ signal on the stream — 0% of truncation events are silently absorbed as 'no\
+          \ new data' across the test suite built for this mission.\""
+      - artifact: "spec.md § FR-005(b) and § User Story 2, Acceptance Scenario 3 — the new\
+          \ truncate-then-regrow case is specifically characterized by current size >=\
+          \ O at poll time, i.e. the file does NOT appear to have shrunk when sampled"
+    claim: >-
+      SC-002's parenthetical "(file shrinks)" and its framing ("detected ... after it
+      occurs") describe the original size-only detection path. The new FR-005(b)/US2 AC3
+      failure mode is defined precisely by the poll-time size check never observing a
+      shrink (it regrew past O before the next sample). SC-002's broad "0% of truncation
+      events" language likely still covers it in spirit, and FR-005/US2 AC3 already mandate
+      the behavior independently, so this is not a contradiction or a coverage hole in
+      the requirements themselves — but the measurable-outcome text was not touched to
+      acknowledge the second detection mechanism, so a plan/tasks author deriving test
+      cases from SC-002 alone (rather than cross-reading FR-005 and US2 AC3) could read
+      it as satisfied by shape-(b)-only coverage.
+    remediation: >-
+      Reword SC-002 to reference both detection paths explicitly, e.g.: "A rollback
+      truncation — whether observed as a size shrink on the next poll, or as a
+      truncate-then-regrow whose content invariant no longer matches (FR-005) — is
+      detected and produces an explicit `log_truncated`-shaped signal on the stream;
+      0% of truncation events of either shape are silently absorbed as 'no new data'
+      across the test suite built for this mission."

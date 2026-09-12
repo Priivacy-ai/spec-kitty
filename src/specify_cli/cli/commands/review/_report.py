@@ -14,7 +14,7 @@ from typing import Literal
 from rich.console import Console
 
 from specify_cli.cli.commands.review._ble001_audit import _BLE001_REMEDIATION
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 _HARD_FAILURE_FINDING_TYPES = frozenset(
     {
@@ -24,6 +24,7 @@ _HARD_FAILURE_FINDING_TYPES = frozenset(
         "ble001_suppression",
         "issue_matrix_violation",
         "dead_code_baseline_missing",
+        "dead_code_undeterminable",
     }
 )
 
@@ -56,6 +57,13 @@ def _format_finding_line(finding: dict[str, str]) -> str | None:
             f"- **dead_code_baseline_missing** "
             f"`{finding.get('diagnostic_code', 'unknown')}`: "
             f"{finding.get('remediation', 'unknown')}"
+        )
+    if finding_type == "dead_code_undeterminable":
+        return (
+            f"- **dead_code_undeterminable** "
+            f"`{finding.get('diagnostic_code', 'unknown')}`: "
+            f"{finding.get('reason', 'unknown')}; "
+            f"remediation=`{finding.get('remediation', 'unknown')}`"
         )
     if finding_type == "ble001_suppression":
         return (

@@ -1,13 +1,15 @@
 ---
 title: Mission B (proposed scope) — Charter-mediated doctrine selection
 description: "Architect Alphonso's proposed scope (2026-05-17) for Mission B: charter-mediated doctrine selection, framing the problem and candidate boundaries."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-19'
 related:
 - docs/plans/doctrine/doctrine-artifact-selection-preflight.md
 - docs/plans/doctrine/runtime-charter-doctrine-boundary.md
 ---
 # Mission B (proposed scope) — Charter-mediated doctrine selection
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Author:** Architect Alphonso
 **Date:** 2026-05-17

@@ -95,6 +95,14 @@ def test_already_materialized_workspace_is_consumed_without_re_resolution(
 
     Guards the single-resolution invariant: the helper must NOT call
     ``resolve_workspace_for_wp`` (a second authority).
+
+    #3281/C-006 rationale: the ORIGINAL invariant ("no re-resolution when
+    exists") is unchanged by this WP -- ``create_workspace`` (the second
+    resolution authority / full ``top_level_implement``) still never runs on
+    an exists=True workspace. What changed is that a SEPARATE, dedicated,
+    idempotent self-heal callable now always runs on that path (see T008/T009
+    below) -- this test asserts it runs and is harmless (ancestry-correct ==
+    a true no-op resume), not that it is skipped.
     """
     resolve_calls: list[tuple[Any, ...]] = []
     monkeypatch.setattr(
@@ -108,10 +116,19 @@ def test_already_materialized_workspace_is_consumed_without_re_resolution(
     def _create() -> None:  # pragma: no cover - must not be called
         raise AssertionError("create must not run when the workspace already exists")
 
-    _ensure_workspace_materialized(workspace, "WP05", _create)
+    self_heal_calls: list[bool] = []
+
+    def _self_heal() -> None:
+        self_heal_calls.append(True)
+
+    _ensure_workspace_materialized(workspace, "WP05", _create, _self_heal)
 
     assert workspace.exists  # same resolved contract, consumed not rebuilt
     assert resolve_calls == [], "single resolution path must not re-resolve"
+    assert self_heal_calls == [True], (
+        "an exists=True retry must re-enter self-heal (#3281 FR-005), "
+        "not silently no-op"
+    )
 
 
 def test_create_then_consume_resolved_context_no_no_workspace_error(
@@ -146,7 +163,10 @@ def test_create_then_consume_resolved_context_no_no_workspace_error(
             "gitdir: /real/gitdir\n", encoding="utf-8"
         )
 
-    _ensure_workspace_materialized(workspace, "WP05", _create)
+    def _self_heal() -> None:  # pragma: no cover - must not be called
+        raise AssertionError("self-heal is only for the exists=True (reuse) path")
+
+    _ensure_workspace_materialized(workspace, "WP05", _create, _self_heal)
 
     assert workspace.exists, "the materialized resolved workspace must report exists"
     assert re_resolution_calls == [], (
@@ -166,8 +186,11 @@ def test_husk_workspace_is_blocked_not_recreated(tmp_path: Path) -> None:
     def _create() -> None:  # pragma: no cover - must not be called
         raise AssertionError("husk must not be silently recreated")
 
+    def _self_heal() -> None:  # pragma: no cover - must not be called
+        raise AssertionError("husk is refused before the exists/self-heal branch")
+
     with pytest.raises(typer.Exit):
-        _ensure_workspace_materialized(workspace, "WP05", _create)
+        _ensure_workspace_materialized(workspace, "WP05", _create, _self_heal)
 
 
 def test_unmaterialized_after_create_raises_structured_error(
@@ -187,7 +210,65 @@ def test_unmaterialized_after_create_raises_structured_error(
         # Buggy creator: does nothing — path stays absent.
         create_ran.append(True)
 
+    def _self_heal() -> None:  # pragma: no cover - must not be called
+        raise AssertionError("self-heal is only for the exists=True (reuse) path")
+
     with pytest.raises(typer.Exit):
-        _ensure_workspace_materialized(workspace, "WP05", _create)
+        _ensure_workspace_materialized(workspace, "WP05", _create, _self_heal)
 
     assert create_ran == [True], "create must run before the materialization check"
+
+
+def test_stale_exists_workspace_reenters_self_heal_not_create(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T008 (#3281/C-006 RED-first): a stale-but-existing lane worktree.
+
+    One missing the recorded planning SHA (or an approved dependency tip
+    merged after this worktree was created) — must re-enter the idempotent
+    reuse-path self-heal on retry, NOT silently no-op. This reproduces the
+    #3281 retry-short-circuit defect directly through the pre-existing
+    ``ensure_workspace_materialized`` entry point: before the fix, the bare
+    ``if workspace.exists: return`` never even looked at staleness, so
+    ``reenter_self_heal`` was never invoked at all.
+
+    Reconciles (#1832/#1833, C-006): the "no re-resolution when exists"
+    invariant is preserved exactly — ``create_workspace`` (the SECOND
+    resolution authority) still never runs — while the NEW, narrower
+    invariant this WP adds is "no re-resolution when exists, AND the
+    dedicated idempotent self-heal always re-enters to bring a stale
+    worktree's ancestry up to date."
+    """
+    def _must_not_resolve(*_a: object, **_k: object) -> None:
+        raise AssertionError("must not re-resolve")
+
+    monkeypatch.setattr(workflow, "resolve_workspace_for_wp", _must_not_resolve)
+
+    # A leftover worktree: exists on disk (a prior WP in the lane, or an
+    # earlier interrupted attempt) but its allocator-level ancestry is stale
+    # -- modeled here by a self-heal spy standing in for the real
+    # ``reenter_lane_self_heal`` (unit-tested separately against real git in
+    # tests/lanes/test_worktree_allocator_atomicity.py and
+    # tests/specify_cli/cli/commands/agent/test_claim_ancestry_gate.py).
+    workspace = _build_real_lane_topology(tmp_path, materialize_git=True)
+
+    def _create() -> None:  # pragma: no cover - must not be called
+        raise AssertionError(
+            "create must not run when the workspace already exists (#1832)"
+        )
+
+    self_heal_calls: list[bool] = []
+
+    def _self_heal() -> None:
+        # Models the reuse-path merges (_merge_recorded_planning_commit +
+        # _merge_dependency_lane_tips) running -- the observable effect T008
+        # requires, without needing a real git repo at this unit-test layer.
+        self_heal_calls.append(True)
+
+    _ensure_workspace_materialized(workspace, "WP05", _create, _self_heal)
+
+    assert self_heal_calls == [True], (
+        "a retry over an existing (possibly stale) lane worktree must "
+        "re-enter self-heal — the #3281 retry-short-circuit defect"
+    )

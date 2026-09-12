@@ -1,18 +1,26 @@
 """Tests for WP02: verdict guard + lane guard UX improvements.
 
 Covers:
-- T007 / T008: _get_latest_review_cycle_verdict helper and unknown-verdict warning
-- T009: force-approve blocked when verdict: rejected
-- T010: --skip-review-artifact-check bypasses the rejected-verdict guard
+- T009: approve/done after a ``rejected`` verdict now persists a fresh approved
+  artifact instead of blocking (FR-001, review-verdict-write-integrity-01KZ1CGF
+  -- an INTENTIONAL behaviour change; see ``_guard_rejected_verdict``'s
+  docstring). An unparseable verdict still blocks unconditionally.
+- T010: --skip-review-artifact-check still records a durable arbiter override
+  (unchanged mechanism, no longer required for the ordinary path)
 - T011 / T012 / T013: lane guard names the planning branch (or falls back for legacy)
+
+(T007/T008, the ``_get_latest_review_cycle_verdict`` helper and its
+unknown-verdict warning, were retired by WP05,
+verdict-seam-write-unification-01KZ9Q35/FR-003 -- see the retirement note
+near the former ``TestGetLatestReviewCycleVerdict``/``TestUnknownVerdictWarning``
+location below.)
 """
 
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -24,7 +32,6 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import (
     _VALID_VERDICTS,
-    _get_latest_review_cycle_verdict,
     _lane_targets_for_emit,
     _wp_lane_from_status_events,
     app,
@@ -37,6 +44,7 @@ from specify_cli.status.lifecycle_events import (
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
+    ReviewResult,
     StatusEvent,
     WPInnerStateDelta,
     actor_identity_str,
@@ -54,7 +62,6 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
     result = runner.invoke(app, ["move-task", "--help"], terminal_width=160)
 
     assert result.exit_code == 0, result.output
-    help_text = " ".join(result.output.split())
     group = get_command(app)
     assert isinstance(group, click.Group)
     click_command = group.commands["move-task"]
@@ -65,9 +72,9 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
     )
     assert skip_review_help is not None
 
-    assert "rejected" in help_text
-    assert "review artifact" in help_text
-    assert "arbiter-approving" in help_text
+    assert "rejected" in skip_review_help
+    assert "review artifact" in skip_review_help
+    assert "arbiter-approving" in skip_review_help
     assert "requires --note" in skip_review_help
     assert "records override" in skip_review_help
     assert "evidence" in skip_review_help
@@ -143,8 +150,22 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
     return feature_dir, wp_file
 
 
-def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
-    """Seed a WP event so the canonical event log knows the WP exists."""
+def _seed_wp_event(
+    feature_dir: Path,
+    wp_id: str,
+    to_lane: str,
+    *,
+    review_result: ReviewResult | None = None,
+) -> None:
+    """Seed a WP event so the canonical event log knows the WP exists.
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35): every
+    verdict reader now resolves the event authority
+    (``event_sourced_review_result``), never ``review-cycle-N.md``
+    frontmatter -- callers that need the guard/writer to see a CURRENT
+    rejection/approval must seed it here, not merely write the on-disk
+    artifact.
+    """
     event = StatusEvent(
         event_id=f"test-{wp_id}-{to_lane}",
         mission_slug=feature_dir.name,
@@ -155,6 +176,7 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
         actor="test",
         force=True,
         execution_mode="worktree",
+        review_result=review_result,
     )
     append_event(feature_dir, event)
 
@@ -382,47 +404,114 @@ def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path:
 
 
 # ---------------------------------------------------------------------------
-# T007: _get_latest_review_cycle_verdict helper
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003) retired
+# ``_get_latest_review_cycle_verdict`` -- the frontmatter verdict-reader
+# helper ``TestGetLatestReviewCycleVerdict``/``TestUnknownVerdictWarning``
+# (formerly T007/T008) directly unit-tested. The classes below are
+# REPOINTED, not deleted (a prior mission's NFR-001 node-id floor,
+# ``tests/architectural/mission_exit_baseline.txt``, pins their names): each
+# method now exercises the event-sourced successor
+# (``status.event_sourced_review_result``) of what it originally asserted
+# about the retired frontmatter function.
 # ---------------------------------------------------------------------------
 
 
 class TestGetLatestReviewCycleVerdict:
-    """Unit tests for the _get_latest_review_cycle_verdict helper."""
+    """Event-sourced successor of the retired ``_get_latest_review_cycle_verdict``
+    frontmatter-parser unit tests (WP05)."""
 
     def test_returns_none_none_when_no_artifacts(self, tmp_path: Path) -> None:
-        """Empty wp_dir returns (None, None)."""
-        wp_dir = tmp_path / "WP01-test"
-        wp_dir.mkdir()
-        verdict, path = _get_latest_review_cycle_verdict(wp_dir)
-        assert verdict is None
-        assert path is None
+        """No event at all -> absent."""
+        from specify_cli.status import event_sourced_review_result
+
+        lookup = event_sourced_review_result(tmp_path, "WP01")
+        assert lookup.slot_present is False
+        assert lookup.result is None
 
     def test_reads_verdict_from_single_cycle(self, tmp_path: Path) -> None:
-        """Single review-cycle returns its verdict."""
-        wp_dir = tmp_path / "WP01-test"
-        artifact = _write_review_cycle(wp_dir, 1, "rejected")
-        verdict, path = _get_latest_review_cycle_verdict(wp_dir)
-        assert verdict == "rejected"
-        assert path == artifact
+        """A single review_result-carrying event resolves that verdict."""
+        from specify_cli.status import event_sourced_review_result
+        from specify_cli.status._unsafe import append_event
+
+        append_event(
+            tmp_path,
+            StatusEvent(
+                event_id="01T007SINGLE0000000000001",
+                mission_slug=tmp_path.name,
+                wp_id="WP01",
+                from_lane=Lane.IN_REVIEW,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-01-01T00:00:00+00:00",
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+            ),
+        )
+
+        lookup = event_sourced_review_result(tmp_path, "WP01")
+        assert lookup.slot_present is True
+        assert lookup.result is not None
+        assert lookup.result.verdict == "changes_requested"
 
     def test_picks_highest_numbered_cycle(self, tmp_path: Path) -> None:
-        """When multiple cycles exist, the highest-numbered one wins."""
-        wp_dir = tmp_path / "WP01-test"
-        _write_review_cycle(wp_dir, 1, "rejected")
-        cycle2 = _write_review_cycle(wp_dir, 2, "approved")
-        verdict, path = _get_latest_review_cycle_verdict(wp_dir)
-        assert verdict == "approved"
-        assert path == cycle2
+        """The MOST RECENT review_result-carrying event wins -- the
+        event-sourced successor of "the highest-numbered cycle wins"."""
+        from specify_cli.status import event_sourced_review_result
+        from specify_cli.status._unsafe import append_event
+
+        append_event(
+            tmp_path,
+            StatusEvent(
+                event_id="01T007HIGHEST000000000001",
+                mission_slug=tmp_path.name,
+                wp_id="WP01",
+                from_lane=Lane.IN_REVIEW,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-01-01T00:00:00+00:00",
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+            ),
+        )
+        append_event(
+            tmp_path,
+            StatusEvent(
+                event_id="01T007HIGHEST000000000002",
+                mission_slug=tmp_path.name,
+                wp_id="WP01",
+                from_lane=Lane.IN_REVIEW,
+                to_lane=Lane.APPROVED,
+                at="2026-01-02T00:00:00+00:00",
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                review_result=ReviewResult(reviewer="reviewer-renata", verdict="approved", reference="y"),
+            ),
+        )
+
+        lookup = event_sourced_review_result(tmp_path, "WP01")
+        assert lookup.slot_present is True
+        assert lookup.result is not None
+        assert lookup.result.verdict == "approved"
 
     def test_returns_none_artifact_when_frontmatter_absent(self, tmp_path: Path) -> None:
-        """Artifact without frontmatter returns (None, artifact_path)."""
-        wp_dir = tmp_path / "WP01-test"
-        wp_dir.mkdir()
-        artifact = wp_dir / "review-cycle-1.md"
-        artifact.write_text("No frontmatter here.\n", encoding="utf-8")
-        verdict, path = _get_latest_review_cycle_verdict(wp_dir)
-        assert verdict is None
-        assert path == artifact
+        """A damaged ``review_result`` slot is distinguishable
+        (``slot_present=True, result=None``) from a genuinely absent one --
+        the event-sourced successor of "an artifact without frontmatter
+        returns a distinguishable non-None artifact path"."""
+        from unittest.mock import patch
+
+        from specify_cli.status import event_sourced_review_result
+
+        with patch(
+            "specify_cli.status.reducer.wp_snapshot_state",
+            return_value={"lane": "in_progress", "review_result": {"reviewer": "reviewer-renata"}},
+        ):
+            lookup = event_sourced_review_result(tmp_path, "WP01")
+        assert lookup.slot_present is True
+        assert lookup.result is None
 
     def test_valid_verdicts_frozenset_contents(self) -> None:
         """_VALID_VERDICTS contains the four canonical values."""
@@ -432,24 +521,33 @@ class TestGetLatestReviewCycleVerdict:
         assert "rejected" in _VALID_VERDICTS
 
 
-# ---------------------------------------------------------------------------
-# T008: unknown-verdict warning
-# ---------------------------------------------------------------------------
-
-
 class TestUnknownVerdictWarning:
-    """Unknown verdict values produce a warning, not a block."""
+    """Event-sourced successor: a damaged/unrecognized verdict record still
+    surfaces distinctly, never silently as "no verdict" (WP05)."""
 
-    def test_unknown_verdict_emits_warning(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """A verdict not in _VALID_VERDICTS produces a logger.warning."""
-        wp_dir = tmp_path / "WP01-test"
-        _write_review_cycle(wp_dir, 1, "super_approved")  # not in _VALID_VERDICTS
-        with caplog.at_level(logging.WARNING, logger="specify_cli.cli.commands.agent.tasks"):
-            verdict, _ = _get_latest_review_cycle_verdict(wp_dir)
-        assert verdict == "super_approved"
-        assert any("unrecognized verdict" in r.message.lower() for r in caplog.records)
+    def test_unknown_verdict_emits_warning(self, tmp_path: Path) -> None:
+        """A damaged ``review_result`` slot is reported distinctly by the
+        board's own damaged-verdict channel, not silently folded into "no
+        verdict" -- the event-sourced successor of "an unrecognized verdict
+        value emits a warning, not a silent pass"."""
+        from unittest.mock import patch
+
+        from specify_cli.cli.commands.agent.tasks_parsing_validation import (
+            _apply_wp_review_verdict_flag,
+        )
+        from specify_cli.status.reducer import ReviewResultLookup
+
+        stale_verdicts: list[dict[str, object]] = []
+        wp: dict[str, object] = {"id": "WP01"}
+        with patch(
+            "specify_cli.cli.commands.agent.tasks_parsing_validation.event_sourced_review_result",
+            return_value=ReviewResultLookup(slot_present=True, result=None),
+        ):
+            _apply_wp_review_verdict_flag(
+                wp, wp_id="WP01", feature_dir=tmp_path, stale_verdicts=stale_verdicts
+            )
+        assert wp["_damaged_verdict"] is True
+        assert stale_verdicts and stale_verdicts[0]["damaged"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +556,16 @@ class TestUnknownVerdictWarning:
 
 
 class TestVerdictGuardInMoveTask:
-    """move_task blocks force-approve/force-done when verdict == rejected."""
+    """move_task's rejected-verdict guard (T009/T010).
+
+    FR-001 (review-verdict-write-integrity-01KZ1CGF), INTENTIONAL behaviour
+    change: approve/done no longer fails-closed merely because the latest
+    review artifact is ``rejected`` -- see ``_guard_rejected_verdict``'s
+    docstring (``tasks_transition_core.py``). The durable writer
+    (T001/T005's ``_persist_approved_review_cycle``) now persists a fresh
+    ``verdict: approved`` artifact on that path instead. An unparseable
+    verdict (a broken artifact) still fails closed unconditionally.
+    """
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
@@ -472,7 +579,7 @@ class TestVerdictGuardInMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
-    def test_approve_blocked_by_rejected_verdict_without_force(
+    def test_approve_after_rejected_verdict_without_force_persists_approval(
         self,
         _mock_auto_commit: MagicMock,
         _mock_sparse: MagicMock,
@@ -488,15 +595,42 @@ class TestVerdictGuardInMoveTask:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Approve exits 1 when latest review artifact has verdict: rejected."""
+        """FR-001: approve succeeds and persists a fresh approved artifact
+        when the latest review artifact has ``verdict: rejected`` -- even
+        with NO ``--force`` and NO ``--skip-review-artifact-check``.
+
+        Renamed + rewritten from
+        ``test_approve_blocked_by_rejected_verdict_without_force`` (cycle 1
+        of this WP's review): this is an INTENTIONAL behaviour change, not a
+        regression -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``) for the full rationale.
+        """
         mission_slug = "test-mission-001"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
-        _seed_wp_event(feature_dir, wp_id, "in_review")
+        # WP05 (verdict-seam-write-unification-01KZ9Q35): the "current verdict
+        # is a rejection" probe is now event-sourced -- seed the
+        # ``review_result`` on the in_review-entering event, not just the
+        # on-disk artifact (written below only as realistic surrounding state).
+        _seed_wp_event(
+            feature_dir,
+            wp_id,
+            "in_review",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         # Write a review-cycle-1.md with verdict: rejected inside the WP sub-dir
         wp_dir = wp_file.parent / wp_file.stem  # tasks/WP01-test/
         _write_review_cycle(wp_dir, 1, "rejected")
+        # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+        # ``_commit_review_cycle_artifact`` now inspects the real
+        # ``CommitArtifactResult.status`` and raises on anything but
+        # "committed" -- configure the mocked ``commit_for_mission`` to
+        # report success so this happy-path test reflects a real commit,
+        # not an unconfigured MagicMock status that would (correctly) fail.
+        mock_safe_commit.return_value.status = "committed"
 
         from specify_cli.task_utils import WorkPackage
 
@@ -527,12 +661,31 @@ class TestVerdictGuardInMoveTask:
             ["move-task", wp_id, "--to", "approved", "--mission", mission_slug, "--no-auto-commit"],
         )
 
-        assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}. Output:\n{result.output}"
-        assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
-        assert "rejected" in result.output, f"Expected 'rejected' in output:\n{result.output}"
-        assert "--skip-review-artifact-check --note <reason>" in result.output
-        assert "arbiter override" in result.output
+        assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}. Output:\n{result.output}"
+        from specify_cli.review.artifacts import ReviewCycleArtifact
 
+        latest = ReviewCycleArtifact.latest(wp_dir)
+        assert latest is not None, f"expected a fresh approved artifact. Output:\n{result.output}"
+        assert latest.cycle_number == 2, (
+            f"expected the approval at the next sequential cycle number, got "
+            f"{latest.cycle_number}. Output:\n{result.output}"
+        )
+        # WP06 (FR-003/SC-007): ReviewCycleArtifact no longer carries a
+        # verdict field -- the approval write's own synthesized body
+        # ("Approved by ...") is the checkable proxy.
+        assert latest.body.startswith("Approved by "), (
+            f"expected an 'Approved by ...' body, got "
+            f"{latest.body!r}. Output:\n{result.output}"
+        )
+        assert latest.reviewer_agent != "unknown", (
+            f"expected a real reviewer_agent, not 'unknown'. Output:\n{result.output}"
+        )
+        # The stale rejected cycle 1 remains untouched.
+        assert (wp_dir / "review-cycle-1.md").exists()
+
+    @patch(
+        "specify_cli.cli.commands.agent.tasks_verdict_persistence.event_sourced_review_result"
+    )
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
@@ -559,13 +712,23 @@ class TestVerdictGuardInMoveTask:
         mock_read_events: MagicMock,
         mock_emit: MagicMock,
         mock_safe_commit: MagicMock,
+        mock_event_sourced_lookup: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Malformed latest review artifacts fail diagnostically before mutation."""
+        """A damaged event-log ``review_result`` record fails diagnostically
+        before mutation (WP05, verdict-seam-write-unification-01KZ9Q35: the
+        guard's feed is now event-sourced, so "malformed" means a damaged
+        event slot, not a malformed on-disk ``review-cycle-N.md`` -- injected
+        directly at the seam since the real store never produces a
+        Mapping-but-missing-fields ``review_result`` through its own typed
+        API)."""
+        from specify_cli.status.reducer import ReviewResultLookup
+
         mission_slug = "test-mission-malformed"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
         _seed_wp_event(feature_dir, wp_id, "in_review")
+        mock_event_sourced_lookup.return_value = ReviewResultLookup(slot_present=True, result=None)
 
         wp_dir = wp_file.parent / wp_file.stem
         wp_dir.mkdir(parents=True)
@@ -615,10 +778,12 @@ class TestVerdictGuardInMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
+    @patch("specify_cli.cli.commands.agent.tasks.resolve_workspace_for_wp")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
-    def test_force_done_blocked_by_rejected_verdict(
+    def test_force_done_after_rejected_verdict_persists_approval(
         self,
         _mock_auto_commit: MagicMock,
+        mock_resolve_workspace: MagicMock,
         _mock_sparse: MagicMock,
         mock_locate_wp: MagicMock,
         mock_slug: MagicMock,
@@ -632,14 +797,49 @@ class TestVerdictGuardInMoveTask:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Force-done exits 1 when latest review artifact has verdict: rejected."""
+        """FR-001, Acceptance Scenario 3 (spec.md): a WP approved directly to
+        ``--to done`` (skipping an intermediate ``approved`` lane) from a
+        rejected-latest state gets the SAME approved-artifact persistence --
+        the write is not conditional on which terminal lane is the target.
+
+        Renamed + rewritten from ``test_force_done_blocked_by_rejected_verdict``
+        (cycle 1 of this WP's review): this is an INTENTIONAL behaviour
+        change -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``).
+
+        ``resolve_workspace_for_wp`` is mocked to resolve
+        ``execution_mode="planning_artifact"`` so the (unrelated)
+        done-ancestry merge-verification machinery is skipped cleanly (FR-008a)
+        -- this test's focus is the rejected-verdict guard and the writer, not
+        ancestry verification, which has its own dedicated coverage
+        elsewhere.
+        """
+        from specify_cli.workspace.context import ResolvedWorkspace
+
         mission_slug = "test-mission-002"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
-        _seed_wp_event(feature_dir, wp_id, "approved")
+        # WP05 (verdict-seam-write-unification-01KZ9Q35): seed the
+        # event-sourced rejection the writer's probe now reads, not just the
+        # on-disk artifact (written below only as realistic surrounding state).
+        _seed_wp_event(
+            feature_dir,
+            wp_id,
+            "approved",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
+        # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+        # ``_commit_review_cycle_artifact`` now inspects the real
+        # ``CommitArtifactResult.status`` and raises on anything but
+        # "committed" -- configure the mocked ``commit_for_mission`` to
+        # report success so this happy-path test reflects a real commit,
+        # not an unconfigured MagicMock status that would (correctly) fail.
+        mock_safe_commit.return_value.status = "committed"
 
         from specify_cli.task_utils import WorkPackage
 
@@ -660,6 +860,18 @@ class TestVerdictGuardInMoveTask:
         mock_lock.return_value.__enter__ = MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = MagicMock(return_value=False)
         mock_locate_wp.return_value = mock_wp
+        mock_resolve_workspace.return_value = ResolvedWorkspace(
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            execution_mode="planning_artifact",
+            mode_source="test",
+            resolution_kind="repo_root",
+            workspace_name="repo_root",
+            worktree_path=tmp_path,
+            branch_name=None,
+            lane_id=None,
+            lane_wp_ids=[],
+        )
 
         from specify_cli.status.store import read_events as _real_re
         mock_read_events.return_value = _real_re(feature_dir)
@@ -670,8 +882,26 @@ class TestVerdictGuardInMoveTask:
             ["move-task", wp_id, "--to", "done", "--force", "--mission", mission_slug, "--no-auto-commit"],
         )
 
-        assert result.exit_code == 1, f"Expected exit 1. Output:\n{result.output}"
-        assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
+        assert result.exit_code == 0, f"Expected exit 0. Output:\n{result.output}"
+        from specify_cli.review.artifacts import ReviewCycleArtifact
+
+        latest = ReviewCycleArtifact.latest(wp_dir)
+        assert latest is not None, f"expected a fresh approved artifact. Output:\n{result.output}"
+        assert latest.cycle_number == 2, (
+            f"expected the approval at the next sequential cycle number, got "
+            f"{latest.cycle_number}. Output:\n{result.output}"
+        )
+        # WP06 (FR-003/SC-007): ReviewCycleArtifact no longer carries a
+        # verdict field -- the approval write's own synthesized body
+        # ("Approved by ...") is the checkable proxy.
+        assert latest.body.startswith("Approved by "), (
+            f"expected an 'Approved by ...' body, got "
+            f"{latest.body!r}. Output:\n{result.output}"
+        )
+        assert latest.reviewer_agent != "unknown", (
+            f"expected a real reviewer_agent, not 'unknown'. Output:\n{result.output}"
+        )
+        assert (wp_dir / "review-cycle-1.md").exists()
 
 
 class TestSkipReviewArtifactCheck:
@@ -709,7 +939,18 @@ class TestSkipReviewArtifactCheck:
         mission_slug = "test-mission-004"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
-        _seed_wp_event(feature_dir, wp_id, "in_review")
+        # WP05 (verdict-seam-write-unification-01KZ9Q35): the override-authorize
+        # guard requires a non-None ``review_artifact_name``, now resolved from
+        # the event-sourced verdict, not just the on-disk artifact (written
+        # below only as realistic surrounding state).
+        _seed_wp_event(
+            feature_dir,
+            wp_id,
+            "in_review",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         wp_dir = wp_file.parent / wp_file.stem
         artifact = _write_review_cycle(wp_dir, 1, "rejected")
@@ -813,7 +1054,16 @@ class TestSkipReviewArtifactCheck:
         mission_slug = "test-mission-partial-write"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
-        _seed_wp_event(feature_dir, wp_id, "in_review")
+        # WP05 (verdict-seam-write-unification-01KZ9Q35): seed the
+        # event-sourced rejection the override-authorize guard now reads.
+        _seed_wp_event(
+            feature_dir,
+            wp_id,
+            "in_review",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         wp_dir = wp_file.parent / wp_file.stem
         artifact = _write_review_cycle(wp_dir, 1, "rejected")
@@ -918,7 +1168,17 @@ class TestSkipReviewArtifactCheck:
         mission_slug = "test-mission-skip-no-note"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
-        _seed_wp_event(feature_dir, wp_id, "in_review")
+        # WP05 (verdict-seam-write-unification-01KZ9Q35): seed the
+        # event-sourced rejection ``_guard_rejected_verdict``'s
+        # note-required-with-skip-flag check now reads.
+        _seed_wp_event(
+            feature_dir,
+            wp_id,
+            "in_review",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
@@ -986,10 +1246,20 @@ class TestTasksStatusReviewWarnings:
     def test_status_warns_for_done_wp_with_rejected_review_artifact(
         self, tmp_path: Path
     ) -> None:
-        """The CLI status command checks tasks/<WP-slug>/review-cycle-N.md."""
+        """The CLI status command resolves the event-sourced verdict (WP05,
+        verdict-seam-write-unification-01KZ9Q35: never ``review-cycle-N.md``
+        frontmatter -- the artifact below is written only as realistic
+        surrounding state)."""
         mission_slug = "test-status-stale-verdict"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
-        _seed_wp_event(feature_dir, "WP01", "done")
+        _seed_wp_event(
+            feature_dir,
+            "WP01",
+            "done",
+            review_result=ReviewResult(
+                reviewer="test-reviewer", verdict="changes_requested", reference="x"
+            ),
+        )
 
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
@@ -1003,7 +1273,7 @@ class TestTasksStatusReviewWarnings:
         """The CLI status command flags in_review WPs past the review threshold."""
         mission_slug = "test-status-stalled-review"
         feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
-        event_time = datetime.now(UTC) - timedelta(minutes=45)
+        event_time = now_utc() - timedelta(minutes=45)
         event = StatusEvent(
             event_id="test-WP01-in-review",
             mission_slug=feature_dir.name,

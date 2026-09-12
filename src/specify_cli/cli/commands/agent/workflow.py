@@ -3,25 +3,40 @@
 WP04 (#676) — Review-cycle counter inventory
 ============================================
 The ``review-cycle-N.md`` artifact and the implicit counter ``N`` (computed
-from ``len(glob("review-cycle-*.md")) + 1``) are mutated in **exactly one**
-place across the runtime: ``_persist_review_feedback`` in
-``src/specify_cli/cli/commands/agent/tasks.py`` (currently lines 403-456).
-That helper is invoked from a single call site —
-``move-task ... --to planned --review-feedback-file <path>`` — which is the
-canonical reviewer-rejection event (``tasks.py`` ~line 1233).
+from ``len(glob("review-cycle-*.md")) + 1``) are mutated by
+``_persist_review_feedback``, which lives in
+``src/specify_cli/cli/commands/agent/tasks_materialization.py`` — see that
+function's own docstring for the current behaviour rather than a line-number
+pin here, which would only go stale again (``tasks.py`` re-exports the same
+symbol as a compatibility shim; it does not define it). That helper is
+invoked from a single call site — ``move-task ... --to planned
+--review-feedback-file <path>`` — which is the canonical reviewer-rejection
+event.
+
+**Correction (WP16/T072, review-cycle-verdict-seam-rebuild-01KZ2W7W):** the
+original claim above — that this is the **exactly one** mutation point for a
+review-cycle verdict across the whole runtime — was already false when
+written, and more so after this mission's WP07/WP10/WP12 landed. The
+authoritative count of verdict writers, location resolvers, and frontmatter
+readers is no longer restated as a number in this docstring. Live code is the
+authority; this docstring intentionally carries no second frozen count that
+can go stale silently.
 
 Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 **not** mutate the counter or write any artifact:
 
-* line ~112-113 — docstring of ``_resolve_review_feedback_pointer`` describing
-  the canonical pointer scheme.
-* line ~279 — ``_has_prior_rejection`` performs a read-only ``glob`` check.
-* line ~798-807 — fix-mode prompt rendering reads the latest artifact via
+* ``_resolve_review_feedback_pointer``'s docstring, describing the canonical
+  pointer scheme.
+* ``_has_prior_rejection``, which performs a read-only ``glob`` check.
+* fix-mode prompt rendering, which reads the latest artifact via
   ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
-* line ~1729-1731 — review-prompt rendering computes a *placeholder* path
-  ``review-cycle-{next_cycle}.md`` for inclusion in instructional output to
-  the human reviewer. Nothing is written; the file only materialises when
-  the reviewer subsequently runs ``move-task --to planned``.
+* review-prompt rendering, which reads the counter to compute a *placeholder*
+  path ``review-feedback-{next_cycle}.md``
+  (:func:`specify_cli.review.cycle.review_feedback_source_path`) for
+  inclusion in instructional output to the human reviewer. Nothing is
+  written; the reviewer authors that file and the ``review-cycle-N.md``
+  artifact only materialises when they subsequently run ``move-task --to
+  planned``.
 
 Re-running ``spec-kitty agent action implement WPNN`` is therefore a
 counter-no-op by construction: this module never calls
@@ -37,18 +52,11 @@ from __future__ import annotations
 from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
 )
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    candidate_feature_dir_for_mission,
-    primary_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
 import json
 import logging
 import re
 import subprocess
 import contextlib
-from datetime import UTC
 from pathlib import Path
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated
@@ -62,7 +70,7 @@ if TYPE_CHECKING:
     from specify_cli.bulk_edit.gate import DiffCheckResult
     from specify_cli.invocation.record import OpStartedEvent
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -86,7 +94,11 @@ from specify_cli.review.prompt_metadata import (
     write_review_prompt_with_metadata,
 )
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
+from specify_cli.review.cycle import (
+    REVIEW_FEEDBACK_SENTINELS,
+    resolve_review_cycle_pointer,
+    review_feedback_source_path,
+)
 from specify_cli.status import feature_status_lock
 from specify_cli.status import AgentAssignment, Lane
 from specify_cli.status import (
@@ -174,6 +186,7 @@ def _enforce_bulk_edit_diff_compliance(
     *,
     feature_dir: Path,
     main_repo_root: Path,
+    mission_slug: str,
     target_branch: str,
     review_workspace: ResolvedWorkspace,
     check_review_diff_compliance: Callable[..., DiffCheckResult | None],
@@ -191,10 +204,23 @@ def _enforce_bulk_edit_diff_compliance(
     # still resolves because the mission branch exists until merge
     # cleanup. If the branch cannot be resolved, fall back to the
     # target_branch captured earlier in this function.
+    #
+    # #3439 / FR-004 / C-001: LANE_STATE is a PRIMARY-partition kind. On a
+    # coord-topology mission ``feature_dir`` is the STATUS-only ``-coord`` husk,
+    # which carries no ``lanes.json`` — a direct ``read_lanes_json(feature_dir)``
+    # returned ``None`` and silently fell back to ``target_branch``, diffing the
+    # entire target-branch delta and false-blocking the gate. Route the read
+    # through the placement seam (the existing SSOT — no predicate fork) so the
+    # canonical mission_branch base is resolved on every topology.
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.lanes.persistence import read_lanes_json as _read_lanes_json
 
-        _lanes_manifest = _read_lanes_json(feature_dir)
+        _lane_state_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
+        )
+        _lanes_manifest = _read_lanes_json(_lane_state_dir)
         _base_ref = _lanes_manifest.mission_branch if _lanes_manifest is not None else target_branch
     except Exception:
         _base_ref = target_branch
@@ -317,11 +343,11 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     is missing / unreadable. Never raises.
     """
     from specify_cli.lanes.branch_naming import resolve_mid8
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     try:
-        meta = load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        meta = load_meta_fail_closed(feature_dir)
+    except (OSError, MissionMetaReadError):  # corrupt/unreadable meta.json is legacy-tolerated here
         return (None, None, None)
     if not isinstance(meta, dict):
         return (None, None, None)
@@ -420,7 +446,12 @@ def _commit_via_coordination_transaction(
                             txn_path.read_bytes(), incoming
                         )
                     txn.write_artifact(txn_path, incoming)
-            receipt = txn.commit(message)
+            # WP04/T015 (FR-004, #2861): the transactional status emit already
+            # committed this lane transition to the coord worktree, so the
+            # staged paths are byte-identical to HEAD. Use the idempotent commit
+            # so that empty second commit is a clean no-op (pinned at HEAD)
+            # instead of the "nothing to commit" refusal that blocked #2861.
+            receipt = txn.commit_idempotent(message)
     except BookkeepingPolicyRefused as policy_exc:
         _record_receipt(
             coord_branch,
@@ -481,6 +512,13 @@ def _sync_lane_after_coordination_commit(
 
 def _revert_coordination_commit(receipt: CommitReceipt) -> None:
     """Undo a lifecycle coordination commit after lane sync refusal."""
+    # WP04/T015 (FR-004, #2861): a no-op receipt means THIS transaction created
+    # no commit — the transition commit belongs to the prior transactional emit
+    # (single write authority). ``receipt.commit_sha`` merely pins that
+    # pre-existing HEAD, so reverting it would wrongly undo a durable, separate
+    # commit. Nothing to roll back here.
+    if receipt.is_noop:
+        return
     head_result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=receipt.worktree_root,
@@ -575,6 +613,58 @@ def _resolve_workflow_read_dir(
     return read_dir
 
 
+def _resolve_legacy_porcelain_root(
+    repo_root: Path, mission_slug: str | None, mid8: str | None
+) -> Path:
+    """Return the git worktree root the legacy porcelain pre-check must run in.
+
+    coord-commit-integrity WP01/T004 (FR-002(b), #2684). A status file that
+    lives in a materialized ``.worktrees/<slug>-<mid8>-coord`` sub-worktree is
+    *gitignored* from ``repo_root``: ``git status --porcelain`` at ``repo_root``
+    reports it as clean, which the caller reads as a phantom "already committed"
+    early-return. Run the pre-check in the coord worktree instead, so the file
+    is correctly seen as dirty.
+
+    The coord sub-worktree is resolved through the ONE canonical authority,
+    :meth:`CoordinationWorkspace.resolve` (shared with WP04 — do NOT fork a
+    second resolver). :meth:`CoordinationWorkspace.worktree_path` is pure, so
+    the existence pre-check never materializes a spurious worktree for a
+    genuinely coord-less / flat mission whose paths really do live in
+    ``repo_root`` (the correct root in that case).
+    """
+    if not mid8 or not mission_slug:
+        return repo_root
+    from specify_cli.coordination.workspace import (
+        CoordinationWorkspace,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    )
+
+    try:
+        coord_worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, mid8)
+    except CoordinationWorkspaceIdentityUnresolved:
+        # Unresolved identity ⇒ paths live in repo_root (mid8 is guarded non-empty
+        # above, so this is belt-and-suspenders; a genuine programming error is no
+        # longer masked as a repo_root fallback — renata #3 narrowing).
+        return repo_root
+    if not coord_worktree.exists():
+        # No coord worktree on disk ⇒ this mission's paths live in repo_root.
+        return repo_root
+    try:
+        return CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        CoordinationWorkspaceBranchMismatch,
+        CoordinationWorkspaceIdentityUnresolved,
+    ):
+        # Resolve genuinely refused (git worktree add / branch-mismatch / OS
+        # error) ⇒ fall back to repo_root for the porcelain pre-check. Narrowed
+        # from a blind ``except Exception`` so an unexpected programming error
+        # propagates (observable) instead of masquerading as a repo_root fallback.
+        return repo_root
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -582,6 +672,8 @@ def _commit_via_legacy_safe_commit(
     paths: list[Path],
     message: str,
     wp_id: str,
+    mission_slug: str | None = None,
+    mid8: str | None = None,
 ) -> None:
     """Commit workflow changes directly on legacy mission branches."""
     # #2684: nothing-to-commit is a benign no-op, not a hard failure. When the
@@ -596,9 +688,14 @@ def _commit_via_legacy_safe_commit(
     # rolling back the (correctly-persisted) event log. ``git status --porcelain``
     # reports both modified AND untracked paths, so a genuine first-time write
     # (new status.json) still has a non-empty pending set and proceeds to commit.
+    #
+    # WP01/T004 (FR-002(b)): run the pre-check in the resolved worktree root, not
+    # ``repo_root`` — a gitignored ``.worktrees/`` status file reads as clean
+    # from ``repo_root`` and would trip a phantom "already committed" no-op.
+    porcelain_root = _resolve_legacy_porcelain_root(repo_root, mission_slug, mid8)
     porcelain = subprocess.run(
         ["git", "status", "--porcelain", "--", *[str(p) for p in paths]],
-        cwd=repo_root,
+        cwd=porcelain_root,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -637,8 +734,6 @@ def _commit_via_legacy_safe_commit(
     )
 
 
-
-
 def _print_commit_summary(*, command_name: str, json_output: bool = False) -> None:
     """T029: render the accumulated commit summary to the terminal.
 
@@ -665,67 +760,25 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
         )
 
 
+def _render_charter_context(
+    repo_root: Path, action: str, *, mission_type: str | None = None
+) -> str:
+    """Render charter context for workflow prompts.
 
-
-
-
-def _resolve_git_common_dir(repo_root: Path) -> Path | None:
-    """Resolve absolute git common-dir path."""
+    WP11 (T062/B-8/FR-012): ``mission_type`` is forwarded so the action
+    doctrine bundle resolves for the mission grain instead of degrading to a
+    typeless (empty) bundle.
+    """
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=True,
+        context = build_charter_context(
+            repo_root, action=action, mark_loaded=True, mission_type=mission_type
         )
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
-
-    raw_value = result.stdout.strip()
-    if not raw_value:
-        return None
-    common_dir = Path(raw_value)
-    if not common_dir.is_absolute():
-        common_dir = (repo_root / common_dir).resolve()
-    return common_dir
-
-
-
-
-
-
-
-
-
-
-
-
-def _render_charter_context(repo_root: Path, action: str) -> str:
-    """Render charter context for workflow prompts."""
-    try:
-        context = build_charter_context(repo_root, action=action, mark_loaded=True)
         return context.text
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
 
 
-
-
-
-
-
-
-
-
 app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
-
-
-
-
-
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
@@ -799,7 +852,22 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+        try:
+            legacy_dir = _resolve_workflow_read_dir(
+                repo_root=get_main_repo_root(repo_root),
+                mission_slug=raw_handle,
+                kind=MissionArtifactKind.PRIMARY_METADATA,
+            )
+        except MissionSelectorAmbiguous as exc:
+            # #450: this short-circuit call runs BEFORE resolve_mission_handle
+            # below, so an ambiguous handle must not propagate uncaught — these
+            # commands have no --json mode, so a plain "Error: ..." + exit 1
+            # (matching this function's other --mission-required error case
+            # above) is the whole fix, mirroring #241's try/except shape.
+            print(f"Error: {exc}")
+            raise typer.Exit(1) from exc
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -822,26 +890,32 @@ def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     """Return the shared claimable preview for *mission_slug*, if tasks exist.
 
     WP04 / T016 / FR-002: tasks/ and dependency reads route to the PRIMARY
-    checkout via ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` so a
+    checkout via ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` so a
     coord-topology mission (whose tasks/ live on PRIMARY, not the STATUS-only
-    coord husk) is never reported as having no tasks.  The status-event read
-    uses the coord-aware ``candidate_feature_dir_for_mission`` so lanes come
-    from the authoritative coord husk — never a worktree-local copy, which may
-    lag the latest status commit (dependency gate invariant preserved).
+    coord surface) is never reported as having no tasks. The status-event read
+    uses ``PlacementSeam.read_dir(STATUS_STATE)`` so lanes come from the
+    authoritative coord surface — never a worktree-local copy, which may lag
+    the latest status commit (dependency gate invariant preserved).
     """
     from runtime.next.discovery import preview_claimable_wp
 
     main_root = get_main_repo_root(repo_root)
     # WORK_PACKAGE_TASK is PRIMARY-partition: routes to the primary checkout
     # regardless of coord topology (no shadowing by STATUS-only coord husk).
-    planning_dir = resolve_planning_read_dir(
-        main_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    planning_dir = _resolve_workflow_read_dir(
+        repo_root=main_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     if not (planning_dir / "tasks").is_dir():
         return None
-    # status_dir: coord-aware so events come from the coord husk under coord
-    # topology (candidate_feature_dir_for_mission is the STATUS-partition leg).
-    status_dir = candidate_feature_dir_for_mission(main_root, mission_slug)
+    # status_dir: coord-aware so events come from the coord surface under coord
+    # topology (STATUS_STATE is the COORD-partition leg).
+    status_dir = _resolve_workflow_read_dir(
+        repo_root=main_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
     return preview_claimable_wp(planning_dir, status_dir=status_dir)
 
 
@@ -857,20 +931,29 @@ def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
     the freshness hash, so the gate would falsely report it missing). Extracted as
     a named seam so the read-anchor decision is unit-testable in isolation.
     """
-    # WP05/FR-005: route through _canonicalize_primary_read_handle so every handle
-    # form (bare mid8 / ULID / numeric prefix / bare human slug) lands on the
-    # correct composed primary dir.
-    return primary_feature_dir_for_mission(
-        main_repo_root,
-        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    # through the kind-aware seam (ANALYSIS_REPORT is a PRIMARY-partition kind)
+    # instead of the kind-blind coord husk. For a PRIMARY-partition kind the
+    # seam short-circuits to PRIMARY before any coord probe, so it never lands
+    # on the coordination worktree the way ``candidate_feature_dir_for_mission``
+    # / ``resolve_feature_dir_for_mission`` (both kind-blind) can.
+    return _resolve_workflow_read_dir(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.ANALYSIS_REPORT,
     )
 
 
 def _mission_id_for_claim(main_repo_root: Path, mission_slug: str) -> str:
     """Resolve claim identity from the canonical primary planning surface."""
-    primary_dir = primary_feature_dir_for_mission(
-        main_repo_root,
-        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: meta.json
+    # lives only on PRIMARY (PRIMARY_METADATA is a PRIMARY-partition kind), so
+    # the kind-aware seam resolves it identically for every topology without
+    # ever consulting the coordination worktree.
+    primary_dir = _resolve_workflow_read_dir(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
     )
     return resolve_mission_identity(primary_dir).mission_id
 
@@ -923,7 +1006,11 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
 #: Help text for the dispatch→claim resolved-binding options (FR-014). Shared by
 #: ``implement()`` and ``review()`` so the wording stays canonical in both.
 _MODEL_OPT_HELP = "Dispatch-resolved model asserted against the correlated Op record (requires --invocation-id; never the frontmatter recommendation)"
-_PROFILE_OPT_HELP = "Dispatch-resolved agent profile (registry.resolve / Op record — never the frontmatter agent_profile string)"
+_PROFILE_OPT_HELP = (
+    "Agent profile id — a dispatch registry / Op record profile or a local "
+    "charter profile (the same ids `agent profile show` resolves). When "
+    "omitted, the work package's frontmatter agent_profile is used."
+)
 _INVOCATION_ID_OPT_HELP = "Correlated Op record ULID whose mission, WP, action, profile, and model are authoritative"
 
 
@@ -998,16 +1085,30 @@ def _validate_op_claim_correlation(
 
 
 def _resolved_profile_version(profile_id: str | None, repo_root: Path) -> str | None:
-    """Read the resolved profile schema version from the canonical registry."""
+    """Read the resolved profile schema version from the canonical registry.
+
+    #4120: resolves through ``ProfileRegistry.resolve_local`` — every local
+    layer, same activation gate — not the dispatch routing catalog
+    (``resolve``), which excludes the doctrine project layer by design and
+    therefore rejected every project-local charter-activated profile id with
+    an empty ``Available: []``. An operator-supplied ``--profile <id>`` names
+    the same ids ``agent profile show`` resolves and ``finalize-tasks``
+    records in WP ``agent_profile`` frontmatter; those must resolve here even
+    with no hosted registry / dispatch Op in play.
+    """
     if profile_id is None:
         return None
     try:
         from specify_cli.invocation.registry import ProfileRegistry
 
-        return str(ProfileRegistry(repo_root).resolve(profile_id).schema_version)
+        return str(
+            ProfileRegistry(repo_root).resolve_local(profile_id).schema_version
+        )
     except Exception as exc:
         raise ValueError(
-            f"Could not resolve dispatched profile {profile_id!r}: {exc}"
+            f"Could not resolve --profile {profile_id!r}: {exc}. "
+            "Omit --profile to use the work package's own frontmatter "
+            "agent_profile instead."
         ) from exc
 
 
@@ -1016,9 +1117,9 @@ def _resolved_model_provider(model_id: str | None) -> str | None:
     if model_id is None:
         return None
     try:
-        from doctrine.model_task_routing import loader as routing_loader
+        from charter.model_routing import load as routing_load
 
-        loaded = routing_loader.load()
+        loaded = routing_load()
         if loaded is None:
             raise ValueError("the canonical routing catalog is unavailable")
         model = next(
@@ -1204,7 +1305,12 @@ def implement(
         # ``_ensure_workspace_materialized`` — never re-resolve through a second
         # authority that could independently report "no workspace could be
         # resolved" on a verified read-path.
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        #
+        # Seam-B (WP03, #3128 / FR-005): this is the canonical `agent action
+        # implement` WP-execution write site — refuse a claim invoked from a
+        # checkout the mission does not own. write_intent gates the
+        # checkout-identity refusal (pure reads leave it False).
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id, write_intent=True)
         status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
         def _create_workspace() -> None:
@@ -1217,8 +1323,41 @@ def implement(
                 actor=agent,
             )
 
-        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace)
+        # FR-005/#3281 (C-006): a retry over an already-materialized lane
+        # worktree re-enters the allocator's idempotent reuse-path self-heal
+        # instead of the prior bare `workspace.exists: return` short-circuit.
+        from specify_cli.lanes.implement_support import reenter_lane_self_heal
+
+        def _reenter_self_heal() -> None:
+            reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
+
+        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace, _reenter_self_heal)
         workspace_path = workspace.worktree_path
+
+        # Seam C-005 (#3281/FR-007): the claim-ancestry gate runs HERE --
+        # POST-materialize (after the self-heal above re-runs the planning-
+        # commit + dependency-tip merges), keyed on the MERGED tip, BEFORE any
+        # claim status event is emitted below. Never move this above
+        # ``_ensure_workspace_materialized`` (or before it in the call
+        # sequence) -- evaluating ancestry against a pre-merge HEAD deadlocks
+        # an already-approved same-mission dependency that simply has not
+        # been merged into this lane's worktree yet.
+        from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+
+        # The predicate's dependency-status lookup reads the STATUS event log,
+        # which is a DIFFERENT surface than the PRIMARY ``feature_dir`` above
+        # (WORK_PACKAGE_TASK) for coord-topology missions -- reuse the same
+        # coord-aware resolver ``implement_claim_transition`` below consults.
+        status_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+        ancestry = resolve_claim_ancestry_gate(
+            main_repo_root, mission_slug, status_feature_dir, normalized_wp_id, workspace_path
+        )
+        if not ancestry.ok:
+            print(
+                f"Error: cannot claim {normalized_wp_id}: ancestry could not be "
+                f"established after self-heal for: {', '.join(ancestry.missing_refs)}"
+            )
+            raise typer.Exit(1)
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
@@ -1370,13 +1509,17 @@ def _resolve_review_context(
     # tasks/ (WORK_PACKAGE_TASK — PRIMARY-partition) both route to the primary
     # checkout.  Under coord topology, candidate_feature_dir_for_mission returned
     # the STATUS-only coord husk (no lanes.json, no tasks/) — a wrong-leg read.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    feature_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
     # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
     # future LANE_STATE re-partition does not silently misroute.
-    _lanes_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    _lanes_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.LANE_STATE,
     )
     lanes_manifest = None
     try:
@@ -1426,11 +1569,13 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # primary_feature_dir_for_mission anchors on get_main_repo_root(repo_root),
     # so cwd / walk-up / repo_root all resolve the same primary dir — the
     # multi-branch walk was vestigial after WP04.
-    # The STATUS leg uses candidate_feature_dir_for_mission(repo_root, ...) so
-    # events come from the authoritative coord husk under coord topology (C-001).
+    # The STATUS leg uses PlacementSeam.read_dir(STATUS_STATE) so events come
+    # from the authoritative coord surface under coord topology (C-001).
     tasks_dir = (
-        resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        _resolve_workflow_read_dir(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
         )
         / "tasks"
     )
@@ -1444,7 +1589,11 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # Load lanes from canonical event log (lane is event-log-only).
     # WP04: status events stay on the coord-aware resolver so coord-topology
     # missions read the authoritative event log, not the primary decoy (C-001).
-    _status_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    _status_feature_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.STATUS_STATE,
+    )
     _fr_events = []
     try:
         from specify_cli.status import read_events as _fr_read_events
@@ -1624,6 +1773,7 @@ def review(
         _executor.review_enforce_bulk_edit_gate(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
         )
@@ -1690,7 +1840,7 @@ def review(
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
         existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
         next_cycle = len(existing_cycles) + 1
-        review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
+        review_feedback_path = review_feedback_source_path(sub_artifact_dir, next_cycle)
 
         prompt_lines = _executor.build_review_prompt_lines(
             normalized_wp_id=normalized_wp_id,

@@ -27,8 +27,9 @@ Error semantics (feature 080, spec §7.2):
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, UTC
 from typing import Any
+
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 
 from ..config import get_saas_base_url
 from ..errors import (
@@ -127,7 +128,7 @@ class TokenRefreshFlow:
         3. Fall back to the previous session's expiry (last resort — only
            reachable if the server is non-compliant with the landed amendment).
         """
-        now = datetime.now(UTC)
+        now = now_utc()
 
         try:
             new_access = tokens["access_token"]
@@ -165,6 +166,9 @@ class TokenRefreshFlow:
             last_used_at=now,
             auth_method=session.auth_method,
             generation=tokens.get("generation"),  # None if server doesn't send it
+            # A refresh renews tokens with the same issuer; the session stays
+            # "minted against" wherever login happened until a re-login.
+            issuer_url=session.issuer_url,
         )
 
     @staticmethod
@@ -221,4 +225,4 @@ class TokenRefreshFlow:
 def _parse_iso_utc(value: str) -> datetime:
     """Parse an ISO-8601 UTC timestamp, accepting the ``Z`` suffix."""
     normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
-    return datetime.fromisoformat(normalized)
+    return parse_iso(normalized)

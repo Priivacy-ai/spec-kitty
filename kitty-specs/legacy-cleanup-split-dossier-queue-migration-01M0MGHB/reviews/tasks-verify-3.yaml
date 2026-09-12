@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: T004's "Parallel?" line now reads "T005 step 7 deletes the shared _consume_legacy_values helper only after both this subtask's and T005's call sites are gone," matching step 5's corrected story and no longer implying T004 performs the deletion.

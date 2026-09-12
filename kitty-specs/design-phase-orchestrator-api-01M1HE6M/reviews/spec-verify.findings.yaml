@@ -1,0 +1,168 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: SPEC-VERIFY-001
+    lens: SK-93 artifact-verification mechanism precision & stale-artifact distinguishability
+    severity: 4
+    title: "analyze-record's re-read check compares only the `verdict` field with no freshness/idempotency proof, so a STALE analysis-report.md from a prior call can make a genuinely-failed write look like success"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 2-4 (\"re-reading kitty-specs/<slug>/analysis-report.md ... and confirming its verdict field matches what was submitted\")"
+      - artifact: "spec.md § NFR-004 (\"MUST determine success by re-reading the artifact/state ... rather than trusting the underlying call's raw exit code\")"
+      - artifact: "spec.md § Edge Cases (\"analyze-record is called twice with the same verdict ... returns success: true without attempting a duplicate write\")"
+      - code: "src/specify_cli/analysis_report.py:505-524 (write_analysis_report frontmatter carries `generated_at`, `input_artifacts` hashes, `verdict`, `issue_counts`, `findings` -- a timestamp and richer content ARE available but AC2 names only `verdict`)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:224-292 (several early-exit failure branches -- e.g. DIRTY_WORKTREE preflight at ~line 209, PlacementResolutionRequired, missing-body -- all return/raise BEFORE write_analysis_report is ever called, leaving any pre-existing analysis-report.md untouched)"
+    claim: >
+      NFR-004 and US2's ACs specify the artifact-verification mechanism as "re-read
+      analysis-report.md, confirm the verdict field matches what was submitted." This
+      is under-specified: the write path has multiple early-exit failure branches
+      (dirty worktree, unresolved placement, empty body) that never reach
+      write_analysis_report, so a PRIOR call's analysis-report.md (with its own
+      verdict) can remain on disk untouched. If the current submission's verdict
+      happens to equal that stale file's verdict (a real possibility -- `ready` and
+      `blocked` are the only two live values, so a coin-flip match on retry is not a
+      contrived edge case), a genuine failure of THIS call is misreported as
+      success:true -- reproducing SK-93's core hazard (exit code lies) in a new
+      shape the spec does not close. Acceptance Scenario 4 assumes a clean binary
+      ("artifact was NOT written" -> "finds no matching artifact") that does not
+      cover "an OLD artifact exists and its verdict happens to coincide with the new
+      submission." As written, the AC is falsifiable only for the cases it
+      explicitly names (no file vs. correctly-written file); it is not falsifiable
+      against the stale-coincidental-match case because no test can be derived from
+      the spec text that would fail a naive verdict-only-equality implementation.
+    remediation: >
+      Add a freshness/idempotency requirement to NFR-004 and AC2: analyze-record
+      must correlate the re-read artifact with THIS call, not merely with the
+      submitted verdict value -- e.g., record a call-start timestamp before invoking
+      the underlying write and require the re-read `generated_at` to be later than
+      it, and/or compare a hash of the submitted report body/findings (not just the
+      terminal `verdict` enum) against what was persisted. Add an explicit
+      Acceptance Scenario for "a stale analysis-report.md exists with a verdict that
+      coincidentally matches the new submission, but the underlying write for THIS
+      call genuinely failed before reaching write_analysis_report" and require
+      success:false in that case.
+
+  - id: SPEC-VERIFY-002
+    lens: SK-93 artifact-verification mechanism precision & falsifiability
+    severity: 4
+    title: "NFR-004's 're-read instead of trusting the exit code' model implicitly assumes the wrapped call RETURNS (with an untrustworthy code); the actual SK-93 hazard code path can hang indefinitely in-process with no code to distrust at all"
+    evidence:
+      - artifact: "spec.md § NFR-004 (\"MUST determine success by re-reading the artifact/state ... rather than trusting the underlying call's raw exit code or return value\")"
+      - artifact: "spec.md § Success Criteria, SC-005 (\"a test that simulates a non-zero/timeout exit from the underlying record_analysis call\")"
+      - artifact: "spec.md § Clarifications item 2 (\"analyze-record, wrapping record_analysis, src/specify_cli/cli/commands/agent/mission_record_analysis.py:228\")"
+      - code: "src/specify_cli/orchestrator_api/commands.py (all 10 existing verbs call underlying engine functions in-process -- `grep -c subprocess` returns 0 in this file; no verb shells out or applies its own timeout)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:380-388 (`trigger_feature_dossier_sync_if_enabled` is called wrapped only in `with contextlib.suppress(Exception):` -- this catches raised exceptions, it does NOT bound a hang)"
+      - code: "src/specify_cli/sync/layout_generation.py:676-694 (`_await_publish_or_loud`'s bounded-iteration wait -- per SPEC-KITTY-LEDGER.md SK-93, this did not reliably terminate in 3 of 4 first-hand occurrences, all of which hung past the CALLER's own external `timeout 300` wrapper)"
+    claim: >
+      SPEC-KITTY-LEDGER.md's SK-93 entry documents that `record_analysis`'s hang was
+      only ever observed as exit 124 because the OPERATOR wrapped the CLI
+      invocation in a bash `timeout 300` -- the underlying Python call itself does
+      not bound the dossier-sync-trigger wait (`_await_publish_or_loud`'s bounded
+      wait "did not reliably terminate," per the ledger's own "Fix direction" note).
+      The 10 existing orchestrator-api verbs all invoke underlying logic in-process
+      (confirmed: zero subprocess usage anywhere in commands.py), and the spec's
+      Clarifications item 2 explicitly describes analyze-record as "wrapping
+      record_analysis" at the exact line of the Typer command function that
+      contains this same exception-only-suppressed dossier-sync trigger. If
+      analyze-record reuses this code path in-process (the natural reading of "wrap
+      record_analysis," consistent with how every other verb wraps its engine),
+      then analyze-record itself can hang the orchestrator-api process indefinitely
+      -- no exit code, no timeout, no envelope at all -- and NFR-004's re-read fix
+      never executes because control never returns to the wrapper to perform the
+      re-read. NFR-004/SC-005 test only the "call returns with a wrong code" shape,
+      which is not how record_analysis's hang actually manifests in-process; the
+      more common original SK-93 shapes (1, 3, 4 -- silent/exception-then-hang) are
+      not exercised by SC-005's stated test design ("simulates a non-zero/timeout
+      exit"), so the spec's regression guard would not have caught the majority of
+      the documented occurrences.
+    remediation: >
+      Add an explicit requirement (NFR-004 or a new NFR) that analyze-record's
+      invocation of the underlying write path must be TIME-BOUNDED at the
+      orchestrator-api layer itself (e.g., run the write+commit logic with an
+      explicit, enforced timeout, or exclude/short-circuit the dossier-sync-trigger
+      call entirely from the in-process wrap, calling only
+      `write_analysis_report`/`commit_for_mission` directly) so a hang in
+      `trigger_feature_dossier_sync_if_enabled` cannot block the orchestrator-api
+      call forever. Add an Acceptance Scenario / SC test for the hang shape
+      specifically (the underlying call never returns within a bounded window), not
+      only the "returns a bad exit code" shape SC-005 currently describes.
+
+  - id: SPEC-VERIFY-003
+    lens: Falsifiability
+    severity: 3
+    title: FR-010's design-phase status/query verb is never given a concrete name, unlike every other new verb
+    evidence:
+      - artifact: "spec.md § Functional Requirements, FR-010 (\"Design-phase status/query verb\" -- no verb name given)"
+      - artifact: "spec.md § User Story 4 and its Acceptance Scenarios (refers only to \"the design-phase status/query verb\" or \"the status/query verb\" throughout, never a concrete CLI token)"
+      - artifact: "spec.md § Success Criteria, SC-006 (\"docs/api/orchestrator-api.md documents every new verb\" -- cannot be verified against a spec that never names this one)"
+    claim: >
+      Every other new verb in this mission is given a concrete name in the spec
+      text itself (`specify`, `plan`, `tasks`, `analyze-context`, `analyze-record`,
+      `decision-open`, `decision-resolve`, `decision-defer`, `decision-cancel`).
+      FR-010 and User Story 4 never name the status/query verb. A test asserting
+      SC-006 ("documents every new verb") or SC-001/SC-004-style negative-path tests
+      cannot be written against the spec as-is because there is no fixed verb token
+      to call. This leaves the naming decision to the implementing work package,
+      risking an inconsistent choice relative to the `list-ready` precedent this
+      story explicitly claims to mirror, and risking a docs/tests mismatch across
+      WP boundaries (one WP naming it one way, another WP's tests/docs expecting a
+      different name).
+    remediation: >
+      Name the verb explicitly in the spec (e.g. `design-status`, mirroring
+      `list-ready`'s naming pattern), and use that exact token consistently across
+      FR-010, User Story 4's acceptance scenarios, and SC-006.
+
+  - id: SPEC-VERIFY-004
+    lens: SK-93 artifact-verification mechanism precision & stale-artifact distinguishability
+    severity: 3
+    title: Edge Cases only cover a SAME-verdict idempotent retry after a suspected SK-93 false failure; a retry with a CHANGED verdict is never addressed
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens when analyze-record is called twice with the same verdict (idempotent retry after an SK-93-style false-failure signal)? -> the second call re-reads the artifact, finds it already correctly written, and returns success: true without attempting a duplicate write\")"
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1-4 (no scenario covers a second call submitting a DIFFERENT verdict than what is currently on disk)"
+    claim: >
+      The realistic operational sequence this mission is meant to protect against is
+      an ambiguous SK-93-style signal (non-zero exit / hang / lock warning) after
+      which a host does not know whether the write landed. The spec's only
+      idempotent-retry Edge Case assumes the retry resubmits the SAME verdict. It
+      never states what should happen when the host, suspecting a genuine failure
+      (or because the analyzing agent revised its verdict between calls), retries
+      with a DIFFERENT verdict than what is currently persisted on disk -- e.g. a
+      first call intended to record `blocked`, the signal was ambiguous, and the
+      retry submits `ready`. Nothing in the spec says whether this is treated as a
+      fresh, independently-verified write attempt (the natural reading of NFR-004's
+      general mechanism) or flagged as a conflict against the previously-recorded
+      verdict. Left unstated, an implementer could plausibly build either behavior,
+      and a reviewer has no acceptance criterion to check the choice against.
+    remediation: >
+      Add an explicit Acceptance Scenario (User Story 2) or Edge Case: "Given
+      analysis-report.md currently holds verdict X (from a prior call whose exit
+      signal was ambiguous), when analyze-record is called again with a DIFFERENT
+      verdict Y, then the call is treated as a fresh, independently-verified write
+      attempt -- the re-read check compares against Y (this call's submission), not
+      against the stale X -- and reports success/failure based on whether Y actually
+      landed."
+
+  - id: SPEC-VERIFY-005
+    lens: Falsifiability
+    severity: 2
+    title: Acceptance Scenario 4's error_code language conflates a failure-path error_code with a success-path distinction, leaving the exact error_code value untestable
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 4 (\"the verb reports success: false with a structured error_code distinguishing 'write did not happen' from 'write happened, signal was noise.'\")"
+    claim: >
+      "Write happened, signal was noise" is the SUCCESS case described in
+      Acceptance Scenario 3 (success: true, no error_code at all), not a second
+      failure sub-type. AC4's phrasing asks a single error_code (emitted only on
+      the success:false path) to also "distinguish" against a scenario that by
+      definition carries no error_code. As worded, a test cannot derive a concrete
+      expected error_code value or assert what the "distinguishing" comparison
+      actually checks -- the acceptance criterion reads as intent rather than a
+      checkable observable.
+    remediation: >
+      Reword AC4 to name the concrete error_code value the failure path emits (e.g.
+      `ANALYSIS_WRITE_NOT_CONFIRMED`) and drop the "distinguishing X from Y" framing
+      -- state instead that this error_code is only ever emitted when the re-read
+      finds no artifact/no matching verdict, and that AC3's success case never
+      carries an error_code, so the two paths are already distinguished by
+      success/failure rather than by the error_code's content alone.

@@ -7,17 +7,15 @@ to display beautiful status boards without going through the CLI.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-import re
 from collections import Counter
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc, parse_iso
 from pathlib import Path
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from specify_cli.cli.console import CliConsole
 from specify_cli.core.paths import (
     get_main_repo_root,  # noqa: F401 — re-exported for test patching (see tests/agent/test_agent_utils_status.py and tests/contract/test_machine_facing_canonical_fields.py)
     get_status_read_root,
@@ -26,41 +24,18 @@ from specify_cli.core.paths import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import Lane, NON_DISPLAY_LANES, StatusEvent
 from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
-from specify_cli.status import wp_state_for
+from specify_cli.status import event_sourced_review_result, is_changes_requested, wp_state_for
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
-console = Console()
+console = CliConsole()
 
-
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
-def _get_wp_review_verdict(wp_dir: Path) -> str | None:
-    """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
-
-    Globs review-cycle-*.md files sorted by N (highest = latest), parses YAML
-    frontmatter, and returns the ``verdict`` field.  Returns None on any error
-    (file absent, malformed YAML, no frontmatter).
-    """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
-        return None
-    try:
-        text = cycles[-1].read_text(encoding="utf-8")
-        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-        if not match:
-            return None
-        import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
-        fm = yaml.safe_load(match.group(1)) or {}
-        return fm.get("verdict")
-    except Exception:  # noqa: BLE001 — review artifact may be absent or malformed; fail-open
-        return None
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-002/FR-004/T024): the
+# board's stale/damaged-verdict detection used to glob ``review-cycle-*.md``
+# and parse its YAML frontmatter directly (``_get_wp_review_verdict`` +
+# ``DamagedVerdictRecordError``, both retired) -- the exact fail-open surface
+# this mission closes. The loop inside :func:`show_kanban_status` now resolves
+# :func:`~specify_cli.status.event_sourced_review_result` instead; see that
+# loop for the three-way (absent/damaged/present) translation.
 
 
 def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
@@ -73,7 +48,7 @@ def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | No
     if not at_str:
         return None
     try:
-        return datetime.fromisoformat(at_str)
+        return parse_iso(at_str)
     except ValueError:
         return None
 
@@ -134,8 +109,12 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
         # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
         # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
-        primary_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK
+        # through the seam authority instead of the kind-blind
+        # ``resolve_planning_read_dir`` — behavior-identical here since
+        # WORK_PACKAGE_TASK is PRIMARY-partition (no fail-loud arm reachable).
+        primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
 
         tasks_dir = primary_dir / "tasks"
@@ -263,21 +242,39 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # --- Stale verdict detection (T023) ---
         # Warn if approved/done WPs have a review artifact with verdict=rejected
         stale_verdicts: list[dict[str, str]] = []
+        # T064/FR-012: a SEPARATE channel from stale_verdicts (not folded into
+        # it) for the "artifact present but unreadable" refusal signal, so the
+        # existing stale_verdicts contract (pinned byte-for-byte by
+        # tests/agent/test_agent_utils_status.py, outside this WP's owned
+        # surface) is untouched for the rejected-verdict case.
+        damaged_verdicts: list[dict[str, str]] = []
         for wp in work_packages:
             if wp["lane"] not in (Lane.APPROVED, Lane.DONE):
                 continue
             wp_id = wp["id"]
             if not wp_id:
                 continue
-            wp_dir = tasks_dir / str(wp.get("artifact_dir") or wp_id)
-            verdict = _get_wp_review_verdict(wp_dir)
-            if verdict == "rejected":
+            lookup = event_sourced_review_result(feature_dir, wp_id)
+            if not lookup.slot_present:
+                # absent -- legitimately no verdict recorded yet, not damage.
+                continue
+            if lookup.result is None:
+                # refuse (FR-012): distinct board entry, not a command crash —
+                # a damaged event-log ``review_result`` slot, never silently
+                # folded into the same "no verdict" case a genuinely absent
+                # slot produces.
+                damaged_verdicts.append(
+                    {"wp_id": wp_id, "artifact": "review artifact: unreadable/damaged verdict record"}
+                )
+                wp["_damaged_verdict"] = True
+                continue
+            if is_changes_requested(lookup.result.verdict):
                 stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
                 wp["_stale_verdict"] = True
 
         # --- Stall detection (T025) ---
         # Flag in_review WPs whose last event is older than the threshold
-        now_utc = datetime.now(UTC)
+        current_instant = now_utc()
         stalled_wps: list[dict] = []
         for wp in by_lane.get(Lane.IN_REVIEW, []):
             wp_id = wp["id"]
@@ -285,7 +282,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
                 continue
             last_event_time = _get_last_event_time(events, wp_id)
             if last_event_time is not None:
-                age_minutes = (now_utc - last_event_time).total_seconds() / 60
+                age_minutes = (current_instant - last_event_time).total_seconds() / 60
                 if age_minutes > threshold_minutes:
                     stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
                     wp["_stall_label"] = stall_label
@@ -318,6 +315,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             "parallelization": parallel_info,
             "stalled_wps": stalled_wps,
             "stale_verdicts": stale_verdicts,
+            "damaged_verdicts": damaged_verdicts,
         }
 
     except Exception as e:
@@ -498,18 +496,26 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
             line = f"  • {wp['id']} - {wp['title']}"
             if wp.get("_stale_verdict"):
                 line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            if wp.get("_damaged_verdict"):
+                # refuse (FR-012): a distinct, declared board entry — not the
+                # same silent "no verdict" a genuinely-unverdicted WP shows.
+                line += "  [bold red]⚠ review artifact: unreadable/damaged verdict record[/bold red]"
             console.print(line)
         console.print()
 
-    # Show done WPs with stale verdict warnings (if any)
-    done_stale = [wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict")]
+    # Show done WPs with stale or damaged verdict warnings (if any)
+    done_stale = [
+        wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict") or wp.get("_damaged_verdict")
+    ]
     if done_stale:
         console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
         for wp in done_stale:
-            console.print(
-                f"  • {wp['id']} - {wp['title']}"
-                f"  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
-            )
+            line = f"  • {wp['id']} - {wp['title']}"
+            if wp.get("_stale_verdict"):
+                line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            if wp.get("_damaged_verdict"):
+                line += "  [bold red]⚠ review artifact: unreadable/damaged verdict record[/bold red]"
+            console.print(line)
         console.print()
 
     if by_lane[Lane.IN_PROGRESS]:

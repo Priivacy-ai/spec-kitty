@@ -84,7 +84,7 @@ flowchart LR
    once for the coordination root; a materialized coord root lacking the mission
    dir fails closed rather than falling back to a primary surface.
 
-## Canonical Work Package Lifecycle FSM
+## Canonical work package lifecycle FSM
 
 The lane state is owned by an append-only event log and reduced to a snapshot;
 lane behavior is modeled with the State pattern (`2026-04-06-1`). `doing` is an

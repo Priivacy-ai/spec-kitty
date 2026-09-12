@@ -1,0 +1,149 @@
+{
+  "mission_slug": "scopesource-gate-followup-01KY6S9P",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001: Dead census tier retired",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (d19bd566c): 12 census symbols + census branch + dropped params deleted from pre_review_gate.py; private scope_source.py copy untouched; test_transition_gate_parity.py both golden arms byte-identical.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002: Dead verdict helper deleted, audit-gated",
+      "proof_type": "automated_test",
+      "evidence": "WP01 sole-caller audit (test_pre_review_gate_sole_caller_audit.py, green-on-base) + WP04 atomic deletion of _mt_pre_review_gate_verdict + re-export + compat golden 157->156.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003: ScopeSource factory hoisted",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (b819129b2): resolve_scope_source in scope_source.py, seams parameterized (no import cycle); consumed by WP03 workflow_executor + WP04 head-path wrapper.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004: Tests migrated/retired with committed inventory",
+      "proof_type": "automated_test",
+      "evidence": "WP04 migrated the 8 verdict-diff tests (onto evaluate_with_scope keep-live tail) + mutation-bite in-place (live-CI-topology preserved) + deleted test_census_parity.py; WP05 committed coverage-parity-inventory.md (18 rows, each -> surviving id or rationale).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005: Welded isinstance split into two independent predicates",
+      "proof_type": "automated_test",
+      "evidence": "WP02 empty_scope_is_coverage_gap (ClassVar signal) + exposes_scope_breakdown (isinstance signal), independence proven by synthetic one-not-other sources; WP04 swapped call-sites pre_review_gate.py:881/:1013.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006: file_to_scope as mixin projection",
+      "proof_type": "automated_test",
+      "evidence": "WP02 ScopeBreakdownMixin(abc.ABC); GateCoverageScopeSource inherits (structural pin file_to_scope is ScopeBreakdownMixin.file_to_scope), DeclaredCommandScopeSource inherits neither; WP01 golden preserved 50/50.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007: Intent-encoding test migrated",
+      "proof_type": "automated_test",
+      "evidence": "WP02 test_scope_source.py:121-128 repointed onto the two predicates + synthetic one-not-other (US3 AS3).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "FR-008: Command authority + artifact lifecycle unified (B1)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (b8085df6a): parse-before-teardown + relative --junitxml anchored to worktree cwd; factory injected at implement-time capture; B1 red genuinely observed->greened (opus review reverted both legs to confirm).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009: source/parse-mode identity recorded + asserted",
+      "proof_type": "automated_test",
+      "evidence": "WP03 BaselineTestResult.source_identity (from_dict legacy default 'unknown'); WP04 _evaluate_via_scope_source compares only (load stays in _mt_resolve_gate_baseline via #2874 seam); test_pre_review_gate_source_mismatch.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010: Dual-impl dual-parse-mode parity",
+      "proof_type": "automated_test",
+      "evidence": "WP04 test_baseline_head_parity.py: 4 combos (GateCoverage/DeclaredCommand x junit/fail-text) share one failure-identity namespace; mismatched pair -> SOURCE_MISMATCH.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011: Dedicated warn-shaped SOURCE_MISMATCH",
+      "proof_type": "automated_test",
+      "evidence": "WP04 GateOutcome.SOURCE_MISMATCH; fail-open ASSERTED (absent from _TERMINAL_OUTCOMES + block predicate -> WARN_PROCEED, filters untouched); console ladder branch + NO_NEW_FAILURES + defensive else.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "FR-012: Anti-narrowing guard",
+      "proof_type": "automated_test",
+      "evidence": "WP03 test_baseline_anti_narrowing.py: baseline runs whole command without head's scope.test_targets appended (C-005 broad-baseline invariant).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "FR-013: Docs/comment hygiene",
+      "proof_type": "automated_test",
+      "evidence": "WP02 stale scope_source.py:51-55 comment + review-gates.md:174 fixed; WP03 timezone import removed + ruff.toml tightened; WP04 pre_review_gate docstrings scrubbed + CHANGELOG entry; WP05 integration-test docstring scrub.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "FR-014: Config-driven ScopeSource selection",
+      "proof_type": "automated_test",
+      "evidence": "WP02 resolve_scope_source selects DeclaredCommandScopeSource when review.test_command present else GateCoverageScopeSource (spec-kitty->GateCoverage guarded); WP04 rewired _mt_resolve_scope_source head path to the selective factory (asserted through the real wrapper).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (per-WP adversarial reviews) + orchestrator acceptance",
+      "verified_at": "2026-07-23T15:43:33Z",
+      "notes": "Delivered + independently opus-reviewed per the delivering WP; all mission gates green."
+    }
+  ],
+  "negative_invariants": []
+}

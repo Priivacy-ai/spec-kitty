@@ -1,0 +1,3274 @@
+schema_version: test-sanitation/v1
+
+_architectural_route: &architectural_route
+  route_id: architectural
+  role: owner
+  required: true
+  events: [local]
+  selector:
+    paths: [tests/architectural/]
+    markers: []
+    ignores: []
+    environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+
+_full_parallel_route: &full_parallel_route
+  route_id: full-parallel
+  role: owner
+  required: true
+  events: [local]
+  selector:
+    paths: [tests/]
+    markers: []
+    ignores: [tests/sync/test_orphan_sweep.py]
+    environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+
+_architectural_observation: &architectural_observation
+  environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+  nodeid: null
+  collection_state: collected
+  outcome: passed
+  skip_reason: null
+  markers: []
+  duration: {collection: 0.0, setup: 0.0, call: 0.0, cost_class: fast}
+  artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+
+_full_parallel_observation: &full_parallel_observation
+  environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+  nodeid: null
+  collection_state: collected
+  outcome: passed
+  skip_reason: null
+  markers: []
+  duration: {collection: 0.0, setup: 0.0, call: 0.0, cost_class: fast}
+  artifact_hash: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+
+_shape_evidence: &shape_evidence
+  profile: structural
+  authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+      result: Positive implementation shape, exact names, prose, counts, and historical self-presence lack a distinct current product oracle.
+  causal_probe:
+    kind: behavior-preserving-structural-change
+    fault: Rename, relocate, or simplify the pinned implementation while preserving its current behavioral consumers.
+    authority_violated: No current product authority is violated; only the structural scaffold changes.
+    act_reached: true
+    intended_oracle: Current behavior remains green while the scaffold rejects a harmless implementation change.
+    intended_oracle_failed: true
+    command: Screen candidate Act/assertions against current consumers, delete scaffold, then run the complete surviving WP10 cohort.
+    environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+    raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+
+_migration_evidence: &migration_evidence
+  profile: structural
+  authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+      result: Completed-WP parity and migration-arrangement assertions are not permanent coverage when live consumer boundaries already own the oracle.
+  causal_probe:
+    kind: equivalent-live-consumer
+    fault: Refactor the completed migration layout without changing current placement, consent, identity, or meta-reader behavior.
+    authority_violated: No current product contract is violated; the retired migration arrangement alone changes.
+    act_reached: true
+    intended_oracle: Live consumer tests remain green while historical parity and exact-layout assertions fail.
+    intended_oracle_failed: true
+    command: Delete historical migration scaffold and run the complete surviving WP10 cohort plus focused boundary tests.
+    environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+    raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+
+_review: &review
+  implementer: architect-alphonso/WP10
+  independent_reviewer: pending-WP10-cycle3-final-review
+  verdict: implementation-complete-awaiting-review
+  timestamp: '2026-08-10T18:58:00Z'
+
+dispositions:
+  - candidate:
+      id: WP10-all-declarations-positive-export-shape
+      members:
+        - tests/architectural/test_all_declarations_required.py::test_every_charter_module_declares_all
+        - tests/architectural/test_all_declarations_required.py::test_every_kernel_module_declares_all
+      granularity: function
+      source_paths: [tests/architectural/test_all_declarations_required.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_all_declarations_required.py::test_every_charter_module_declares_all[src/charter/__init__.py]
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete blanket __all__ positive-shape requirement; public behavior and import boundaries own compatibility.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-batch-split-private-ast-shape
+      members:
+        - tests/architectural/test_batch_split_single_authority.py::test_ast_matcher_is_non_vacuous
+        - tests/architectural/test_batch_split_single_authority.py::test_no_reimplemented_len_half_split_outside_authority
+      granularity: function
+      source_paths: [tests/architectural/test_batch_split_single_authority.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_batch_split_single_authority.py::test_ast_matcher_is_non_vacuous
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete a private-expression AST ban that rejects equivalent split implementations without a product oracle.
+    survivor: tests/sync/test_sync_action_gate.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-empty-compat-adapter-scaffold
+      members:
+        - tests/architectural/test_compat_shims.py::test_adapter_marker_present
+        - tests/architectural/test_compat_shims.py::test_adapter_no_logic
+        - tests/architectural/test_compat_shims.py::test_bad_adapter_fixture_is_rejected
+      granularity: function
+      source_paths: [tests/architectural/test_compat_shims.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_compat_shims.py::test_adapter_marker_present[NOTSET]
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete self-tests for an empty compatibility-adapter inventory.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-prompt-filtering-private-call-name-ban
+      members:
+        - tests/architectural/test_no_prompt_filtering_added.py::test_no_new_prompt_filter_call_sites
+      granularity: function
+      source_paths: [tests/architectural/test_no_prompt_filtering_added.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_no_prompt_filtering_added.py::test_no_new_prompt_filter_call_sites
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete exact private-call-name filtering ban; prompt behavior owns the user contract.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-patch-seam-census-meta-scaffold
+      members:
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_a_fixture_corruptible_assertions_match_ground_truth
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_a_fixture_patch_sites_match_hand_derived_ground_truth
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_a_sleep_nodes_exclude_the_monotonic_only_function
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_b_decoys_contribute_nothing_and_grep_overcounts
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_c_membership_assertion_reports_zero_cardinality
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_d_bucket_counts_over_tests_sync
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_e_narrowed_analyzer_misses_the_fixture_positives
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_f_ast_superset_of_regex_after_removing_prose_spans
+        - tests/architectural/test_patch_seam_census_control.py::test_arm_g_own_module_sleep_seam_counts_but_is_not_corruptible
+      granularity: function
+      source_paths: [tests/architectural/test_patch_seam_census_control.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_patch_seam_census_control.py::test_arm_a_fixture_corruptible_assertions_match_ground_truth
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete test-suite census/classifier self-validation with hand-derived counts and no product boundary.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-shared-module-patch-baseline-scaffold
+      members:
+        - tests/architectural/test_shared_module_object_patches.py::test_a_baseline_entry_does_not_survive_its_owner
+        - tests/architectural/test_shared_module_object_patches.py::test_every_baseline_row_carries_a_closed_vocabulary_disposition
+        - tests/architectural/test_shared_module_object_patches.py::test_every_baseline_row_carries_the_full_identity_triple
+        - tests/architectural/test_shared_module_object_patches.py::test_every_named_owner_resolves
+        - tests/architectural/test_shared_module_object_patches.py::test_the_allowlist_is_empty
+        - tests/architectural/test_shared_module_object_patches.py::test_the_baseline_equals_the_gate_flagged_set
+        - tests/architectural/test_shared_module_object_patches.py::test_the_baseline_size_is_registered_with_the_charter_ratchet
+        - tests/architectural/test_shared_module_object_patches.py::test_the_gate_flags_a_form_absent_from_the_tree
+        - tests/architectural/test_shared_module_object_patches.py::test_the_gate_names_the_files_it_opened
+        - tests/architectural/test_shared_module_object_patches.py::test_the_owner_completion_arm_fires_for_a_completed_owner
+      granularity: function
+      source_paths: [tests/architectural/test_shared_module_object_patches.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_shared_module_object_patches.py::test_a_baseline_entry_does_not_survive_its_owner
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete frozen test-meta baseline, prose schema, exact count, and completed-owner scaffold.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-historical-wp-owned-files-acceptance
+      members:
+        - tests/architectural/test_wp_owned_files_no_kitty_specs.py::test_current_mission_wp_owned_files_do_not_target_kitty_specs
+      granularity: function
+      source_paths: [tests/architectural/test_wp_owned_files_no_kitty_specs.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_wp_owned_files_no_kitty_specs.py::test_current_mission_wp_owned_files_do_not_target_kitty_specs
+    evidence: *migration_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete acceptance check pinned to a completed historical mission's WP frontmatter.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp-prompt-wall-clock-threshold
+      members:
+        - tests/architectural/test_wp_prompt_build_latency.py::test_build_wp_prompt_implement_stays_under_latency_budget
+        - tests/architectural/test_wp_prompt_build_latency.py::test_build_wp_prompt_review_stays_under_latency_budget
+      granularity: function
+      source_paths: [tests/architectural/test_wp_prompt_build_latency.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: tests/architectural/test_wp_prompt_build_latency.py::test_build_wp_prompt_implement_stays_under_latency_budget
+    evidence: *shape_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete host-load-sensitive wall-clock thresholds without a benchmark environment or regression budget authority.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  # Cycle 3: the three heterogeneous deleted files are terminalized below at
+  # causal-family granularity.  Each row has one production path + oracle/fault,
+  # or explicit no-authority evidence.  Executed successor details are mirrored
+  # in raw/wp10-probes-cycle2.json (final-cycle amendment).
+  - candidate:
+      id: WP10-cross-seam-status-identity-fail-closed
+      members: [tests/integration/test_cross_seam_consumers.py::test_status_transition_coord_bare_slug_fails_closed]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/coordination/status_transition.py::_identity_for_request]
+      oracle: malformed coordination identity refuses before a status write
+      contract_claim: coordination writes fail closed when branch identity cannot be resolved
+      authority: [docs/context/identity.md]
+      duplicate_group: WP10-current-write-identity-fail-closed
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_status_transition_coord_bare_slug_fails_closed}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed
+          result: The current identity authority rejects the same missing-identity fault; the current status-transition topology matrix executes _identity_for_request.
+      causal_probe:
+        kind: executed-successor-family
+        fault: coordination topology has no mission_id or resolvable mid8
+        authority_violated: unresolved coordination identity must not fabricate a write target
+        act_reached: true
+        intended_oracle: public identity authority raises and current status transition resolves only valid topologies
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed' 'tests/specify_cli/coordination/test_status_transition_adoption.py::test_read_write_resolution_equivalence_across_topologies[coord]'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove the completed WP05 private-helper duplicate; retain the current identity authority and status-transition topology matrix.
+    survivor: tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-implement-identity-fail-closed
+      members: [tests/integration/test_cross_seam_consumers.py::test_implement_resolver_coord_bare_slug_fails_closed]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers]
+      oracle: unresolved modern bookkeeping identity fails closed
+      contract_claim: bookkeeping never fabricates a coordination transaction identity
+      authority: [docs/context/identity.md]
+      duplicate_group: WP10-current-implement-identity-contract
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_implement_resolver_coord_bare_slug_fails_closed}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py
+          result: The current resolver contract exercises the complete source cascade and the identity authority separately owns malformed-modern failure.
+      causal_probe:
+        kind: executed-successor-family
+        fault: modern coordination bookkeeping has neither mission_id nor mid8
+        authority_violated: no fabricated transaction directory may be selected
+        act_reached: true
+        intended_oracle: current identity authority rejects malformed modern identity
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/runtime/test_runtime_identity_resolution.py::test_resolve_coordination_branch_malformed_modern_mission_fails_closed' 'tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_is_none_when_no_meta_mid8_and_no_mission_id'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove the historical WP05 scenario duplicate; retain the current resolver source-cascade and identity-authority tests.
+    survivor: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_is_none_when_no_meta_mid8_and_no_mission_id
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-implement-mission-id-derivation
+      members: [tests/integration/test_cross_seam_consumers.py::test_backfilled_legacy_mission_resolves_from_mission_id]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers]
+      oracle: mission_id derives effective mission id and mid8 when explicit mid8 is absent
+      contract_claim: mission-id source derivation remains canonical
+      authority: [docs/context/identity.md]
+      duplicate_group: WP10-current-implement-mission-id-derivation
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_backfilled_legacy_mission_resolves_from_mission_id}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_falls_back_to_resolve_mid8_when_meta_mid8_absent
+          result: Current node calls the exact resolver and asserts mission_id-derived mid8.
+      causal_probe:
+        kind: executed-successor-family
+        fault: mission_id no longer derives the transaction mid8
+        authority_violated: mission identity is the fallback source when explicit mid8 is absent
+        act_reached: true
+        intended_oracle: exact resolver successor rejects derivation drift
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_falls_back_to_resolve_mid8_when_meta_mid8_absent'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove historical backfill scenario duplicate; retain exact current mission-id derivation.
+    survivor: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_falls_back_to_resolve_mid8_when_meta_mid8_absent
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-implement-bare-surface-fallback
+      members:
+        - tests/integration/test_cross_seam_consumers.py::test_meta_less_modern_slug_degrades_without_fabrication
+        - tests/integration/test_cross_seam_consumers.py::test_unbackfilled_legacy_slug_resolves_to_bare_surface
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers]
+      oracle: identity-less non-coordination inputs retain empty-mid8 bare-surface fallback
+      contract_claim: legacy/no-meta fallback remains non-fabricating
+      authority: [docs/context/identity.md]
+      duplicate_group: WP10-current-implement-legacy-fallback
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_unbackfilled_legacy_slug_resolves_to_bare_surface}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_no_meta_at_all
+          result: Current exact-resolver nodes cover both absent mission_id and absent meta without fabrication.
+      causal_probe:
+        kind: executed-successor-family
+        fault: identity-less non-coordination input fabricates an effective identity or mid8
+        authority_violated: legacy/no-meta fallback must remain bare and non-fabricating
+        act_reached: true
+        intended_oracle: exact resolver successors reject fallback drift
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_mission_id_absent' 'tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_no_meta_at_all' 'tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_mid8_is_none_when_no_meta_mid8_and_no_mission_id'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove historical bare-surface duplicates; retain exact current legacy/no-meta fallback nodes.
+    survivor: tests/specify_cli/cli/commands/test_implement_bookkeeping_identifiers.py::test_legacy_slug_fallback_when_no_meta_at_all
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-implement-slug-tail-mid8
+      members: [tests/integration/test_cross_seam_consumers.py::test_mid8_slug_tail_resolves_without_fabrication]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/cli/commands/implement.py::_resolve_bookkeeping_transaction_identifiers]
+      oracle: a valid slug-tail mid8 resolves through the canonical identity parser
+      contract_claim: slug-tail source remains a valid non-fabricated identity source
+      authority: [docs/context/identity.md]
+      duplicate_group: WP10-current-transaction-mid8-cascade
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_mid8_slug_tail_resolves_without_fabrication}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved
+          result: Current identity-owner test directly asserts embedded slug-tail resolution in the canonical transaction-mid8 cascade.
+      causal_probe:
+        kind: executed-successor-family
+        fault: embedded valid mid8 tail is ignored or fabricated differently
+        authority_violated: canonical transaction identity cascade recognizes a valid slug tail
+        act_reached: true
+        intended_oracle: identity-owner successor rejects slug-tail resolution drift
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove historical integration duplicate; retain the canonical identity-cascade owner.
+    survivor: tests/specify_cli/lanes/test_branch_naming_ssot_entrypoint.py::test_resolve_transaction_mid8_cascade_preserved
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-no-fabrication-status-aggregate
+      members: ['tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/status/aggregate.py]']
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/status/aggregate.py]
+      oracle: checkout-derived or fabricated write identities are absent
+      contract_claim: aggregate routes through canonical identity and placement seams
+      authority: [tests/architectural/test_no_write_side_rederivation.py]
+      duplicate_group: WP10-whole-tree-write-rederivation
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: 'tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/status/aggregate.py]'}]
+    evidence: &cross_seam_fabrication_evidence
+      profile: structural
+      authority_evidence:
+        - reference: tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation
+          result: The current whole-tree scanner covers this production path and plants controlled identity/target rederivations through the same detector.
+      causal_probe:
+        kind: executed-successor-family
+        fault: production path reintroduces checkout-derived or inline-fabricated identity
+        authority_violated: write identity must come from the canonical seam
+        act_reached: true
+        intended_oracle: whole-tree current-authority scanner rejects the planted bypass
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove the three-literal historical substring duplicate; whole-tree canonical rederivation enforcement remains.
+    survivor: tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-no-fabrication-status-transition
+      members: ['tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/coordination/status_transition.py]']
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/coordination/status_transition.py]
+      oracle: checkout-derived or fabricated write identities are absent
+      contract_claim: status transition routes through canonical identity and placement seams
+      authority: [tests/architectural/test_no_write_side_rederivation.py]
+      duplicate_group: WP10-whole-tree-write-rederivation
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: 'tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/coordination/status_transition.py]'}]
+    evidence: *cross_seam_fabrication_evidence
+    verdict: DELETE
+    state: terminal
+    action: Remove the historical substring duplicate; whole-tree canonical rederivation enforcement remains.
+    survivor: tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-no-fabrication-implement
+      members: ['tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/cli/commands/implement.py]']
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/cli/commands/implement.py]
+      oracle: checkout-derived or fabricated write identities are absent
+      contract_claim: implement bookkeeping routes through canonical identity and placement seams
+      authority: [tests/architectural/test_no_write_side_rederivation.py]
+      duplicate_group: WP10-whole-tree-write-rederivation
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: 'tests/integration/test_cross_seam_consumers.py::test_no_fabrication_idiom_in_owned_files[specify_cli/cli/commands/implement.py]'}]
+    evidence: *cross_seam_fabrication_evidence
+    verdict: DELETE
+    state: terminal
+    action: Remove the historical substring duplicate; whole-tree canonical rederivation enforcement remains.
+    survivor: tests/architectural/test_no_write_side_rederivation.py::test_adopted_modules_have_no_write_side_rederivation
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-aggregate-topology-private-shape
+      members: [tests/integration/test_cross_seam_consumers.py::test_aggregate_topology_predicate_uses_registry_authority]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/status/aggregate.py::_is_coord_dir]
+      oracle: coordination topology is derived behaviorally from a registered worktree
+      contract_claim: no current authority requires the private _is_coord_dir name or its exact callee
+      authority: [tests/unit/status/test_mission_status_aggregate.py]
+      duplicate_group: WP10-current-aggregate-topology-behavior
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_aggregate_topology_predicate_uses_registry_authority}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/unit/status/test_mission_status_aggregate.py::TestLoadCoordMission::test_topology_is_coordination_when_coord_worktree_exists
+          result: Executed current aggregate behavior owns the outcome; repository authority/caller search found no contract naming private _is_coord_dir or mandating one callee.
+      causal_probe:
+        kind: executed-successor-plus-no-shape-authority
+        fault: registered coordination topology is misclassified
+        authority_violated: coordination topology must remain behaviorally correct
+        act_reached: true
+        intended_oracle: current aggregate behavior test fails on misclassification while permitting equivalent implementation
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/unit/status/test_mission_status_aggregate.py::TestLoadCoordMission::test_topology_is_coordination_when_coord_worktree_exists'; rg -n '_is_coord_dir' docs/context docs/adr/3.x src tests"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete the exact private-callee AST pin; retain current aggregate topology behavior.
+    survivor: tests/unit/status/test_mission_status_aggregate.py::TestLoadCoordMission::test_topology_is_coordination_when_coord_worktree_exists
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-cross-seam-aggregate-branch-private-shape
+      members: [tests/integration/test_cross_seam_consumers.py::test_aggregate_branch_compose_uses_naming_authority]
+      granularity: function
+      source_paths: [tests/integration/test_cross_seam_consumers.py]
+      production_paths: [src/specify_cli/status/aggregate.py]
+      oracle: transition validates against and persists to the declared coordination branch
+      contract_claim: no current authority requires an exact branch-naming helper token in aggregate.py
+      authority: [tests/unit/status/test_mission_status_aggregate.py]
+      duplicate_group: WP10-current-aggregate-branch-behavior
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/integration/test_cross_seam_consumers.py::test_aggregate_branch_compose_uses_naming_authority}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/unit/status/test_mission_status_aggregate.py::TestTransitionHappyPath::test_transition_validates_against_coord_branch_when_worktree_absent
+          result: Executed current aggregate behavior owns branch selection; caller search found no product contract prescribing the private helper spelling.
+      causal_probe:
+        kind: executed-successor-plus-no-shape-authority
+        fault: aggregate transition resolves a destination other than the declared coordination branch
+        authority_violated: status transition must use the authoritative destination
+        act_reached: true
+        intended_oracle: current transition test rejects branch-selection drift while allowing equivalent composition
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/unit/status/test_mission_status_aggregate.py::TestTransitionHappyPath::test_transition_validates_against_coord_branch_when_worktree_absent'; rg -n 'mission_branch_name_required' docs/context docs/adr/3.x src/specify_cli/status"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete the exact helper-token pin; retain current aggregate branch behavior.
+    survivor: tests/unit/status/test_mission_status_aggregate.py::TestTransitionHappyPath::test_transition_validates_against_coord_branch_when_worktree_absent
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-kind-classifier-matrix
+      members:
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_known_paths_classify
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_other_mission_path_is_none
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_planning_kinds_are_primary_partition
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_status_kind_is_not_primary_partition
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_unknown_path_is_none
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/mission_runtime/artifacts.py::kind_for_mission_file]
+      oracle: artifact kinds remain exhaustive, disjoint, and resolve to their declared home
+      contract_claim: current partition tests supersede a frozen WP03 example matrix
+      authority: [src/mission_runtime/artifacts.py]
+      duplicate_group: WP10-current-artifact-partition-contract
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestKindForMissionFile::test_known_paths_classify}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/mission_runtime/test_artifact_partition.py
+          result: Current owner tests execute the classifier/home invariant without freezing one completed mission's filenames.
+      causal_probe:
+        kind: executed-successor-family
+        fault: SPEC or STATUS_STATE moves to the wrong partition, or partition membership overlaps
+        authority_violated: artifact partition must remain exhaustive and disjoint
+        act_reached: true
+        intended_oracle: current owner tests reject wrong home or overlapping membership
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/mission_runtime/test_artifact_partition.py::test_artifact_home_for_spec_is_primary' 'tests/mission_runtime/test_artifact_partition.py::test_artifact_home_for_status_state_stays_placement' 'tests/mission_runtime/test_artifact_partition_mapping.py::test_partition_invariant_stays_exhaustive_and_disjoint'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove the completed WP03 example matrix; current artifact-owner tests enforce the generalized contract.
+    survivor: tests/mission_runtime/test_artifact_partition.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-safe-commit-kind-threading
+      members:
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestSafeCommitMissionAwareTargetIsKindAware::test_mission_file_kind_classifies_first_kitty_specs_arg
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestSafeCommitMissionAwareTargetIsKindAware::test_resolve_mission_aware_target_threads_kind
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/cli/commands/safe_commit_cmd.py]
+      oracle: public safe-commit resolves and durably commits a PRIMARY-kind mission artifact
+      contract_claim: outcome supersedes private helper argument-spy shape
+      authority: [docs/adr/3.x/2026-07-30-1-post-merge-write-routing.md]
+      duplicate_group: WP10-current-safe-commit-placement
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestSafeCommitMissionAwareTargetIsKindAware::test_resolve_mission_aware_target_threads_kind}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/test_safe_commit_cmd.py::test_public_safe_commit_succeeds_after_merged_branch_deleted_3033
+          result: Public black-box successor executes kind classification, placement, commit, ref existence, and content readback.
+      causal_probe:
+        kind: executed-successor-family
+        fault: PRIMARY-kind artifact loses kind-aware placement
+        authority_violated: safe-commit must land the artifact on a resolvable authoritative ref
+        act_reached: true
+        intended_oracle: public outcome fails if kind threading or placement regresses
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_safe_commit_cmd.py::test_public_safe_commit_succeeds_after_merged_branch_deleted_3033'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove private helper spies; retain the public durable-write oracle.
+    survivor: tests/specify_cli/cli/commands/test_safe_commit_cmd.py::test_public_safe_commit_succeeds_after_merged_branch_deleted_3033
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-refusal-diagnostic-behavior
+      members:
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestFR008MessagesNameFeatureBranch::test_protected_branch_refused_message_remedy
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestFR008MessagesNameFeatureBranch::test_router_refusal_diagnostic_remedy
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/core/commit_guard.py]
+      oracle: protected-primary paths refuse and land no commit
+      contract_claim: current behavioral refusal tests supersede exact completed-WP prose assertions
+      authority: [src/specify_cli/core/commit_guard.py]
+      duplicate_group: WP10-current-protected-refusal
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestFR008MessagesNameFeatureBranch::test_router_refusal_diagnostic_remedy}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/missions/test_write_surface_coherence.py
+          result: Two current behavioral nodes execute both router-result and raised-exception refusal paths; no current authority prescribes the retired feature-branch sentence.
+      causal_probe:
+        kind: executed-successor-family
+        fault: protected-primary router or direct safe-commit permits a write
+        authority_violated: protected refs refuse ordinary writes
+        act_reached: true
+        intended_oracle: both current refusal shapes reject the attempted write
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/missions/test_write_surface_coherence.py::test_fr008_router_returns_no_op_wrong_surface' 'tests/missions/test_write_surface_coherence.py::test_fr008_safe_commit_raises_protected_branch_refused'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Remove historical remedy-prose pins; retain both current behavioral refusal paths.
+    survivor: tests/missions/test_write_surface_coherence.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-tasks-direct-safe-commit-shape
+      members:
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsRouteThroughCommitForMission::test_tasks_module_has_no_direct_safe_commit_symbol
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsRouteThroughCommitForMission::test_tasks_py_has_no_direct_safe_commit_call
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/cli/commands/agent/tasks.py]
+      oracle: map-requirements commits through the current artifact port
+      contract_claim: behavior supersedes exact import/callee absence
+      authority: [tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py]
+      duplicate_group: WP10-current-tasks-artifact-port
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsRouteThroughCommitForMission::test_tasks_py_has_no_direct_safe_commit_call}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py::test_map_requirements_auto_commit_routes_via_commit_artifact
+          result: Current behavior executes the port and verifies kind/files/message; no authority requires a particular imported symbol name.
+      causal_probe:
+        kind: executed-successor-plus-no-shape-authority
+        fault: map-requirements bypasses the artifact commit port
+        authority_violated: authored task mapping must use the routed artifact capability
+        act_reached: true
+        intended_oracle: current orchestration spy rejects a bypass while allowing equivalent internals
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py::test_map_requirements_auto_commit_routes_via_commit_artifact'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete exact import/callee absence checks; retain routed orchestration behavior.
+    survivor: tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py::test_map_requirements_auto_commit_routes_via_commit_artifact
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-tasks-protected-message-byte-pin
+      members:
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_map_requirements_protected_primary_message_byte_identical
+        - tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_protected_primary_message_byte_identical
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/cli/commands/agent/tasks.py]
+      oracle: protected-primary task mutation refuses
+      contract_claim: no current product authority requires byte-identical historical refusal prose
+      authority: [src/specify_cli/core/commit_guard.py]
+      duplicate_group: WP10-current-protected-task-refusal
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_protected_primary_message_byte_identical}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target
+          result: Current end-to-end task transition refuses on protected main; docs/context and ADR search contains no byte-level message contract.
+      causal_probe:
+        kind: executed-successor-plus-no-prose-authority
+        fault: task mutation proceeds on protected primary
+        authority_violated: protected-primary mutation must refuse
+        act_reached: true
+        intended_oracle: current end-to-end transition observes nonzero refusal
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target'; rg -n 'Refusing to run.*auto-commit' docs/context docs/adr/3.x"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete byte-identical prose pins; current protected-task refusal remains.
+    survivor: tests/architectural/test_execution_context_parity.py::test_full_sequence_direct_to_target
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-mark-status-event-only
+      members: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_mark_status_event_only_bypasses_artifact_protection]
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/cli/commands/agent/tasks.py]
+      oracle: event-only mark-status lands no protected-branch commit
+      contract_claim: current event-sourced successor supersedes obsolete pre-artifact-protection expectation
+      authority: [tests/git/test_guard_capability_regression.py]
+      duplicate_group: WP10-current-mark-status-event-only
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_mark_status_event_only_bypasses_artifact_protection}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/git/test_guard_capability_regression.py::test_mark_status_test_mode_env_lands_no_commit_on_protected_target
+          result: Current node executes mark-status and proves HEAD byte identity; the deleted node expected an obsolete meta lookup error.
+      causal_probe:
+        kind: executed-successor-family
+        fault: event-only mark-status creates a protected-ref commit
+        authority_violated: event-only completion must not land an authored artifact commit
+        act_reached: true
+        intended_oracle: current command succeeds while HEAD remains unchanged
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/git/test_guard_capability_regression.py::test_mark_status_test_mode_env_lands_no_commit_on_protected_target'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete obsolete pre-event-sourcing error expectation; retain current commit-free command behavior.
+    survivor: tests/git/test_guard_capability_regression.py::test_mark_status_test_mode_env_lands_no_commit_on_protected_target
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-wp03-self-review-validation-order
+      members: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_self_review_guard_precedes_protected_branch]
+      granularity: function
+      source_paths: [tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py]
+      production_paths: [src/specify_cli/cli/commands/agent/tasks.py]
+      oracle: self-review fallback is accepted only for approval/done transitions
+      contract_claim: full validation matrix supersedes one historical guard-order scenario
+      authority: [tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py]
+      duplicate_group: WP10-current-self-review-validation
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py::TestTasksTailsProtectedPrimaryByteIdentical::test_move_task_self_review_guard_precedes_protected_branch}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_self_review_fallback_guard_full_matrix
+          result: Current matrix exhaustively asserts every target-lane/fallback combination without coupling validation to branch-protection order.
+      causal_probe:
+        kind: executed-successor-family
+        fault: invalid self-review fallback is accepted for a non-approval transition
+        authority_violated: self-review fallback has a closed target-lane domain
+        act_reached: true
+        intended_oracle: current full matrix rejects all invalid combinations
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_self_review_fallback_guard_full_matrix'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete one ordering-coupled scenario; retain the exhaustive validation matrix.
+    survivor: tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_self_review_fallback_guard_full_matrix
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-denied-rendering-and-fragments
+      members:
+        - tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_denied_branch_names_the_operator_action
+        - tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause1_the_non_fragment_portion_is_byte_identical
+        - tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause2_fragment_names_its_own_set_and_no_foreign_kind
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::_render_denied_refusal]
+      oracle: denied SaaS and tracker requests send nothing and render transport-specific actionable refusal
+      contract_claim: end-to-end transport successors supersede direct shared-template pins
+      authority: [docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md]
+      duplicate_group: WP10-current-egress-denied-transport
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause1_the_non_fragment_portion_is_byte_identical}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport
+          result: Both current transport successors execute real refusal paths, assert empty sinks, exact shared-template tails, own identifiers, foreign exclusion, and operator remedy.
+      causal_probe:
+        kind: executed-successor-family
+        fault: denied transport leaks identifiers or renders the wrong transport fragment/remedy
+        authority_violated: denied egress must transmit nothing and explain the refusal accurately
+        act_reached: true
+        intended_oracle: both current transport tests reject leakage or rendering drift
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport' 'tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete direct consolidation-template duplicates; retain both end-to-end transport oracles.
+    survivor: tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-import-failure-diagnostic
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_import_failure_branch_carries_the_exception_text]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::project_egress_refusal]
+      oracle: consent-resolver import failure refuses egress
+      contract_claim: current authority requires refusal, not echoing exact ImportError text
+      authority: [docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md]
+      duplicate_group: WP10-current-egress-fail-closed
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_import_failure_branch_carries_the_exception_text}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
+          result: ADR mandates default deny; search finds no contract requiring raw import-exception text in operator output.
+      causal_probe:
+        kind: no-prose-authority-plus-default-deny-successor
+        fault: hosted-sync consent resolver cannot be imported
+        authority_violated: inability to resolve consent must not permit egress
+        act_reached: true
+        intended_oracle: live no-attribution gates prove lack of an answer refuses
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself' 'tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself'; rg -n 'exception text|ImportError' docs/context docs/adr/3.x"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete raw exception-text pin; retain current default-deny transport gates.
+    survivor: tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-no-resolver-diagnostic
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_no_resolver_branch_names_the_resolver]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::_refusal_for_verdict]
+      oracle: NO_RESOLVER refuses egress
+      contract_claim: current authority requires refusal, not the word resolver
+      authority: [docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md]
+      duplicate_group: WP10-current-egress-no-resolver
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_no_resolver_branch_names_the_resolver}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_when_unregistered
+          result: Current adapter authority returns NO_RESOLVER; live transport gate proves absent attribution refuses. Exact diagnostic word has no ADR/context authority.
+      causal_probe:
+        kind: executed-successor-plus-no-prose-authority
+        fault: no consent resolver is registered
+        authority_violated: NO_RESOLVER must remain non-permitting
+        act_reached: true
+        intended_oracle: current adapter and gate reject the missing-resolver case
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_when_unregistered' 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete exact diagnostic-word pin; retain NO_RESOLVER default-deny behavior.
+    survivor: tests/invocation/test_adapters.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-undetermined-unanswerable-prose
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_undetermined_and_unanswerable_stay_distinguishable]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::_refusal_for_verdict]
+      oracle: UNANSWERABLE and missing attribution both refuse
+      contract_claim: current authority requires fail-closed polarity, not distinct exact prose
+      authority: [docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md]
+      duplicate_group: WP10-current-egress-unanswerable
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_undetermined_and_unanswerable_stay_distinguishable}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: tests/invocation/test_adapters.py
+          result: Current adapter tests prove UNANSWERABLE is non-permitting and transport gates prove missing attribution refuses; no current authority requires two specific sentences.
+      causal_probe:
+        kind: executed-successor-plus-no-prose-authority
+        fault: resolver raises/returns non-bool or transport lacks project attribution
+        authority_violated: neither state may permit egress
+        act_reached: true
+        intended_oracle: adapter and transport successors reject both inputs
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_a_none_answer' 'tests/invocation/test_adapters.py::test_resolve_egress_consent_refuses_on_resolver_exception' 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_no_attribution_is_a_refusal_at_the_gate_itself'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete distinct-sentence pin; retain non-permitting polarity for both cases.
+    survivor: tests/invocation/test_adapters.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-future-verdict-remedy-prose
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_unrecognised_future_verdict_does_not_reuse_denied_remedy]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::_refusal_for_verdict]
+      oracle: an unknown non-permitting verdict yields a refusal
+      contract_claim: no current enum member or authority prescribes hypothetical future-verdict remedy prose
+      authority: []
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_nfr004_unrecognised_future_verdict_does_not_reuse_denied_remedy}]
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "rg -n 'unrecognised future verdict|quarantined' docs/context docs/adr/3.x src"
+          result: Search finds no current enum member, caller, or product authority for the synthetic future-verdict remedy.
+      causal_probe:
+        kind: authority-and-caller-search
+        fault: synthetic object with value=quarantined is passed to a private renderer
+        authority_violated: none; current EgressConsent is closed and all real non-permitting members are covered by adapter/gate tests
+        act_reached: true
+        intended_oracle: current real verdict coverage remains green
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider tests/invocation/test_adapters.py; rg -n 'quarantined|unrecognised future verdict' docs/context docs/adr/3.x src"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete speculative future-object remedy prose test with no current authority or caller.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-binding-object-identity
+      members:
+        - tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause3_both_deciding_modules_bind_the_one_definition_site
+        - tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause3_names_are_reachable_and_the_comparison_is_not_self_identity
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::project_egress_refusal]
+      oracle: null
+      contract_claim: no current product authority requires by-value object identity across module imports
+      authority: []
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_sc004_clause3_both_deciding_modules_bind_the_one_definition_site}]
+    evidence: &egress_no_layout_authority
+      profile: structural
+      authority_evidence:
+        - reference: "rg -n 'object identity|one definition site|specify_cli.egress' docs/context docs/adr/3.x"
+          result: No current ADR/context authority mandates an object-identity comparison or exact definition site; live transport behavior is independently gated.
+      causal_probe:
+        kind: authority-and-caller-search
+        fault: equivalent import style or delegating wrapper changes object identity without changing refusal behavior
+        authority_violated: none; only completed #3110 consolidation shape changes
+        act_reached: true
+        intended_oracle: both live transport consent suites remain green
+        intended_oracle_failed: true
+        command: "rg -n 'project_egress_refusal' src/specify_cli; .venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport' 'tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_sc016_denied_wording_is_pinned_for_this_transport'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: de835432dd0832a19f156ae9eb5f5b0528bebe3e3cfe64fc22dd9425bfbce0bb
+    verdict: DELETE
+    state: terminal
+    action: Delete exact cross-module object-identity pins; behavior remains transport-owned.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-definition-site-content-census
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_sc015_template_and_verdict_branches_have_exactly_one_definition_site]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py]
+      oracle: null
+      contract_claim: no current product authority requires exact string-constant cardinality or location
+      authority: []
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_sc015_template_and_verdict_branches_have_exactly_one_definition_site}]
+    evidence: *egress_no_layout_authority
+    verdict: DELETE
+    state: terminal
+    action: Delete exact string-definition-site census; live refusal behavior owns operator-visible output.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-integration-prefix-self-presence
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_sc025_the_shared_module_is_classified_as_integration]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [tests/architectural/test_integration_boundary.py::INTEGRATION_PREFIXES]
+      oracle: null
+      contract_claim: no current ADR declares the plain shared egress module to be an integration-layer package
+      authority: []
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_sc025_the_shared_module_is_classified_as_integration}]
+    evidence:
+      <<: *egress_no_layout_authority
+      authority_evidence:
+        - reference: "rg -n 'specify_cli.egress|integration layer' docs/context docs/adr/3.x"
+          result: The only exact membership rationale is the test's own #3110 comment; current ADR governs default-deny behavior, not one test-list entry.
+    verdict: DELETE
+    state: terminal
+    action: Delete positive self-presence assertion over another test's implementation list.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-egress-relocated-rationale-prose
+      members: [tests/specify_cli/test_egress_consolidation_3110.py::test_fr012_rationale_and_tracker_precondition_live_in_the_consolidated_module]
+      granularity: function
+      source_paths: [tests/specify_cli/test_egress_consolidation_3110.py]
+      production_paths: [src/specify_cli/egress.py::__doc__]
+      oracle: null
+      contract_claim: no current executable contract depends on historical FR tokens or exact explanatory prose
+      authority: []
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations: [{<<: *full_parallel_observation, nodeid: tests/specify_cli/test_egress_consolidation_3110.py::test_fr012_rationale_and_tracker_precondition_live_in_the_consolidated_module}]
+    evidence: *egress_no_layout_authority
+    verdict: DELETE
+    state: terminal
+    action: Delete exact docstring-token acceptance scaffold; ADR and behavior remain authoritative.
+    survivor: null
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-meta-reader-migration-sweep
+      members:
+        - tests/specify_cli/test_meta_reader_sweep.py::test_scanner_flags_synthetic_inline_meta_read
+        - tests/specify_cli/test_meta_reader_sweep.py::test_scanner_ignores_unrelated_json_loads
+        - tests/specify_cli/test_meta_reader_sweep.py::test_scanner_passes_canonical_load_meta
+        - tests/specify_cli/test_meta_reader_sweep.py::test_touched_module_has_no_inline_meta_read
+      granularity: function
+      source_paths: [tests/specify_cli/test_meta_reader_sweep.py]
+      production_paths: []
+      oracle: null
+      contract_claim: null
+      authority: [kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: tests/specify_cli/test_meta_reader_sweep.py::test_scanner_flags_synthetic_inline_meta_read
+    evidence: *migration_evidence
+    verdict: DELETE
+    state: terminal
+    action: Delete touched-module migration sweep duplicated by the full-census fail-closed meta authority.
+    survivor: tests/specify_cli/test_meta_fail_closed_full_census_contract.py
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-git-test-guard-capability-regression
+      members:
+        - "tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target"
+      granularity: function
+      source_paths: ["tests/git/test_guard_capability_regression.py"]
+      production_paths: ["src/specify_cli/core/commit_guard.py"]
+      oracle: "standard capability is refused on a protected destination"
+      contract_claim: "standard capability is refused on a protected destination"
+      authority: ["src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target"
+      live_corpus:
+        identity: "src/specify_cli/core/commit_guard.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "ordinary status flow gains a protected-ref bypass capability"
+        authority_violated: "standard capability is refused on a protected destination"
+        act_reached: true
+        intended_oracle: "standard capability is refused on a protected destination"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/git/test_guard_capability_regression.py::test_legacy_workflow_commit_refused_on_protected_target'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/git/test_guard_capability_regression.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-cli-commands-test-identity-audit
+      members:
+        - "tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1"
+      granularity: function
+      source_paths: ["tests/specify_cli/cli/commands/test_identity_audit.py"]
+      production_paths: ["src/specify_cli/cli/commands/_identity_audit.py"]
+      oracle: "identity audit exits nonzero and identifies the ambiguity"
+      contract_claim: "identity audit exits nonzero and identifies the ambiguity"
+      authority: ["docs/context/identity.md"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1"
+      live_corpus:
+        identity: "src/specify_cli/cli/commands/_identity_audit.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/context/identity.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "duplicate or ambiguous mission identity enters the audited scope"
+        authority_violated: "identity audit exits nonzero and identifies the ambiguity"
+        act_reached: true
+        intended_oracle: "identity audit exits nonzero and identifies the ambiguity"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_identity_audit.py::test_run_identity_audit_json_fail_on_exits_1'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/cli/commands/test_identity_audit.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-cli-commands-test-sparse-checkout-doctor
+      members:
+        - "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal"
+      granularity: function
+      source_paths: ["tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py"]
+      production_paths: ["src/specify_cli/cli/commands/_sparse_checkout_doctor.py"]
+      oracle: "doctor refuses mutation and returns the actionable failure"
+      contract_claim: "doctor refuses mutation and returns the actionable failure"
+      authority: ["src/specify_cli/cli/commands/_sparse_checkout_doctor.py::run_sparse_checkout"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal"
+      live_corpus:
+        identity: "src/specify_cli/cli/commands/_sparse_checkout_doctor.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/cli/commands/_sparse_checkout_doctor.py::run_sparse_checkout"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "sparse-checkout repair is requested non-interactively in CI"
+        authority_violated: "doctor refuses mutation and returns the actionable failure"
+        act_reached: true
+        intended_oracle: "doctor refuses mutation and returns the actionable failure"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py::test_run_sparse_checkout_ci_refusal'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-core-test-load-meta-fail-closed-authority
+      members:
+        - "tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error"
+      granularity: function
+      source_paths: ["tests/specify_cli/core/test_load_meta_fail_closed_authority.py"]
+      production_paths: ["src/specify_cli/mission_metadata.py"]
+      oracle: "public reader raises its typed fail-closed error"
+      contract_claim: "public reader raises its typed fail-closed error"
+      authority: ["src/specify_cli/mission_metadata.py::load_meta"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error"
+      live_corpus:
+        identity: "src/specify_cli/mission_metadata.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/mission_metadata.py::load_meta"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "mission meta contains corrupt JSON"
+        authority_violated: "public reader raises its typed fail-closed error"
+        act_reached: true
+        intended_oracle: "public reader raises its typed fail-closed error"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/core/test_load_meta_fail_closed_authority.py::test_corrupt_meta_raises_typed_error_not_raw_value_error'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/core/test_load_meta_fail_closed_authority.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-decisions-test-ownership-3111
+      members:
+        - "tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded"
+      granularity: function
+      source_paths: ["tests/specify_cli/decisions/test_ownership_3111.py"]
+      production_paths: ["src/specify_cli/decisions/ownership.py"]
+      oracle: "ownership is not established for the escaped path"
+      contract_claim: "ownership is not established for the escaped path"
+      authority: ["docs/context/identity.md"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded"
+      live_corpus:
+        identity: "src/specify_cli/decisions/ownership.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/context/identity.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an ownership candidate escapes the checkout through a symlink"
+        authority_violated: "ownership is not established for the escaped path"
+        act_reached: true
+        intended_oracle: "ownership is not established for the escaped path"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/decisions/test_ownership_3111.py::test_symlinked_mission_directory_pointing_outside_is_excluded'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/decisions/test_ownership_3111.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-saas-client-test-client-consent-gate-3030
+      members:
+        - "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire"
+      granularity: function
+      source_paths: ["tests/specify_cli/saas_client/test_client_consent_gate_3030.py"]
+      production_paths: ["src/specify_cli/saas_client/client.py"]
+      oracle: "no engagement identifier reaches the recorded transport"
+      contract_claim: "no engagement identifier reaches the recorded transport"
+      authority: ["docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire"
+      live_corpus:
+        identity: "src/specify_cli/saas_client/client.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an authenticated but unconsented project attempts SaaS egress"
+        authority_violated: "no engagement identifier reaches the recorded transport"
+        act_reached: true
+        intended_oracle: "no engagement identifier reaches the recorded transport"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/saas_client/test_client_consent_gate_3030.py::test_unconsented_project_puts_no_engagement_name_on_the_wire'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/saas_client/test_client_consent_gate_3030.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-specify-cli-test-meta-fail-closed-full-census-contract
+      members:
+        - "tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites"
+      granularity: function
+      source_paths: ["tests/specify_cli/test_meta_fail_closed_full_census_contract.py"]
+      production_paths: ["src/specify_cli/mission_metadata.py"]
+      oracle: "the full live caller census remains fail-closed"
+      contract_claim: "the full live caller census remains fail-closed"
+      authority: ["src/specify_cli/mission_metadata.py::load_meta"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites"
+      live_corpus:
+        identity: "src/specify_cli/mission_metadata.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/mission_metadata.py::load_meta"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a routed reader handles corrupt or non-object meta as valid"
+        authority_violated: "the full live caller census remains fail-closed"
+        act_reached: true
+        intended_oracle: "the full live caller census remains fail-closed"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/specify_cli/test_meta_fail_closed_full_census_contract.py::test_no_unaccounted_load_meta_call_sites'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-sync-test-consent-resolver-3030
+      members:
+        - "tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant"
+      granularity: function
+      source_paths: ["tests/sync/test_consent_resolver_3030.py"]
+      production_paths: ["src/specify_cli/sync/consent.py"]
+      oracle: "project-local refusal wins and egress remains denied"
+      contract_claim: "project-local refusal wins and egress remains denied"
+      authority: ["docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant"
+      live_corpus:
+        identity: "src/specify_cli/sync/consent.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a machine index grant conflicts with project-local refusal"
+        authority_violated: "project-local refusal wins and egress remains denied"
+        act_reached: true
+        intended_oracle: "project-local refusal wins and egress remains denied"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_an_index_grant'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/sync/test_consent_resolver_3030.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-sync-test-project-identity-resolver-3030
+      members:
+        - "tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site"
+      granularity: function
+      source_paths: ["tests/sync/test_project_identity_resolver_3030.py"]
+      production_paths: ["src/specify_cli/sync/project_identity.py"]
+      oracle: "the canonical chain continues to the real project identity"
+      contract_claim: "the canonical chain continues to the real project identity"
+      authority: ["src/specify_cli/sync/project_identity.py::PROJECT_UUID_RESOLUTION_CHAIN"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site"
+      live_corpus:
+        identity: "src/specify_cli/sync/project_identity.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/sync/project_identity.py::PROJECT_UUID_RESOLUTION_CHAIN"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a nil identity appears before a real identity in an event"
+        authority_violated: "the canonical chain continues to the real project identity"
+        act_reached: true
+        intended_oracle: "the canonical chain continues to the real project identity"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_project_identity_resolver_3030.py::test_nil_sentinel_does_not_mask_a_real_later_site'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/sync/test_project_identity_resolver_3030.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-sync-test-sync-action-gate
+      members:
+        - "tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches"
+      granularity: function
+      source_paths: ["tests/sync/test_sync_action_gate.py"]
+      production_paths: ["src/specify_cli/cli/commands/sync.py"]
+      oracle: "the mutating sync action is refused with mismatch details"
+      contract_claim: "the mutating sync action is refused with mismatch details"
+      authority: ["src/specify_cli/cli/commands/sync.py::_require_daemon_owner_coherence"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches"
+      live_corpus:
+        identity: "src/specify_cli/cli/commands/sync.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/cli/commands/sync.py::_require_daemon_owner_coherence"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "foreground and daemon ownership fields diverge"
+        authority_violated: "the mutating sync action is refused with mismatch details"
+        act_reached: true
+        intended_oracle: "the mutating sync action is refused with mismatch details"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/test_sync_action_gate.py::test_gate_refuses_on_multiple_mismatches'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/sync/test_sync_action_gate.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-sync-tracker-test-saas-client-consent-gate-3030
+      members:
+        - "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name"
+      granularity: function
+      source_paths: ["tests/sync/tracker/test_saas_client_consent_gate_3030.py"]
+      production_paths: ["src/specify_cli/tracker/saas_client.py"]
+      oracle: "the transport records no engagement identifier"
+      contract_claim: "the transport records no engagement identifier"
+      authority: ["docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*full_parallel_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *full_parallel_observation
+          nodeid: "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name"
+      live_corpus:
+        identity: "src/specify_cli/tracker/saas_client.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an authenticated tracker client lacks project consent"
+        authority_violated: "the transport records no engagement identifier"
+        act_reached: true
+        intended_oracle: "the transport records no engagement identifier"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_unconsented_project_transmits_no_engagement_name'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/sync/tracker/test_saas_client_consent_gate_3030.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-2093-authority-invariant
+      members:
+        - "tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read"
+      granularity: function
+      source_paths: ["tests/architectural/test_2093_authority_invariant.py"]
+      production_paths: ["src/specify_cli/status/reducer.py"]
+      oracle: "the single-authority detector reports the frontmatter read"
+      contract_claim: "the single-authority detector reports the frontmatter read"
+      authority: ["docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read"
+      live_corpus:
+        identity: "src/specify_cli/status/reducer.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a runtime field is read from legacy WP frontmatter"
+        authority_violated: "the single-authority detector reports the frontmatter read"
+        act_reached: true
+        intended_oracle: "the single-authority detector reports the frontmatter read"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_2093_authority_invariant.py::test_detector_flags_extract_scalar_frontmatter_read'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_2093_authority_invariant.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-auth-transport-singleton
+      members:
+        - "tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton.test_walked_subsystems_have_no_direct_httpx_clients"
+      granularity: function
+      source_paths: ["tests/architectural/test_auth_transport_singleton.py"]
+      production_paths: ["src/specify_cli/auth/transport.py"]
+      oracle: "the live subsystem boundary reports the direct transport"
+      contract_claim: "the live subsystem boundary reports the direct transport"
+      authority: ["docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton::test_walked_subsystems_have_no_direct_httpx_clients"
+      live_corpus:
+        identity: "src/specify_cli/auth/transport.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton::test_negative_control_detects_violation"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a sync subsystem directly constructs httpx.Client"
+        authority_violated: "the live subsystem boundary reports the direct transport"
+        act_reached: true
+        intended_oracle: "the live subsystem boundary reports the direct transport"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_auth_transport_singleton.py::TestAuthTransportSingleton::test_negative_control_detects_violation'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_auth_transport_singleton.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-dossier-sync-boundary
+      members:
+        - "tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary.test_dossier_does_not_import_sync"
+      granularity: function
+      source_paths: ["tests/architectural/test_dossier_sync_boundary.py"]
+      production_paths: ["src/specify_cli/dossier/emitter_adapter.py"]
+      oracle: "the exact live import-boundary oracle returns the offending edge"
+      contract_claim: "the exact live import-boundary oracle returns the offending edge"
+      authority: ["src/specify_cli/dossier/emitter_adapter.py::fire_dossier_event"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary::test_dossier_does_not_import_sync"
+      live_corpus:
+        identity: "src/specify_cli/dossier/emitter_adapter.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary::test_import_scanner_has_two_sided_fault_bite"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/dossier/emitter_adapter.py::fire_dossier_event"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a dossier consumer imports specify_cli.sync"
+        authority_violated: "the exact live import-boundary oracle returns the offending edge"
+        act_reached: true
+        intended_oracle: "the exact live import-boundary oracle returns the offending edge"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_dossier_sync_boundary.py::TestDossierSyncBoundary::test_import_scanner_has_two_sided_fault_bite'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_dossier_sync_boundary.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-drg-writer-discovery
+      members:
+        - "tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently"
+      granularity: function
+      source_paths: ["tests/architectural/test_drg_writer_discovery.py"]
+      production_paths: ["src/doctrine/drg/migration/extractor.py"]
+      oracle: "the live writer discovery reports the bypass"
+      contract_claim: "the live writer discovery reports the bypass"
+      authority: ["src/specify_cli/drg_writers/registry.py::registered_writer_qualnames"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently"
+      live_corpus:
+        identity: "src/doctrine/drg/migration/extractor.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/drg_writers/registry.py::registered_writer_qualnames"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an unregistered writer hand-builds the five-field DRG document"
+        authority_violated: "the live writer discovery reports the bypass"
+        act_reached: true
+        intended_oracle: "the live writer discovery reports the bypass"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_drg_writer_discovery.py::test_self_mutation_dict_literal_writer_reds_independently'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_drg_writer_discovery.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-egress-consent-boundary
+      members:
+        - "tests/architectural/test_egress_consent_boundary.py::TestGuardBites.test_unlisted_sender_is_reported_with_its_seam"
+      granularity: function
+      source_paths: ["tests/architectural/test_egress_consent_boundary.py"]
+      production_paths: ["src/specify_cli/sync/consent.py"]
+      oracle: "the egress boundary reports the sender and required seam"
+      contract_claim: "the egress boundary reports the sender and required seam"
+      authority: ["docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_egress_consent_boundary.py::TestGuardBites::test_unlisted_sender_is_reported_with_its_seam"
+      live_corpus:
+        identity: "src/specify_cli/sync/consent.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_egress_consent_boundary.py::TestGuardBites::test_unlisted_sender_is_reported_with_its_seam"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a new source module introduces an unlisted egress sink"
+        authority_violated: "the egress boundary reports the sender and required seam"
+        act_reached: true
+        intended_oracle: "the egress boundary reports the sender and required seam"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_egress_consent_boundary.py::TestGuardBites::test_unlisted_sender_is_reported_with_its_seam'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_egress_consent_boundary.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-git-matrix-paths-resolve
+      members:
+        - "tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path"
+      granularity: function
+      source_paths: ["tests/architectural/test_git_matrix_paths_resolve.py"]
+      production_paths: ["src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md"]
+      oracle: "the matrix resolver reports the unresolved path"
+      contract_claim: "the matrix resolver reports the unresolved path"
+      authority: ["src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path"
+      live_corpus:
+        identity: "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "the shipped operations matrix names a phantom source file"
+        authority_violated: "the matrix resolver reports the unresolved path"
+        act_reached: true
+        intended_oracle: "the matrix resolver reports the unresolved path"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_git_matrix_paths_resolve.py::test_guard_bites_on_planted_phantom_path'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_git_matrix_paths_resolve.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-guard-capability-call-sites
+      members:
+        - "tests/architectural/test_guard_capability_call_sites.py::test_protected_flow_capability_call_sites_are_allowlisted"
+      granularity: function
+      source_paths: ["tests/architectural/test_guard_capability_call_sites.py"]
+      production_paths: ["src/specify_cli/core/commit_guard.py"]
+      oracle: "the exact live allowlist oracle reports src/probe.py"
+      contract_claim: "the exact live allowlist oracle reports src/probe.py"
+      authority: ["src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_guard_capability_call_sites.py::test_protected_flow_capability_call_sites_are_allowlisted[MERGE_BOOKKEEPING]"
+      live_corpus:
+        identity: "src/specify_cli/core/commit_guard.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_guard_capability_call_sites.py::test_guard_capability_enforcement_has_two_sided_fault_bite"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/core/commit_guard.py::_PROTECTED_FLOW_CAPABILITIES"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a non-authority source asserts GuardCapability.TEST_MODE"
+        authority_violated: "the exact live allowlist oracle reports src/probe.py"
+        act_reached: true
+        intended_oracle: "the exact live allowlist oracle reports src/probe.py"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_guard_capability_call_sites.py::test_guard_capability_enforcement_has_two_sided_fault_bite'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_guard_capability_call_sites.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-innerstatechanged-invariants
+      members:
+        - "tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail"
+      granularity: function
+      source_paths: ["tests/architectural/test_innerstatechanged_invariants.py"]
+      production_paths: ["src/specify_cli/status/models.py"]
+      oracle: "lane or force-count state changes and the invariant rejects it"
+      contract_claim: "lane or force-count state changes and the invariant rejects it"
+      authority: ["docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail"
+      live_corpus:
+        identity: "src/specify_cli/status/models.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an annotation is naively folded as a lane transition"
+        authority_violated: "lane or force-count state changes and the invariant rejects it"
+        act_reached: true
+        intended_oracle: "lane or force-count state changes and the invariant rejects it"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_innerstatechanged_invariants.py::test_invariant_is_non_vacuous_naive_transition_fold_would_fail'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_innerstatechanged_invariants.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-integration-boundary
+      members:
+        - "tests/architectural/test_integration_boundary.py::test_no_core_imports_integration"
+      granularity: function
+      source_paths: ["tests/architectural/test_integration_boundary.py"]
+      production_paths: ["src/specify_cli/core"]
+      oracle: "the nonempty live import boundary reports the forbidden edge"
+      contract_claim: "the nonempty live import boundary reports the forbidden edge"
+      authority: ["docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_integration_boundary.py::test_no_core_imports_integration"
+      live_corpus:
+        identity: "src/specify_cli/core"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_integration_boundary.py::test_allowlist_cannot_be_bypassed"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a core module imports an integration-only package"
+        authority_violated: "the nonempty live import boundary reports the forbidden edge"
+        act_reached: true
+        intended_oracle: "the nonempty live import boundary reports the forbidden edge"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_integration_boundary.py::test_allowlist_cannot_be_bypassed'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_integration_boundary.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-layer-rules
+      members:
+        - "tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary.test_rule_rejects_out_of_ledger_import"
+      granularity: function
+      source_paths: ["tests/architectural/test_layer_rules.py"]
+      production_paths: ["src/doctrine"]
+      oracle: "the layer rule rejects the dependency edge"
+      contract_claim: "the layer rule rejects the dependency edge"
+      authority: ["docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import"
+      live_corpus:
+        identity: "src/doctrine"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a lower architecture layer imports an out-of-ledger upper module"
+        authority_violated: "the layer rule rejects the dependency edge"
+        act_reached: true
+        intended_oracle: "the layer rule rejects the dependency edge"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_layer_rules.py::TestMissionRuntimeBoundary::test_rule_rejects_out_of_ledger_import'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_layer_rules.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-merge-reconciliation-class-guard
+      members:
+        - "tests/architectural/test_merge_reconciliation_class_guard.py::test_both_sides_divergent_canonical_artifacts_carry_merge_driver"
+      granularity: function
+      source_paths: ["tests/architectural/test_merge_reconciliation_class_guard.py"]
+      production_paths: ["src/specify_cli/merge"]
+      oracle: "the reconciliation/driver completeness guard reports the loss vector"
+      contract_claim: "the reconciliation/driver completeness guard reports the loss vector"
+      authority: ["docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_merge_reconciliation_class_guard.py::test_both_sides_divergent_canonical_artifacts_carry_merge_driver"
+      live_corpus:
+        identity: "src/specify_cli/merge"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_merge_reconciliation_class_guard.py"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a canonical both-sides-divergent artifact is blindly copied"
+        authority_violated: "the reconciliation/driver completeness guard reports the loss vector"
+        act_reached: true
+        intended_oracle: "the reconciliation/driver completeness guard reports the loss vector"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_merge_reconciliation_class_guard.py'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_merge_reconciliation_class_guard.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-authored-applies-edge
+      members:
+        - "tests/architectural/test_no_authored_applies_edge.py::TestShippedTreeAuthorsNoAppliesEdge.test_no_fragment_authors_an_applies_edge"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_authored_applies_edge.py"]
+      production_paths: ["src/doctrine"]
+      oracle: "the exact fragment oracle reports applies while a compliant fragment stays green"
+      contract_claim: "the exact fragment oracle reports applies while a compliant fragment stays green"
+      authority: ["docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_authored_applies_edge.py::TestShippedTreeAuthorsNoAppliesEdge::test_no_fragment_authors_an_applies_edge"
+      live_corpus:
+        identity: "src/doctrine"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_authored_applies_edge.py::test_fragment_guard_has_two_sided_fault_bite"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a shipped doctrine fragment authors an applies edge"
+        authority_violated: "the exact fragment oracle reports applies while a compliant fragment stays green"
+        act_reached: true
+        intended_oracle: "the exact fragment oracle reports applies while a compliant fragment stays green"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_authored_applies_edge.py::test_fragment_guard_has_two_sided_fault_bite'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_authored_applies_edge.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-inert-schema-slots
+      members:
+        - "tests/architectural/test_no_inert_schema_slots.py::test_shipped_tree_has_no_inert_slots_beyond_the_frozen_baseline"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_inert_schema_slots.py"]
+      production_paths: ["src/doctrine/schemas"]
+      oracle: "the exact inert-slot oracle reports missing_producer"
+      contract_claim: "the exact inert-slot oracle reports missing_producer"
+      authority: ["src/doctrine/schemas"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_inert_schema_slots.py::test_shipped_tree_has_no_inert_slots_beyond_the_frozen_baseline"
+      live_corpus:
+        identity: "src/doctrine/schemas"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_inert_schema_slots.py::test_inert_slot_scanner_has_two_sided_fault_bite"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/doctrine/schemas"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a schema declares a slot with no live producer"
+        authority_violated: "the exact inert-slot oracle reports missing_producer"
+        act_reached: true
+        intended_oracle: "the exact inert-slot oracle reports missing_producer"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_inert_schema_slots.py::test_inert_slot_scanner_has_two_sided_fault_bite'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_inert_schema_slots.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-invalid-windows-filenames
+      members:
+        - "tests/architectural/test_no_invalid_windows_filenames.py::test_no_shell_expansion_telltale_filenames"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_invalid_windows_filenames.py"]
+      production_paths: ["src"]
+      oracle: "the platform path guard reports the invalid component"
+      contract_claim: "the platform path guard reports the invalid component"
+      authority: ["src/specify_cli/core/constants.py"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_invalid_windows_filenames.py::test_no_shell_expansion_telltale_filenames"
+      live_corpus:
+        identity: "src"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_invalid_windows_filenames.py"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/core/constants.py"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a repository path contains a Windows-illegal or shell-expansion name"
+        authority_violated: "the platform path guard reports the invalid component"
+        act_reached: true
+        intended_oracle: "the platform path guard reports the invalid component"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_invalid_windows_filenames.py'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_invalid_windows_filenames.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-op-stable-writes
+      members:
+        - "tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_op_stable_writes.py"]
+      production_paths: ["src/specify_cli/status/store.py"]
+      oracle: "the second write is byte-stable and does not create drift"
+      contract_claim: "the second write is byte-stable and does not create drift"
+      authority: ["src/specify_cli/status/store.py::append_event"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable"
+      live_corpus:
+        identity: "src/specify_cli/status/store.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/status/store.py::append_event"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "the same logical state is materialized twice"
+        authority_violated: "the second write is byte-stable and does not create drift"
+        act_reached: true
+        intended_oracle: "the second write is byte-stable and does not create drift"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_op_stable_writes.py::test_status_json_materialize_is_no_op_stable'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_op_stable_writes.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-read-side-bypass
+      members:
+        - "tests/architectural/test_no_read_side_bypass.py::test_no_read_side_bypass_outside_sanctioned_and_allow_listed"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_read_side_bypass.py"]
+      production_paths: ["src/specify_cli"]
+      oracle: "the live whole-tree read oracle reports the bypass"
+      contract_claim: "the live whole-tree read oracle reports the bypass"
+      authority: ["docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_read_side_bypass.py::test_no_read_side_bypass_outside_sanctioned_and_allow_listed"
+      live_corpus:
+        identity: "src/specify_cli"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_read_side_bypass.py::test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a reader calls a placement leaf primitive outside sanctioned authority"
+        authority_violated: "the live whole-tree read oracle reports the bypass"
+        act_reached: true
+        intended_oracle: "the live whole-tree read oracle reports the bypass"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_read_side_bypass.py::test_ratchet_bites_on_a_planted_leaf_primitive_call_outside_sanctioned_modules'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_read_side_bypass.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-runtime-pypi-dep
+      members:
+        - "tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_runtime_pypi_dep.py"]
+      production_paths: ["pyproject.toml"]
+      oracle: "the import probe fails unless the production dependency boundary is clean"
+      contract_claim: "the import probe fails unless the production dependency boundary is clean"
+      authority: ["pyproject.toml"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime"
+      live_corpus:
+        identity: "pyproject.toml"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "pyproject.toml"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "the CLI decision path requires the retired runtime PyPI package"
+        authority_violated: "the import probe fails unless the production dependency boundary is clean"
+        act_reached: true
+        intended_oracle: "the import probe fails unless the production dependency boundary is clean"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_runtime_pypi_dep.py::test_cli_next_decision_imports_without_spec_kitty_runtime'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_runtime_pypi_dep.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-shipped-layer-label
+      members:
+        - "tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_shipped_layer_label.py"]
+      production_paths: ["src/doctrine"]
+      oracle: "the layer-label oracle exposes the forbidden value"
+      contract_claim: "the layer-label oracle exposes the forbidden value"
+      authority: ["docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value"
+      live_corpus:
+        identity: "src/doctrine"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a public doctrine JSON layer position emits the retired shipped label"
+        authority_violated: "the layer-label oracle exposes the forbidden value"
+        act_reached: true
+        intended_oracle: "the layer-label oracle exposes the forbidden value"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_shipped_layer_label.py::test_layer_label_walker_detects_forbidden_value'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_shipped_layer_label.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-tmp-paths-in-tests
+      members:
+        - "tests/architectural/test_no_tmp_paths_in_tests.py::test_no_new_tmp_literals_in_tests"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_tmp_paths_in_tests.py"]
+      production_paths: ["tests"]
+      oracle: "the exact live literal oracle reports the shared root"
+      contract_claim: "the exact live literal oracle reports the shared root"
+      authority: ["tests/conftest.py"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_tmp_paths_in_tests.py::test_no_new_tmp_literals_in_tests"
+      live_corpus:
+        identity: "tests"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_tmp_paths_in_tests.py::test_shared_tmp_scanner_has_two_sided_fault_bite"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "tests/conftest.py"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a test writes through a process-shared temporary root"
+        authority_violated: "the exact live literal oracle reports the shared root"
+        act_reached: true
+        intended_oracle: "the exact live literal oracle reports the shared root"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_tmp_paths_in_tests.py::test_shared_tmp_scanner_has_two_sided_fault_bite'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_tmp_paths_in_tests.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-no-write-side-rederivation
+      members:
+        - "tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list"
+      granularity: function
+      source_paths: ["tests/architectural/test_no_write_side_rederivation.py"]
+      production_paths: ["src/specify_cli"]
+      oracle: "the live whole-tree write oracle reports the rederivation"
+      contract_claim: "the live whole-tree write oracle reports the rederivation"
+      authority: ["docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list"
+      live_corpus:
+        identity: "src/specify_cli"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a writer re-derives a target from checkout state"
+        authority_violated: "the live whole-tree write oracle reports the rederivation"
+        act_reached: true
+        intended_oracle: "the live whole-tree write oracle reports the rederivation"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_no_write_side_rederivation.py::test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_no_write_side_rederivation.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-read-surface-placement-guard
+      members:
+        - "tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch"
+      granularity: function
+      source_paths: ["tests/architectural/test_read_surface_placement_guard.py"]
+      production_paths: ["src/mission_runtime/resolution.py"]
+      oracle: "the read authority raises CoordinationBranchDeleted"
+      contract_claim: "the read authority raises CoordinationBranchDeleted"
+      authority: ["docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch[ACCEPTANCE_MATRIX]"
+      live_corpus:
+        identity: "src/mission_runtime/resolution.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a coord-partition read resolves after its coordination branch was deleted"
+        authority_violated: "the read authority raises CoordinationBranchDeleted"
+        act_reached: true
+        intended_oracle: "the read authority raises CoordinationBranchDeleted"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_read_surface_placement_guard.py::test_read_dir_fails_loud_on_deleted_coord_branch'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_read_surface_placement_guard.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-real-home-isolation-guard
+      members:
+        - "tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent"
+      granularity: function
+      source_paths: ["tests/architectural/test_real_home_isolation_guard.py"]
+      production_paths: ["tests/conftest.py"]
+      oracle: "the session sentinel detects the new real-home artifact"
+      contract_claim: "the session sentinel detects the new real-home artifact"
+      authority: ["docs/adr/3.x/2026-04-08-1-global-kittify-machine-level-runtime.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent"
+      live_corpus:
+        identity: "tests/conftest.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-04-08-1-global-kittify-machine-level-runtime.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a test creates state in the worker's real home"
+        authority_violated: "the session sentinel detects the new real-home artifact"
+        act_reached: true
+        intended_oracle: "the session sentinel detects the new real-home artifact"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_real_home_isolation_guard.py::test_sentinel_guard_catches_creation_from_absent'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_real_home_isolation_guard.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-safety-registry-completeness
+      members:
+        - "tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe"
+      granularity: function
+      source_paths: ["tests/architectural/test_safety_registry_completeness.py"]
+      production_paths: ["src/specify_cli/compat/safety.py"]
+      oracle: "the safety authority defaults it to unsafe"
+      contract_claim: "the safety authority defaults it to unsafe"
+      authority: ["src/specify_cli/compat/safety.py::SAFETY_REGISTRY"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe"
+      live_corpus:
+        identity: "src/specify_cli/compat/safety.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/compat/safety.py::SAFETY_REGISTRY"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an unregistered destructive-looking command is classified"
+        authority_violated: "the safety authority defaults it to unsafe"
+        act_reached: true
+        intended_oracle: "the safety authority defaults it to unsafe"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_safety_registry_completeness.py::test_hypothetical_explode_command_is_unsafe'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_safety_registry_completeness.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-same-tier-uniqueness
+      members:
+        - "tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run"
+      granularity: function
+      source_paths: ["tests/architectural/test_same_tier_uniqueness.py"]
+      production_paths: [".github/workflows/ci-quality.yml"]
+      oracle: "the route relation reports the duplicate execution"
+      contract_claim: "the route relation reports the duplicate execution"
+      authority: [".github/workflows/ci-quality.yml"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run"
+      live_corpus:
+        identity: ".github/workflows/ci-quality.yml"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: ".github/workflows/ci-quality.yml"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "one test is selected by two same-tier shards"
+        authority_violated: "the route relation reports the duplicate execution"
+        act_reached: true
+        intended_oracle: "the route relation reports the duplicate execution"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_same_tier_uniqueness.py::test_same_tier_relation_bites_on_synthetic_double_run'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_same_tier_uniqueness.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-serial-port-preservation
+      members:
+        - "tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool"
+      granularity: function
+      source_paths: ["tests/architectural/test_serial_port_preservation.py"]
+      production_paths: [".github/workflows/ci-quality.yml"]
+      oracle: "the CI relation reports the unsafe parallel placement"
+      contract_claim: "the CI relation reports the unsafe parallel placement"
+      authority: [".github/workflows/ci-quality.yml"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool"
+      live_corpus:
+        identity: ".github/workflows/ci-quality.yml"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: ".github/workflows/ci-quality.yml"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a fixed-port daemon test enters the parallel pool"
+        authority_violated: "the CI relation reports the unsafe parallel placement"
+        act_reached: true
+        intended_oracle: "the CI relation reports the unsafe parallel placement"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_serial_port_preservation.py::test_relation_bites_on_daemon_in_parallel_pool'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_serial_port_preservation.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-tid251-enforcement
+      members:
+        - "tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged"
+      granularity: function
+      source_paths: ["tests/architectural/test_tid251_enforcement.py"]
+      production_paths: ["pyproject.toml"]
+      oracle: "the enforced TID251 probe exits nonzero"
+      contract_claim: "the enforced TID251 probe exits nonzero"
+      authority: ["docs/adr/3.x/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged"
+      live_corpus:
+        identity: "pyproject.toml"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a formerly exempt test adds an unannotated hashlib.sha256 call"
+        authority_violated: "the enforced TID251 probe exits nonzero"
+        act_reached: true
+        intended_oracle: "the enforced TID251 probe exits nonzero"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_tid251_enforcement.py::test_raw_sha256_in_formerly_exempt_dir_is_flagged'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_tid251_enforcement.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-trio-seam-only
+      members:
+        - "tests/architectural/test_trio_seam_only.py::test_trio_imports_route_only_through_seam_wrappers"
+      granularity: function
+      source_paths: ["tests/architectural/test_trio_seam_only.py"]
+      production_paths: ["src/specify_cli"]
+      oracle: "the corresponding live import/I-O oracle reports the boundary violation"
+      contract_claim: "the corresponding live import/I-O oracle reports the boundary violation"
+      authority: ["docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_trio_seam_only.py::test_trio_imports_route_only_through_seam_wrappers"
+      live_corpus:
+        identity: "src/specify_cli"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_trio_seam_only.py::test_planted_raw_kitty_specs_dir_import_is_caught"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a trio module imports raw KITTY_SPECS_DIR or a pure core performs I/O"
+        authority_violated: "the corresponding live import/I-O oracle reports the boundary violation"
+        act_reached: true
+        intended_oracle: "the corresponding live import/I-O oracle reports the boundary violation"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_trio_seam_only.py::test_planted_raw_kitty_specs_dir_import_is_caught'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_trio_seam_only.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-unfiltered-journal-read-boundary
+      members:
+        - "tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites.test_the_incident_shape_is_reported_with_its_replacement"
+      granularity: function
+      source_paths: ["tests/architectural/test_unfiltered_journal_read_boundary.py"]
+      production_paths: ["src/specify_cli/event_journal/journal.py"]
+      oracle: "the live boundary reports the consumer and filtered replacement"
+      contract_claim: "the live boundary reports the consumer and filtered replacement"
+      authority: ["docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites::test_the_incident_shape_is_reported_with_its_replacement"
+      live_corpus:
+        identity: "src/specify_cli/event_journal/journal.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites::test_the_incident_shape_is_reported_with_its_replacement"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a new consumer reaches the project-unfiltered journal read"
+        authority_violated: "the live boundary reports the consumer and filtered replacement"
+        act_reached: true
+        intended_oracle: "the live boundary reports the consumer and filtered replacement"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_unfiltered_journal_read_boundary.py::TestGuardBites::test_the_incident_shape_is_reported_with_its_replacement'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_unfiltered_journal_read_boundary.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-unregistered-shim-scanner
+      members:
+        - "tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner.test_scanner_detects_simple_assignment"
+      granularity: function
+      source_paths: ["tests/architectural/test_unregistered_shim_scanner.py"]
+      production_paths: ["src/specify_cli"]
+      oracle: "the live shim oracle reports the assignment"
+      contract_claim: "the live shim oracle reports the assignment"
+      authority: ["docs/adr/3.x/2026-04-08-5-shim-generation-supersedes-script-dispatch.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner::test_scanner_detects_simple_assignment"
+      live_corpus:
+        identity: "src/specify_cli"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner::test_scanner_detects_simple_assignment"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-04-08-5-shim-generation-supersedes-script-dispatch.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "a production module declares a deprecated shim outside the registry"
+        authority_violated: "the live shim oracle reports the assignment"
+        act_reached: true
+        intended_oracle: "the live shim oracle reports the assignment"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_unregistered_shim_scanner.py::TestShimScanner::test_scanner_detects_simple_assignment'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_unregistered_shim_scanner.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-untrusted-path-containment
+      members:
+        - "tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red"
+      granularity: function
+      source_paths: ["tests/architectural/test_untrusted_path_containment.py"]
+      production_paths: ["src/specify_cli"]
+      oracle: "the containment audit reports the undispositioned sink"
+      contract_claim: "the containment audit reports the undispositioned sink"
+      authority: ["src/specify_cli/core/paths.py"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red"
+      live_corpus:
+        identity: "src/specify_cli"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "src/specify_cli/core/paths.py"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an untrusted path reaches an undocumented filesystem sink"
+        authority_violated: "the containment audit reports the undispositioned sink"
+        act_reached: true
+        intended_oracle: "the containment audit reports the undispositioned sink"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_untrusted_path_containment.py::test_theater_undocumented_sink_goes_red'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_untrusted_path_containment.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+  - candidate:
+      id: WP10-keep-architectural-test-write-surface-placement-guard
+      members:
+        - "tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red"
+      granularity: function
+      source_paths: ["tests/architectural/test_write_surface_placement_guard.py"]
+      production_paths: ["src/mission_runtime/resolution.py"]
+      oracle: "the exact write placement oracle resolves the wrong ref and turns red"
+      contract_claim: "the exact write placement oracle resolves the wrong ref and turns red"
+      authority: ["docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md"]
+      duplicate_group: null
+      route_memberships: [*architectural_route]
+      platforms: [linux, macOS, windows]
+      observations:
+        - <<: *architectural_observation
+          nodeid: "tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red"
+      live_corpus:
+        identity: "src/mission_runtime/resolution.py"
+        nonzero_count: 1
+        selected_probe_node: "tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red"
+    evidence:
+      profile: structural
+      authority_evidence:
+        - reference: "docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md"
+          result: "Current authority and nonzero live corpus bind this survivor to its retained enforcement oracle."
+      causal_probe:
+        kind: controlled-live-boundary-input
+        fault: "an artifact kind is routed through the pre-fix partition"
+        authority_violated: "the exact write placement oracle resolves the wrong ref and turns red"
+        act_reached: true
+        intended_oracle: "the exact write placement oracle resolves the wrong ref and turns red"
+        intended_oracle_failed: true
+        command: ".venv/bin/pytest -q -p no:cacheprovider 'tests/architectural/test_write_surface_placement_guard.py::test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red'"
+        environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+        raw_artifact_hash: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+    verdict: KEEP
+    state: terminal
+    action: "Retain the current live boundary and its compliant/prohibited two-sided control."
+    survivor: "tests/architectural/test_write_surface_placement_guard.py"
+    issue: null
+    owner: null
+    expires: null
+    hic_approval: null
+    review: *review
+
+
+# Exact path-level terminal map. KEEP rows retain their own in-file behavioral
+# branches or planted-fault nodes; no cross-file equivalence is claimed here.
+terminal_screening:
+  tests/git/test_guard_capability_regression.py: {verdict: KEEP, proof: in-file refusal/authorized-flow behavior}
+  tests/integration/test_cross_seam_consumers.py: {verdict: DELETE, reason: completed migration parity}
+  tests/specify_cli/cli/commands/test_identity_audit.py: {verdict: KEEP, proof: identity ambiguity and fail-closed branch matrix}
+  tests/specify_cli/cli/commands/test_sparse_checkout_doctor.py: {verdict: KEEP, proof: dirty/CI/refusal and clean controls}
+  tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py: {verdict: DELETE, reason: historical WP/prose/private-shape scaffold}
+  tests/specify_cli/core/test_load_meta_fail_closed_authority.py: {verdict: KEEP, proof: corrupt/non-object/missing meta controls}
+  tests/specify_cli/decisions/test_ownership_3111.py: {verdict: KEEP, proof: untrusted ownership-path branch matrix}
+  tests/specify_cli/saas_client/test_client_consent_gate_3030.py: {verdict: KEEP, proof: consenting positive control and denied/unanswerable transport faults}
+  tests/specify_cli/test_egress_consolidation_3110.py: {verdict: DELETE, reason: exact consolidation layout/prose/parity scaffold}
+  tests/specify_cli/test_meta_fail_closed_full_census_contract.py: {verdict: KEEP, proof: nonempty full-census meta reader and synthetic call forms}
+  tests/specify_cli/test_meta_reader_sweep.py: {verdict: DELETE, reason: touched-module migration sweep}
+  tests/sync/test_consent_resolver_3030.py: {verdict: KEEP, proof: consenting/denied/unanswerable resolver controls}
+  tests/sync/test_project_identity_resolver_3030.py: {verdict: KEEP, proof: identity source and ambiguity controls}
+  tests/sync/test_sync_action_gate.py: {verdict: KEEP, proof: allowed/denied sync-action gate matrix}
+  tests/sync/tracker/test_saas_client_consent_gate_3030.py: {verdict: KEEP_REDUCED, proof: real transport positive/negative controls; runtime isolation repaired}
+  tests/architectural/test_2093_authority_invariant.py: {verdict: KEEP, proof: snapshot/frontmatter authority controls and planted readers}
+  tests/architectural/test_all_declarations_required.py: {verdict: DELETE, reason: blanket positive __all__ shape}
+  tests/architectural/test_auth_transport_singleton.py: {verdict: KEEP_REDUCED, proof: nonempty live subsystem scan and planted direct-httpx fault}
+  tests/architectural/test_batch_split_single_authority.py: {verdict: DELETE, reason: private-expression AST shape}
+  tests/architectural/test_compat_shims.py: {verdict: DELETE, reason: empty adapter inventory self-test}
+  tests/architectural/test_dossier_sync_boundary.py: {verdict: KEEP_REDUCED, proof: nonempty live import graph plus two-sided planted sync edge}
+  tests/architectural/test_drg_writer_discovery.py: {verdict: KEEP, proof: live producer scan and independent planted writer faults}
+  tests/architectural/test_egress_consent_boundary.py: {verdict: KEEP, proof: nonempty sink corpus and planted unlisted sender controls}
+  tests/architectural/test_git_matrix_paths_resolve.py: {verdict: KEEP, proof: live workflow path corpus and planted phantom path}
+  tests/architectural/test_guard_capability_call_sites.py: {verdict: KEEP_REDUCED, proof: nonempty src corpus plus two-sided faults through the live protected-flow enforcement oracle}
+  tests/architectural/test_innerstatechanged_invariants.py: {verdict: KEEP, proof: event behavior and naive transition-fold fault}
+  tests/architectural/test_integration_boundary.py: {verdict: KEEP_REDUCED, proof: nonempty core import corpus and planted forbidden import}
+  tests/architectural/test_layer_rules.py: {verdict: KEEP, proof: live import graph and out-of-ledger/wrong-wiring faults}
+  tests/architectural/test_merge_reconciliation_class_guard.py: {verdict: KEEP, proof: live reconciliation classes and invalid classification controls}
+  tests/architectural/test_no_authored_applies_edge.py: {verdict: KEEP_REDUCED, proof: nonempty fragment/graph corpus and two-sided applies faults}
+  tests/architectural/test_no_inert_schema_slots.py: {verdict: KEEP_REDUCED, proof: nonempty live slot corpus and two-sided missing-producer fault}
+  tests/architectural/test_no_invalid_windows_filenames.py: {verdict: KEEP, proof: live path corpus plus invalid/valid platform controls}
+  tests/architectural/test_no_op_stable_writes.py: {verdict: KEEP, proof: repeated real writer invocations with byte-stability oracle}
+  tests/architectural/test_no_prompt_filtering_added.py: {verdict: DELETE, reason: exact private call-name ban}
+  tests/architectural/test_no_read_side_bypass.py: {verdict: KEEP_REDUCED, proof: nonempty live read-boundary corpus and planted leaf/alias/indirection faults}
+  tests/architectural/test_no_runtime_pypi_dep.py: {verdict: KEEP, proof: live dependency/import/CI surfaces and absent-runtime import control}
+  tests/architectural/test_no_shipped_layer_label.py: {verdict: KEEP, proof: live public JSON surfaces and forbidden-label walker fault}
+  tests/architectural/test_no_tmp_paths_in_tests.py: {verdict: KEEP_REDUCED, proof: nonempty test corpus and two-sided shared/evasion-root faults}
+  tests/architectural/test_no_write_side_rederivation.py: {verdict: KEEP, proof: nonempty whole-tree placement corpus and checkout-derived target faults}
+  tests/architectural/test_patch_seam_census_control.py: {verdict: DELETE, reason: test-meta hand-count/census scaffold}
+  tests/architectural/test_read_surface_placement_guard.py: {verdict: KEEP_REDUCED, proof: stored-topology read behavior and deleted-coordination-branch faults}
+  tests/architectural/test_real_home_isolation_guard.py: {verdict: KEEP, proof: real worker-home corpus and sentinel mutation faults}
+  tests/architectural/test_safety_registry_completeness.py: {verdict: KEEP, proof: live command registry and hypothetical unsafe command fault}
+  tests/architectural/test_same_tier_uniqueness.py: {verdict: KEEP, proof: live route selection and synthetic double-run fault}
+  tests/architectural/test_serial_port_preservation.py: {verdict: KEEP, proof: live workflow/fixed-port corpus and parallel/serial mutation faults}
+  tests/architectural/test_shared_module_object_patches.py: {verdict: DELETE, reason: test-meta baseline/count/prose/completed-owner scaffold}
+  tests/architectural/test_tid251_enforcement.py: {verdict: KEEP, proof: live CI/config plus ruff prohibited/allowed probes}
+  tests/architectural/test_trio_seam_only.py: {verdict: KEEP_REDUCED, proof: nonempty trio/core corpus and planted import/I-O faults}
+  tests/architectural/test_unfiltered_journal_read_boundary.py: {verdict: KEEP, proof: nonempty journal-read corpus and planted unlisted consumer}
+  tests/architectural/test_unregistered_shim_scanner.py: {verdict: KEEP, proof: nonempty src corpus and simple/annotated/benign scanner controls}
+  tests/architectural/test_untrusted_path_containment.py: {verdict: KEEP, proof: nonempty live sink inventory and undocumented/ghost controlled faults}
+  tests/architectural/test_wp_owned_files_no_kitty_specs.py: {verdict: DELETE, reason: historical mission acceptance}
+  tests/architectural/test_wp_prompt_build_latency.py: {verdict: DELETE, reason: uncontrolled wall-clock thresholds}
+  tests/architectural/test_write_surface_placement_guard.py: {verdict: KEEP_REDUCED, proof: real two-ref partitions and pre-fix partition/placement faults}
+
+summary:
+  assigned_paths: 54
+  terminal_paths: 54
+  deleted_paths: 12
+  surviving_paths: 42
+  deep_deleted_source_units: 70
+  base_nodes: 841
+  head_nodes: 537
+  net_nodes_removed: 304
+  production_files_changed: 0
+  results: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-results.json
+  results_sha256: 5b7e302353257f28162558f1612873b3200e79d70f2ba9dcbac373d11e8a7db3
+  cycle2_probes: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp10-probes-cycle2.json
+  cycle2_probes_sha256: b91073daa5e591c78ecc61f923db66e5808f5a9d9202795a23c6ced15ee08be6
+
+integration_handoff:
+  central_map_edited: false
+  expected_arch_shard_map_removals:
+    - tests/architectural/test_all_declarations_required.py
+    - tests/architectural/test_compat_shims.py
+    - tests/architectural/test_no_prompt_filtering_added.py
+    - tests/architectural/test_patch_seam_census_control.py
+    - tests/architectural/test_shared_module_object_patches.py
+    - tests/architectural/test_wp_owned_files_no_kitty_specs.py
+    - tests/architectural/test_wp_prompt_build_latency.py
+  deleted_architectural_path_not_in_map:
+    - tests/architectural/test_batch_split_single_authority.py
+  downstream_owner: WP07

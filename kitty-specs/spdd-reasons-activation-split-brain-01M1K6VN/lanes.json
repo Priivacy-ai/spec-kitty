@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "mission_slug": "spdd-reasons-activation-split-brain-01M1K6VN",
+  "mission_id": "01M1K6VNA08KVJQ1C32JB639XE",
+  "mission_branch": "kitty/mission-spdd-reasons-activation-split-brain-01M1K6VN",
+  "target_branch": "fix/spdd-reasons-activation-split-brain-3838",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/spdd_reasons/activation.py",
+        "tests/charter/test_spdd_reasons_activation_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/action_doctrine_bundle.py",
+        "src/charter/activation/context_renderers/delivery_table.py",
+        "tests/charter/test_action_bundle_delivery.py",
+        "tests/charter/test_action_doctrine_bundle_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/resolver.py",
+        "tests/charter/test_resolver_activation_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/charter/test_activate_resolves_no_answers_edit.py",
+        "tests/charter/test_answers_inert_and_org_union.py",
+        "tests/charter/test_charter_context_spdd_reasons.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/context/charter.md",
+        "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md",
+        "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-03T10:52:29.683196+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "c54c7c945c259a071243f6e7f7e858f313e4c0a1"
+}

@@ -1,0 +1,391 @@
+schema: review-confirmed/v1
+complete: true
+phase: spec
+mission: design-phase-orchestrator-api-01M1HE6M
+source: reviews/spec.merged.yaml filtered by reviews/spec-refute-1.yaml + spec-refute-2.yaml
+refuted_ids_excluded:
+- SPEC-VERIFY-005
+findings:
+- id: SPEC-GOV-001
+  lens: Single-PR / fold-in-scope (C-004) + Scope
+  severity: 5
+  title: Decision-resolution FRs cover the wrong "decision" concept — the issue's actual DecisionKind
+    ask is not addressed
+  evidence:
+  - artifact: spec.md § User Story 3, Clarification 3, FR-006–FR-009, C-003, FR-012
+  - code: 'src/runtime/next/decision.py:64-68 (DecisionKind: step, decision_required, blocked, terminal,
+      query)'
+  - code: src/runtime/next/_internal_runtime/planner.py:388-397,417-432,461-470 (decision_required fires
+      for DAG pending_decisions, blocking-audit checkpoints "audit:<step_id>", and missing-required-input
+      decisions "input:<key>" — none of these are OriginFlow-scoped)
+  - code: src/specify_cli/cli/commands/next_cmd.py:133-155,932-1000 (the actual resolution path for a
+      DecisionKind.decision_required envelope is `spec-kitty next --answer --decision-id ...`, reading
+      `_internal_runtime.engine._read_snapshot(...).pending_decisions` — a run-state snapshot store)
+  - code: src/specify_cli/decisions/service.py:260-330 (open_decision persists into `decisions/index.json`
+      via `_store.load_index(mission_dir)` — a completely separate ledger from the runtime run-snapshot
+      above)
+  - code: 'src/specify_cli/decisions/models.py:36-41 (OriginFlow: charter, specify, plan only)'
+  claim: 'GitHub issue #3837 asks for "a decision-resolution verb covering the DecisionKind cases (runtime/next/decision.py)"
+    — i.e. resolving the `spec-kitty next` control loop''s `decision_required` envelope, which fires for
+    blocking-audit checkpoints and missing-required-input decisions at ANY DAG step (not limited to charter/specify/plan),
+    and is resolved today only via `spec-kitty next --answer --decision-id ...` against a runtime run-snapshot
+    store. The spec instead wraps `decisions/service.py`''s `open_decision`/`resolve_decision`/`defer_decision`/
+    `cancel_decision`, which operate on a *different* persistence layer (`decisions/index.json`) scoped
+    to `OriginFlow` (charter/specify/plan interview questions only) — a real, useful, but distinct mechanism.
+    Clarification 3 asserts this narrowing is "a scope boundary, not an oversight" by citing `DecisionKind`''s
+    member list side-by-side with `OriginFlow`''s, but `DecisionKind` members (`step`/`decision_required`/`blocked`/`terminal`/`query`)
+    are envelope *kinds*, not origin flows, and the code shows `decision_required` is NOT bounded to charter/specify/plan.
+    As written, this mission would ship FR-006–FR-009 / FR-012, close #3837 (C-004: single-PR, no follow-up
+    issues), and still leave the literal ask — orchestrator-api resolution of a `next`-loop `decision_required`
+    moment for an audit checkpoint or a missing required input in ANY phase — completely uncovered, with
+    the spec''s own text framing that gap as already resolved.
+
+    '
+  remediation: 'Either (a) extend this spec''s scope to add an orchestrator-api verb wrapping the `next
+    --answer` resolution path (sourced from `_internal_runtime.engine._read_snapshot` / `pending_decisions`,
+    mirroring `next_cmd.py:_handle_answer`) so the actual `DecisionKind.decision_required` cases the issue
+    names are reachable via orchestrator-api — this is the C-004-compliant default; or (b) if this class
+    of decision is deliberately being left to a later mission, get that scope cut explicitly confirmed
+    by the operator (not silently framed as "not an oversight" against a mismatched premise) and rewrite
+    Clarification 3 to state plainly that `DecisionKind`/`next --answer` resolution and `OriginFlow`/`decisions/service.py`
+    resolution are two distinct mechanisms, only the second of which this mission covers.
+
+    '
+- id: SPEC-GOV-002
+  lens: Terminology
+  severity: 3
+  title: New verb names invert the established VERB-NOUN naming convention with no precedent
+  evidence:
+  - artifact: spec.md § FR-004–FR-009 (analyze-context, analyze-record, decision-open, decision-resolve,
+      decision-defer, decision-cancel)
+  - code: 'src/specify_cli/orchestrator_api/commands.py:1102,1141,1286,1409,1593,1680,1781 (existing mutating
+      verbs: resolve-workspace, start-implementation, start-review, transition, append-history, accept-mission,
+      merge-mission — all VERB-first, NOUN-second)'
+  - code: src/specify_cli/cli/commands/decision.py:213,306,349,397 (host CLI is a `decision` Typer group
+      with verb SUBcommands open/resolve/defer/cancel — group-then-verb, a different shape than a flat
+      orchestrator-api verb name)
+  claim: 'Every existing mutating orchestrator-api verb (bar the query-style `list-ready`/ `contract-version`/`mission-state`)
+    follows VERB-NOUN order: resolve-workspace, start-implementation, start-review, append-history, accept-mission,
+    merge-mission. The spec''s `decision-open`/`decision-resolve`/ `decision-defer`/`decision-cancel`
+    invert this to NOUN-VERB — a naming scheme with no sibling precedent in the flat orchestrator-api
+    verb space, produced by literally flattening the host CLI''s `decision <verb>` Typer group rather
+    than following the orchestrator-api''s own convention. `analyze-context` and `analyze-record` are
+    likewise ambiguous under the same lens, and `analyze-context` additionally implies the verb performs
+    analysis, which directly contradicts C-002 ("this verb performs no analysis reasoning itself").
+
+    '
+  remediation: 'Rename to VERB-NOUN siblings, e.g. `open-decision` / `resolve-decision` / `defer-decision`
+    / `cancel-decision`, and rename `analyze-context` to something that does not imply server-side reasoning
+    (e.g. mirror the CLI command it wraps: `check-prerequisites` or `analysis-prerequisites`), keeping
+    `record-analysis` (mirroring `record_analysis`) as the write verb''s name.
+
+    '
+- id: SPEC-GOV-003
+  lens: Terminology + Falsifiability
+  severity: 3
+  title: FR-010's status/query verb has no concrete name anywhere in the spec
+  merged_from:
+  - SPEC-VERIFY-003
+  evidence:
+  - artifact: spec.md § Functional Requirements, FR-010 ("Design-phase status/query verb" — no verb name
+      given)
+  - artifact: spec.md § User Story 4 Acceptance Scenarios 1-4 and Success Criteria SC-006 (all refer only
+      to "the design-phase status/query verb", never a literal CLI token)
+  - artifact: 'spec.md § FR-001–FR-009, FR-011 (every sibling FR names a literal verb in its title: `specify`,
+      `plan`, `tasks`, `analyze-context`, `analyze-record`, `decision-open`, etc.)'
+  claim: 'Unlike every other FR in this spec, FR-010 never commits to a literal verb name — it is described
+    only as "the design-phase status/query verb" throughout the FR table, User Story 4, the Acceptance
+    Scenarios, and SC-006. This is the one FR where a failing-first ATDD test (charter C-011) cannot be
+    written directly from the spec: the WP implementer must invent a name mid-plan or mid-WP, with no
+    terminology review possible at spec time, no fixed CLI token for SC-006 ("documents every new verb")
+    to be checked against, and a real risk it lands with an inconsistent shape relative to the sibling
+    verbs (compounding SPEC-GOV-002) or a docs/tests mismatch across WP boundaries.
+
+    '
+  remediation: 'Name the verb explicitly in the spec (e.g. `design-status` or `mission-status`, matching
+    `mission-state`''s existing noun-phrase query-verb style and mirroring `list-ready`''s naming pattern)
+    and use that literal name consistently across FR-010''s title, User Story 4''s acceptance scenarios,
+    and SC-006.
+
+    '
+- id: SPEC-GOV-004
+  lens: Ledger
+  severity: 3
+  title: Clarification 5's blanket SK-93 exposure claim contradicts the code for at least 2 of the 4 verbs
+    it names
+  evidence:
+  - artifact: spec.md § Clarification 5 ("already applies to every event-emitting orchestrator-api command
+      today (start-implementation, transition, append-history, merge-mission)")
+  - code: src/specify_cli/orchestrator_api/commands.py:1239-1240,1333-1334,1516-1517 (start-implementation,
+      start-review, and transition all pass `ensure_sync_daemon=False, sync_dossier=False`)
+  - code: src/specify_cli/status/emit.py:814,973 (`if sync_dossier and repo_root is not None:` — dossier
+      sync, the exact SK-93 body-upload path, is skipped entirely when `sync_dossier=False`)
+  - code: SPEC-KITTY-LEDGER.md:1194-1197 (SK-93's call chain is specifically `sync/dossier_pipeline.py::_prepare_bodies
+      -> sync/body_upload.py -> ... -> sync/layout_generation.py::execute_write`, i.e. the dossier body-upload
+      path gated by `sync_dossier`)
+  claim: 'Clarification 5 states the SK-65/72/93 lock-storm exposure "already applies to every event-emitting
+    orchestrator-api command today" and names start-implementation, transition, append-history, and merge-mission
+    as already exposed. The code shows start-implementation, start-review, and transition explicitly opt
+    OUT of the dossier body-upload path (`sync_dossier=False`) that SK-93 documents — so at least 2 of
+    the 4 named commands are not demonstrated to carry that exposure today. The Clarification''s accuracy
+    matters because it is used to justify NFR-004''s design (artifact-reread verification) as the general
+    pattern; the ledger and the code both suggest a `sync_dossier=False`-style opt-out is also a live
+    design option worth considering for `record_analysis`/`analyze-record` during planning, which the
+    current framing forecloses without discussion.
+
+    '
+  remediation: 'Correct Clarification 5 to state precisely which named verbs are actually shown to carry
+    dossier-sync exposure (grep `ensure_sync_daemon`/`sync_dossier` call sites) rather than a blanket
+    "every event-emitting command" claim, and note during planning whether `record_analysis` (which has
+    no `sync_dossier` parameter today, per `mission_record_analysis.py:228`) could gain the same opt-out
+    as an alternative or complement to NFR-004''s artifact-reread verification.
+
+    '
+- id: SPEC-GOV-005
+  lens: Directive (canonical-sources / accuracy of existing-code representation) + Contracts
+  severity: 4
+  title: FR-001's specify-verb AC conflates two different JSON payload shapes as if they are the same
+    canonical output
+  merged_from:
+  - SPEC-ARCH-001
+  evidence:
+  - artifact: spec.md § FR-001 Acceptance Scenario 1 ("matching what agent_feature.create_mission(...,
+      json_output=True) already produces for the host CLI's --json path"), Clarification 1
+  - code: src/specify_cli/cli/commands/lifecycle.py:66-92 (_create_mission_for_specify_json wraps agent_feature.create_mission(json_output=True),
+      captures its stdout, and re-emits it through _with_specify_scaffold_state before it ever reaches
+      the host CLI's --json caller)
+  - code: src/specify_cli/cli/commands/lifecycle.py:51-58 (_with_specify_scaffold_state adds `scaffold_only`,
+      `spec_state`, `next_action`, `next_step` fields not present in agent_feature.create_mission's raw
+      payload)
+  - code: src/specify_cli/cli/commands/lifecycle.py:160-166 (the specify() CLI command calls agent_feature.create_mission
+      directly only when json_output=False; when json_output=True it calls _create_mission_for_specify_json
+      instead, per lines 160-163)
+  - code: src/specify_cli/cli/commands/lifecycle.py:222,273 (plan/tasks really are thin unenriched pass-throughs
+      — unlike specify — confirming the divergence is specific to FR-001, not FR-002/FR-003)
+  claim: 'FR-001''s AC and Clarification 1 assert `specify`/`plan`/`tasks` are "already thin shims" whose
+    JSON output is `agent_feature.create_mission(..., json_output=True)`''s raw payload — true for `plan`/`tasks`
+    (verified: they pass `json_output` straight through with no wrapper), but false for `specify`: the
+    actual host-CLI `--json` path runs through `_create_mission_for_specify_json`, which captures `create_mission`''s
+    stdout and enriches it with `scaffold_only`/`spec_state`/ `next_action`/`next_step` before the host
+    CLI ever returns it. The spec''s own AC text says the new verb''s `data` should match "what agent_feature.create_mission(...,
+    json_output=True) already produces for the host CLI''s --json path" — but those are two different
+    shapes in the real code, and the AC doesn''t say which one is authoritative. A literal implementation
+    against the raw `create_mission` output would diverge from the host CLI''s own `--json` contract the
+    AC claims to mirror — a real parity gap, not merely additive.
+
+    '
+  remediation: 'Update FR-001 AC-1 and Clarification 1 to name `_create_mission_for_specify_json`''s enriched
+    shape (including `scaffold_only`, `spec_state`, `next_action`, `next_step`) as the target the new
+    `specify` verb''s `data` must match — either call `_create_mission_for_specify_json`''s enrichment
+    step (or an equivalent) from the new verb, or explicitly scope out those fields as intentionally omitted
+    — but state the decision, don''t let the spec assert an equivalence that doesn''t hold in the code.
+
+    '
+- id: SPEC-ARCH-002
+  lens: Canonical source
+  severity: 4
+  title: analyze-context/analyze-record precedent cites a stale, drifted .kittify/overrides copy of analyze.md
+    instead of the canonical packs/built-in source, and inherits its errors
+  evidence:
+  - artifact: spec.md § User Story 2, Acceptance Scenario 1 (lines 115-116)
+  - artifact: 'spec.md § Clarifications #2 (lines 327-339, esp. 332-334)'
+  - code: .kittify/overrides/missions/software-dev/command-templates/analyze.md:27 ("Run `spec-kitty agent
+      mission-run check-prerequisites --json --include-tasks`")
+  - code: packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md:28 ("Run `spec-kitty agent
+      mission check-prerequisites --json --include-tasks --mission <mission-slug>`")
+  - code: src/specify_cli/cli/commands/agent/mission_check_prerequisites.py:498-521 (real command group
+      is `mission`, registered via agent/__init__.py:23 `app.add_typer(mission.app, name="mission")`;
+      the function's own docstring examples say `spec-kitty agent mission check-prerequisites --json`)
+  claim: 'There is no `mission-run` command group anywhere in the CLI — the real invocation is `spec-kitty
+    agent mission check-prerequisites --json --include-tasks` (registered as `agent mission` via `agent/__init__.py:23`,
+    confirmed by the function''s own docstring examples at mission_check_prerequisites.py:519-521). The
+    spec cites "agent mission-run check-prerequisites" twice as the FR-004 parity target. Tracing why:
+    the spec''s `analyze.md` reference points at `.kittify/overrides/missions/software-dev/command-templates/analyze.md`
+    — a per-project override copy, NOT the canonical SOURCE (`packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`
+    per AGENTS.md''s "Edit SOURCE files, NOT agent copies" rule and DIRECTIVE_044). That override copy
+    has independently drifted from the canonical source: it says "mission-run" where the canonical source
+    says "mission", it says "constitution"/`/memory/constitution.md` where the canonical source says "charter"/`/charter/charter.md`,
+    and it uses `mission_dir`/stale field names where the canonical source uses `feature_dir`/`target_branch`/`base_branch`.
+    The spec inherited the wrong command name because it cited the stale override instead of the canonical
+    source.
+
+    '
+  remediation: 'Re-anchor Clarification #2 and AC1 of User Story 2 on `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`
+    (the canonical SOURCE), not the drifted `.kittify/overrides/...` project copy. Fix the cited command
+    to `spec-kitty agent mission check-prerequisites --json --include-tasks --mission <slug>`. Separately,
+    file/ledger the `.kittify/overrides` drift (stale command name, stale constitution/charter terminology)
+    as a pre-existing defect this spec''s own investigation surfaced — it is out of this mission''s scope
+    to fix, but should not be silently left as if it were authoritative.
+
+    '
+- id: SPEC-ARCH-003
+  lens: Canonical source
+  severity: 3
+  title: FR-010's status/query verb has no precedent citation and duplicates territory the existing runtime/next
+    workflow-DAG planner already owns
+  evidence:
+  - artifact: 'spec.md § Clarifications / Decision Records #1 (lines 313-325) — frames the whole mission
+      as "surface work over an existing engine, not new engine work"'
+  - artifact: spec.md § FR-010 / User Story 4 (lines 193-230) — no cited underlying function, unlike every
+      other FR
+  - code: src/runtime/next/_internal_runtime/planner.py:216-256 (resolve_next_workflow_action — resolves
+      the next action for a mission from its workflow DAG, the engine backing `spec-kitty next`)
+  - code: src/specify_cli/orchestrator_api/commands.py:756-816 (mission-state — the closest existing orchestrator-api
+      analog, but it only reduces WP-loop events/dependency graph; it has nothing for design-phase artifact/decision
+      state)
+  claim: 'Every other FR in this mission (FR-001/002/003/004/005/006-009) cites a concrete existing function
+    it wraps. FR-010 (the `list-ready`-equivalent design-phase status verb, priority High) cites none
+    — spec.md never mentions `src/runtime/next/` anywhere except one incidental reference to `decision.py`''s
+    `DecisionKind` enum (line 341). Yet `src/runtime/next/_internal_runtime/planner.py` already implements
+    the canonical "what''s the next step for this mission" DAG resolver backing `spec-kitty next` across
+    the full mission lifecycle (design phases included per CLAUDE.md: "the canonical mission-next command
+    loop"). Without this citation, a plan-phase author has no signal to reuse that engine and is likely
+    to hand-roll an independent artifact-presence-sniffing implementation (spec.md exists? plan.md exists?
+    tasks/ finalized? analysis-report.md exists?) that will drift from the real workflow graph the first
+    time a project customizes its `workflow_id` (`meta.json`) — precisely the "chase unification, not
+    parity with a dead quirk" failure mode DIRECTIVE_044 warns against.
+
+    '
+  remediation: 'Add a Clarifications entry for FR-010 naming `src/runtime/next/_internal_runtime/planner.py`
+    (`resolve_next_workflow_action` / the workflow-DAG engine) as the candidate authority to wrap or reduce
+    from, or explicitly state (with rationale) why this mission deliberately does NOT reuse it and instead
+    defines a new, narrower design-phase-only reduction. Either answer is fine; the spec currently gives
+    neither, leaving FR-010 as the one FR with a real risk of unification-scope rework in plan/tasks.
+
+    '
+- id: SPEC-ARCH-004
+  lens: Reflexivity + SK-93 artifact-verification mechanism precision & falsifiability
+  severity: 4
+  title: NFR-004/SC-005's SK-93 exit-code framing presumes analyze-record shells out as a subprocess with
+    a code to distrust, but every existing orchestrator-api verb calls its underlying service functions
+    in-process — where the real hazard is an unbounded HANG (SK-93 shapes 1/3/4), not a returned bad code,
+    and the spec's test design would not catch it
+  merged_from:
+  - SPEC-VERIFY-002
+  evidence:
+  - artifact: spec.md § NFR-004 (lines 289) and SC-005 (lines 405-408) — "simulates a non-zero/timeout
+      exit from the underlying record_analysis call"
+  - artifact: 'spec.md § Clarifications #5 (lines 363-381) — SK-93''s exit-124-while-artifact-correct
+      scenario is the stated basis'
+  - code: src/specify_cli/orchestrator_api/commands.py:514-693 (the only subprocess/run_command usage
+      in the file is for `git` operations; none of the 10 existing verbs shell out to another spec-kitty
+      CLI command as a subprocess — they call service/status functions directly in-process; `grep -c subprocess`
+      returns 0 for non-git usage)
+  - code: src/specify_cli/cli/commands/agent/mission_record_analysis.py:228-401 (record_analysis is a
+      Typer command function; called in-process it returns normally or raises, it does not produce an
+      "exit code"; several early-exit branches at ~209-292 return/raise before write_analysis_report;
+      the dossier-sync trigger at 380-388 is wrapped only in `with contextlib.suppress(Exception):`, which
+      catches raised exceptions but does NOT bound a hang)
+  - code: src/specify_cli/sync/layout_generation.py:676-694 (`_await_publish_or_loud`'s bounded-iteration
+      wait — per SPEC-KITTY-LEDGER.md SK-93, this did not reliably terminate in 3 of 4 first-hand occurrences,
+      all of which hung past the CALLER's own external `bash timeout 300` wrapper — i.e. the exit-124
+      SK-93 observed was an OPERATOR-imposed bash timeout, not anything the Python call itself produces)
+  claim: 'SPEC-KITTY-LEDGER.md''s SK-93 entry documents that `record_analysis`''s hang was only ever observed
+    as exit 124 because the OPERATOR wrapped the CLI invocation in a bash `timeout 300` — the underlying
+    Python call itself does not bound the dossier-sync-trigger wait. The 10 existing orchestrator-api
+    verbs all invoke underlying logic in-process (confirmed: zero non-git subprocess usage anywhere in
+    commands.py), and the spec''s Clarifications item 2 explicitly describes analyze-record as "wrapping
+    record_analysis" at the exact line of the Typer command function that contains this same exception-only-suppressed
+    dossier-sync trigger. If analyze-record reuses this code path in-process (the natural reading of "wrap
+    record_analysis," consistent with how every other verb wraps its engine, and the precedent-consistent
+    choice this mission is told to follow), then two problems compound: (1) there is no subprocess exit
+    code to be untrustworthy in the first place — NFR-004/SC-005''s literal "non-zero/timeout exit" framing
+    cannot be constructed against an in-process call without inventing a subprocess boundary the rest
+    of this mission''s design doesn''t otherwise use; and (2) analyze-record itself can then HANG the
+    orchestrator-api process indefinitely — no exit code, no timeout, no envelope at all — and NFR-004''s
+    re-read fix never executes because control never returns to the wrapper to perform the re-read. SC-005''s
+    stated test design ("simulates a non-zero/timeout exit") does not exercise this majority-shape failure
+    mode from the ledger (SK-93 shapes 1, 3, 4 were silent-hang or exception-then-hang, not clean bad-exit-code
+    returns) — the spec''s regression guard as written would not have caught most of the documented occurrences
+    it claims to guard against.
+
+    '
+  remediation: 'State explicitly whether `analyze-record` invokes `record_analysis` via subprocess (introducing
+    a new invocation pattern inconsistent with the other 9 new + 10 existing verbs — call out that inconsistency
+    and its rationale if so) or in-process (the precedent-consistent choice). If in-process: (a) rewrite
+    NFR-004/SC-005 so the regression guard is phrased as "artifact-derived success survives a swallowed/raised
+    exception from the underlying write path," not "survives a non-zero/timeout exit code"; and (b) add
+    an explicit requirement that analyze-record''s invocation of the underlying write path is TIME-BOUNDED
+    at the orchestrator-api layer itself (e.g. an explicit, enforced timeout around the call, or excluding/short-circuiting
+    the dossier-sync-trigger call entirely from the in-process wrap, calling only `write_analysis_report`/`commit_for_mission`
+    directly) so a hang in `trigger_feature_dossier_sync_if_enabled` cannot block the orchestrator-api
+    call forever — and add an Acceptance Scenario / SC test for the hang shape specifically (the underlying
+    call never returns within a bounded window), not only the "returns a bad exit code" shape SC-005 currently
+    describes.
+
+    '
+- id: SPEC-VERIFY-001
+  lens: SK-93 artifact-verification mechanism precision & stale-artifact distinguishability
+  severity: 4
+  title: analyze-record's re-read check compares only the `verdict` field with no freshness/idempotency
+    proof, so a STALE analysis-report.md from a prior call can make a genuinely-failed write look like
+    success
+  evidence:
+  - artifact: spec.md § User Story 2, Acceptance Scenarios 2-4 ("re-reading kitty-specs/<slug>/analysis-report.md
+      ... and confirming its verdict field matches what was submitted")
+  - artifact: spec.md § NFR-004 ("MUST determine success by re-reading the artifact/state ... rather than
+      trusting the underlying call's raw exit code")
+  - artifact: 'spec.md § Edge Cases ("analyze-record is called twice with the same verdict ... returns
+      success: true without attempting a duplicate write")'
+  - code: src/specify_cli/analysis_report.py:505-524 (write_analysis_report frontmatter carries `generated_at`,
+      `input_artifacts` hashes, `verdict`, `issue_counts`, `findings` -- a timestamp and richer content
+      ARE available but AC2 names only `verdict`)
+  - code: src/specify_cli/cli/commands/agent/mission_record_analysis.py:224-292 (several early-exit failure
+      branches -- e.g. DIRTY_WORKTREE preflight at ~line 209, PlacementResolutionRequired, missing-body
+      -- all return/raise BEFORE write_analysis_report is ever called, leaving any pre-existing analysis-report.md
+      untouched)
+  claim: 'NFR-004 and US2''s ACs specify the artifact-verification mechanism as "re-read analysis-report.md,
+    confirm the verdict field matches what was submitted." This is under-specified: the write path has
+    multiple early-exit failure branches (dirty worktree, unresolved placement, empty body) that never
+    reach write_analysis_report, so a PRIOR call''s analysis-report.md (with its own verdict) can remain
+    on disk untouched. If the current submission''s verdict happens to equal that stale file''s verdict
+    (a real possibility -- `ready` and `blocked` are the only two live values, so a coin-flip match on
+    retry is not a contrived edge case), a genuine failure of THIS call is misreported as success:true
+    -- reproducing SK-93''s core hazard (exit code lies) in a new shape the spec does not close. Acceptance
+    Scenario 4 assumes a clean binary ("artifact was NOT written" -> "finds no matching artifact") that
+    does not cover "an OLD artifact exists and its verdict happens to coincide with the new submission."
+    As written, the AC is falsifiable only for the cases it explicitly names (no file vs. correctly-written
+    file); it is not falsifiable against the stale-coincidental-match case because no test can be derived
+    from the spec text that would fail a naive verdict-only-equality implementation.
+
+    '
+  remediation: 'Add a freshness/idempotency requirement to NFR-004 and AC2: analyze-record must correlate
+    the re-read artifact with THIS call, not merely with the submitted verdict value -- e.g., record a
+    call-start timestamp before invoking the underlying write and require the re-read `generated_at` to
+    be later than it, and/or compare a hash of the submitted report body/findings (not just the terminal
+    `verdict` enum) against what was persisted. Add an explicit Acceptance Scenario for "a stale analysis-report.md
+    exists with a verdict that coincidentally matches the new submission, but the underlying write for
+    THIS call genuinely failed before reaching write_analysis_report" and require success:false in that
+    case.
+
+    '
+- id: SPEC-VERIFY-004
+  lens: SK-93 artifact-verification mechanism precision & stale-artifact distinguishability
+  severity: 3
+  title: Edge Cases only cover a SAME-verdict idempotent retry after a suspected SK-93 false failure;
+    a retry with a CHANGED verdict is never addressed
+  evidence:
+  - artifact: 'spec.md § Edge Cases ("What happens when analyze-record is called twice with the same verdict
+      (idempotent retry after an SK-93-style false-failure signal)? -> the second call re-reads the artifact,
+      finds it already correctly written, and returns success: true without attempting a duplicate write")'
+  - artifact: spec.md § User Story 2, Acceptance Scenarios 1-4 (no scenario covers a second call submitting
+      a DIFFERENT verdict than what is currently on disk)
+  claim: 'The realistic operational sequence this mission is meant to protect against is an ambiguous
+    SK-93-style signal (non-zero exit / hang / lock warning) after which a host does not know whether
+    the write landed. The spec''s only idempotent-retry Edge Case assumes the retry resubmits the SAME
+    verdict. It never states what should happen when the host, suspecting a genuine failure (or because
+    the analyzing agent revised its verdict between calls), retries with a DIFFERENT verdict than what
+    is currently persisted on disk -- e.g. a first call intended to record `blocked`, the signal was ambiguous,
+    and the retry submits `ready`. Nothing in the spec says whether this is treated as a fresh, independently-verified
+    write attempt (the natural reading of NFR-004''s general mechanism) or flagged as a conflict against
+    the previously-recorded verdict. Left unstated, an implementer could plausibly build either behavior,
+    and a reviewer has no acceptance criterion to check the choice against.
+
+    '
+  remediation: 'Add an explicit Acceptance Scenario (User Story 2) or Edge Case: "Given analysis-report.md
+    currently holds verdict X (from a prior call whose exit signal was ambiguous), when analyze-record
+    is called again with a DIFFERENT verdict Y, then the call is treated as a fresh, independently-verified
+    write attempt -- the re-read check compares against Y (this call''s submission), not against the stale
+    X -- and reports success/failure based on whether Y actually landed."
+
+    '

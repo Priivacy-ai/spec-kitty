@@ -51,7 +51,7 @@ action steps** — which:
 It then **shards** the (now edge-complete) generated graph so future mission-type slices (template/asset/guard
 nodes) — and every concurrent doctrine mission — stop colliding on one 129 KB generated blob.
 
-**Design authority:** `docs/architecture/883-mission-type-authority-brief.md`,
+**Design authority:** `docs/plans/engineering-notes/883-mission-type-authority-brief.md`,
 `docs/architecture/mission-type-resolution.md`, and ADR `2026-07-14-2` (mission type is the load-bearing
 root whose steps/gates/governance resolve through it) — with the ADR-`2026-07-15-1` **S0** slice framing
 ("mission_type as a first-class DRG node").

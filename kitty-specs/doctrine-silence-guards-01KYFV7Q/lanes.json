@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-silence-guards-01KYFV7Q",
+  "mission_id": "01KYFV7QGZXAHVJ4JJY2FREXPB",
+  "mission_branch": "kitty/mission-doctrine-silence-guards-01KYFV7Q",
+  "target_branch": "remediation/doctrine-silence-guards",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_inert_schema_slots.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/schemas/occurrence-map.schema.yaml",
+        "src/doctrine/templates/occurrence-map-template.yaml",
+        "src/specify_cli/bulk_edit/diff_check.py",
+        "src/specify_cli/bulk_edit/occurrence_map.py",
+        "tests/specify_cli/bulk_edit/test_occurrence_map_field_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/doctrine/drg/query.py",
+        "tests/doctrine/drg/test_unknown_kind_fails_loudly.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "scripts/generate_schemas.py",
+        "src/doctrine/schemas/directive.schema.yaml",
+        "src/doctrine/schemas/mission.schema.yaml",
+        "src/doctrine/schemas/paradigm.schema.yaml",
+        "src/doctrine/schemas/procedure.schema.yaml",
+        "src/doctrine/schemas/styleguide.schema.yaml",
+        "src/doctrine/schemas/tactic.schema.yaml",
+        "src/doctrine/schemas/toolguide.schema.yaml",
+        "tests/doctrine/test_schema_generation_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/profile.py",
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/drg/models.py",
+        "tests/doctrine/drg/test_model_strictness_roundtrip.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_doctrine_artefact_layout.py",
+        "tests/architectural/test_reference_enum_ratchet.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/architectural/test_ci_collection_completeness.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/charter/schemas.py",
+        "src/doctrine/agent_profiles/repository.py",
+        "src/doctrine/agent_profiles/schema_models.py",
+        "src/doctrine/directives/README.md",
+        "src/doctrine/directives/validation.py",
+        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml",
+        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
+        "src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml",
+        "src/doctrine/paradigms/models.py",
+        "src/doctrine/paradigms/validation.py",
+        "src/doctrine/procedures/models.py",
+        "src/doctrine/procedures/validation.py",
+        "src/doctrine/schemas/README.md",
+        "src/doctrine/shared/errors.py",
+        "src/doctrine/shared/exceptions.py",
+        "src/doctrine/skills/",
+        "src/doctrine/styleguides/models.py",
+        "src/doctrine/tactics/README.md",
+        "src/doctrine/tactics/built-in/common-docs-find.tactic.yaml",
+        "src/doctrine/tactics/models.py",
+        "src/doctrine/tactics/validation.py",
+        "src/doctrine/templates/architecture/",
+        "src/doctrine/templates/diagrams/",
+        "src/specify_cli/calibration/walker.py",
+        "tests/architectural/test_no_dead_doctrine_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "src/doctrine/drg/merge.py",
+        "src/doctrine/drg/org_pack_loader.py",
+        "tests/doctrine/drg/test_org_drg_bridge.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profile.graph.yaml",
+        "src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml",
+        "tests/architectural/test_no_authored_applies_edge.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-26T20:07:52.394726+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

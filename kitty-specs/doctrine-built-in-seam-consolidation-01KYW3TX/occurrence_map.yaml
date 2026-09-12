@@ -1,0 +1,92 @@
+# Occurrence map — doctrine-built-in-seam-consolidation (DIRECTIVE_035)
+#
+# Governs the same-string cross-file repoint that finishes the relocation:
+# the pre-move path family `src/doctrine/<kind>/built-in/…` → the flattened
+# `packs/built-in/<kind>/…`. This is FR-008 (stale test readers), FR-009
+# (operator-facing error strings), and FR-012 (descriptive provenance strings).
+#
+# NOT governed here (structural, not same-string renames — handled as ordinary
+# WPs): the built_in_dir(kind) authority (FR-001/002), dropping the
+# built_in_root param (FR-003), removing dual-reads (FR-006), the arch ratchet
+# (NFR-002), and the activation-vocabulary derivation (FR-010). Those change
+# symbols/signatures, not the path string, so the path-heuristic gate does not
+# apply to them.
+
+target:
+  term: "src/doctrine/<kind>/built-in"
+  replacement: "packs/built-in/<kind>"
+  operation: rename
+
+categories:
+  code_symbols:        { action: do_not_change }          # the seam refactor changes symbols structurally, not via this string rename
+  import_paths:        { action: do_not_change }          # `packs/` is not a Python import path; no `from doctrine.<kind>.built_in` imports move
+  filesystem_paths:    { action: rename }                 # the load-bearing case: Path/string literals resolving built-in content (FR-008/009)
+  serialized_keys:     { action: do_not_change }          # YAML/JSON keys are unchanged; only path VALUES move (see filesystem_paths)
+  cli_commands:        { action: do_not_change }          # no command/flag names involve the path
+  user_facing_strings: { action: rename_if_user_visible } # operator-facing error messages that name a dead path (FR-009, resolver.py)
+  tests_fixtures:      { action: rename }                 # test fixtures opening/globbing relocated content (FR-008: glossary gate, profile-inheritance)
+  logs_telemetry:      { action: do_not_change }          # no metric/log key encodes the path
+
+exceptions:
+  # Architectural guard tests that name the OLD path as a FORBIDDEN pattern —
+  # the literal is the assertion; renaming it would defeat the guard (C-006).
+  - path: "tests/architectural/test_no_dead_doctrine_paths.py"
+    action: do_not_change
+    reason: "Names src/doctrine/<kind>/built-in as a forbidden pattern; the literal IS the guard."
+  - path: "tests/architectural/test_doctrine_artefact_layout.py"
+    action: do_not_change
+    reason: "Layout guard asserts the old nested shape is absent; keep the literal."
+  - path: "tests/architectural/test_no_legacy_terminology.py"
+    action: do_not_change
+    reason: "Forbidden-pattern terminology guard."
+  - path: "tests/architectural/test_glossary_pack_no_regression.py"
+    action: do_not_change
+    reason: "Regression guard naming the old path as forbidden."
+  - path: "tests/architectural/test_profile_load_resolver_guidance.py"
+    action: do_not_change
+    reason: "Resolver-guidance guard; old path is the forbidden literal."
+  # The content manifest intentionally lists PRE-MOVE src/doctrine paths; the
+  # packaging-parity test derives the pack mapping from them (curator finding).
+  - path: "tests/doctrine/fixtures/content-manifest.json"
+    action: do_not_change
+    reason: "Deliberate pre-move path set; test_packaging_parity transforms them to pack paths."
+  # The migration doc describes the before→after mapping; both sides must stay.
+  - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
+    action: do_not_change
+    reason: "Documents the old→new mapping; the old path is descriptive, not stale."
+  # Synthetic test fixtures that build their OWN nested tmp built-in tier are
+  # NOT relocation readers — they use the repository-level built_in_dir= param
+  # (a different, already-flat parameter) and stay nested-by-design.
+  - path: "tests/doctrine/test_service.py"
+    field_path: "built_in_dir"
+    action: do_not_change
+    reason: "Synthetic nested tmp tier via the repository built_in_dir= param; not a relocation reader."
+  - path: "tests/doctrine/test_service_org_layer.py"
+    field_path: "built_in_dir"
+    action: do_not_change
+    reason: "Synthetic nested tmp tier; not a relocation reader."
+  # Descriptive docstrings / intentional before→after mappings that NAME the old
+  # path but are not stale readers (paula MINOR-5).
+  - path: "tests/doctrine/test_pack_relocation_guard.py"
+    action: do_not_change
+    reason: "Docstring names the old path as the thing being guarded against; descriptive."
+  - path: "tests/doctrine/test_loader_fail_closed.py"
+    action: do_not_change
+    reason: "Descriptive docstring naming the pre-move path."
+  - path: "tests/charter/test_builtin_reader_relocation.py"
+    action: do_not_change
+    reason: "Before→after relocation assertion; both sides are load-bearing."
+  - path: "tests/doctrine/test_pack_relocation_identity.py"
+    action: do_not_change
+    reason: "Descriptive docstring naming the pre-move path."
+  - path: "tests/doctrine/test_packaging_parity.py"
+    action: do_not_change
+    reason: "Before→after path mapping (same rationale as content-manifest.json)."
+  - path: "tests/architectural/test_no_inert_schema_slots.py"
+    action: do_not_change
+    reason: "Builds a synthetic nested tmp tree (tmp_path/src/doctrine/<kind>/built-in); not a relocation reader."
+
+# NOTE: FR-012 provenance sweep (packs/built-in/**/*.yaml `related:`/`source_files:`)
+# is GATED on first confirming those fields are descriptive, not runtime-resolved.
+# If runtime-resolved, they escalate to filesystem_paths:rename readers (FR-008).
+# The implementer records that verification in the WP evidence before sweeping.

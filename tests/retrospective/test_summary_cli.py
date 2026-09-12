@@ -9,16 +9,21 @@ Tests:
 - Rich/JSON informational equivalence
 - --json-out writes file
 - --include-malformed shows detail
+- --json stays parseable under a FORCE_COLOR-forcing harness (#2635)
 """
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+import specify_cli
 from specify_cli.retrospective.cli import app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -135,7 +140,7 @@ provenance:
 
 def _setup_simple_project(tmp_path: Path) -> Path:
     """Create a simple project with two missions (one completed, one skipped)."""
-    missions_root = tmp_path / ".kittify" / "missions"
+    missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
     missions_root.mkdir(parents=True)
 
     d1 = missions_root / MISSION_ID_A
@@ -186,7 +191,7 @@ class TestExitCodes:
 class TestSinceFilter:
     def test_since_excludes_old_missions(self, tmp_path: Path) -> None:
         """--since 2026-04-01 should exclude 2025 missions."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         # Old mission (2025)
@@ -243,7 +248,7 @@ class TestSinceFilter:
 class TestLimitTruncation:
     def test_limit_5_truncates_top_n(self, tmp_path: Path) -> None:
         """--limit 5 truncates top-N sections to at most 5 entries."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         # Create 10 missions with unique not_helpful URNs
@@ -407,7 +412,7 @@ class TestJsonOut:
 class TestIncludeMalformed:
     def test_include_malformed_shows_detail(self, tmp_path: Path) -> None:
         """--include-malformed shows malformed record details in Rich output."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA0"
@@ -430,7 +435,7 @@ class TestIncludeMalformed:
 
     def test_malformed_count_always_shown(self, tmp_path: Path) -> None:
         """Malformed count appears in both Rich and JSON output."""
-        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root = tmp_path / "kitty-specs"  # FR-013 canonical mission-instance home
         missions_root.mkdir(parents=True)
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA1"
@@ -447,3 +452,60 @@ class TestIncludeMalformed:
         assert len(snap["malformed"]) == 1
         assert snap["malformed"][0]["reason"]  # non-empty reason
         assert snap["malformed"][0]["path"]    # non-empty path
+
+
+# ---------------------------------------------------------------------------
+# Tests -- --json under a color-forcing harness (GitHub #2635)
+# ---------------------------------------------------------------------------
+
+# A raw ``rich.console.Console`` splices ANSI escapes into ``print_json``
+# output when the process starts under FORCE_COLOR (the Claude Code harness
+# exports ``FORCE_COLOR=3``), so ``json.loads`` on the output raises
+# ``Expecting value: line 1 column 1``. Rich snapshots its color system at
+# Console construction, so the harness scenario must be reproduced in a
+# subprocess with the variable set before import — an invoke-time ``env=``
+# override is invisible to a console constructed at module import.
+_FORCE_COLOR_DRIVER = """\
+import sys
+from pathlib import Path
+
+import typer
+
+from specify_cli.retrospective.cli import summary_cmd
+
+try:
+    summary_cmd(project=Path(sys.argv[1]), json_only=True)
+except typer.Exit as exit_event:
+    sys.exit(exit_event.exit_code)
+"""
+
+
+class TestForceColorJson:
+    def test_json_parseable_under_force_color(self, tmp_path: Path) -> None:
+        """`--json` output is plain, parseable JSON under FORCE_COLOR (#2635)."""
+        project = _setup_simple_project(tmp_path)
+        # Pin the driver to the same source tree this suite is testing, so a
+        # worktree checkout is exercised rather than any editable install.
+        src_root = Path(specify_cli.__file__).resolve().parents[1]
+        env = {
+            **os.environ,
+            "PYTHONPATH": os.pathsep.join(
+                [str(src_root), os.environ.get("PYTHONPATH", "")]
+            ).rstrip(os.pathsep),
+            "FORCE_COLOR": "3",
+            "TERM": "xterm-256color",
+        }
+        proc = subprocess.run(
+            [sys.executable, "-c", _FORCE_COLOR_DRIVER, str(project)],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=120,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "\x1b" not in proc.stdout, (
+            f"ANSI escapes spliced into --json output: {proc.stdout[:120]!r}"
+        )
+        data = json.loads(proc.stdout)
+        assert data["schema_version"] == "1"
+        assert data["command"] == "retrospect.summary"

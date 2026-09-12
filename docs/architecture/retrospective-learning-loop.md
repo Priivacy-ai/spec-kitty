@@ -8,7 +8,7 @@ updated: '2026-06-03'
 
 This document explains why the retrospective learning loop exists and how it works at a conceptual
 level. For the operator how-to, see
-[How to Use Retrospective Learning](../guides/use-retrospective-learning.md). For the schema
+[How to Use Retrospective Learning](../guides/how-to/governance/use-retrospective-learning.md). For the schema
 reference, see [Retrospective Schema Reference](../api/retrospective-schema.md).
 
 ---
@@ -198,6 +198,6 @@ to see details.
 
 ## See Also
 
-- [How to Use Retrospective Learning](../guides/use-retrospective-learning.md) — operator how-to
+- [How to Use Retrospective Learning](../guides/how-to/governance/use-retrospective-learning.md) — operator how-to
 - [Retrospective Schema Reference](../api/retrospective-schema.md) — YAML and event schemas
 - [ADR: Retrospective Default-On Policy Architecture](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-19-1-retrospective-default-policy-architecture.md) — architectural decisions

@@ -1,7 +1,7 @@
 ---
 title: Context-Threading — Architect Alphonso Design-Intent Verdict (3.2.1)
 description: "Architect Alphonso's design-intent verdict on context-threading (3.2.1): adjudicating the operator's claim for the naming/identity SSOT strangler."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Context-Threading — Architect Alphonso Design-Intent Verdict (3.2.1)
@@ -169,8 +169,7 @@ the authority is cold *because* it is bypassed; the consumers are infernos *beca
 
 ---
 
-## 3. The consolidated API (dashboard too) — **intended single API exists; current pair is
-necessary but not the whole of it.**
+## 3. The consolidated API (dashboard too) — **intended single API exists; current pair is necessary but not the whole of it.**
 
 **Is there an intended single consolidated read/identity API both dashboard and CLI consume?**
 **Yes** — and it is *layered*, which is the part a naive reading misses:

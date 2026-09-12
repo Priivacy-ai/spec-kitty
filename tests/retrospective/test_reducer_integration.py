@@ -313,6 +313,79 @@ class TestReduceRetrospectiveProposalCounts:
         assert result.proposals_rejected == 1
         assert result.proposals_pending == 1  # 3 - 1 applied - 1 rejected
 
+    def test_urn_doctrine_prefix_parsed_with_warning(self) -> None:
+        """CR-05 (mission ``charter-code-topology-01M152G1`` S4): a
+        ``retrospective.proposal.applied`` event carrying the legacy
+        ``doctrine:<kind>:<id>`` ``target_urn`` -- the shape every event
+        written before this mission's producer cutover durably carries --
+        must keep reducing exactly as before. ``target_urn`` is an
+        intentionally opaque, unconstrained string everywhere it is consumed
+        (``ProposalAppliedPayload.target_urn: str`` -- no format/prefix
+        validation, see ``specify_cli.retrospective.events``), so there is no
+        runtime ``warnings.warn`` to observe here; "parsed with warning"
+        names the operator-facing deprecation this CR records for the
+        producer side (``doctrine_synthesizer.apply``), not a reducer-side
+        side effect. This test is the durable-event-log tolerance pin: the
+        legacy prefix must never start failing to parse.
+        """
+        payload = ProposalAppliedPayload(
+            proposal_id="01KQ73CS2CCFY8BYYTTFV58P09",
+            kind="synthesize_directive",
+            target_urn="doctrine:directive:d001",
+            provenance_ref="prov:urn:001",
+            applied_by=_RUNTIME_ACTOR,
+        )
+        events = [
+            _make_retro_event(
+                "retrospective.proposal.generated",
+                {"proposal_id": "01KQ73CS2CCFY8BYYTTFV58P09", "kind": "synthesize_directive", "record_path": "/retro.yaml"},
+                at="2026-04-27T10:01:00+00:00",
+                event_id="01KQ73CS2CCFY8BYYTTFV58011",
+            ),
+            _make_retro_event(
+                "retrospective.proposal.applied",
+                payload.model_dump(mode="json"),
+                at="2026-04-27T10:02:00+00:00",
+                event_id="01KQ73CS2CCFY8BYYTTFV58012",
+            ),
+        ]
+        result = _reduce_retrospective(events)
+        assert result.proposals_total == 1
+        assert result.proposals_applied == 1
+
+    def test_urn_charter_prefix_canonical(self) -> None:
+        """CR-05 counterpart: the canonical ``charter:<kind>:<id>``
+        ``target_urn`` (what ``doctrine_synthesizer.apply`` now emits for
+        every newly-applied ``synthesize_*`` proposal) reduces identically
+        to the legacy ``doctrine:`` form above -- proposal counting never
+        keyed on the prefix, so canonicalizing the producer changes nothing
+        about how the reducer sees it.
+        """
+        payload = ProposalAppliedPayload(
+            proposal_id="01KQ73CS2CCFY8BYYTTFV58P0A",
+            kind="synthesize_directive",
+            target_urn="charter:directive:d002",
+            provenance_ref="prov:urn:002",
+            applied_by=_RUNTIME_ACTOR,
+        )
+        events = [
+            _make_retro_event(
+                "retrospective.proposal.generated",
+                {"proposal_id": "01KQ73CS2CCFY8BYYTTFV58P0A", "kind": "synthesize_directive", "record_path": "/retro.yaml"},
+                at="2026-04-27T10:01:00+00:00",
+                event_id="01KQ73CS2CCFY8BYYTTFV58013",
+            ),
+            _make_retro_event(
+                "retrospective.proposal.applied",
+                payload.model_dump(mode="json"),
+                at="2026-04-27T10:02:00+00:00",
+                event_id="01KQ73CS2CCFY8BYYTTFV58014",
+            ),
+        ]
+        result = _reduce_retrospective(events)
+        assert result.proposals_total == 1
+        assert result.proposals_applied == 1
+
     def test_zero_proposal_counts_when_none(self) -> None:
         events = [
             _make_retro_event(

@@ -1,0 +1,37 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: cascade-org-inert-01M07E9P
+note: >
+  Same deviation note as plan-fit.findings.yaml. Applied directly by the phase agent.
+findings: []
+checks_applied:
+  - "Test strategy concrete per FR: FR-001/002/003 each have a stated red-first primary test AND a
+    revert-discipline companion test in the Test Strategy section — not just 'we'll write tests'."
+  - "FR-002's test strategy is STRICTER than default revert-discipline by design (prove both halves
+    of the fix are independently necessary), directly answering the orchestrator's 'prove your
+    replacement fix is not itself inert' instruction with a concrete mechanism, not a promise."
+  - "Gate list stated with rationale for every included AND every excluded gate — checked against
+    the hub's full gate table (ruff, targeted pytest, full pytest, mypy --strict, kernel/mission-
+    loader coverage floors, commitlint, markdown lint, doctrine schema freshness, Contextive
+    glossary, TID251, Typer JSON error surface, patch() validation, Bandit, pip-audit, uv.lock
+    freshness, SonarCloud) — none silently omitted without a stated reason."
+  - "mypy --strict gate: CAUGHT AND FIXED during this review pass — the first drafted version
+    claimed 'Yes' with no verification that mypy even runs in this checkout. Actually ran it live
+    (`.venv` lacked mypy; worked around via `uvx --with-requirements pyproject.toml mypy --strict`)
+    against all 6 non-doctrine touched files and found a REAL pre-existing baseline: 6 no-any-return
+    errors in charter/context.py (lines 250/336/342/351/365/376) and 1 untyped-decorator error in
+    cli/commands/charter/context.py:19, both unrelated to this mission's edit sites. Corrected the
+    Gate Set table's mypy row to state this baseline explicitly and require each FR-002 WP to run
+    the exact same invocation before/after its change, per CLAUDE.md's baseline-red-gotcha policy
+    applied to mypy (not just pytest, which is the gotcha's usual framing)."
+  - "Baseline honesty (SC-004): plan.md's Test Strategy section explicitly separates this mission's
+    small targeted-file baseline from #3284's repo-wide 23-failures/2-errors number, instructing
+    WPs to state their own actual targeted-baseline count rather than citing #3284's figure as if
+    it applied 1:1 to a handful of charter/dossier test files."
+  - "Revert discipline for every changed behaviour: FR-001's revert-test (revert only the
+    resolve_layer_roots widening, confirm the pack-2 ID-mapping test still fails) and FR-003's
+    revert-companion (org-agnostic path must stay green throughout) are both explicit, not implied."
+  - "Environment: .venv / uvx invocations for both ruff and mypy verified to actually work in this
+    checkout (live-run, not assumed) before being written into the plan as WP-reusable commands."

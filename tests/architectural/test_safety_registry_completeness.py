@@ -111,17 +111,23 @@ class TestSafetyRegistryCompleteness:
     """Walk the live typer app and assert the fail-closed policy holds."""
 
     def test_registered_commands_in_registry_are_safe(self, all_command_paths: list[tuple[str, ...]]) -> None:
-        """Commands present in SAFETY_REGISTRY must classify as SAFE.
+        """Commands seeded with ``None`` must classify as unconditionally SAFE.
 
-        If a command is seeded with ``None`` it should be SAFE.  If it has a
-        predicate and the predicate returns UNSAFE, this test will also catch
-        that (but no seeded predicates are UNSAFE in the initial registry).
+        Entries registered with a ``None`` value are unconditionally SAFE and
+        this invariant checks them.  Entries registered with a *predicate* are
+        argument-dependent by design — e.g. ``("migrate", "backfill-runtime-state")``
+        is SAFE only in its read-only ``--dry-run`` form and UNSAFE (fail-closed)
+        otherwise (FR-003 / #3338).  ``_inv`` supplies empty ``raw_args``, so a
+        predicate entry legitimately classifies UNSAFE here; asserting
+        unconditional SAFE for those would contradict the fail-closed guard.
+        Predicate behaviour is pinned by the predicate's own unit tests
+        (``tests/compat/test_diagnostic_safe_predicate.py``).
         """
         for path in all_command_paths:
-            if path in SAFETY_REGISTRY:
+            if path in SAFETY_REGISTRY and SAFETY_REGISTRY[path] is None:
                 result = classify(_inv(path))
                 assert result == Safety.SAFE, (
-                    f"Registered path {path!r} classified as UNSAFE. If you added a predicate, ensure it returns SAFE for normal invocations."
+                    f"Registered path {path!r} (seeded None → unconditionally SAFE) classified as UNSAFE."
                 )
 
     def test_unregistered_commands_are_unsafe(self, all_command_paths: list[tuple[str, ...]]) -> None:

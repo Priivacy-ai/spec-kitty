@@ -1,0 +1,91 @@
+work_packages:
+  - id: WP01
+    title: "Shared collection seam — _referenced_artifacts partitions kind-filtered nodes"
+    dependencies: []
+    owned_files:
+      - "src/charter/cascade.py"
+      - "tests/charter/test_cascade.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-006
+      - C-001
+      - C-002
+      - C-006
+      - NFR-001
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+    prompt_file: "tasks/WP01-shared-collection-seam.md"
+
+  - id: WP02
+    title: "Cascade-activation report renders kind-filtered nodes"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/cli/commands/charter/activate.py"
+      - "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-008
+      - FR-009
+      - C-002
+      - NFR-002
+      - NFR-004
+    subtasks:
+      - T008
+      - T009
+      - T010
+      - T011
+    prompt_file: "tasks/WP02-activation-report-rendering.md"
+
+  - id: WP03
+    title: "No-cascade warning path reports the same kind-filtered nodes"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/charter/cascade.py"
+      - "src/specify_cli/cli/commands/charter/activate.py"
+      - "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py"
+    requirement_refs:
+      - FR-005
+      - FR-005a
+      - C-002
+      - NFR-001
+      - NFR-004
+    subtasks:
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP03-no-cascade-warning-path.md"
+
+  - id: WP04
+    title: "Deactivation-side symmetry — charter deactivate --cascade agrees with activate"
+    dependencies:
+      - WP03
+    owned_files:
+      - "src/charter/cascade.py"
+      - "src/specify_cli/cli/commands/charter/deactivate.py"
+      - "tests/charter/test_cascade.py"
+      - "tests/specify_cli/cli/commands/charter/test_charter_deactivate_commands.py"
+    requirement_refs:
+      - FR-007
+      - C-002
+      - C-006
+      - NFR-003
+      - NFR-004
+    subtasks:
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+    prompt_file: "tasks/WP04-deactivation-side-symmetry.md"

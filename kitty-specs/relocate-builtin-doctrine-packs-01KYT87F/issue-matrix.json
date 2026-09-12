@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1624": {
+      "evidence_ref": "plan.md:166 \u2014 former #1624 fold already CLOSED upstream (fixed by tooling-stability-guard-coherence-01KTRC04; merge.py:387/models.py already typed). WP08 flags CLAUDE.md stale Deferred Items in PR body.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP08"
+    },
+    "#2986": {
+      "evidence_ref": "tasks.md T012 / WP04-seam-repointing.md \u2014 module-level (not function-local) 'from doctrine.pack_paths import resolve_pack_root' honors #2986 shrink-only import ratchet; addressed in-mission by WP04.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP04"
+    },
+    "#3036": {
+      "evidence_ref": "Out-of-scope per spec.md FR-010 and WP08 tasks: '#3036 \u2014 note it, do NOT attempt #3036 full reframing'. Deferred with follow-up; WP08 records the interaction note against test_no_dead_doctrine_paths.py only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP08"
+    },
+    "#3090": {
+      "evidence_ref": "tasks.md:8 \u2014 #3090 is the DIR-012 anchor filed as a prerequisite-to #2467 (KEYSTONE); separate tracked issue, deferred with follow-up beyond this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP08"
+    },
+    "#3091": {
+      "evidence_ref": "tasks.md:9 \u2014 #3091 tracks the Phase 1b follow-on deferred missions/ relocation (STAY in Phase 1); deferred with follow-up.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP08"
+    }
+  },
+  "schema_version": 1
+}

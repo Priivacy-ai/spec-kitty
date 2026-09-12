@@ -1,7 +1,7 @@
 """Unit tests for the unified :class:`MissionStep` model (WP01, FR-011).
 
 These tests pin the spec-required fields and validation rules of the
-canonical :class:`doctrine.missions.models.MissionStep` introduced by
+canonical :class:`charter.offering.missions.models.MissionStep` introduced by
 mission ``charter-doctrine-mission-type-configuration-01KSWJVX``:
 
 * The three ``step_type`` discriminant values (``agent``,
@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.models import IDENTIFIER_PATTERN, MissionStep
+from charter.offering.missions.models import IDENTIFIER_PATTERN, MissionStep
 
 
 pytestmark = pytest.mark.fast
@@ -198,3 +198,23 @@ class TestIdentifierPatternExport:
 
     def test_identifier_pattern_is_kebab_case(self) -> None:
         assert IDENTIFIER_PATTERN == r"^[a-z][a-z0-9-]*$"
+
+
+class TestMissionOrchestrationFamilyRetired:
+    """dead-port-disposition-01M1TZVN T014b: the dead state-machine models are gone."""
+
+    def test_models_module_no_longer_declares_the_family(self) -> None:
+        import charter.offering.missions.models as models
+
+        for name in ("MissionOrchestration", "MissionStateObject", "MissionTransition"):
+            assert name not in models.__all__, name
+            assert not hasattr(models, name), name
+
+    def test_mission_is_constructible_without_orchestration(self) -> None:
+        """Before T014b ``Mission`` required an ``orchestration`` nothing ever supplied."""
+        from charter.offering.missions.models import Mission
+
+        mission = Mission(schema_version="1.0", key="software-dev", name="Software Development")
+
+        assert "orchestration" not in Mission.model_fields
+        assert mission.steps == []

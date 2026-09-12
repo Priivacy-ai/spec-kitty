@@ -72,7 +72,7 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For software-dev composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
@@ -97,7 +97,7 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For documentation composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_DOCUMENTATION_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
@@ -121,7 +121,7 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For research composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_RESEARCH_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
@@ -159,7 +159,7 @@ class TestCharterCallSiteReached:
             return SimpleNamespace(action_sequence=_SW_DEV_ACTIONS)
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=_record_call,
         ):
             _build_prompt_or_error(
@@ -191,7 +191,7 @@ class TestWpIdGuard:
         (tmp_path / "spec.md").write_text("# spec", encoding="utf-8")
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             # With wp_id set, the code should NOT take the composed path.
@@ -236,7 +236,7 @@ class TestMarkerFileContents:
     def test_marker_file_contains_mission_type_and_action(self, tmp_path: Path) -> None:
         """Marker file for a composed action names the mission type and action."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             path, error = _build_prompt_or_error(

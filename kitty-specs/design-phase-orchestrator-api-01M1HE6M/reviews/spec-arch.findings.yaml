@@ -1,0 +1,162 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: SPEC-ARCH-001
+    lens: Contracts
+    severity: 4
+    title: "specify's host-CLI --json parity claim is wrong: the real contract is agent_feature.create_mission's output PLUS an enrichment step the spec never mentions"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (lines 60-64)"
+      - artifact: "spec.md § Clarifications #1 (lines 313-320)"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:66-92 (_create_mission_for_specify_json)"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:51-58 (_with_specify_scaffold_state)"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:160-163 (json_output branch calls _create_mission_for_specify_json, not agent_feature.create_mission directly)"
+    claim: >
+      AC1 says the new `specify` verb's data should match "what
+      `agent_feature.create_mission(..., json_output=True)` already produces
+      for the host CLI's `--json` path" — but those are NOT the same thing.
+      `lifecycle.py:specify()` only calls `agent_feature.create_mission`
+      directly when `json_output=False` (the interactive/non-JSON path,
+      lifecycle.py:160-166). When `json_output=True` it instead calls
+      `_create_mission_for_specify_json`, which captures create_mission's raw
+      JSON stdout and re-emits it enriched via `_with_specify_scaffold_state`
+      — adding `scaffold_only: true`, `spec_state: "scaffold_only"`,
+      `next_action`, and `next_step` fields that raw `create_mission(...,
+      json_output=True)` does NOT produce on its own. Unlike `plan`/`tasks`,
+      which really are thin unenriched pass-throughs (lifecycle.py:222,
+      lifecycle.py:273), `specify --json`'s actual contract is
+      create_mission's payload plus this enrichment layer. An implementer
+      following AC1 literally (wrap `create_mission` raw) would ship a
+      `specify` orchestrator-api verb whose response shape silently diverges
+      from the host CLI's own `--json` contract for the same conceptual
+      operation — a real parity gap, not merely additive.
+    remediation: >
+      Correct AC1 (and Clarification #1) to say the `specify` verb's data
+      must match `_create_mission_for_specify_json`'s enriched output (i.e.
+      raw `create_mission(json_output=True)` output run through
+      `_with_specify_scaffold_state`), not the raw `create_mission` call
+      alone. Either call `_create_mission_for_specify_json`'s enrichment step
+      (or an equivalent) from the new verb, or explicitly scope out
+      `scaffold_only`/`spec_state`/`next_action`/`next_step` as intentionally
+      omitted fields — but state the decision, don't let the spec assert an
+      equivalence that doesn't hold in the code.
+
+  - id: SPEC-ARCH-002
+    lens: Canonical source
+    severity: 4
+    title: "analyze-context/analyze-record precedent cites a stale, drifted .kittify/overrides copy of analyze.md instead of the canonical packs/built-in source, and inherits its errors"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (lines 115-116)"
+      - artifact: "spec.md § Clarifications #2 (lines 327-339, esp. 332-334)"
+      - code: ".kittify/overrides/missions/software-dev/command-templates/analyze.md:27 (\"Run `spec-kitty agent mission-run check-prerequisites --json --include-tasks`\")"
+      - code: "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md:28 (\"Run `spec-kitty agent mission check-prerequisites --json --include-tasks --mission <mission-slug>`\")"
+      - code: "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py:498-521 (real command group is `mission`, registered via agent/__init__.py:23 `app.add_typer(mission.app, name=\"mission\")`; the function's own docstring examples say `spec-kitty agent mission check-prerequisites --json`)"
+    claim: >
+      There is no `mission-run` command group anywhere in the CLI — the real
+      invocation is `spec-kitty agent mission check-prerequisites --json
+      --include-tasks` (registered as `agent mission` via
+      `agent/__init__.py:23`, confirmed by the function's own docstring
+      examples at mission_check_prerequisites.py:519-521). The spec cites
+      "agent mission-run check-prerequisites" twice as the FR-004 parity
+      target. Tracing why: the spec's `analyze.md` reference points at
+      `.kittify/overrides/missions/software-dev/command-templates/analyze.md`
+      — a per-project override copy, NOT the canonical SOURCE
+      (`packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`
+      per AGENTS.md's "Edit SOURCE files, NOT agent copies" rule and
+      DIRECTIVE_044). That override copy has independently drifted from the
+      canonical source: it says "mission-run" where the canonical source says
+      "mission", it says "constitution"/`/memory/constitution.md` where the
+      canonical source says "charter"/`/charter/charter.md`, and it uses
+      `mission_dir`/stale field names where the canonical source uses
+      `feature_dir`/`target_branch`/`base_branch`. The spec inherited the
+      wrong command name because it cited the stale override instead of the
+      canonical source.
+    remediation: >
+      Re-anchor Clarification #2 and AC1 of User Story 2 on
+      `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`
+      (the canonical SOURCE), not the drifted `.kittify/overrides/...`
+      project copy. Fix the cited command to `spec-kitty agent mission
+      check-prerequisites --json --include-tasks --mission <slug>`. Separately,
+      file/ledger the `.kittify/overrides` drift (stale command name, stale
+      constitution/charter terminology) as a pre-existing defect this
+      spec's own investigation surfaced — it is out of this mission's scope
+      to fix, but should not be silently left as if it were authoritative.
+
+  - id: SPEC-ARCH-003
+    lens: Canonical source
+    severity: 3
+    title: "FR-010's status/query verb has no precedent citation and duplicates territory the existing runtime/next workflow-DAG planner already owns"
+    evidence:
+      - artifact: "spec.md § Clarifications / Decision Records #1 (lines 313-325) — frames the whole mission as \"surface work over an existing engine, not new engine work\""
+      - artifact: "spec.md § FR-010 / User Story 4 (lines 193-230) — no cited underlying function, unlike every other FR"
+      - code: "src/runtime/next/_internal_runtime/planner.py:216-256 (resolve_next_workflow_action — resolves the next action for a mission from its workflow DAG, the engine backing `spec-kitty next`)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:756-816 (mission-state — the closest existing orchestrator-api analog, but it only reduces WP-loop events/dependency graph; it has nothing for design-phase artifact/decision state)"
+    claim: >
+      Every other FR in this mission (FR-001/002/003/004/005/006-009) cites a
+      concrete existing function it wraps. FR-010 (the `list-ready`-equivalent
+      design-phase status verb, priority High) cites none — spec.md never
+      mentions `src/runtime/next/` anywhere except one incidental reference to
+      `decision.py`'s `DecisionKind` enum (line 341). Yet
+      `src/runtime/next/_internal_runtime/planner.py` already implements the
+      canonical "what's the next step for this mission" DAG resolver backing
+      `spec-kitty next` across the full mission lifecycle (design phases
+      included per CLAUDE.md: "the canonical mission-next command loop").
+      Without this citation, a plan-phase author has no signal to reuse that
+      engine and is likely to hand-roll an independent
+      artifact-presence-sniffing implementation (spec.md exists? plan.md
+      exists? tasks/ finalized? analysis-report.md exists?) that will drift
+      from the real workflow graph the first time a project customizes its
+      `workflow_id` (`meta.json`) — precisely the "chase unification, not
+      parity with a dead quirk" failure mode DIRECTIVE_044 warns against.
+    remediation: >
+      Add a Clarifications entry for FR-010 naming
+      `src/runtime/next/_internal_runtime/planner.py`
+      (`resolve_next_workflow_action` / the workflow-DAG engine) as the
+      candidate authority to wrap or reduce from, or explicitly state (with
+      rationale) why this mission deliberately does NOT reuse it and instead
+      defines a new, narrower design-phase-only reduction. Either answer is
+      fine; the spec currently gives neither, leaving FR-010 as the one FR
+      with a real risk of unification-scope rework in plan/tasks.
+
+  - id: SPEC-ARCH-004
+    lens: Reflexivity
+    severity: 3
+    title: "NFR-004/SC-005's SK-93 exit-code framing presumes analyze-record shells out as a subprocess, but every existing orchestrator-api verb calls its underlying service functions in-process — the spec doesn't say which analyze-record will do, and the two imply different, incompatible test/implementation shapes"
+    evidence:
+      - artifact: "spec.md § NFR-004 (lines 289) and SC-005 (lines 405-408) — \"simulates a non-zero/timeout exit from the underlying record_analysis call\""
+      - artifact: "spec.md § Clarifications #5 (lines 363-381) — SK-93's exit-124-while-artifact-correct scenario is the stated basis"
+      - code: "src/specify_cli/orchestrator_api/commands.py:514-693 (the only subprocess/run_command usage in the file is for `git` operations; none of the 10 existing verbs shell out to another spec-kitty CLI command as a subprocess — they call service/status functions directly in-process)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:228-401 (record_analysis is a Typer command function; called in-process it returns normally or raises, it does not produce an \"exit code\")"
+    claim: >
+      NFR-004 and SC-005 are written as if `analyze-record` will invoke
+      `record_analysis` the way SK-93 observed it fail — as an external
+      subprocess that can be killed/timed out (exit 124) independently of
+      whether the underlying write completed. But the established
+      architecture in `orchestrator_api/commands.py` — the exact precedent
+      this mission is told to mirror — calls underlying service/status logic
+      directly in-process (no verb shells out to another spec-kitty command).
+      If `analyze-record` follows that same precedent and calls
+      `record_analysis()` in-process, there is no subprocess exit code to be
+      untrustworthy in the first place; the realistic failure mode instead is
+      an in-process exception raised (or silently swallowed, per the
+      `contextlib.suppress(...)` blocks already inside `record_analysis` at
+      mission_record_analysis.py:352-388) somewhere after the artifact write
+      but before the function returns cleanly. SC-005's literal "simulates a
+      non-zero/timeout exit" cannot be constructed against an in-process call
+      without inventing a subprocess boundary the rest of this mission's
+      design doesn't otherwise use — a WP implementer has to guess which
+      shape (subprocess-wrap vs. in-process-call-with-exception-injection)
+      the spec actually intends.
+    remediation: >
+      State explicitly whether `analyze-record` invokes `record_analysis` via
+      subprocess (introducing a new invocation pattern inconsistent with the
+      other 9 new + 10 existing verbs — call out that inconsistency and its
+      rationale if so) or in-process (the precedent-consistent choice). If
+      in-process, rewrite NFR-004/SC-005 so the regression guard is phrased
+      as "artifact-derived success survives a swallowed/raised exception
+      from the underlying write path" rather than "survives a non-zero/timeout
+      exit code" — keeping the core artifact-verification principle intact
+      while making SC-005 constructible as a real, unambiguous test.

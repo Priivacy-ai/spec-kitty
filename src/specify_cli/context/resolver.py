@@ -20,20 +20,18 @@ from specify_cli.context.errors import (
     MissingIdentityError,
     WorkPackageNotFoundError,
 )
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.core.paths import read_target_branch_from_meta
-from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.mission_metadata import load_meta, mission_identity_fields
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from specify_cli.mission_metadata import mission_identity_fields
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
 
 
@@ -68,17 +66,17 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     context-bound commands can still operate deterministically on a
     single explicit mission directory.
     """
-    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
-    # (MissingIdentityError) and propagates a malformed-JSON failure rather
-    # than silently tolerating it -- allow_missing=True or on_malformed="empty"
-    # would MASK that guard and silently re-introduce the removed legacy
-    # tolerance. ``allow_missing=False`` never returns None, so ``or {}`` only
-    # narrows the type for mypy (mirrors mission_metadata.load_meta_strict).
-    try:
-        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
+    # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
+    # meta.json (MissingIdentityError) and propagates a malformed-JSON failure
+    # (now the typed MissionMetaReadError via the ONE fail-closed reader)
+    # rather than silently tolerating it -- allow_missing=True or
+    # on_malformed="empty" would MASK that guard and silently re-introduce the
+    # removed legacy tolerance. The fail-closed reader returns None only for a
+    # missing file, which maps to the same MissingIdentityError diagnostic.
+    data = load_meta_fail_closed(feature_dir)
+    if data is None:
         msg = f"meta.json not found at {feature_dir / 'meta.json'}."
-        raise MissingIdentityError(msg) from exc
+        raise MissingIdentityError(msg)
 
     mission_id = data.get("mission_id") or feature_dir.name
     # FR-008 / #2139: delegate to the single read_target_branch_from_meta
@@ -94,7 +92,7 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     identity = mission_identity_fields(
         str(data.get("mission_slug") or data.get("slug") or feature_dir.name),
         str(data.get("mission_number") or data.get("feature_number") or "").strip() or None,
-        str(data.get("mission_type") or data.get("mission") or "").strip() or None,
+        read_mission_type(data),  # rc3 M5 (FR-002): canonical field only; legacy retired
     )
 
     return {
@@ -219,8 +217,14 @@ def resolve_context(
     # Route all PRIMARY-partition reads (meta.json, WP frontmatter) through the
     # seam so they always resolve to the primary checkout under coord topology
     # (coord husk carries STATUS events only, not planning artifacts).
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir`` — a single
+    # anchor also used for the immediately-following ``meta.json`` read (both
+    # WORK_PACKAGE_TASK and PRIMARY_METADATA are PRIMARY-partition and resolve
+    # to the identical dir).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     if not feature_dir.exists():
         msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
@@ -249,8 +253,11 @@ def resolve_context(
     # read_target_branch_from_meta authority and always populates the key) --
     # a construction-time dataclass-hydration read, not a meta.json field read.
     target_branch = meta["target_branch"]
-    _lanes_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
+    _lanes_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     lane = require_lanes_json(_lanes_dir).lane_for_wp(wp_code)
     if lane is None:

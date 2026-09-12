@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
@@ -20,7 +21,7 @@ from specify_cli.missions._read_path_resolver import (
 import contextlib
 import json
 import subprocess
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, parse_iso, parse_stamp, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -49,9 +50,14 @@ from specify_cli.retrospective import (
     RecordExistsError,
     PolicyResolutionError,
 )
+from specify_cli.retrospective.reader import read_gen_record
 from specify_cli.retrospective.writer import resolve_existing_record_path
 from specify_cli.retrospective.schema import GenActor, GenProvenance, ProvenanceKind
-from specify_cli.retrospective.summary import classify_mission_record
+from specify_cli.retrospective.summary import (
+    classify_mission_record,
+    iter_mission_instance_dirs,
+    legacy_registry_record_dir,
+)
 from specify_cli.status import read_events
 from specify_cli.status import TERMINAL_LANES
 
@@ -399,10 +405,18 @@ def create_cmd(
         _err_console.print(f"[red]Error:[/red] Failed to write record: {exc}")
         raise typer.Exit(1) from exc
 
+    # Read back the persisted record: write_gen_record(mode="update") merges
+    # the freshly-generated record with the existing on-disk record and
+    # recomputes findings_status from the union, but only returns a Path
+    # (C-002). Reporting/emitting must reflect what is ACTUALLY on disk, not
+    # the pre-merge `record` (#3320). This read-back is a no-op for
+    # --overwrite / mode="error" / backfill, where persisted == new.
+    persisted = read_gen_record(record_path)
+
     # Emit lifecycle event (non-fatal — record write already succeeded)
     with contextlib.suppress(Exception):
         emit_captured(
-            record,
+            persisted,
             repo_root,
             provenance_kind="explicit_create",
             actor=_cli_actor(),
@@ -410,21 +424,21 @@ def create_cmd(
 
     # Auto-commit if enabled. FR-006 (#1735/#1771): stage the canonical status
     # surface (coord-aware), not the primary-checkout-only path.
-    events_path = _canonical_events_path(repo_root, record.mission_slug)
+    events_path = _canonical_events_path(repo_root, persisted.mission_slug)
     _maybe_auto_commit(
         repo_root,
         [record_path, events_path],
-        f"chore(retrospective): author retrospective for {record.mission_slug}",
+        f"chore(retrospective): author retrospective for {persisted.mission_slug}",
     )
 
     # Build output
     policy_source_out = _policy_source_dict(source_map)
     counts = {
-        "helped": len(record.helped),
-        "not_helpful": len(record.not_helpful),
-        "gaps": len(record.gaps),
-        "proposals": len(record.proposals),
-        "evidence_refs": len(record.evidence_refs),
+        "helped": len(persisted.helped),
+        "not_helpful": len(persisted.not_helpful),
+        "gaps": len(persisted.gaps),
+        "proposals": len(persisted.proposals),
+        "evidence_refs": len(persisted.evidence_refs),
     }
     next_step = (
         f"Run `spec-kitty agent retrospect synthesize --mission {resolved.mission_slug}` "
@@ -438,7 +452,7 @@ def create_cmd(
                 "mission_id": resolved.mission_id,
                 "mission_slug": resolved.mission_slug,
                 "record_path": str(record_path),
-                "findings_status": record.findings_status,
+                "findings_status": persisted.findings_status,
                 "counts": counts,
                 "provenance_kind": "explicit_create",
                 "policy_source": policy_source_out,
@@ -451,7 +465,7 @@ def create_cmd(
                 f"[bold green]Retrospective authored[/bold green]\n\n"
                 f"[bold]Mission:[/bold] {resolved.mission_slug}\n"
                 f"[bold]Record path:[/bold] {record_path}\n"
-                f"[bold]Findings status:[/bold] {record.findings_status}\n"
+                f"[bold]Findings status:[/bold] {persisted.findings_status}\n"
                 f"[bold]Counts:[/bold] "
                 f"helped={counts['helped']} not_helpful={counts['not_helpful']} "
                 f"gaps={counts['gaps']} proposals={counts['proposals']}\n\n"
@@ -473,7 +487,7 @@ def _parse_iso_date_or_exit(value: str, flag_name: str) -> datetime:
     """Parse an ISO date/datetime string; raise BadParameter on failure."""
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z"):
         try:
-            dt = datetime.strptime(value, fmt)
+            dt = parse_stamp(value, fmt)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt
@@ -481,7 +495,7 @@ def _parse_iso_date_or_exit(value: str, flag_name: str) -> datetime:
             continue
     # Try stdlib fromisoformat
     try:
-        dt = datetime.fromisoformat(value)
+        dt = parse_iso(value)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
@@ -507,11 +521,11 @@ def _discover_missions_for_backfill(
     candidates: list[dict[str, object]] = []
     missions_root = repo_root / KITTIFY_DIR / "missions"
 
-    if not missions_root.is_dir():
+    if not safe_is_dir(missions_root):
         return candidates
 
     for entry in sorted(missions_root.iterdir()):
-        if not entry.is_dir():
+        if not safe_is_dir(entry):
             continue
 
         meta_path = entry / "meta.json"
@@ -550,7 +564,7 @@ def _discover_missions_for_backfill(
             continue
 
         try:
-            completed_at = datetime.fromisoformat(completed_at_str)
+            completed_at = parse_iso(completed_at_str)
             if completed_at.tzinfo is None:
                 completed_at = completed_at.replace(tzinfo=UTC)
         except ValueError:
@@ -624,7 +638,7 @@ def backfill_cmd(  # noqa: C901
 ) -> None:
     """Author retrospective records for historical missions in bulk."""
     # Parse window
-    now = datetime.now(UTC)
+    now = now_utc()
     default_since = now - timedelta(days=30)
 
     since_dt: datetime = _parse_iso_date_or_exit(since, "--since") if since else default_since
@@ -931,7 +945,7 @@ def summary_cmd(  # noqa: C901
 
     READ-ONLY: no filesystem mutation is performed.
     """
-    from datetime import date as date_type
+    from kernel.clock import date as date_type
     from specify_cli.retrospective.cli import (
         _build_json_envelope as _base_json_envelope,
         _render_rich as _base_render_rich,
@@ -990,69 +1004,68 @@ def summary_cmd(  # noqa: C901
         "failed": 0,
     }
 
-    missions_dir = resolved_project / KITTIFY_DIR / "missions"
-    if missions_dir.is_dir():
-        for mission_dir in sorted(missions_dir.iterdir()):
-            if not mission_dir.is_dir():
-                continue
-            meta = load_meta_or_empty(mission_dir)
-            mission_id = meta.get("mission_id")
-            mission_slug = meta.get("mission_slug") or meta.get("slug")
+    # FR-013 (#2717): anchor per-mission discovery on the canonical
+    # ``kitty-specs/*`` instance home via the shared iterator, not the
+    # ``.kittify/missions/`` support/registry root (which omits real records).
+    for mission_dir in iter_mission_instance_dirs(resolved_project):
+        meta = load_meta_or_empty(mission_dir)
+        mission_id = meta.get("mission_id")
+        mission_slug = meta.get("mission_slug") or meta.get("slug")
 
-            # Classify against mission dir AND kitty-specs dir (for event log)
-            feature_dir_for_classify: Path | None = None
-            if mission_slug:
-                kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug)
-                if kitty_dir.is_dir():
-                    feature_dir_for_classify = kitty_dir
-            if feature_dir_for_classify is None:
-                feature_dir_for_classify = mission_dir
+        # mission_dir is already the canonical kitty-specs home; keep the
+        # topology-aware resolver for slugs whose dir name differs.
+        feature_dir_for_classify: Path = mission_dir
+        if mission_slug:
+            kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug)
+            if safe_is_dir(kitty_dir):
+                feature_dir_for_classify = kitty_dir
 
-            state = classify_mission_record(feature_dir_for_classify)
+        state = classify_mission_record(feature_dir_for_classify)
 
-            # Also check .kittify/missions/<id>/retrospective.yaml
-            if (mission_dir / RETROSPECTIVE_FILENAME).exists() and state == "missing":
-                state = classify_mission_record(mission_dir)
+        # Back-compat: legacy in-registry record keyed by mission_id.
+        if state == "missing" and mission_id:
+            registry_dir = legacy_registry_record_dir(resolved_project, mission_id)
+            if (registry_dir / RETROSPECTIVE_FILENAME).exists():
+                state = classify_mission_record(registry_dir)
 
-            aggregate_counts[state] = aggregate_counts.get(state, 0) + 1
+        aggregate_counts[state] = aggregate_counts.get(state, 0) + 1
 
-            # Get policy_source from most recent Captured event in event log
-            policy_source_snap: dict[str, object] | None = None
-            if feature_dir_for_classify is not None:
-                events_path = feature_dir_for_classify / "status.events.jsonl"
-                if events_path.exists():
+        # Get policy_source from most recent Captured event in event log
+        policy_source_snap: dict[str, object] | None = None
+        events_path = feature_dir_for_classify / "status.events.jsonl"
+        if events_path.exists():
+            try:
+                best_captured = None
+                best_lp = -1
+                for raw in events_path.read_text(encoding="utf-8").splitlines():
+                    raw = raw.strip()
+                    if not raw:
+                        continue
                     try:
-                        best_captured = None
-                        best_lp = -1
-                        for raw in events_path.read_text(encoding="utf-8").splitlines():
-                            raw = raw.strip()
-                            if not raw:
-                                continue
-                            try:
-                                obj = json.loads(raw)
-                            except json.JSONDecodeError:
-                                continue
-                            if obj.get("type") == "RetrospectiveCaptured":
-                                lp = obj.get("lamport", 0)
-                                if isinstance(lp, int) and lp >= best_lp:
-                                    best_captured = obj
-                                    best_lp = lp
-                        if best_captured:
-                            ps = best_captured.get("policy_source", {})
-                            if isinstance(ps, dict):
-                                policy_source_snap = ps
-                    except Exception:
-                        pass
+                        obj = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    if obj.get("type") == "RetrospectiveCaptured":
+                        lp = obj.get("lamport", 0)
+                        if isinstance(lp, int) and lp >= best_lp:
+                            best_captured = obj
+                            best_lp = lp
+                if best_captured:
+                    ps = best_captured.get("policy_source", {})
+                    if isinstance(ps, dict):
+                        policy_source_snap = ps
+            except Exception:
+                pass
 
-            mission_entry: dict[str, object] = {
-                "mission_id": mission_id or mission_dir.name,
-                "mission_slug": mission_slug or "",
-                "findings_status": state,
-                "policy_source": policy_source_snap,
-            }
+        mission_entry: dict[str, object] = {
+            "mission_id": mission_id or mission_dir.name,
+            "mission_slug": mission_slug or "",
+            "findings_status": state,
+            "policy_source": policy_source_snap,
+        }
 
-            if filter_state is None or state == filter_state:
-                missions_with_state.append(mission_entry)
+        if filter_state is None or state == filter_state:
+            missions_with_state.append(mission_entry)
 
     # Build extended JSON envelope
     base_envelope = _base_json_envelope(snapshot)

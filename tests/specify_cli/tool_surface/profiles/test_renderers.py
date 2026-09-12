@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 from specify_cli.tool_surface.profiles.amazon_q_renderer import AmazonQProfileRenderer
 from specify_cli.tool_surface.profiles.augment_renderer import AugmentProfileRenderer
 from specify_cli.tool_surface.profiles.codex_renderer import (
@@ -384,19 +384,25 @@ def test_codex_renderer_falsy_sandbox_mode_none_is_not_emitted() -> None:
 def test_claude_code_renderer_is_idempotent() -> None:
     profile = make_test_profile("architect-alphonso")
     renderer = ClaudeCodeProfileRenderer()
-    assert renderer.render(profile) == renderer.render(profile)
+    first_render = renderer.render(profile)
+    second_render = renderer.render(profile)
+    assert first_render == second_render
 
 
 def test_codex_renderer_is_idempotent() -> None:
     profile = make_test_profile("architect-alphonso")
     renderer = CodexProfileRenderer()
-    assert renderer.render(profile) == renderer.render(profile)
+    first_render = renderer.render(profile)
+    second_render = renderer.render(profile)
+    assert first_render == second_render
 
 
 def test_copilot_renderer_is_idempotent() -> None:
     profile = make_test_profile("researcher-robbie")
     renderer = CopilotProfileRenderer()
-    assert renderer.render(profile) == renderer.render(profile)
+    first_render = renderer.render(profile)
+    second_render = renderer.render(profile)
+    assert first_render == second_render
 
 
 # ---------------------------------------------------------------------------

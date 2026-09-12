@@ -1,0 +1,172 @@
+schema: review-arbiter/v1
+complete: true
+phase: pr
+mission: charter-activate-empty-action-sequence-01M0STSX
+arbiter: paula-patterns
+directives_applied:
+- "001 Architectural Integrity Standard — identified the owning boundary (the shared _resolve_with_extends_fallback helper serving both the read path and the new activation gate) before judging the test that guards it."
+- "003 Decision Documentation Requirement — the contested property was specified in advance in spec.md AC4/FR-005, plan.md and WP01 T003; a documented decision is not relitigated as a defect."
+- "030 Test and Typecheck Quality Gate — ruled on whether the minimum tests prove the failure class is closed for the observed surface, by mutation, not by assertion count."
+- "032 Conceptual Alignment — separated 'guard-scope test' from 'test that fails to cover new behaviour'; the rubric clause names the second concept, the finding applies it to the first."
+- "041 Tests as Scaffold, Not Friction — refused the proposed remedy: asserting the gate was *invoked* is implementation-coupled scaffolding, not an observable-contract assertion."
+rulings:
+- id: PR-FRESH-001
+  verdict: overrule-finding
+  severity_original: 4
+  severity_ruled: 0
+  merge_blocking: false
+  reason: |
+    OVERRULED. The finding's factual claim is true and I reproduced it: with the
+    gate call neutered, `test_extends_fallback_non_empty_parent_activates_successfully`
+    still passes. But "passes with the change reverted" is a *proxy* in the rubric,
+    not the property itself. The property the rubric protects is: does this test
+    detect a defect in the shipped change? I measured that directly by mutation,
+    and the answer is yes — at the CLI seam, which is precisely the layer the
+    finding asserts is unpinned.
+
+    THE RUBRIC QUESTION. The clause "a test that passes with the change reverted
+    => severity 4" is aimed at a test that *purports* to cover the new behaviour
+    and silently does not. It is not aimed at a deliberate, documented guard-scope
+    test. This test asserts that the new guard correctly DOES NOT fire for an
+    extends-resolved candidate. For any assertion of that shape, revert-insensitivity
+    is a logical necessity, not evidence of weakness: reverting removes the only
+    mechanism capable of producing the failure the test guards against. Pre-fix the
+    CLI had no gate at all, so every unregistered candidate activated; post-fix an
+    extends-resolved candidate activates. Exit code, config write and stdout are
+    identical. No behavioural assertion at the CLI seam can distinguish them.
+    Applying the proxy literally here would make the rubric demand a test that
+    cannot exist.
+
+    THE PROXY IS DEMONSTRABLY MISCALIBRATED ON THIS PAIR. The finding credits the
+    sibling unit test with pinning the behaviour because it fails on revert. I ran
+    the true full revert (call site neutered AND the public symbol removed). The
+    unit test fails with `AttributeError: module 'charter.mission_type_profiles'
+    has no attribute 'validate_activatable_mission_type'` — it fails because the
+    SYMBOL is gone, not because the BEHAVIOUR differs. Both tests assert the same
+    semantic proposition ("this candidate is not refused"); the unit one merely
+    happens to be written against a name the revert deletes. Its revert-sensitivity
+    is incidental, so revert-sensitivity cannot be what separates real coverage
+    from fake coverage on this pair.
+
+    THE COVERAGE QUESTION, ANSWERED SEPARATELY AND ON ITS MERITS: FR-005/AC4 IS
+    ADEQUATELY PINNED, INCLUDING AT THE CLI-INVOCATION LAYER. I mutated the shipped
+    fix's own logic — replaced `_resolve_with_extends_fallback(mission, roster)`
+    inside `validate_activatable_mission_type` with the naive
+    `list(mission.action_sequence or [])`, i.e. a gate that forgets the extends
+    fallback, which is exactly the FR-005 regression class. The contested CLI test
+    FAILED, at the CLI seam, on the operator-facing surface:
+    `Error: mission type 'qa' resolved from layer 'org' has an empty action
+    sequence. assert 1 == 0`. So the finding's central claim — "nothing at the
+    CLI-invocation layer pins 'extends-fallback candidates activate through the new
+    gate'" — is empirically false. This test is mutation-sensitive to the live
+    gate's own extends logic. It is genuine FR-005 CLI-level coverage and its
+    docstring may be read as such.
+
+    THE ONLY MUTATION IT MISSES IS NOT A HARM. A regression that skipped the gate
+    entirely for extends candidates would leave this test green — but that mutation
+    produces the CORRECT outcome for this input (the candidate should activate),
+    so there is no observable harm on this path. The harmful direction — gate
+    skipped for a candidate that stays empty after fallback — is pinned at the same
+    CLI seam by the sibling negative test: with the gate neutered,
+    `test_empty_action_sequence_refuses_activation_without_mutating_config` FAILS
+    (`assert 0 != 0`, `Activated: qa`). Between the two CLI tests, both directions
+    of the gate are pinned at the invocation layer. There is no coverage gap.
+
+    THE PROPOSED REMEDY IS ITSELF A DEFECT. The finding's remediation — patch or
+    spy on `validate_activatable_mission_type` and assert it was invoked — asserts
+    a call, not a behaviour. That is implementation-coupled scaffolding, refused by
+    directive 041 (observable-contract assertions; fixtures delegate to the
+    production seam). It would also freeze the current call topology, obstructing
+    the legitimate refactor PR-FRESH-002 recommends (threading PackContext in). Do
+    not apply it.
+
+    ARCHITECTURAL NOTE (my lens). The ownership boundary here is correct and is
+    what makes the coverage sound: `_resolve_with_extends_fallback` is one shared
+    helper serving both `_resolve_action_slot` (read path) and
+    `validate_activatable_mission_type` (activation gate), so the extends rule has
+    exactly one owner and cannot drift between the two paths. That is the opposite
+    of the whack-a-field pattern I exist to catch. The contested test guards the
+    gate's consumption of that single rule from the operator's seam.
+
+    THE BAR A LATER VERIFIER MUST APPLY (this REPLACES the acceptance bar for
+    PR-FRESH-001; do not re-derive the original dispute). For a test whose
+    assertion is "the newly added guard correctly does not fire for input X", the
+    acceptance test is NOT "does it fail when the change is reverted" — that is
+    structurally unattainable and must not be demanded. It is: (a) does the test
+    fail under a semantic mutation of the shipped fix's own logic, at the layer it
+    asserts on; and (b) is the harmful direction of the same guard pinned by a
+    sibling assertion at that layer. Both are answered YES here, empirically, with
+    the commands and outputs recorded below. PR-FRESH-001 is closed. It is not a
+    defect, it does not block the merge presentation, and it requires no code,
+    test, or docstring change.
+  remedy_if_upheld: |
+    n/a — overruled. No change of any kind is required. Explicitly: do NOT add a
+    spy/patch assertion on `validate_activatable_mission_type`, do NOT weaken or
+    re-word the test's docstring, and do NOT delete or restructure the test. Any
+    later agent proposing one of those on this ground is acting against this
+    ruling.
+  evidence:
+  - code: |
+      BASELINE (unmodified tree):
+      $ .venv/bin/python -m pytest \
+          "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py::TestActivateMissionTypeEmptyActionSequenceGate" \
+          "tests/charter/test_mission_type_profiles.py::TestValidateActivatableMissionTypeExtendsFallback" -q
+      5 passed in 1.39s
+  - code: |
+      EXPERIMENT 1 — revert the gate at the CLI seam (early `return` in
+      `_validate_mission_type_activatable`, src/specify_cli/cli/commands/charter/activate.py:213):
+      1 failed, 4 passed in 1.65s
+      FAILED ...::test_empty_action_sequence_refuses_activation_without_mutating_config
+        AssertionError: Activated: qa / assert 0 != 0
+      => Position A's factual claim CONFIRMED: the contested extends test still
+         passes. AND the harmful direction of the gate IS pinned at the CLI seam
+         by its sibling negative test, which fails here.
+  - code: |
+      EXPERIMENT 2 — DECISIVE. Mutate the shipped fix's own logic, not the baseline:
+      src/charter/mission_type_profiles.py:1083, inside validate_activatable_mission_type,
+        `action_sequence = _resolve_with_extends_fallback(mission, roster)`
+        -> `action_sequence = list(mission.action_sequence or [])`   # gate forgets the extends fallback
+      2 failed, 3 passed in 1.20s
+      FAILED tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py::
+             TestActivateMissionTypeEmptyActionSequenceGate::test_extends_fallback_non_empty_parent_activates_successfully
+        AssertionError: Error: mission type `qa` resolved from layer `org` has an empty action sequence.
+        assert 1 == 0
+      FAILED tests/charter/test_mission_type_profiles.py::
+             TestValidateActivatableMissionTypeExtendsFallback::test_extends_fallback_to_non_empty_parent_does_not_raise
+      => The contested CLI test IS mutation-sensitive to the live gate's extends
+         logic, at the CLI-invocation layer. The finding's claim that nothing at
+         that layer pins FR-005/AC4 is false.
+  - code: |
+      EXPERIMENT 3 — true FULL revert (call site neutered AND the public symbol
+      `validate_activatable_mission_type` removed from src/charter/mission_type_profiles.py
+      and from __all__):
+      1 failed, 1 passed in 1.31s
+      PASSED  ...::test_extends_fallback_non_empty_parent_activates_successfully   (CLI)
+      FAILED  ...::test_extends_fallback_to_non_empty_parent_does_not_raise        (unit)
+        AttributeError: module 'charter.mission_type_profiles' has no attribute
+        'validate_activatable_mission_type'
+      => The sibling unit test's revert-sensitivity is SYMBOL-EXISTENCE, not
+         behaviour. Both tests assert the same proposition; revert-sensitivity
+         therefore does not distinguish real coverage from fake coverage here.
+  - code: |
+      SPECIFIED IN ADVANCE (directive 003), read statically:
+      kitty-specs/.../spec.md — FR-005 "Extends fallback honored" (line 276) and the
+        Edge Cases block (lines 171-184) which sizes the extends fixture gap as
+        explicit, scheduled work for AC4 — not implicit follow-on.
+      kitty-specs/.../tasks/WP01-activation-empty-action-sequence-gate.md, T003
+        (lines 243-267): the CLI-level AC4 test is named a "documented exception",
+        "expected GREEN already at this commit", with the reasoning "the bug is
+        'always succeeds', not 'wrongly fails', so there is nothing for this
+        particular CLI assertion to be RED against yet", and the explicit
+        instruction "Do not let implementation treat this as an inconsistency to
+        'fix'". The property was designed, reasoned and recorded before it was
+        observed.
+  - code: |
+      TREE RESTORED after all three experiments:
+      $ md5sum src/charter/mission_type_profiles.py src/specify_cli/cli/commands/charter/activate.py
+      204204f23b2ca5072210b42df535daac  src/charter/mission_type_profiles.py
+      ab3b585688c7c50315b505f8af12262b  src/specify_cli/cli/commands/charter/activate.py
+      (identical to the pre-experiment hashes)
+      $ git status --porcelain -uno   -> empty
+      $ grep -rn "ARBITER-EXPERIMENT" src/  -> no matches
+      $ .venv/bin/python -m pytest <same 5 nodes> -q  -> 5 passed in 1.38s

@@ -15,6 +15,7 @@
   "accepted_from_commit": "c89280418a5b1cc475b1d246b2c5882d194dc7f9",
   "baseline_merge_commit": "b0d3c04d9c0c7511e3dfd5848169e60080c8c8ff",
   "created_at": "2026-06-13T15:23:25.002984+00:00",
+  "flattened": false,
   "friendly_name": "Mission lifecycle, dispatch & DRG closeout",
   "mission_id": "01KV0S99EAKC82W00WR5MMETPN",
   "mission_number": 134,
@@ -26,6 +27,7 @@
   "slug": "mission-lifecycle-dispatch-drg-closeout-01KV0S99",
   "status_phase": "1",
   "target_branch": "feat/mission-lifecycle-dispatch-drg-closeout",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-13T16:56:14.625880+00:00"
 }

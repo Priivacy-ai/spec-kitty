@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
+from typing import Annotated, Any
 
 import typer
 from rich.table import Table
+from mission_runtime import ActionContextError
 
 from specify_cli.acceptance import (
     AcceptanceError,
@@ -20,6 +23,17 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
+from specify_cli.config.path_conventions import PathConventionsConfigError
+from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.owned_mission import (
+    OwnedMission,
+    effective_root_kwargs,
+    require_unstaged_index,
+    resolve_owned_mission,
+)
+from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
+from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -33,15 +47,39 @@ from specify_cli.task_utils import (
     run_git,
 )
 
+logger = logging.getLogger(__name__)
 
-def _safe_emit_error_logged(message: str) -> None:
+
+def _stranded_verdict_provenance_note(feature_dir: Path) -> str | None:
+    """Non-blocking SC-008 diagnostic: a WP with a terminal review-cycle ``.md``
+    verdict but no event-log ``review_result`` slot.
+
+    ``verdict-seam-write-unification-01KZ9Q35`` collapsed every verdict reader
+    onto the event authority and deleted the frontmatter readers. The
+    protective backfill runs on ``spec-kitty upgrade``; this diagnostic surfaces
+    any mission still carrying a stranded verdict so an operator who has not yet
+    upgraded (or whose consumers read the retired authority mid-upgrade) is told
+    to run it. It is advisory only -- it never blocks acceptance and never
+    raises: a diagnostic that could abort ``accept`` would be worse than the gap
+    it reports.
+
+    Returns ``None`` when there is nothing stranded (the converged, post-backfill
+    steady state) or when the scan cannot run.
+    """
     try:
-        from specify_cli.sync.events import emit_error_logged
-
-        emit_error_logged(error_type="runtime", error_message=message)
-    except Exception:
-        # Non-blocking: never fail the command on emission errors
-        pass
+        findings = stranded_verdict_findings(feature_dir)
+    except Exception as exc:  # noqa: BLE001 — advisory diagnostic, never fatal
+        logger.debug("stranded-verdict provenance scan skipped for %s: %s", feature_dir, exc)
+        return None
+    if not findings:
+        return None
+    wp_list = ", ".join(finding.wp_id for finding in findings)
+    return (
+        f"Stranded verdict provenance: {len(findings)} WP(s) ({wp_list}) carry a "
+        "terminal review-cycle .md verdict with no event-log review_result slot. "
+        "Run `spec-kitty upgrade` to backfill the event authority (FR-012/SC-008) "
+        "before any consumer reads the retired frontmatter verdict mid-upgrade."
+    )
 
 
 def _dirty_paths_with_prefix(status_lines: list[str], prefix: str) -> list[str]:
@@ -74,7 +112,7 @@ def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return _dirty_paths_with_prefix(git_status_lines(repo_root), prefix)
 
 
-def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
+def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> Path | None:
     """Resolve the mission's materialised coordination worktree root, if any.
 
     Returns ``None`` when the mission's stored topology does not route
@@ -82,28 +120,37 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     materialised on disk yet — there is nothing to reconcile before that
     (mirrors the leniency ``_status_read_feature_dir`` already applies).
     Never creates the worktree (a dirty-tree scan must not have side effects).
+
+    Consumes the ONE affirmative surface→filesystem seam
+    (:func:`mission_runtime.resolve_artifact_surface`,
+    lifecycle-gate-execution-context WP02 — the schema root). The seam's
+    :class:`~mission_runtime.TopologySurface` stamp IS the "coord or not" signal: a
+    ``COORD`` stamp yields the materialised coordination mission dir (its worktree
+    root is then found via ``git rev-parse``); every other stamp (the affirmative
+    PRIMARY home for coord-less / ``EMPTY`` / ``UNMATERIALIZED``) means "nothing to
+    reconcile" → ``None``. A ``DELETED`` coordination branch raises
+    :class:`CoordinationBranchDeleted` (C3 "fail loud"): a deleted coord branch at
+    accept-time carries unmerged status — accept must refuse, not silently scan a
+    stale primary.
     """
     from mission_runtime import (
         MissionArtifactKind,
-        placement_seam,
-        resolve_topology,
-        routes_through_coordination,
+        TopologySurface,
+        resolve_artifact_surface,
     )
 
-    topology = resolve_topology(repo_root, mission_slug)
-    if not routes_through_coordination(topology):
-        return None
-
-    coord_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.ACCEPTANCE_MATRIX
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
+    resolved = resolve_artifact_surface(
+        repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
+        **scope,
     )
-    if not coord_feature_dir.exists():
+    if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
     try:
         worktree_root = Path(
             run_git(
-                ["rev-parse", "--show-toplevel"], cwd=coord_feature_dir, check=True
+                ["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True
             ).stdout.strip()
         )
     except TaskCliError:
@@ -114,7 +161,60 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
     return worktree_root
 
 
-def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
+def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> Path | None:
+    """Resolve the COORD-partition mission dir the birth-cutover seeds into.
+
+    ``cutover_mission``'s ``status_feature_dir`` argument IS the ``STATUS_STATE``
+    port target — the directory where ``status.events.jsonl`` canonically lives
+    under coordination topology (``runtime_state_cutover.cutover_mission``
+    docstring, WP09/IC-08). So the kind is
+    :attr:`~mission_runtime.MissionArtifactKind.STATUS_STATE`, not the
+    ``ACCEPTANCE_MATRIX`` kind :func:`_coord_worktree_root` probes with: both are
+    COORD-partition kinds resolving to the same mission dir, but naming the kind
+    the caller actually writes keeps the site honest if the partition table ever
+    splits them.
+
+    Routed through :meth:`~mission_runtime.PlacementSeam.read_dir` — the single
+    kind-aware placement authority — instead of re-deriving
+    ``<coord worktree>/kitty-specs/<slug>`` by hand. The hand-built join was also
+    latently wrong for identity-suffixed mission dirs (``<slug>-<mid8>``), which
+    the seam resolves correctly.
+
+    Returns ``None`` when the mission's ``STATUS_STATE`` surface is not ``COORD``
+    (coord-less topology, or a coordination worktree that is ``EMPTY`` /
+    ``UNMATERIALIZED``), preserving the pre-existing contract that
+    ``cutover_mission`` then collapses both legs onto the PRIMARY ``feature_dir``.
+    A ``DELETED`` coordination branch still raises
+    :class:`~specify_cli.coordination.surface_resolver.CoordinationBranchDeleted`
+    out of the surface resolver — accept must refuse rather than silently stamp a
+    stale primary (the same C3 "fail loud" posture as :func:`_coord_worktree_root`,
+    which the accept flow already hits earlier via :func:`_coord_dirty_paths`).
+    """
+    from mission_runtime import (
+        MissionArtifactKind,
+        TopologySurface,
+        placement_seam,
+        resolve_artifact_surface,
+    )
+
+    # Guard the handle before it reaches the seam so both legs of the stamp carry
+    # the same traversal check (the PRIMARY leg gets it from
+    # ``primary_feature_dir_for_mission``).
+    assert_safe_path_segment(mission_slug)
+
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
+    resolved = resolve_artifact_surface(
+        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE,
+        **scope,
+    )
+    if resolved.surface_kind is not TopologySurface.COORD:
+        return None
+    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+
+
+def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> list[str]:
     """Return tracked-but-uncommitted acceptance artifacts in the COORD worktree.
 
     M2 (#read-surface-ssot-closeout FR-008): ``write_acceptance_matrix`` writes
@@ -126,7 +226,9 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
     against that surface instead.
     """
-    worktree_root = _coord_worktree_root(repo_root, mission_slug)
+    worktree_root = _coord_worktree_root(
+        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+    )
     if worktree_root is None:
         return []
     prefix = f"kitty-specs/{mission_slug}/"
@@ -154,6 +256,99 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
         if path not in dirty:
             dirty.append(path)
     return dirty
+
+
+def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> None:
+    """Auto-stamp the birth-cutover into the mission branch at the terminal
+    ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
+
+    Mirrors ``merge/executor.py::_run_birth_cutover``'s shape (resolve PRIMARY
+    + COORD legs -> the single-authority
+    :func:`~specify_cli.migration.runtime_state_cutover.cutover_mission`, via
+    :func:`~specify_cli.migration.runtime_state_cutover.stamp_accept_cutover`
+    — no forked writer) so the committed corpus is already cut over before
+    the branch can land by ANY path (closing the GitHub-squash/rebase leak,
+    #2917 reopened). Runs only when runtime state is final: the caller only
+    reaches this on the real-commit path, AFTER ``summary.ok`` already gated
+    every WP approved/done (FR-004 — avoids the dual-write vacuity trap).
+
+    Deliberately called BEFORE
+    :func:`_commit_residual_acceptance_artifacts` so this stamp's own writes
+    (PRIMARY ``meta.json`` ``status_phase``, COORD seed events) are swept into
+    that SAME partition-aware residual commit (R4 — the stamp must be a
+    committed artifact, not a working-tree-only write the background status
+    daemon might commit later under an unrelated message). No second
+    committer is introduced here.
+
+    Best-effort / non-fatal for an ordinary cutover failure (mirrors
+    ``_run_birth_cutover``: a stamp failure must not abort an otherwise
+    successful accept — the gap remains repairable via ``migrate
+    backfill-runtime-state`` / ``doctor cutover``). A
+    :class:`~specify_cli.migration.runtime_state_cutover.MissingMissionIdError`
+    (NFR-003/R6 fail-closed) is the one exception that propagates, so the
+    caller aborts the whole ``accept`` command rather than silently landing a
+    slug-namespaced seed.
+    """
+    # PRIMARY leg via the blessed topology-blind constructor rather than a raw
+    # join: it is the sanctioned owner of ``KITTY_SPECS_DIR`` assembly AND it
+    # applies ``assert_safe_path_segment`` to the slug. It deliberately does NOT
+    # route through the topology-aware resolver -- that one selects the coord
+    # worktree once it exists, which is exactly the surface that lacks
+    # ``meta.json``, so using it here would send the phase stamp to the wrong leg.
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
+    # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
+    # directly — PRIMARY_METADATA, since the read/write target is meta.json's
+    # ``status_phase`` (per ``stamp_accept_cutover``'s own contract docstring).
+    # WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
+    # the seam's own internal fold for a PRIMARY-partition kind (the SAME
+    # ``_canonicalize_primary_read_handle`` primitive
+    # ``resolve_planning_read_dir``'s PRIMARY leg applies before composing).
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    scope = effective_root_kwargs(effective_root)
+    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    if not feature_dir.is_dir():
+        return  # nothing to stamp
+
+    from specify_cli.migration.runtime_state_cutover import stamp_accept_cutover
+
+    # COORD leg comes from the kind-aware placement seam (see
+    # :func:`_coord_status_feature_dir`) rather than a hand-built join under the
+    # coordination worktree root: a PRIMARY-kind seam read would redirect this
+    # back to the primary checkout (it normalises through
+    # ``get_main_repo_root``) and collapse the very partition split this
+    # function exists to preserve, while a raw mission-spec-dir join re-derives
+    # placement the seam already owns.
+    status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, **scope)
+    owned = None
+    if effective_root is not None:
+        from specify_cli.core.paths import resolve_canonical_root
+
+        owned = resolve_owned_mission(resolve_canonical_root(effective_root), effective_root, mission_slug)
+
+    try:
+        result = stamp_accept_cutover(
+            feature_dir, status_feature_dir=status_feature_dir,
+            **({"owned": owned} if owned is not None else {}),
+        )
+    except MissingMissionIdError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — best-effort, mirrors _run_birth_cutover
+        if owned is not None:
+            raise AcceptanceError(f"Owned birth-cutover failed: {exc}") from exc
+        logger.warning("birth-cutover stamp failed for %s: %s", mission_slug, exc)
+        return
+
+    if owned is not None and not result.flipped:
+        detail = result.error or ("; ".join(result.verify.mismatches) if result.verify else "no verified stamp")
+        raise AcceptanceError(f"Owned birth-cutover failed: {detail}")
+    if result.error:
+        logger.warning(
+            "birth-cutover for %s did not reconcile: %s", mission_slug, result.error
+        )
 
 
 def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
@@ -196,43 +391,43 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
 
     T007: these files physically live in the coordination worktree (M2), which
     a primary-rooted raw ``git commit`` structurally cannot reach. Routes
-    through :func:`~specify_cli.coordination.commit_router.commit_for_mission`
-    instead — the SAME single canonical commit entry point ``spec_commit_cmd.py``
-    / ``mission_finalize.py`` use. Files are NOT hand-classified here: the
-    router's own ``kind_for_mission_file`` classification (contracts/partition-
-    aware-commit-seam.md) resolves each file's placement and materialises the
-    coordination worktree on demand; ``ACCEPTANCE_MATRIX`` only seeds the
-    fallback for an unrecognised path and which group's outcome is reported.
+    through :func:`~specify_cli.coordination.write_seam.write_artifact` (WP04 /
+    T017, write-side-seam-matrix-tracer-01KYP3MH) — the WP03 seam wrapping the
+    SAME single canonical commit entry point ``spec_commit_cmd.py`` /
+    ``mission_finalize.py`` use (``commit_for_mission``), adding FR-011's
+    structured zero-write refusal on top. Files are NOT hand-classified here:
+    the router's own ``kind_for_mission_file`` classification (contracts/
+    partition-aware-commit-seam.md) resolves each file's placement and
+    materialises the coordination worktree on demand; ``ACCEPTANCE_MATRIX``
+    only seeds the fallback for an unrecognised path and which group's outcome
+    is reported. This IS the real accept-commit boundary that persists the
+    T016 recomputed ``overall_verdict`` write gates_core.py leaves on disk.
     """
-    from mission_runtime import MissionArtifactKind
-    from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
+    from specify_cli.coordination.write_seam import WriteSeamResult, write_artifact
     from specify_cli.git.protection_policy import ProtectionPolicy
+    from mission_runtime import MissionArtifactKind
 
     policy = ProtectionPolicy.resolve(repo_root)
     files = tuple(repo_root / path for path in dirty)
-    # Explicit annotation: under the project's ``follow_imports = "skip"`` mypy
-    # config the cross-module ``commit_for_mission`` return is seen as ``Any``;
-    # the annotation re-narrows it (matching the ``_planning_read_dir`` /
-    # ``spec_commit_cmd.py`` chokepoint pattern) so ``.status`` comparisons below
-    # type-check as ``bool``, not ``Any``.
-    result: CommitRouterResult = commit_for_mission(
+    result: WriteSeamResult = write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
+        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         files=files,
         message=f"Finalize acceptance artifacts for {mission_slug}",
         policy=policy,
-        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        entry_id=mission_slug,
     )
 
-    if result.status == "error":
+    if result.status in ("error", "refused"):
         raise TaskCliError(
             f"Residual coordination artifact commit failed for {mission_slug} "
-            f"({result.placement_ref}): {result.diagnostic or 'unknown error'}"
+            f"({result.destination_surface}): {result.diagnostic or 'unknown error'}"
         )
     return bool(result.status == "committed")
 
 
-def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) -> bool:
+def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> bool:
     """Stage and commit any leftover acceptance artifacts so the tree is clean.
 
     Returns True when a follow-up commit was created. This preserves the
@@ -247,7 +442,9 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) ->
     the historical direct commit. A batch mixing both commits to each surface
     independently (never a single cross-worktree commit, which git cannot do).
     """
-    coord_dirty = _coord_dirty_paths(repo_root, mission_slug)
+    coord_dirty = _coord_dirty_paths(
+        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+    )
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     if not coord_dirty and not primary_dirty:
         return False
@@ -297,13 +494,6 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
 
     _print_acceptance_warnings(summary)
-
-    if summary.optional_missing:
-        console.print(
-            "\n[yellow]Optional artifacts missing:[/yellow] "
-            + ", ".join(summary.optional_missing)
-        )
-        console.print()
 
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
@@ -375,6 +565,25 @@ def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     return payload
 
 
+def _with_advisories(payload: dict[str, object], notes: list[str | None]) -> dict[str, object]:
+    """Inject a top-level ``advisories`` array into a non-error JSON payload.
+
+    #3255: ``accept --json`` dropped the SC-008 stranded-verdict backfill
+    advisory (``_stranded_verdict_provenance_note``) because it was only
+    ever rendered inside the ``if not json_output`` console branch, so JSON
+    automation never saw the "run ``spec-kitty upgrade``" hint. This is a
+    CLI-layer-only concern (C-005): it must never be threaded into
+    ``AcceptanceSummary``/``AcceptanceResult`` — the domain model stays
+    unaware of migration-provenance advisories. ``notes`` is filtered for
+    ``None`` entries so callers can pass the raw (possibly-``None``) result
+    of an advisory lookup without a conditional at every call site; the
+    array is present (``[]``) even when nothing is stranded, so JSON
+    consumers can rely on the key always existing.
+    """
+    payload["advisories"] = [note for note in notes if note is not None]
+    return payload
+
+
 def _report_encoding_repair(repo_root: Path, repaired: list[Path]) -> None:
     """Surface which acceptance artifacts the encoding repair rewrote.
 
@@ -403,6 +612,7 @@ def _collect_summary_with_optional_repair(
     strict_metadata: bool,
     mutate_matrix: bool,
     normalize_encoding: bool,
+    effective_root: Path | None = None,
 ) -> AcceptanceSummary:
     """Collect the acceptance summary, optionally repairing artifact encoding.
 
@@ -414,17 +624,25 @@ def _collect_summary_with_optional_repair(
     the flag is off, the error propagates unchanged so the pre-existing default
     error path is preserved untouched.
     """
+    scope = effective_root_kwargs(effective_root)
     try:
         return collect_feature_summary(
             repo_root,
             mission_slug,
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
+            **scope,
         )
+    except PathConventionsConfigError as exc:
+        # A malformed ``project.path_conventions`` section is a fail-closed operator
+        # config error (SC-007). Surface it as a clean accept blocking verdict through
+        # the command's ``except AcceptanceError`` handler (exit 1) rather than letting
+        # the typed exception reach typer as a raw traceback.
+        raise AcceptanceError(str(exc)) from exc
     except ArtifactEncodingError:
         if not normalize_encoding:
             raise
-        repaired = normalize_feature_encoding(repo_root, mission_slug)
+        repaired = normalize_feature_encoding(repo_root, mission_slug, **scope)
         _report_encoding_repair(repo_root, repaired)
         # Re-collect exactly once; a second encoding (or other acceptance)
         # failure propagates rather than looping.
@@ -433,7 +651,22 @@ def _collect_summary_with_optional_repair(
             mission_slug,
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
+            **scope,
         )
+
+
+def _owned_accept_context(
+    primary: Path, checkout: Path | None, mission: str | None, *, diagnose: bool, normalize_encoding: bool,
+) -> OwnedMission | None:
+    """Validate opt-in ownership and mode before any acceptance reads or writes."""
+    if checkout is None:
+        return None
+    owned = resolve_owned_mission(primary, checkout, mission)
+    if diagnose and normalize_encoding:
+        raise ActionContextError("OWNED_OPTION_UNSUPPORTED", "--diagnose cannot repair encoding in an owned checkout.")
+    if not diagnose:
+        require_unstaged_index(owned)
+    return owned
 
 
 def accept(
@@ -446,7 +679,11 @@ def accept(
     actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
-    lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
+    lenient: bool = typer.Option(
+        False,
+        "--lenient",
+        help="Skip strict metadata validation and downgrade missing path-convention checks to warnings",
+    ),
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
@@ -455,6 +692,9 @@ def accept(
         "--normalize-encoding/--no-normalize-encoding",
         help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
     ),
+    owned_checkout: Annotated[
+        Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")
+    ] = None,
 ) -> None:
     """Validate mission readiness before merging to main."""
 
@@ -463,6 +703,17 @@ def accept(
 
     try:
         repo_root = find_repo_root()
+        owned = _owned_accept_context(
+            repo_root, owned_checkout, mission, diagnose=diagnose, normalize_encoding=normalize_encoding,
+        )
+        if owned is not None:
+            repo_root = owned.root
+    except ActionContextError as exc:
+        if json_output:
+            print(json.dumps({"error_code": exc.code, "error": str(exc)}))
+        else:
+            console.print(f"[red]{exc.code}: {exc}[/red]")
+        raise typer.Exit(1) from exc
     except TaskCliError as exc:
         if json_output:
             print(json.dumps({"error": str(exc)}))
@@ -482,7 +733,6 @@ def accept(
     # and calls sys.exit(2) on failure; no try/except needed.
     raw_handle = mission
     if raw_handle is None:
-        _safe_emit_error_logged("No mission handle provided")
         if json_output:
             print(json.dumps({"error": "--mission <slug> is required"}))
         else:
@@ -491,11 +741,23 @@ def accept(
             console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(2)
 
-    resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-    mission_slug = resolved.mission_slug
+    if owned is not None:
+        mission_slug, mission_dir = owned.slug, owned.directory
+    else:
+        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+        mission_slug, mission_dir = resolved.mission_slug, resolved.feature_dir
+    scope = {"effective_root": owned.root} if owned is not None else {}
+
+    # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
+    # BOTH the human console (non-JSON branch below) and every non-error
+    # `--json` payload via `_with_advisories` — it was previously gated
+    # behind `if not json_output`, so JSON automation never saw it.
+    provenance_note = _stranded_verdict_provenance_note(mission_dir)
 
     if not json_output:
         tracker.complete("detect", mission_slug)
+        if provenance_note is not None:
+            console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)
@@ -522,13 +784,13 @@ def accept(
             # FR-005: opt-in repair of mojibake acceptance artifacts via the
             # canonical normalize_feature_encoding before validating (default off).
             normalize_encoding=normalize_encoding,
+            **scope,
         )
     except Pre30LayoutError as exc:
         # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
         # with the `spec-kitty upgrade` instruction and write NOTHING — never fall
         # through to a vacuous all-done summary that auto-commits an unmigrated
         # mission.
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -537,7 +799,22 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     except AcceptanceError as exc:
-        _safe_emit_error_logged(str(exc))
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            tracker.error("verify", str(exc))
+            console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except AcceptanceMatrixParseError as exc:
+        # T021 (mgifford, #2318): a malformed acceptance-matrix.json item
+        # (a bad negative_invariants/criteria entry) is REPORTED here —
+        # which item, why — instead of crashing with an unhandled TypeError
+        # at load. This is the actual accept --diagnose defect; catching it
+        # here (rather than inside AcceptanceMatrix.from_dict) also fixes
+        # every OTHER accept mode that hits the same load path, without
+        # weakening gates_core.py's / post_consolidation.py's own loud-crash
+        # contract on malformed input (they still let it propagate).
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -552,7 +829,7 @@ def accept(
         if json_output:
             payload = _summary_payload(summary)
             payload["diagnose"] = True
-            print(json.dumps(payload, indent=2))
+            print(json.dumps(_with_advisories(payload, [provenance_note]), indent=2))
         else:
             tracker.start("guide")
             tracker.complete("guide", "diagnostics ready")
@@ -564,7 +841,7 @@ def accept(
         if json_output:
             print(
                 json.dumps(
-                    _summary_payload(summary),
+                    _with_advisories(_summary_payload(summary), [provenance_note]),
                     indent=2,
                 )
             )
@@ -574,11 +851,10 @@ def accept(
 
     if not summary.ok:
         if json_output:
-            print(json.dumps(summary.to_dict(), indent=2))
+            print(json.dumps(_with_advisories(summary.to_dict(), [provenance_note]), indent=2))
         else:
             _print_acceptance_summary(summary)
         if not allow_fail:
-            _safe_emit_error_logged("Outstanding acceptance issues detected")
             if not json_output:
                 console.print(
                     "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
@@ -598,6 +874,7 @@ def accept(
     result: AcceptanceResult | None = None
     _accept_exc: AcceptanceError | None = None
     _residue_exc: Exception | None = None
+    _stamp_exc: Exception | None = None
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -622,7 +899,6 @@ def accept(
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
         _accept_exc = exc
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -631,6 +907,18 @@ def accept(
                 console.print(tracker.render())
             console.print(f"[red]Error:[/red] {exc}")
     finally:
+        if commit_required and _accept_exc is None:
+            # WP02 (FR-001/FR-004/FR-005): stamp the birth-cutover ONLY on the
+            # real-commit, acceptance-succeeded path -- runtime state is
+            # already final (summary.ok gated all WPs approved/done above).
+            # Deliberately BEFORE the residual-artifacts commit below so its
+            # writes (meta.json status_phase, COORD seed events) are swept
+            # into that SAME partition-aware commit rather than needing a
+            # second committer.
+            try:
+                _stamp_birth_cutover_for_accept(repo_root, mission_slug, **scope)
+            except (MissingMissionIdError, AcceptanceError, ActionContextError) as stamp_exc:
+                _stamp_exc = stamp_exc
         if commit_required:
             # The acceptance commit (inside perform_acceptance) only captures
             # meta.json. Derived artifacts materialized during readiness checks
@@ -639,11 +927,17 @@ def accept(
             # them into a follow-up commit so all writing exit paths (including
             # error paths and accept_commit == None) leave a clean working tree.
             try:
-                _commit_residual_acceptance_artifacts(repo_root, mission_slug)
+                _commit_residual_acceptance_artifacts(repo_root, mission_slug, **scope)
             except Exception as residue_exc:
                 _residue_exc = residue_exc
-                _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
     if _accept_exc is not None:
+        raise typer.Exit(1)
+    if _stamp_exc is not None:
+        error_msg = f"Birth-cutover stamp refused: {_stamp_exc}"
+        if json_output:
+            print(json.dumps({"error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
     if _residue_exc is not None:
         error_msg = f"Residual artifact commit failed: {_residue_exc}"
@@ -659,7 +953,7 @@ def accept(
     assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
 
     if json_output:
-        print(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(_with_advisories(result.to_dict(), [provenance_note]), indent=2))
         return
 
     tracker.start("guide")

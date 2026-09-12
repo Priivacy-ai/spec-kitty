@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "mission_slug": "merge-honor-retention-policy-01M1CA0E",
+  "mission_id": "01M1CA0E0FM4E70WGWKZPKYZMG",
+  "mission_branch": "kitty/mission-merge-honor-retention-policy-01M1CA0E",
+  "target_branch": "fix/3131-merge-retention",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/core/test_retention_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/integration/test_merge_lane_planning_data_loss.py",
+        "tests/merge/test_coordination_flatten_on_branch_delete.py",
+        "tests/merge/test_executor_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/forecast.py",
+        "tests/merge/test_forecast_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/core/mission_creation.py",
+        "tests/specify_cli/test_mission_create_retention.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        "docs/guides/how-to/missions/merge-mission.md",
+        "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-31T17:11:11.271886+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5225d432b1652254ecf0fb37e9d38be06802cf76"
+}

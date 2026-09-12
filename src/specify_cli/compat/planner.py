@@ -17,13 +17,15 @@ Design notes
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import sys
 from dataclasses import dataclass, replace
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+
+from kernel.clock import datetime, now_utc
 
 # StrEnum is stdlib 3.11+
 from enum import StrEnum
@@ -53,20 +55,52 @@ def is_ci_env() -> bool:
 
 _REGISTRY_AUTOLOADED = False
 
+_LOGGER = logging.getLogger(__name__)
+
 
 def _ensure_registry_loaded() -> None:
-    """Auto-discover migrations once per process, fail-open on any error."""
+    """Auto-discover migrations once per process, fail-open on any error.
+
+    A stale ``.pyc`` from an interrupted install (Windows file locking /
+    antivirus) can kill the whole ``specify_cli.upgrade`` import chain before
+    discovery even runs; that failure class is self-healed once — cache purge
+    plus retry — before degrading (#4124, ``specify_cli.bytecode_heal``). Any
+    remaining failure degrades *loudly* to an empty registry: the upgrade
+    nag/preview quietly goes away either way, but the operator now gets one
+    warning saying why, and the manual fix.
+    """
     global _REGISTRY_AUTOLOADED
     if _REGISTRY_AUTOLOADED:
         return
     try:
+        _load_migration_registry_with_heal()
+    except Exception as exc:  # noqa: BLE001 — fail-open: empty pending_migrations is preferable to crash
+        _LOGGER.warning(
+            "upgrade migrations unavailable: %s. If this persists, delete the "
+            "__pycache__ directories under the installed specify_cli package "
+            "and reinstall spec-kitty. Continuing without the upgrade check.",
+            exc,
+        )
+    finally:
+        _REGISTRY_AUTOLOADED = True
+
+
+def _load_migration_registry_with_heal() -> None:
+    """Import and auto-discover migrations, healing a stale bytecode cache once."""
+    from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+    def _load() -> None:
         from specify_cli.upgrade.migrations import auto_discover_migrations
 
         auto_discover_migrations()
-    except Exception:  # noqa: BLE001 — fail-open: empty pending_migrations is preferable to crash
-        pass
-    finally:
-        _REGISTRY_AUTOLOADED = True
+
+    invoke_with_bytecode_heal(
+        _load,
+        on_healed=lambda removed: _LOGGER.warning(
+            "repaired %d stale bytecode cache file(s) left by an interrupted install; migrations reloaded from source",
+            removed,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +169,7 @@ class CliStatus:
 
     installed_version: str
     latest_version: str | None
-    latest_source: Literal["pypi", "none"]
+    latest_source: Literal["pypi", "simple_index", "none"]
     is_outdated: bool
     fetched_at: datetime | None
 
@@ -414,13 +448,77 @@ def _get_schema_bounds() -> tuple[int, int]:
 
 
 def _get_installed_version() -> str:
-    """Return the installed spec-kitty-cli version, or 'unknown'."""
-    try:
-        from importlib.metadata import version
+    """Return the installed CLI distribution version, or 'unknown'.
 
-        return version("spec-kitty-cli")
-    except Exception:  # noqa: BLE001
-        return "unknown"
+    Uses the active :class:`DistributionProfile` package name and aliases
+    via :func:`resolve_installed_distribution_version`.
+    """
+    from specify_cli.distribution import (
+        resolve_distribution_profile,
+        resolve_installed_distribution_version,
+    )
+
+    profile = resolve_distribution_profile()
+    return resolve_installed_distribution_version(
+        profile.package_name,
+        profile.package_aliases,
+    )
+
+
+_CACHEABLE_LATEST_SOURCES: frozenset[str] = frozenset({"pypi", "simple_index"})
+
+
+def _default_latest_provider(*, network_suppressed: bool, profile: Any) -> Any:
+    """Select the default latest-version provider for ``plan()``.
+
+    When network is suppressed, always use :class:`NoNetworkProvider`.
+    Otherwise prefer ``profile.upgrade_provider``, then
+    :func:`resolve_upgrade_provider` (stock PyPI fallback).
+    """
+    from specify_cli.compat.provider import NoNetworkProvider, PyPIProvider
+    from specify_cli.distribution import resolve_upgrade_provider
+
+    if network_suppressed:
+        return NoNetworkProvider()
+    if profile.upgrade_provider is not None:
+        return profile.upgrade_provider
+    try:
+        return resolve_upgrade_provider()
+    except Exception:  # noqa: BLE001 — fail-open to stock PyPI
+        return PyPIProvider()
+
+
+def _write_nag_cache_for_fetch(
+    *,
+    nag_cache: Any,
+    preference_record: Any,
+    installed_version: str,
+    latest_version: str,
+    latest_source: Literal["pypi", "simple_index"],
+    now: datetime,
+) -> None:
+    """Persist a successful provider fetch into the nag cache."""
+    from specify_cli.compat.cache import NagCacheRecord
+
+    if preference_record is not None:
+        new_record = replace(
+            preference_record,
+            cli_version_key=installed_version,
+            latest_version=latest_version,
+            latest_source=latest_source,
+            fetched_at=now,
+            last_shown_at=preference_record.last_shown_at,
+        )
+    else:
+        new_record = NagCacheRecord(
+            cli_version_key=installed_version,
+            latest_version=latest_version,
+            latest_source=latest_source,
+            fetched_at=now,
+            last_shown_at=None,
+        )
+    with contextlib.suppress(Exception):
+        nag_cache.write(new_record)
 
 
 def _version_is_outdated(installed: str, latest: str | None) -> bool:
@@ -566,58 +664,79 @@ def _scan_project(
     )
 
 
-def _pending_migrations_for(project: ProjectStatus) -> tuple[MigrationStep, ...]:
-    """Return pending migration steps for a STALE/LEGACY project.
+def _migration_step_from(migration: Any) -> MigrationStep:
+    """Convert a registry ``BaseMigration`` into a contract ``MigrationStep``.
 
-    Returns an empty tuple if the registry does not expose the needed data
-    (WP07 may not have landed yet).
+    ``target_schema_version`` is read from the migration when present and
+    otherwise inferred best-effort from the target version's major component so
+    the JSON contract always carries an integer.
+
+    Args:
+        migration: A registry migration instance.
+
+    Returns:
+        The corresponding :class:`MigrationStep`.
+    """
+    schema_int: int | None = getattr(migration, "target_schema_version", None)
+    if schema_int is None:
+        try:
+            from packaging.version import Version
+
+            schema_int = int(Version(migration.target_version).major)
+        except Exception:  # noqa: BLE001
+            schema_int = 0
+
+    files_raw = getattr(migration, "files_modified", None)
+    files: tuple[Path, ...] | None = None
+    if files_raw is not None:
+        try:
+            files = tuple(Path(f) for f in files_raw)
+        except Exception:  # noqa: BLE001
+            files = None
+
+    return MigrationStep(
+        migration_id=str(migration.migration_id),
+        target_schema_version=int(schema_int),
+        description=str(getattr(migration, "description", "")),
+        files_modified=files,
+    )
+
+
+def _pending_migrations_for(
+    project: ProjectStatus, target_version: str | None = None
+) -> tuple[MigrationStep, ...]:
+    """Return the pending migration steps a real upgrade run would apply.
+
+    Drives the preview through the *same* selector the real run uses
+    (:meth:`VersionDetector.applicable_migrations` →
+    :meth:`MigrationRegistry.get_applicable`) so the compat preview can never
+    diverge from the applied set (FR-009). When ``target_version`` is omitted it
+    defaults to the installed CLI version, matching the real run's default
+    target.
+
+    Returns an empty tuple when the project root is unknown or the registry is
+    unavailable (fail-open: an empty preview beats a crash).
 
     Args:
         project: Project status snapshot.
+        target_version: Version the real run would target; defaults to the
+            installed CLI version.
 
     Returns:
-        Tuple of :class:`MigrationStep` instances.
+        Tuple of :class:`MigrationStep` instances, in application order.
     """
     _ensure_registry_loaded()
+    if project.project_root is None:
+        return ()
+    if target_version is None:
+        from specify_cli import __version__
+
+        target_version = __version__
     try:
-        from specify_cli.upgrade.registry import MigrationRegistry
+        from specify_cli.upgrade.detector import VersionDetector
 
-        migrations = MigrationRegistry.get_all()
-        steps: list[MigrationStep] = []
-        for m in migrations:
-            try:
-                from packaging.version import Version
-
-                target_v = Version(m.target_version)
-                # Only include schema-changing migrations targeting > current schema
-                current = project.schema_version or 0
-                # Convert packaging version to schema int best-effort
-                # (use major.minor.micro → schema int mapping via description)
-                schema_int: int | None = getattr(m, "target_schema_version", None)
-                if schema_int is None:
-                    # Attempt to infer: if target version > REQUIRED_SCHEMA_VERSION
-                    schema_int = int(target_v.major) if target_v else 0
-
-                if isinstance(schema_int, int) and schema_int > current:
-                    files_raw = getattr(m, "files_modified", None)
-                    files: tuple[Path, ...] | None = None
-                    if files_raw is not None:
-                        try:
-                            files = tuple(Path(f) for f in files_raw)
-                        except Exception:  # noqa: BLE001
-                            files = None
-
-                    steps.append(
-                        MigrationStep(
-                            migration_id=str(m.migration_id),
-                            target_schema_version=schema_int,
-                            description=str(getattr(m, "description", "")),
-                            files_modified=files,
-                        )
-                    )
-            except Exception:  # noqa: BLE001, S112
-                continue
-        return tuple(steps)
+        migrations = VersionDetector(project.project_root).applicable_migrations(target_version)
+        return tuple(_migration_step_from(m) for m in migrations)
     except Exception:  # noqa: BLE001
         return ()
 
@@ -630,6 +749,8 @@ def plan(
     config: Any = None,
     now: datetime | None = None,
     project_root_resolver: Callable[[Path], Path | None] | None = None,
+    read_only: bool = False,
+    include_migrations: bool = True,
 ) -> Plan:
     """Build the compatibility plan for this invocation.
 
@@ -651,6 +772,10 @@ def plan(
         project_root_resolver: Override for the project root resolver.
             Defaults to ``locate_project_root`` from
             ``specify_cli.core.project_resolver``.
+        read_only: Read existing cache only; never resolve/call a latest provider
+            or persist data. Unsupported legacy cache sources become none.
+        include_migrations: False when the upgrade caller owns validated target
+            selection, so invalid targets cannot trigger implicit discovery.
 
     Returns:
         A :class:`Plan`.  Never raises.
@@ -663,6 +788,8 @@ def plan(
             config=config,
             now=now,
             project_root_resolver=project_root_resolver,
+            read_only=read_only,
+            include_migrations=include_migrations,
         )
     except Exception:  # noqa: BLE001 — fail-closed
         # Build the minimal fail-closed plan
@@ -744,6 +871,136 @@ def plan(
         )
 
 
+def _call_provider_get_latest(provider: Any, package: str, *, prerelease: bool) -> Any:
+    """Call ``provider.get_latest``, threading *prerelease* only when supported (T022).
+
+    ``LatestVersionProvider`` is a structural ``Protocol`` (``compat/
+    provider.py``) whose stock implementations (``PyPIProvider``,
+    ``SimpleIndexProvider``, ``NoNetworkProvider``, ``FakeLatestVersion
+    Provider``) all accept ``prerelease`` as of this WP. A handful of ad-hoc
+    test doubles elsewhere in the suite predate that parameter and are
+    outside this WP's file ownership, so the call introspects the target's
+    signature rather than assuming the new keyword exists everywhere —
+    an unconditional ``prerelease=`` call would raise ``TypeError`` against
+    those legacy doubles.
+    """
+    import inspect
+
+    params: Mapping[str, inspect.Parameter]
+    try:
+        params = inspect.signature(provider.get_latest).parameters
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        params = {}
+    accepts_prerelease = "prerelease" in params or any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+    )
+    if accepts_prerelease:
+        return provider.get_latest(package, prerelease=prerelease)
+    return provider.get_latest(package)
+
+
+def _resolve_latest_version(
+    *,
+    cache_data_fresh: bool,
+    cache_record: Any,
+    preference_record: Any,
+    latest_version_provider: Any,
+    profile: Any,
+    nag_cache: Any,
+    installed_version: str,
+    now: datetime,
+    prerelease: bool = False,
+    read_only: bool = False,
+) -> tuple[str | None, Literal["pypi", "simple_index", "none"], datetime | None]:
+    """Return ``(latest_version, cli_source, fetched_at)`` for the CLI status.
+
+    Fresh-cache fast path (NFR-001) trusts cached version data without a network
+    call; otherwise fetch from the provider, classify the source, update the
+    cache on a cacheable hit, and fall back to the cached version when the
+    provider returns nothing useful. Extracted from ``_plan_impl`` (keeps it
+    under the complexity ceiling and gives the fetch/source-classification a
+    directly testable seam).
+
+    Args:
+        installed_version: The cache key written to ``NagCacheRecord.
+            cli_version_key`` on a fetch. Callers pass the channel-folded
+            composite key (T023) here, not necessarily the raw installed CLI
+            version string — see ``_cache_version_key``.
+        prerelease: Single-read channel bool (T021/T022), threaded down to
+            ``latest_version_provider.get_latest`` unchanged. Default False
+            reproduces the pre-WP05 provider call byte-for-byte (C-CHN-1).
+    """
+    if read_only:
+        if cache_record is not None and cache_record.latest_source == "pypi":
+            return cache_record.latest_version, "pypi", cache_record.fetched_at
+        return None, "none", None
+    if cache_data_fresh:
+        # Cache data is fresh — trust it; no network call.
+        latest_version = cache_record.latest_version if cache_record is not None else None
+        cli_source: Literal["pypi", "simple_index", "none"] = (
+            cache_record.latest_source if cache_record is not None else "none"
+        )
+        return latest_version, cli_source, None
+
+    # Cache stale or missing — fetch from provider.
+    latest_result = _call_provider_get_latest(
+        latest_version_provider, profile.package_name, prerelease=prerelease
+    )
+    source = latest_result.source
+    latest_version = latest_result.version
+
+    cacheable_source: Literal["pypi", "simple_index"] | None = None
+    if source == "pypi":
+        cacheable_source = "pypi"
+    elif source == "simple_index":
+        cacheable_source = "simple_index"
+
+    fetched_at = now if cacheable_source is not None else None
+
+    # If we got a version from a cacheable source, update the cache
+    # (preserve last_shown_at / user preferences).
+    if cacheable_source is not None and latest_version is not None:
+        _write_nag_cache_for_fetch(
+            nag_cache=nag_cache,
+            preference_record=preference_record,
+            installed_version=installed_version,
+            latest_version=latest_version,
+            latest_source=cacheable_source,
+            now=now,
+        )
+    elif cache_record is not None and cache_record.latest_version is not None:
+        # Provider returned nothing useful — fall back to cached version.
+        latest_version = cache_record.latest_version
+        fetched_at = None  # not fetched this run
+
+    if cacheable_source is not None:
+        cli_source = cacheable_source
+    elif cache_record is not None:
+        cli_source = cache_record.latest_source
+    else:
+        cli_source = "none"
+
+    return latest_version, cli_source, fetched_at
+
+
+_PRERELEASE_CACHE_KEY_SUFFIX = "#prerelease"
+
+
+def _cache_version_key(installed_version: str, *, prerelease: bool) -> str:
+    """Fold the release channel into the nag-cache version key (T023).
+
+    Default (stable, ``prerelease=False``) returns *installed_version*
+    unchanged — the nag-cache freshness check is byte-identical to the
+    pre-WP05 behaviour (C-CHN-1). When the rc channel is opted into, a
+    suffix is appended so a cache record written under the other channel no
+    longer matches ``cli_version_key``: the FR-025-style invalidation check
+    in ``_plan_impl`` then treats the cache as stale and forces a fresh
+    provider call instead of silently reusing stable-channel (or stale
+    rc-channel) data across a channel toggle.
+    """
+    return f"{installed_version}{_PRERELEASE_CACHE_KEY_SUFFIX}" if prerelease else installed_version
+
+
 def _plan_impl(
     invocation: Invocation,
     *,
@@ -752,6 +1009,8 @@ def _plan_impl(
     config: Any,
     now: datetime | None,
     project_root_resolver: Callable[[Path], Path | None] | None,
+    read_only: bool = False,
+    include_migrations: bool = True,
 ) -> Plan:
     """Inner implementation of plan() — may raise; caller wraps in try/except."""
     from specify_cli.compat._detect.runtime import detect_runtime
@@ -759,15 +1018,15 @@ def _plan_impl(
     from specify_cli.compat.config import UpgradeConfig
     from specify_cli.compat.provider import (
         FakeLatestVersionProvider,  # noqa: F401
-        NoNetworkProvider,
-        PyPIProvider,
     )
     from specify_cli.compat.safety import classify
     from specify_cli.compat.upgrade_hint import build_upgrade_hint
+    from specify_cli.core.channel import prerelease_enabled
+    from specify_cli.distribution import resolve_distribution_profile
 
     # Defaults
     if now is None:
-        now = datetime.now(UTC)
+        now = now_utc()
 
     if config is None:
         config = UpgradeConfig.load()
@@ -780,11 +1039,21 @@ def _plan_impl(
 
         project_root_resolver = locate_project_root
 
-    if latest_version_provider is None:
-        latest_version_provider = NoNetworkProvider() if invocation.suppresses_network() else PyPIProvider()  # noqa: SIM108
+    profile = resolve_distribution_profile()
+
+    if latest_version_provider is None and not read_only:
+        latest_version_provider = _default_latest_provider(
+            network_suppressed=invocation.suppresses_network(),
+            profile=profile,
+        )
 
     # --- Step 1: Build CliStatus ---
     installed_version = _get_installed_version()
+
+    # T021: single channel read, threaded down through the cache key (T023)
+    # and the provider call (T022) rather than re-read at each site.
+    channel_prerelease = prerelease_enabled()
+    cache_version_key = _cache_version_key(installed_version, prerelease=channel_prerelease)
 
     # Fresh-cache fast path (NFR-001): read cache first; only call the provider
     # if the version data in the cache is stale or absent.  This avoids a
@@ -800,6 +1069,10 @@ def _plan_impl(
     # not fresh), causing every invocation to hit the provider even though the
     # cached version data was recent.  has_fresh_data checks fetched_at instead
     # and correctly returns True in that case (FIX C, P2).
+    #
+    # FR-012: when the profile sets data_freshness_seconds, that TTL drives
+    # has_fresh_data only.  Display throttle (is_fresh) always uses
+    # config.throttle_seconds.
     cache_record: NagCacheRecord | None = nag_cache.read()
     preference_record: NagCacheRecord | None = cache_record
 
@@ -807,15 +1080,21 @@ def _plan_impl(
     # preserve user preferences such as snooze/auto/never-ask for the next
     # write. Those preferences are anchored to the remote version, not to the
     # currently installed CLI version.
-    if cache_record is not None and cache_record.cli_version_key != installed_version:
+    if cache_record is not None and cache_record.cli_version_key != cache_version_key:
         cache_record = None
+
+    data_throttle_seconds = (
+        profile.data_freshness_seconds
+        if profile.data_freshness_seconds is not None
+        else config.throttle_seconds
+    )
 
     # Check whether the cached VERSION DATA is fresh enough to trust (skip provider).
     cache_data_fresh = NagCache.has_fresh_data(
         cache_record,
-        throttle_seconds=config.throttle_seconds,
+        throttle_seconds=data_throttle_seconds,
         now=now,
-        current_cli_version=installed_version,
+        current_cli_version=cache_version_key,
     )
 
     # Separately, check whether the NAG should be suppressed (throttle display).
@@ -823,49 +1102,21 @@ def _plan_impl(
         cache_record,
         throttle_seconds=config.throttle_seconds,
         now=now,
-        current_cli_version=installed_version,
+        current_cli_version=cache_version_key,
     )
 
-    if cache_data_fresh:
-        # Cache data is fresh — trust it; no network call.
-        latest_version: str | None = cache_record.latest_version if cache_record is not None else None
-        cli_source: Literal["pypi", "none"] = cache_record.latest_source if cache_record is not None else "none"
-        fetched_at: datetime | None = None  # not fetched this run
-    else:
-        # Cache stale or missing — fetch from provider.
-        latest_result = latest_version_provider.get_latest("spec-kitty-cli")
-        fetched_at = now if latest_result.source == "pypi" else None
-        latest_version = latest_result.version
-
-        # If we got a version from the provider, update the cache (preserve last_shown_at).
-        if latest_result.source == "pypi" and latest_version is not None:
-            if preference_record is not None:
-                new_record = replace(
-                    preference_record,
-                    cli_version_key=installed_version,
-                    latest_version=latest_version,
-                    latest_source="pypi",
-                    fetched_at=now,
-                    last_shown_at=preference_record.last_shown_at,
-                )
-            else:
-                new_record = NagCacheRecord(
-                    cli_version_key=installed_version,
-                    latest_version=latest_version,
-                    latest_source="pypi",
-                    fetched_at=now,
-                    last_shown_at=None,
-                )
-            with contextlib.suppress(Exception):
-                nag_cache.write(new_record)
-        elif cache_record is not None and cache_record.latest_version is not None:
-            # Provider returned nothing useful — fall back to cached version.
-            latest_version = cache_record.latest_version
-            fetched_at = None  # not fetched this run
-
-        cli_source = latest_result.source if latest_result.source == "pypi" else "none"
-        if cache_record is not None and latest_result.source != "pypi":
-            cli_source = cache_record.latest_source
+    latest_version, cli_source, fetched_at = _resolve_latest_version(
+        cache_data_fresh=cache_data_fresh,
+        cache_record=cache_record,
+        preference_record=preference_record,
+        latest_version_provider=latest_version_provider,
+        profile=profile,
+        nag_cache=nag_cache,
+        installed_version=cache_version_key,
+        now=now,
+        prerelease=channel_prerelease,
+        read_only=read_only,
+    )
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
 
@@ -908,7 +1159,13 @@ def _plan_impl(
         fr023_case = Fr023Case.INSTALL_METHOD_UNKNOWN
 
     # --- Step 9: Pending migrations ---
-    pending_migrations = _pending_migrations_for(project_status) if decision == Decision.BLOCK_PROJECT_MIGRATION else ()  # noqa: SIM108
+    # Computed via the real detector (FR-009) but still gated on the block
+    # decision here to keep the general per-command compat check off the
+    # migration-discovery hot path. The `upgrade` preview overrides this with
+    # the unconditional real set (see cli/commands/upgrade.py).
+    pending_migrations = (
+        _pending_migrations_for(project_status, cli_status.installed_version) if include_migrations and decision == Decision.BLOCK_PROJECT_MIGRATION else ()
+    )
 
     # --- Step 10: Exit code ---
     exit_code = _EXIT_CODE_MAP.get(decision, 0)

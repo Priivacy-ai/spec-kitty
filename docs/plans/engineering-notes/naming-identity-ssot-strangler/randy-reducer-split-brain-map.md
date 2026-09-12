@@ -1,7 +1,7 @@
 ---
 title: Randy Reducer — Split-Brain Authority Map (naming/identity SSOT strangler)
 description: "Randy Reducer's split-brain authority map for the naming/identity SSOT strangler: the behavioral envelope for each divergent authority."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Randy Reducer — Split-Brain Authority Map (naming/identity SSOT strangler)
@@ -102,8 +102,8 @@ does this mission live, coord or primary?", and the high-traffic commands
 (`implement`/`finalize`/`accept`) hand-juggle all three inline — meta-anchoring to
 primary for config, coord-anchoring for lanes.json, status-anchoring for events —
 in ~30 lines of fallback ladders **duplicated per command** (`implement.py:957-985`).
-This is the exact mechanism that plagued the 3.2.0 mission itself (#1718, #1772,
-#1991). The reduction is to make the **action context the one topology authority**
+This is the exact mechanism that plagued the 3.2.0 mission itself (#1718, #1772, #1991).
+The reduction is to make the **action context the one topology authority**
 and reduce the read-primitive and status-surface to *projections* of it, so
 callers consume a resolved `MissionSurfaces` object and never re-derive coord-vs-
 primary. Every other item on this map (#2000 composes, #1993 lanes-dir, the mid8

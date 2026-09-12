@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "a2c11ce5680aa25ffdbdeb849d878c3ab8d39a72",
-  "coordination_branch": "kitty/mission-cmd-output-file-leak-guard-01KWVZX7",
   "created_at": "2026-07-06T15:14:21.565413+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Stop the SPEC_KITTY_CMD_OUTPUT_FILE-unset literal-filename leak and guard it",
   "mission_id": "01KWVZX7QXFYGQ36NR4KD10R0Z",
   "mission_number": 166,
@@ -14,5 +13,5 @@
   "slug": "cmd-output-file-leak-guard-01KWVZX7",
   "status_phase": "1",
   "target_branch": "fix/cmd-output-file-leak-guard",
-  "topology": "coord"
+  "topology": "lanes"
 }

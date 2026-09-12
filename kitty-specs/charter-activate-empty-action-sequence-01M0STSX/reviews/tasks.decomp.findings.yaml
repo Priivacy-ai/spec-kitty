@@ -1,0 +1,70 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: TASKS-DECOMP-001
+    lens: No vacuous Definition-of-Done items
+    severity: 4
+    title: FR-006 (built-in types unaffected) has no test, DoD item, or Reviewer Guidance tie-back anywhere in WP01
+    evidence:
+      - artifact: "wps.yaml § work_packages.WP01.requirement_refs (lists FR-006)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § frontmatter requirement_refs (lists FR-006)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done (no FR-006 item; no reference to tests/runtime/test_runtime_seam.py)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no FR-006 / built-in-type checkpoint)"
+      - artifact: "spec.md § Functional Requirements (FR-006, Medium priority) and § Edge Cases ('What happens on a built-in mission type?' — cites tests/runtime/test_runtime_seam.py's golden-parity suite as what locks this)"
+    claim: >
+      FR-006 ("Built-in types unaffected") is declared as one of WP01's owned
+      requirements in both wps.yaml and the WP01 frontmatter, but nothing in
+      the WP file's body ever traces back to it: none of T001-T004 adds or
+      points to a test asserting a built-in mission type's activation is
+      unaffected, the Definition of Done's "Targeted test surface" item lists
+      exactly 8 files (none of which is tests/runtime/test_runtime_seam.py,
+      the golden-parity suite spec.md's own Edge Cases names as the thing
+      that "locks" this guarantee), and the Gate Set's targeted-shard list
+      likewise omits it. Every other requirement_ref this WP carries (FR-001,
+      FR-002, FR-003, FR-004, FR-005, FR-007, NFR-002, C-001-C-007) is
+      explicitly traced to a specific subtask, test, or DoD/Gate-Set line
+      elsewhere in this same file — FR-006 is the sole exception, and a
+      reviewer following this WP's own Reviewer Guidance checklist has no
+      instruction that would surface a regression here even if the shared
+      resolution path were ever changed to special-case built-ins.
+    remediation: >
+      Add one explicit line — to Definition of Done and/or Reviewer Guidance
+      — stating how FR-006 is verified: either (a) add
+      tests/runtime/test_runtime_seam.py's golden-parity suite to the DoD's
+      targeted test surface / Gate Set so it is actually re-run as part of
+      this WP's gate, or (b) if reliance on that pre-existing, out-of-surface
+      suite plus "no new code path for built-ins" reasoning is intentional
+      (as spec.md's Edge Cases already argues), say so explicitly in the WP
+      file the same way C-006's "skip campsite-clean" decision is documented,
+      so a reviewer is not left to re-derive the reasoning from spec.md.
+
+  - id: TASKS-DECOMP-002
+    lens: No vacuous Definition-of-Done items
+    severity: 2
+    title: T001's baseline-capture DoD item names no durable artifact/location for the recorded results
+    evidence:
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Subtask T001: Baseline capture ('Record pass/fail per test — this recorded baseline is what SC-005 ... is verified against, not a fresh assumption.')"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done, item 1 ('T001 baseline captured (pass/fail per test recorded, attributable before any mission commit lands).')"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no line asking the reviewer to check the recorded baseline)"
+    claim: >
+      Both T001's own instructions and Definition-of-Done item 1 require the
+      per-test pass/fail baseline to be "recorded," but neither names where —
+      no reference to the WP file's own Activity Log, to one of this
+      mission's existing tracer-*.md files (tracer-approach.md,
+      tracer-design-decisions.md, tracer-tooling-friction.md — already the
+      established convention in this mission directory per plan.md's
+      Documentation section for exactly this kind of authoring note), to a
+      PR description, or to any other durable artifact. As written this DoD
+      item is not independently checkable: a reviewer has nothing to open to
+      confirm the baseline was actually captured before commit 1 landed,
+      which is the exact evidence SC-005 ("no new failures introduced
+      outside the pre-existing #3284 baseline") depends on.
+    remediation: >
+      Add one sentence to T001 (and mirror it in DoD item 1) naming the
+      artifact the pass/fail table must be written to — e.g. "record the
+      per-test result table in tracer-approach.md" or as a dated Activity Log
+      entry on this WP file — so both the implementer and the reviewer have
+      a concrete, checkable location.

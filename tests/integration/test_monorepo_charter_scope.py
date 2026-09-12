@@ -107,7 +107,7 @@ def test_nearest_enclosing_charter_resolves_from_deep_subdirectory(
     tmp_monorepo: Path,
 ) -> None:
     """From packages/auth/some/deep/dir/, scope resolves to packages/auth."""
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     feature_dir = tmp_monorepo / "packages" / "auth" / "some" / "deep" / "dir"
     scope = CharterScope.resolve(tmp_monorepo, feature_dir)
@@ -119,7 +119,7 @@ def test_nearest_enclosing_charter_resolves_from_deep_subdirectory(
 
 def test_resolve_distinguishes_sibling_scopes(tmp_monorepo: Path) -> None:
     """Sibling scopes (auth, web) are correctly disambiguated by feature_dir."""
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     web_feature = tmp_monorepo / "packages" / "web"
     scope = CharterScope.resolve(tmp_monorepo, web_feature)
@@ -138,7 +138,7 @@ def test_malformed_monorepo_config_reports_conflicting_paths(
 ) -> None:
     """Two scopes at incompatible nesting depths raise CharterScopeConflict
     naming both offending paths."""
-    from charter.scope import CharterScope, CharterScopeConflict
+    from charter.activation.scope import CharterScope, CharterScopeConflict
 
     feature_dir = tmp_malformed_monorepo / "packages" / "auth" / "sub"
 
@@ -159,7 +159,7 @@ def test_default_scope_is_byte_identical_to_today(tmp_single_project: Path) -> N
     """NFR-001: single-project repos (no charter_scopes:) take the default
     path and produce a CharterScope with config_source == 'repo_root_default'.
     """
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     scope = CharterScope.resolve(tmp_single_project, tmp_single_project)
 
@@ -173,7 +173,7 @@ def test_default_scope_matches_explicit_default_constructor(
 ) -> None:
     """CharterScope.resolve(no-config) returns the same shape as
     CharterScope.default(repo_root) — verifies the byte-stable invariant."""
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     resolved = CharterScope.resolve(tmp_single_project, tmp_single_project)
     default = CharterScope.default(tmp_single_project)

@@ -204,6 +204,22 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
     resolve the feature directory under main_repo/kitty-specs/ because
     worktree path resolution must anchor to the planning repo, not rely on the
     current working directory contents.
+
+    2026-07-27 — assertion corrected to match this docstring. The helper was
+    migrated from ``candidate_feature_dir_for_mission`` (which composed
+    relative to whatever root it was handed) to ``PlacementSeam.read_dir``,
+    which anchors on ``get_main_repo_root`` first. The old ``is None``
+    assertion recorded the *pre-migration accident* — a worktree has no
+    ``kitty-specs/`` of its own, so composing against it could only miss — and
+    directly contradicted the docstring above it. Main-repo anchoring is the
+    intended behaviour: ``kitty-specs/`` is a PRIMARY-partition planning
+    surface that only ever exists in the main repo, so a verify run launched
+    from a lane worktree must find it there or report "no mission context" for
+    a mission that plainly exists. Both production callers already hand this
+    helper a main-repo-anchored root (``verify_setup`` via
+    ``find_repo_root``/``get_project_root_or_exit``, ``_run_diagnostics_mode``
+    via ``locate_project_root``), so no caller depended on the old
+    worktree-anchored ``None``.
     """
     from specify_cli.cli.commands.verify import _existing_feature_dir
 
@@ -234,15 +250,56 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
     # No mocking needed: _existing_feature_dir uses explicit feature arg only
     result = _existing_feature_dir(worktree_root, feature="099-research-feature")
 
-    # With an explicit slug, _existing_feature_dir checks
-    # worktree_root / "kitty-specs" / mission_slug.  The worktree does NOT
-    # have kitty-specs/, so the result is None.
-    # This confirms the contract: resolution does NOT walk up through the
-    # worktree .git pointer (that was feature_detection heuristics, removed).
-    assert result is None, (
-        "_existing_feature_dir should return None when the feature directory "
-        "does not exist under the given project_root (worktree path)"
+    # The seam resolves the main repo root from the worktree's .git pointer
+    # before composing kitty-specs/<slug>, so the planning surface is found.
+    assert result == feature_dir, (
+        "_existing_feature_dir must anchor on the main repo root, so a "
+        "worktree project_root still resolves main_repo/kitty-specs/<slug>"
     )
+
+
+def test_existing_feature_dir_is_cwd_invariant(tmp_path: Path) -> None:
+    """_existing_feature_dir returns the same path from worktree and main repo.
+
+    This is the standing guarantee behind the 2026-07-27 correction above:
+    the helper is CWD-invariant. Whether the caller hands it the main repo
+    root or a lane worktree root, the answer is byte-identical, because the
+    seam resolves ``get_main_repo_root`` before composing. Regressing to a
+    root-relative resolver would make these two calls disagree.
+    """
+    from specify_cli.cli.commands.verify import _existing_feature_dir
+
+    main_repo = tmp_path / "main_repo"
+    main_repo.mkdir()
+    (main_repo / ".git").mkdir()
+    (main_repo / ".kittify").mkdir()
+
+    feature_dir = main_repo / "kitty-specs" / "099-research-feature"
+    feature_dir.mkdir(parents=True)
+    meta = {"mission_type": "research", "mission_slug": "099-research-feature"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    wt_gitdir = main_repo / ".git" / "worktrees" / "my-wt"
+    wt_gitdir.mkdir(parents=True)
+
+    worktree_root = tmp_path / "worktree"
+    worktree_root.mkdir()
+    (worktree_root / ".git").write_text(f"gitdir: {wt_gitdir}\n")
+    (worktree_root / ".kittify").mkdir()
+
+    from_main = _existing_feature_dir(main_repo, feature="099-research-feature")
+    from_worktree = _existing_feature_dir(worktree_root, feature="099-research-feature")
+
+    assert from_main == feature_dir
+    assert from_worktree == from_main, (
+        "_existing_feature_dir must be CWD-invariant: resolving from a lane "
+        "worktree must agree with resolving from the main repo root"
+    )
+
+    # The existence gate survives the main-repo hop: a slug with no directory
+    # anywhere still reports "no mission context" rather than a phantom path.
+    assert _existing_feature_dir(worktree_root, feature="099-absent-mission") is None
+    assert _existing_feature_dir(main_repo, feature="099-absent-mission") is None
 
 
 def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:

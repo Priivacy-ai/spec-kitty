@@ -12,7 +12,7 @@ import asyncio
 import json
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,7 @@ def lock_path(tmp_path: Path) -> Path:
 
 def _write_record(path: Path, *, age_s: float = 0.0, pid: int | None = None) -> None:
     """Write a synthetic lock record to ``path`` with ``age_s`` seconds in the past."""
-    started = datetime.now(UTC) - timedelta(seconds=age_s)
+    started = now_utc() - timedelta(seconds=age_s)
     payload: dict[str, Any] = {
         "schema_version": 1,
         "pid": pid if pid is not None else os.getpid(),
@@ -276,7 +276,7 @@ def test_lock_record_age_and_is_stuck() -> None:
     fresh = LockRecord(
         schema_version=1,
         pid=1,
-        started_at=datetime.now(UTC),
+        started_at=now_utc(),
         host="h",
         version="v",
     )
@@ -286,7 +286,7 @@ def test_lock_record_age_and_is_stuck() -> None:
     stale = LockRecord(
         schema_version=1,
         pid=1,
-        started_at=datetime.now(UTC) - timedelta(seconds=120),
+        started_at=now_utc() - timedelta(seconds=120),
         host="h",
         version="v",
     )
@@ -307,7 +307,7 @@ def test_read_lock_record_non_string_fields_returns_none(lock_path: Path) -> Non
             {
                 "schema_version": 1,
                 "pid": 1,
-                "started_at": datetime.now(UTC).isoformat(),
+                "started_at": now_utc_iso(),
                 "host": 12345,  # wrong type
                 "version": "v",
             }
@@ -326,6 +326,30 @@ def test_force_release_clear_failure(
 
     monkeypatch.setattr(fl, "_atomic_write_under_lock", _boom)
     assert force_release(lock_path, only_if_age_s=60.0) is False
+
+
+def test_force_release_propagates_genuine_os_lock_error(
+    lock_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #3009-class Sonar S3516 fix: a genuine (non-contention) OSError from
+    # _os_lock must PROPAGATE, not be swallowed as False -- per the module
+    # contract (_is_contention_error / _os_lock docstrings) and the honored twin
+    # in MachineFileLock.__aenter__. Red-first: the pre-fix handler returned False
+    # on both arms, so this pytest.raises would fail ("DID NOT RAISE").
+    # This is a DIFFERENT except from test_force_release_clear_failure (the
+    # deliberate clear-step best-effort swallow), which stays green.
+    _write_record(lock_path, age_s=120.0)
+
+    genuine = OSError("input/output error")
+    genuine.errno = 5  # EIO -- a genuine I/O error, never contention
+
+    def _boom(_fd: int) -> None:
+        raise genuine
+
+    monkeypatch.setattr(fl, "_os_lock", _boom)
+    with pytest.raises(OSError) as excinfo:
+        force_release(lock_path, only_if_age_s=60.0)
+    assert excinfo.value.errno == 5
 
 
 def test_is_contention_error_distinguishes_genuine_io() -> None:
@@ -386,7 +410,7 @@ def test_read_lock_record_handles_oserror(
 
 def test_read_lock_record_accepts_naive_timestamp(lock_path: Path) -> None:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    naive = datetime.now(UTC).replace(tzinfo=None)
+    naive = now_utc().replace(tzinfo=None)
     lock_path.write_text(
         json.dumps(
             {

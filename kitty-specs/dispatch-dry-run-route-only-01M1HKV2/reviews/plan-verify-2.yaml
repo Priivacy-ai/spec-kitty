@@ -1,0 +1,30 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Grepped both files for every mention of the ambiguous-payload helper: plan.md's
+      Project Structure tree (line 587) now says only "dry-run flag, dry-run branch" for
+      dispatch.py with the helper annotation moved to the executor.py line (589), the
+      "mechanism" prose (lines 199-201) and Seam table (line 102) both state it is colocated
+      in executor.py "rather than living as a dispatch.py-local helper", and
+      tracer-approach.md lines 34-35 now reads "built by a small dedicated helper colocated
+      in executor.py ... not in dispatch.py" — all mentions across both files agree.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      plan.md's Seam table (line 104) now cites "ROUTER_AMBIGUOUS raise at L373", and the
+      live src/specify_cli/invocation/router.py line 373 is indeed `raise
+      RouterAmbiguityError(` (line 372 is the preceding comment), so the citation is
+      correct against the current checkout.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      CHANGELOG.md now appears in all four summary sections — Scale/Scope (line 65, "1
+      CHANGELOG.md entry (WP3, ...)"), the Seam table (new row at line 109), Project
+      Structure's source tree (line 605, "CHANGELOG.md # WP3: new entry ..."), and PR shape
+      (line 556, "1 CHANGELOG.md entry (WP3, ...)"), consistent with the dedicated
+      "Downstream/external consumer impact (WP3)" subsection that first introduced the
+      obligation.

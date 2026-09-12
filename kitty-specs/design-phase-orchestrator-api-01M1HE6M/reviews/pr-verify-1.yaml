@@ -1,0 +1,169 @@
+phase: pr
+step: R5a-verify
+findings:
+  - id: PR-TESTS-002
+    status: UNRESOLVED
+    how_verified: >
+      Called the live `_classify_check_prerequisites_error` / `_sanitize_forbidden_error_code`
+      functions directly (not the fixer's own test) and constructed four synthetic payloads to
+      defeat the recursive sanitizer: (1) forbidden token inside a list plus inside a dict value
+      nested in that list -- SCRUBBED; (2) forbidden token as a dict KEY (`{"details":
+      {"FEATURE_CONTEXT_UNRESOLVED": "..."}}`) -- LEAKED, key text passes through untouched
+      because the sanitizer only recurses into dict VALUES via `{k: recurse(v) ...}`, never `k`
+      itself; (3) forbidden token embedded as a SUBSTRING of a larger string value (e.g.
+      `"message": "detection failed: FEATURE_CONTEXT_UNRESOLVED because ..."`) -- LEAKED, because
+      the sanitizer does exact equality (`value == forbidden`) not substring replacement; (4)
+      forbidden token nested three levels deep (dict-in-list-in-dict) as a plain value --
+      SCRUBBED. Cross-checked against the REAL production payload shape emitted by
+      `_build_setup_plan_detection_error` (mission_check_prerequisites.py -> mission_feature_resolution.py:374-410):
+      today's actual delegate payload (`error_code`, `mission_flag`, `spec_kitty_version`,
+      `error`, `available_missions`, `example_command`, `remediation`) never places the forbidden
+      string as a dict key or as a message substring, so the ORIGINAL severity-4 live defect (the
+      one R3 confirmed and this fix targets) IS closed for today's real code path. But the fix's
+      own claim -- "recursively scrubs the *whole* payload" / test asserts "no forbidden token
+      appears anywhere in the serialized envelope" -- is unconditional and does not hold in
+      general: two concrete, reproducible shapes leak the forbidden string through the "same
+      response whose top-level error_code claims to have translated it" bar the fixer's own
+      docstring sets.
+    residual_risk: >
+      If any future delegate payload nests the forbidden code as a dict key, or interpolates it
+      into a larger message string, it leaks past this sanitizer and reaches the public envelope
+      verbatim -- silently, with no test catching it, exactly the failure mode PR-TESTS-002 exists
+      to prevent. Recommend: sanitize dict keys too, and use substring replacement
+      (`str.replace`) instead of exact-match on string values.
+  - id: PR-BOUNDARY-001
+    status: RESOLVED
+    how_verified: >
+      Grepped repo-wide for `_internal_runtime.engine`/`.planner` direct imports outside the
+      concentration seam: zero real import sites remain in `commands.py` or `next_cmd.py` (only
+      comments referencing the names). Read `next_invocation_lifecycle.resolve_pending_decision_id`
+      (lines 99-124) first-hand: it imports `_read_snapshot` from `runtime_bridge_engine` (the
+      seam), not `_internal_runtime.engine` directly, and both `next_cmd.py:835-839` and
+      `commands.py:3413-3436` call this one function. Ran
+      `tests/runtime/test_bridge_engine.py::test_no_sibling_module_accesses_engine_planner_privates`
+      and `test_adapter_defines_all_six_engine_planner_wrappers` -- both pass (confirming the
+      guard's scope was genuinely widened to `next_cmd.py` and `commands.py`, not just claimed).
+      Non-vacuity re-proof: inserted a real violating line
+      (`from runtime.next._internal_runtime.engine import _read_snapshot as _violating_direct_import`)
+      at commands.py line 109, reran the guard test -- it FAILED with
+      `AssertionError: ... commands.py: from runtime.next._internal_runtime.engine import _read_snapshot`.
+      Restored via `git checkout --`; `git diff --stat HEAD -- .../commands.py` empty, reran the
+      guard test -- both pass again.
+    residual_risk: none
+  - id: PR-BOUNDARY-002
+    status: UNRESOLVED
+    how_verified: >
+      Counted call sites myself rather than trusting the docstring's re-derivation command.
+      `grep -n "_resolve_mission_dir_or_fail(" commands.py` lists 19 real call sites total: 17
+      using the `cmd` local variable (lines 1358-3722) plus 2 pre-existing ones passing a literal
+      command-name string instead (`"mission-state"` at line 1008, `"list-ready"` at line 1070 --
+      both pre-date this mission, Commands 2/3). The docstring (line 503-505) claims "17 call
+      sites" and tells a future reader to re-derive via
+      `grep -c '_resolve_mission_dir_or_fail(cmd' commands.py` -- running that exact command
+      returns 18, not 17, because it self-matches the docstring's own quoted copy of the command
+      at line 507 (one spurious hit). The true `(cmd` count excluding that self-match is 17,
+      matching the stated number, but the docstring's own "single seam consumed by every
+      mission-scoped orchestrator-api endpoint" claim is still inaccurate: it silently omits the 2
+      call sites that resolve through this exact same seam with a literal string argument, so the
+      real total is 19, not 17.
+    residual_risk: >
+      A future reader following the docstring's own re-derivation instructions gets 18 (self-match
+      artifact), not the stated 17, and even a corrected 17 undercounts the true 19 total by
+      missing `mission-state`/`list-ready`. The "supersedes the original undercounted framing"
+      goal is only partially met -- same class of defect (an inaccurate call-site count on this
+      function's own docstring), smaller magnitude.
+  - id: PR-CONTRACT-001
+    status: RESOLVED
+    how_verified: >
+      Built a real mission via the orchestrator-api specify/plan/tasks verbs (own script, not the
+      fixer's `_host_record_analysis_error_code` helper -- reused only the pure scaffolding
+      helpers `_init_repo`/`_build_mission`/`_specify`/`_run` from the existing test module for
+      setup), dirtied the tree with one untracked file, then drove BOTH surfaces directly myself
+      with an empty stdin body against the identical on-disk state: the orchestrator-api
+      `record-analysis` app via `CliRunner.invoke`, and the host CLI's own
+      `mission_record_analysis.record_analysis` function called in-process. Both returned
+      `error_code: "DIRTY_WORKTREE"` (matching `dirty_paths: ["untracked-dirty-marker.txt"]`) for
+      the identical request -- the ordering fork is closed. Read the reordered `record_analysis()`
+      body (commands.py:2775-2822) directly: placement resolution + the preflight call now run
+      before `_read_record_analysis_body`/`parse_structured_findings`, matching
+      `mission_record_analysis.py:274-293`'s own ordering.
+    residual_risk: >
+      On the "by-construction guard infeasible" judgment: partially sound but overstated. A fully
+      generic, verb-agnostic guard across all mutating verbs is genuinely hard (each verb's
+      preflight/read shape differs, as claimed). But a narrow, verb-SPECIFIC by-construction guard
+      was feasible and wasn't attempted: an AST test asserting that within `record_analysis`'s
+      function body, the statement calling `_enforce_analysis_report_write_preflight` textually
+      precedes the statement calling `_read_record_analysis_body`/`parse_structured_findings` --
+      cheap, non-vacuous (fails the moment someone reorders the calls back), and would complement
+      (not replace) the live parity-test helper already added.
+  - id: PR-CONTRACT-002
+    status: RESOLVED
+    how_verified: >
+      Drove it live, not read-only: monkeypatched `decisions.service.open_decision` to raise
+      `DecisionError(DecisionErrorCode.VERIFY_DRIFT, ...)` (the dormant, unregistered code), then
+      called the real orchestrator-api `open-decision` verb end to end against a real mission.
+      Observed envelope: top-level `error_code` was `"DECISION_OPERATION_FAILED"` (the registered
+      fallback) -- the unregistered `DECISION_VERIFY_DRIFT` string never reached the contract-
+      governed `error_code` field. It DOES appear in the nested `data.unregistered_error_code`
+      diagnostic field, which is a deliberate, documented design choice (preserved for debugging,
+      distinct from PR-TESTS-002's forbidden-terminology class -- VERIFY_DRIFT is merely
+      unregistered, not on `forbidden_error_codes`), and matches the fix's own stated contract
+      ("never exposed as the public error_code").
+    residual_risk: none
+  - id: PR-TESTS-001
+    status: RESOLVED
+    how_verified: >
+      Revert-checked all 3 tests individually against their real production branches (not the
+      test's own mocks). specify(): temporarily changed the `payload is None` fallback return in
+      `_classify_specify_create_error` (line 2161) from `"MISSION_CREATE_FAILED"` to a wrong
+      string -- `test_specify_delegate_typer_exit_with_no_json_falls_back_to_mission_create_failed`
+      went RED (`AssertionError: 'WRONG_CODE_REVERT_CHECK2' == 'MISSION_CREATE_FAILED'`). Note: my
+      first attempt patched the WRONG line (the later duplicate-marker fallback at line 2169,
+      which this test does not reach) and the test stayed green -- confirms the test's
+      docstring claim precisely (it hits the payload-is-None branch, not the marker branch) once I
+      located the correct line. plan(): changed `fallback_code="PLAN_SETUP_FAILED"` to a wrong
+      string -- `test_plan_delegate_typer_exit_with_no_json_falls_back_to_plan_setup_failed` went
+      RED. tasks(): changed `fallback_code="TASKS_FINALIZE_FAILED"` to a wrong string --
+      `test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_failed` went RED.
+      Restored all three via `git checkout -- src/specify_cli/orchestrator_api/commands.py`;
+      `git diff --stat HEAD` empty; reran all 3 -- pass.
+    residual_risk: none
+  - id: PR-TESTS-003
+    status: RESOLVED
+    how_verified: >
+      Revert-checked all 3 tests against their real production branches.
+      `test_record_analysis_malformed_carrier_fails_closed`: changed
+      `_fail(cmd, "RECORD_ANALYSIS_MALFORMED_CARRIER", ...)` to a wrong code -- went RED.
+      `test_record_analysis_placement_resolution_required_fails_closed`: changed
+      `_fail(cmd, "PLACEMENT_RESOLUTION_REQUIRED", ...)` to a wrong code -- went RED.
+      `test_record_analysis_dirty_worktree_fails_closed_with_well_formed_body`: my first attempt
+      (changing commands.py's `fallback_code="DIRTY_WORKTREE"`) did NOT fail -- traced this and
+      found the real source: `_enforce_analysis_report_write_preflight`
+      (mission_record_analysis.py) emits its own typed `"error_code": "DIRTY_WORKTREE"` in the
+      delegate payload, which `_classify_delegate_error` trusts verbatim, so commands.py's
+      `fallback_code` argument is dead code on this path. Reverted the TRUE source
+      (mission_record_analysis.py's literal `"error_code": "DIRTY_WORKTREE"`) to a wrong string --
+      the test then went RED as expected. Restored both files via `git checkout --`; diffs empty;
+      reran all 3 -- pass.
+    residual_risk: >
+      Not a defect in the fix, but worth flagging: commands.py's `fallback_code="DIRTY_WORKTREE"`
+      argument for the preflight `except typer.Exit` branch is currently unreachable dead code for
+      this scenario, since the delegate always supplies its own typed error_code first. Harmless
+      today (values agree) but could silently diverge if the delegate's payload shape ever
+      changes.
+  - id: SK-154-PIN
+    status: RESOLVED
+    how_verified: >
+      Ran `test_vendored_contract_matches_planning_artifact` and
+      `test_planning_artifact_pin_target_is_outside_every_archive_root` -- both pass. Non-vacuity
+      re-proof: temporarily flipped `_PLANNING_ARTIFACT_RELATIVE` back to the original
+      `kitty-specs/064-complete-mission-identity-cutover/contracts/upstream-3.0.0-shape.json` path
+      -- `test_planning_artifact_pin_target_is_outside_every_archive_root` FAILED with
+      `AssertionError: contract pin target '...' lives under archive root(s) ['kitty-specs/'] --
+      this reopens SK-154`. Restored via `git checkout -- tests/specify_cli/core/test_contract_gate.py`;
+      diff empty; reran both tests -- pass. Confirmed
+      `git diff --stat origin/main..HEAD -- kitty-specs/064-complete-mission-identity-cutover/`
+      is genuinely empty (also cross-checked with `git log --oneline` over the same range -- no
+      commits touch that path).
+    residual_risk: none
+complete: true

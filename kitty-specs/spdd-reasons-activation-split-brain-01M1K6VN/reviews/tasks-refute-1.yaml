@@ -1,0 +1,43 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      WP05 (read in full) contains zero mention of one-PR-shape, diff size, or reviewability, so
+      WP01's "see WP05 for the final call" is a genuine dangling forward-reference and plan.md's
+      "PR shape" section is already the real final call cited two sentences earlier.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >-
+      git log/show of the tasks-authoring commit (05bfac90d) and a directory listing of tasks/
+      confirm no authoring-report artifact of any kind exists anywhere in the mission dir or git
+      history, so WP05's citation to "this mission's own tasks/ authoring report" points at nothing.
+  - id: TASKS-SEQ-002
+    verdict: confirmed
+    reason: >-
+      plan.md's cited passage documents a real, adjudicated project_configured gate (verified live
+      in compiler.py lines 101-179, _CONFIG_ACTIVATION_FIELDS and _resolve_config_activated_roots)
+      and requires it be named for future readers exactly like the FR-004 carve-out, yet grepping
+      WP01 for "project_configured", "_CONFIG_ACTIVATION_FIELDS", and "FR-018" returns zero matches
+      while the sibling FR-004 carve-out comment instruction is present in T004 step 1a.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      The live pre-fix activation.py body (verified directly: its governance/directives helpers
+      read only charter.yaml's legacy sections, never config.yaml) means WP04's own "keep the
+      governance write too - your call" option on item 1, plus the mandated-unchanged governance
+      assertions on items 7 and 8 (quotes verified verbatim in the file), make those rewritten
+      fixtures already green against the OLD body via the retained legacy content alone -
+      contradicting T014's own mandated red-before/green-after confirmation, with no instruction
+      telling the implementer to null out the legacy write when that conflict surfaces.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      spec.md FR-004's falsifiable acceptance criterion explicitly requires a test through
+      apply_spdd_blocks_for_project with a repo_root lacking .kittify/config.yaml, but grepping all
+      five WP files shows that function name appears only in prose/context and WP01's T003
+      (explicitly read-only call-chain verification), never as an assigned test subtask - WP01's
+      T001 tests only is_spdd_reasons_active(tmp_path) directly, not the named entry point.

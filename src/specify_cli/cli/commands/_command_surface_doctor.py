@@ -27,6 +27,12 @@ from typing import TYPE_CHECKING, NoReturn, cast
 import typer
 from rich.table import Table
 
+from specify_cli.core.checkout_identity import (
+    CheckoutIdentity,
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import (
@@ -167,31 +173,32 @@ def _print_slash_command_report(
     fix: bool,
 ) -> bool:
     """Render slash-command audit section and return True if healthy."""
+    # Single return (S3516): the health boolean is computed once; the branches
+    # below only drive console output. Fall through to one trailing return.
     slash_healthy = not slash_gaps
-    if not configured_slash:
-        return slash_healthy
-    console.print()
-    if not slash_gaps:
-        console.print(
-            f"[green]✓ Slash Commands[/green]: all configured agents healthy"
-            f" ({len(configured_slash)} agent(s))"
-        )
-        return slash_healthy
-    console.print("[bold]Slash Commands[/bold] — gap(s) found\n")
-    for agent_key in configured_slash:
-        agent_gaps = [g for g in slash_gaps if g.agent_key == agent_key]
-        if agent_gaps:
-            console.print(f"  [red]✗[/red] {agent_key}: {len(agent_gaps)} gap(s)")
-            for gap in agent_gaps[:5]:
-                console.print(f"      {gap.status}: {gap.expected_path.name}")
-            if len(agent_gaps) > 5:
-                console.print(f"      ... and {len(agent_gaps) - 5} more")
+    if configured_slash:
+        console.print()
+        if not slash_gaps:
+            console.print(
+                f"[green]✓ Slash Commands[/green]: all configured agents healthy"
+                f" ({len(configured_slash)} agent(s))"
+            )
         else:
-            console.print(f"  [green]✓[/green] {agent_key}: all commands present")
-    if not fix:
-        console.print(
-            "\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall."
-        )
+            console.print("[bold]Slash Commands[/bold] — gap(s) found\n")
+            for agent_key in configured_slash:
+                agent_gaps = [g for g in slash_gaps if g.agent_key == agent_key]
+                if agent_gaps:
+                    console.print(f"  [red]✗[/red] {agent_key}: {len(agent_gaps)} gap(s)")
+                    for gap in agent_gaps[:5]:
+                        console.print(f"      {gap.status}: {gap.expected_path.name}")
+                    if len(agent_gaps) > 5:
+                        console.print(f"      ... and {len(agent_gaps) - 5} more")
+                else:
+                    console.print(f"  [green]✓[/green] {agent_key}: all commands present")
+            if not fix:
+                console.print(
+                    "\nRun [cyan]spec-kitty doctor skills --fix[/cyan] to reinstall."
+                )
     return slash_healthy
 
 
@@ -729,6 +736,26 @@ def _configured_tool_keys(project_path: Path) -> list[str]:
     return sorted(set(load_agent_config(project_path).available))
 
 
+def _configured_tool_keys_or_exit(project_path: Path, json_output: bool) -> list[str]:
+    """Load configured tool keys, translating a config load failure to exit 2.
+
+    Mirrors :func:`_load_skills_state_or_exit`'s ``AgentConfigError`` handling
+    (the sibling ``doctor skills`` command) so a non-mapping
+    ``.kittify/config.yaml`` produces the documented ``config_error`` JSON
+    envelope instead of an uncaught traceback (OP-FRESH-001).
+    """
+    from specify_cli.core.agent_config import AgentConfigError
+
+    try:
+        return _configured_tool_keys(project_path)
+    except AgentConfigError as exc:
+        if json_output:
+            console.print_json(json.dumps(_json_error("config_error", str(exc)), indent=2))
+            raise typer.Exit(2) from exc
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+
+
 def _print_tool_surface_human(outcome: object) -> None:
     """Render a compact human summary of a tool-surface outcome."""
     from specify_cli.tool_surface.service import ToolSurfaceOutcome
@@ -749,6 +776,54 @@ def _print_tool_surface_human(outcome: object) -> None:
         console.print(
             f"\n[green]Repaired:[/green] {len(outcome.repair.repaired)} surface(s)"
         )
+
+
+_FIX_REFUSED_CODE = "foreign_checkout_write_refused"
+
+
+class ToolSurfaceFixRefused(typer.Exit):
+    """Fail-closed refusal of a foreign-checkout ``--fix`` (FR-003, #2613).
+
+    Tool surfaces are per-checkout tracked agent files (``.claude/commands/*``
+    etc.), NOT status — there is no deliberate-centralization defense here.
+    ``doctor tool-surfaces --fix`` invoked from a linked lane worktree would
+    otherwise silently repair the PRIMARY's manifest, because
+    :func:`_resolve_tool_surfaces_project` re-anchors the worktree to the
+    primary via :func:`locate_project_root`. This exception is raised instead:
+    it REFUSES (it does not redirect the repair into the lane — the
+    C-003/#3128-forbidden fake).
+
+    It carries the single-channel :class:`FailClosedRefusal` value object
+    (NFR-003) so the refusal names the primary checkout it declined to mutate,
+    and subclasses :class:`typer.Exit` (code 2) so the CLI surfaces a clean
+    non-zero exit rather than a traceback.
+    """
+
+    def __init__(self, refusal: FailClosedRefusal) -> None:
+        self.refusal = refusal
+        super().__init__(code=2)
+
+
+def _guard_tool_surfaces_fix(json_output: bool) -> None:
+    """Refuse a ``--fix`` mutation invoked from a foreign (non-owner) checkout.
+
+    Consumes the WP01 seam: an invocation whose ``cwd`` is a linked lane
+    worktree does not own its ``canonical_target`` (the primary the worktree
+    pointer names), so a ``WRITE`` fails closed. Owner invocations (primary or
+    a standalone clone) return no refusal and proceed unchanged; the read-only
+    ``--audit`` path never calls this guard (FR-003 risk: over-refusing audit).
+    """
+    identity: CheckoutIdentity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+    refusal = identity.write_refusal()
+    if refusal is None:
+        return
+    if json_output:
+        console.print_json(
+            json.dumps(_json_error(_FIX_REFUSED_CODE, refusal.message()), indent=2)
+        )
+    else:
+        console.print(f"[red]Error:[/red] {refusal.message()}")
+    raise ToolSurfaceFixRefused(refusal)
 
 
 def _resolve_tool_surfaces_project(json_output: bool) -> Path:
@@ -787,6 +862,12 @@ def run_tool_surfaces_audit(
 
     project_path = _resolve_tool_surfaces_project(json_output)
 
+    # FR-003 (#2613): fail closed BEFORE any mutation when ``--fix`` is invoked
+    # from a checkout that does not own the (re-anchored primary) target. The
+    # read-only audit path is never gated.
+    if fix:
+        _guard_tool_surfaces_fix(json_output)
+
     try:
         kinds = [surface_kind_from_token(token) for token in (kind or [])]
     except UnknownSurfaceKind as exc:
@@ -798,7 +879,7 @@ def run_tool_surfaces_audit(
 
     outcome = run_tool_surfaces(
         project_path,
-        _configured_tool_keys(project_path),
+        _configured_tool_keys_or_exit(project_path, json_output),
         tool_filter=tool,
         kinds=kinds or None,
         fix=fix,

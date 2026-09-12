@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: SPEC-FRESH2-001
+    lens: traceability
+    severity: 3
+    title: New Acceptance Scenario 4 (pure scope-narrowing negative case) has no matching Success Criterion
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 4 + its FAILS-if clause (lines 98-104, 109-112)"
+      - artifact: "spec.md § FR-004 (line 232) — the requirement text this scenario restates"
+      - artifact: "spec.md § Success Criteria, Test-run scope note (line 294) — lists exactly SC-001, SC-002, SC-003, SC-004, SC-006 as the 'five test-verified Success Criteria'"
+      - artifact: "spec.md § Measurable Outcomes SC-001..SC-006 (lines 304-331) — none states the negative assertion 'FR-004's zero-activatable-targets message must NOT print when every referenced node is activatable-kind but scope-excluded'"
+    claim: >
+      This round added Acceptance Scenario 4 and a matching FAILS-if clause to User Story 1
+      to close a gap between FR-004's carve-out prose (added in the prior round) and the
+      Acceptance Scenarios list. Scenario 4 asserts a specific negative behavior: under a
+      narrow --cascade scope with zero kind-filtered nodes, the FR-004 zero-activatable-targets
+      message must NOT appear. Every sibling Acceptance Scenario in this User Story that
+      carries its own "must (not) happen" assertion is backed by a numbered, test-verified
+      Success Criterion driving a red-first test — Scenario 1 -> SC-001, Scenario 2 -> SC-002.
+      Scenario 4 is not: SC-001 through SC-006 were re-scanned and none of them asserts this
+      specific over-reporting-must-not-happen condition. Since this project's ATDD/tasks
+      decomposition is driven by the numbered Success Criteria (evidenced by FR-006's own text
+      routing SC-005 to "a specific reviewer step," and by NFR-003/NFR-004 explicitly
+      cross-referencing "subsumed by SC-003"/"subsumed by SC-006" to avoid exactly this kind
+      of orphaned requirement), a Scenario/FAILS-if pair with no SC anchor is at real risk of
+      never being turned into a red-first regression test at plan/tasks time, even though the
+      prose requirement (FR-004's carve-out) is otherwise clear. No plan.md or tasks/ exist yet
+      for this mission, so this gap is still live and actionable.
+    remediation: >
+      Add a Measurable Outcome (e.g. SC-007) asserting the Scenario 4 behavior explicitly —
+      "a cascade source whose referenced nodes are all activatable-kind but excluded by a
+      narrow --cascade scope does NOT print the FR-004 zero-activatable-targets message,
+      verified by a test constructing such a source and asserting the message's absence while
+      the per-node Skipped (out of scope) lines are still present" — and add SC-007 to the
+      Test-run scope note's list (making it six test-verified Success Criteria, still
+      excluding SC-005). Alternatively, if this is meant to be folded into SC-002's existing
+      test, say so explicitly the way NFR-003/NFR-004 do ("subsumed by SC-002's negative
+      assertion") so the tasks phase does not silently drop it.

@@ -1,0 +1,50 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: ANALYZE-FRESH-001
+    lens: fresh-eyes-code-grounding
+    severity: 3
+    title: >-
+      T010b's re-raise argument `ManifestSchemaError(mission_type, config.origin)` is only valid
+      for the built-in branch; the org-tier branch has no `config.origin` to read
+    evidence:
+      - artifact: "tasks.md T010b (post-fix-round text): \"re-raising `ManifestSchemaError(mission_type, config.origin)` ... for both the built-in and the T010-added org-tier branch\""
+      - artifact: "tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md, T010b subtask body: identical `ManifestSchemaError(mission_type, config.origin)` instruction, again stated for \"both the built-in and the T010-added org-tier branch\""
+      - code: "src/charter/org_expected_artifacts.py:54-56 — `resolve_org_expected_artifacts(org_roots, mission_type) -> Mapping[str, Any] | None` returns a bare parsed mapping, no `.origin` attribute anywhere on it"
+      - code: "src/specify_cli/dossier/manifest.py:274-304 — the precedent function `ManifestRegistry.load_manifest` this task claims to mirror does NOT use `config.origin` for its own org-tier branch: because `resolve_org_expected_artifacts` returns only a mapping, that branch builds a synthesized descriptive `origin` string naming the mission type and the checked org roots (lines ~283-301), then raises `ManifestSchemaError(mission_type, origin)` with that synthesized value — `config.origin` (the `ConfigResult.origin` field) is only used in the SEPARATE built-in-tier branch further down (lines 326-340, `config = _doctrine_repository().get_expected_artifacts(mission_type)`, a `ConfigResult` object with `.origin`/`.parsed`)"
+      - code: "src/doctrine/missions/repository.py:385 — `MissionTemplateRepository.get_expected_artifacts(mission: str) -> ConfigResult | None` confirms `.origin` exists only on the built-in-tier's `ConfigResult`, not on the org tier's raw `Mapping`"
+      - artifact: "reviews/analyze-verify.yaml (this fix round's own prior verify pass) quotes and approves the identical `ManifestSchemaError(mission_type, config.origin)` text without checking that the precedent it cites (manifest.py:328-339 built-in / :217-224 org-tier) uses two DIFFERENT origin expressions per branch — the prior pass verified the except/raise pattern is mirrored but missed that the origin argument itself is branch-specific in that same precedent"
+    claim: >-
+      Per the FR-010 fix round, T010b instructs the implementer to wrap
+      `ExpectedArtifactManifest.model_validate(...)` in `try/except pydantic.ValidationError` and
+      re-raise `ManifestSchemaError(mission_type, config.origin)` "for both the built-in and the
+      T010-added org-tier branch." This is correct for the built-in branch (where `config` is a
+      `ConfigResult` with a real `.origin` field) but wrong for the org-tier branch: T010's own
+      org-tier lookup goes through `resolve_org_expected_artifacts`, which returns a bare
+      `Mapping[str, Any] | None` with no `.origin` attribute at all. The exact precedent this task
+      claims to mirror (`ManifestRegistry.load_manifest`) does NOT use `config.origin` in its own
+      org-tier branch for precisely this reason — it synthesizes a descriptive origin string
+      instead (mission type + the set of checked org roots), because "no single source file path
+      is available" from a bare parsed mapping. T010b's literal instruction, if followed as
+      written, would raise `AttributeError: 'dict' object has no attribute 'origin'` (or similar,
+      depending on the parsed type) the first time an org-tier manifest fails schema validation —
+      ironically crashing on exactly the org-tier schema-invalid-manifest path FR-010 exists to
+      close, rather than raising the intended `ManifestSchemaError`. T009b's own RED test for the
+      org-tier schema-invalid case would catch this at implementation time (it would fail with the
+      wrong exception type, not silently pass), so this is not a silent-success risk, but it is a
+      genuine defect in the task's literal implementation detail that an implementer copying the
+      instruction verbatim would hit and have to work around — the very kind of imprecision this
+      fix round's own methodology (verify claims against live source) is supposed to catch, and
+      this specific line was reviewed and waved through by the fix round's own prior analyze-verify
+      pass without checking the cited precedent's two branches use different origin expressions.
+    remediation: >-
+      Update T010b in both tasks.md and tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md
+      to specify the org-tier branch's `ManifestSchemaError` origin argument correctly: mirror
+      `ManifestRegistry.load_manifest`'s org-tier branch (manifest.py ~lines 283-301) by
+      synthesizing a descriptive origin string (mission type + org roots checked) for the org-tier
+      except-block, and reserve `config.origin` for the built-in branch only, where `config` is
+      genuinely a `ConfigResult`. State both origin expressions explicitly (one per branch) rather
+      than the current single `config.origin` phrase applied to "both" branches.

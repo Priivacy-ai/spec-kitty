@@ -1,0 +1,128 @@
+{
+  "mission_slug": "glossary-pack-doctrine-kind-01KY30SW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "GLOSSARY_PACK is a first-order ArtifactKind (enum member, plural, glob).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (b6cf1eb6b): ArtifactKind.GLOSSARY_PACK=\"glossary_pack\" + _PLURALS[\"glossary_pack\"]=\"glossary_packs\" + _PATTERNS glob, mirroring `directive`. tests/doctrine/test_glossary_pack_kind.py + updated exact-set assertion in test_artifact_kinds.py green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Reviewer confirmed enum wiring; squad H1 exact-set assertion updated + owned by WP01."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Kind is charter-activatable (in the 8-kind universe, not the {template,asset} exclusion set).",
+      "proof_type": "automated_test",
+      "evidence": "WP01: GLOSSARY_PACK NOT in _NON_AUGMENTATION_ELIGIBLE_KINDS; \"glossary-pack\" in CHARTER_KIND_TOKENS (derived). Classification test asserts membership.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "C-001 honoured (copy directive, not asset)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "DRG node NodeKind.GLOSSARY_PACK addressable as glossary_pack:<id> (underscore URN).",
+      "proof_type": "automated_test",
+      "evidence": "WP01: NodeKind.GLOSSARY_PACK + comment fence vs retiring runtime nodes. NFR-001 regression (test_glossary_pack_urn.py) proven RED-first: underscore accepted, hyphen rejected at both _URN_RE and prefix==kind.value.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Non-vacuous: drives real Pydantic model + regex, two guard layers."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "GlossaryPackRepository loads *.glossary-pack.yaml via BaseDoctrineRepository, exposed as DoctrineService.glossary_packs.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (49af4c061): GlossaryPackRepository(BaseDoctrineRepository[GlossaryPack]) glob *.glossary-pack.yaml (no re-implemented glob); DoctrineService.glossary_packs accessor via _built_in_dir(\"glossary_packs\"). Through-service load test proves the accessor is live.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP02) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Naming reconciled to glossary_packs (plural==dir==accessor)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Pack/term schema carries every seed field (surface/definition/confidence-float/status/see_also/introduced_in_mission/synonyms_to_avoid) plus optional aliases/banned_synonyms.",
+      "proof_type": "automated_test",
+      "evidence": "WP02: GlossaryTerm carries all 9 fields, confidence: float, optional fields default None; GlossaryPack id/provenance/non-empty terms/description; duplicate-surface rejected. Model round-trip test RED-first.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP02) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "C-004: aliases/banned_synonyms present, inert (Mission B). see_also typed list[str]|None; WP03 flatten follow-up recorded (Mission B richer typing)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Built-in spec-kitty-core pack ships with the 104 canonical terms migrated zero-loss.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (48fb2dde2): spec-kitty-core.glossary-pack.yaml with 104 terms, all fields. Standing seed-driven full-key parity test (every seed term x every seed-present key), sparse see_also=1/introduced_in_mission=2/synonyms_to_avoid=3 pinned. Seed sha256 + term-count integrity guard (C-003, seed untouched).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP03) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "see_also list[dict]->str flatten judged textually lossless (info-preserving); parity circular-but-not-lossy; Mission-B follow-up for richer see_also typing."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Built-in pack is charter-activated by default (per-pack via activated_glossary_packs).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (2ae624d59 RED-first, 5925848cd wiring): _BUILTIN_ARTIFACT_KINDS += glossary_packs + activated_glossary_packs field/reader; default-on = None-default + _BUILTIN membership + root graph fragment. test_glossary_pack_activation.py: active with no manual activate + negative control.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP04) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Gating fix: drg._SINGULAR_TO_PER_KIND_FIELD closes filter_graph_by_activation unknown-kind default-allow bypass; pack node genuinely gated."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Mirrored kind-lists updated in lockstep; three-way drift-guard protects default-on.",
+      "proof_type": "automated_test",
+      "evidence": "WP04: glossary_packs added to _ALLOWED_KINDS, _BUILTIN_ARTIFACT_KINDS, _ORG_DRG_KIND_ALIASES, plus _SINGULAR_TO_PLURAL_KIND / _CLI_KIND_TO_DRG_SINGULAR / charter drg maps. Drift-guard extended to genuine three-way (incl _BUILTIN_ARTIFACT_KINDS) + positive default-on assertion, RED-first proven empirically (reviewer checked out pre-wiring commit, guard tests failed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP04) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "C-005 closed the hole the squad found (guard bound only 2 of 3 lists)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Activation, cascade, deactivation handle glossary-pack generically.",
+      "proof_type": "automated_test",
+      "evidence": "WP04: cascade.py untouched (generic, branches on graph reachability not kind==); activation plan/commit seam data-driven. test_glossary_pack_activation.py covers generic cascade activate/deactivate. Exhaustiveness fields added: DoctrineSelectionConfig.selected_glossary_packs + OrgCharterPolicy.required_glossary_packs.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP04) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Exhaustiveness gate (test_artifact_selection_completeness) green; surfaced during WP03 impl, assigned to WP04."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Operator-token normalisation: from_operator_token('glossary-pack') -> glossary_pack.",
+      "proof_type": "automated_test",
+      "evidence": "WP01: derived free from the enum (no logic edit to kind_vocabulary/pack_manager); test asserts from_operator_token, CHARTER_KIND_TOKENS membership, YAML_KEY_MAP['glossary-pack']=='activated_glossary_packs'.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP01) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Anchor correction: from_operator_token on enum, YAML_KEY_MAP in pack_manager (not kind_vocabulary)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Extractor emits glossary-pack nodes + a generated graph fragment so the built-in pack resolves as a loaded node.",
+      "proof_type": "automated_test",
+      "evidence": "WP03: new _emit_glossary_pack_nodes block in extract_artifact_edges (helper keeps complexity <=15); generated src/doctrine/glossary_pack.graph.yaml at doctrine ROOT (loader globs there non-recursively). NFR-003 resolves-as-loaded-node guard with TWO negative-control arms, proven RED by actually reverting fragment/emission.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP03) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Squad blockers B1 (fragment location/generation) + B2 (source-node emission) fixed and verified; other 10 fragments byte-unchanged (idempotent regen)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "spec-kitty doctor doctrine --json reports glossary-pack counts + health; invalid packs never healthy.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (0546856dc): MODEL (GlossaryPackHealth) + COLLECT (_collect_glossary_pack_health sources DoctrineService.glossary_packs, attached in _collect_profile_health) + RENDER (nested in to_dict, passthrough untouched). Reviewer instrumented COLLECT: --json carries {pack_count:1,term_count:104,healthy:true}. Synthetic invalid fixtures -> healthy=false, RC=1. NFR-005 <2s assertion.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (WP05) + orchestrator synthesis",
+      "verified_at": "2026-07-22T00:00:00+00:00",
+      "notes": "Squad F1: all three MODEL->COLLECT->RENDER layers wired; warning-parse acceptable for Mission A, structured skip-list is a documented follow-up."
+    }
+  ]
+}

@@ -18,8 +18,8 @@ import re
 
 import pytest
 
-from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
-from doctrine.model_task_routing.models import TASK_TYPE_PATTERN
+from charter.offering.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
+from charter.offering.model_task_routing.models import TASK_TYPE_PATTERN
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

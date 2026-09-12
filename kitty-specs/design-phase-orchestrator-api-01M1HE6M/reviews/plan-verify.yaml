@@ -1,0 +1,161 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: design-phase-orchestrator-api-01M1HE6M
+verdicts:
+  - id: PLAN-GOV-001
+    status: resolved
+    reasoning: >
+      plan.md § (g) Campsite-Clean Scope now acknowledges the suppression instead of
+      claiming "no debt found": it states `_pair_previous_lifecycle_record`
+      (next_cmd.py:333-429) "contains an un-investigated type suppression" quoted
+      verbatim as `phase=phase,  # type: ignore[arg-type]`, and folds a concrete WP01
+      remediation (narrow the type, or replace the bare ignore with a justification
+      comment per CLAUDE.md's suppression rule) with an instruction to record which
+      option was taken. This is a substantive fix, not a reword — it changes the
+      "no debt found" claim to an acknowledged, actioned one. Verified against the
+      actual file: `def _pair_previous_lifecycle_record` is at next_cmd.py:333, and
+      the quoted suppression line's real line number is 425, not 424 as both § (g)
+      and § (a) state (confirmed with `awk 'NR==424,425'`: line 424 is
+      `started=started,`, line 425 is `phase=phase,  # type: ignore[arg-type]`).
+      This off-by-one was already present in the ORIGINAL finding's own evidence
+      citation (plan.confirmed.yaml also cites :424) and next_cmd.py has not changed
+      between the pre-fix and post-fix commits (confirmed via `git diff` — zero
+      lines changed), so the fix carried forward a pre-existing citation error
+      rather than introducing a new one. Because the code snippet is quoted verbatim
+      and the function/line-range (333-429) that bounds it is correct, the citation
+      error does not point an implementer at the wrong code — it is a one-line
+      miscount, not a wrong location. Flagging for correction (424 -> 425) but not
+      treating it as unresolved, since the substantive campsite-clean claim and the
+      WP01 remediation are both accurate and actionable.
+  - id: PLAN-GOV-002
+    status: resolved
+    reasoning: >
+      The plan now separates gate applicability from gate outcome exactly as the
+      finding demanded. What was item 10 (Contextive) in the pre-fix numbering is
+      now item 11 post-fix (a new diff-coverage item was inserted at position 4,
+      shifting later items down by one) and reads: "Contextive glossary — RUNS (the
+      check step at ci-quality.yml:851 is gated on the diff touching
+      src/specify_cli/**, among other paths, ci-quality.yml:863-869 — this mission's
+      changes match) but is expected to pass trivially... Applicability (does this
+      gate execute) and outcome (does it pass) are distinct." Verified against
+      .github/workflows/ci-quality.yml: line 851 is exactly
+      `- name: "[ENFORCED] Check Contextive glossary files are up-to-date"`; lines
+      863-869 are exactly the `mapfile ... -- 'glossary/**' 'src/specify_cli/**' ...`
+      path-filter block through its `if [ "${#CHANGED[@]}" -eq 0 ]; then ... fi`
+      skip logic. Both citations are byte-accurate. Substantively resolved.
+  - id: PLAN-GOV-003
+    status: resolved
+    reasoning: >
+      Constitution / Charter Check now explicitly names both constraints with a
+      PASS verdict and a one-clause reason: "C-002 (no server-side analysis
+      reasoning) — record-analysis is a thin caller of the existing
+      record_analysis/write_analysis_report write path... PASS." and "C-003
+      (OriginFlow-bounded decision-verb scope) — the four decision verbs... are
+      gated by the OriginFlow guard... PASS." This is a pure traceability finding
+      (severity 1) and the remediation (add one line each naming C-002/C-003 by ID)
+      is delivered verbatim in substance, not merely reworded.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reasoning: >
+      This was the highest-severity (4) finding and the fix is the most extensive:
+      plan.md § (e) Gate Set gained a new item 4, "diff-coverage (critical-path,
+      ENFORCED, 90% floor) — APPLIES," citing ci-quality.yml:3358 (step name),
+      :3391 (the `'src/runtime/next/*'` critical_paths entry), :3422-3425 (the
+      `diff-cover ... --fail-under=90 --include` invocation), and :4276/:4281
+      (quality-gate's needs list containing diff-coverage) as a required blocking
+      member. All five citations verified byte-accurate against
+      .github/workflows/ci-quality.yml. The remediation's second half — naming
+      which of options (a)/(b) was chosen for the SC-008 test location — is also
+      delivered: Gate Set item 3 now states the shared regression test module moved
+      to `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` (option a),
+      "moved off the originally-considered tests/specify_cli/cli/commands/
+      location," and this choice is threaded consistently through the WP Breakdown
+      table (WP02 row), § Project Structure, and § Parallel Work Analysis — not just
+      patched in one place. Verified the supporting job citations too: fast-tests-next
+      (ci-quality.yml:1414, path scan `tests/next/ tests/specify_cli/next/
+      tests/runtime/` at :1430, `--cov=src/runtime/next` at :1433) and
+      integration-tests-next (job at :2757, matrix paths `tests/next
+      tests/specify_cli/next tests/runtime` at :2769-2782, same `--cov=src/runtime/next`
+      at :2798) both match exactly. The plan's claim that the old location
+      (tests/specify_cli/cli/commands/) is scanned only by slow-tests with
+      `--cov=specify_cli --cov=charter --cov=doctrine` (never src/runtime/next) is
+      confirmed: slow-tests job (:2977) runs pytest over
+      `tests/specify_cli/cli/commands` (:3046) with exactly that `--cov` set
+      (:3064), and no other job's pytest invocation covers that path with
+      `--cov=src/runtime/next`. This is a real, substantive fix, not a superficial
+      reword.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reasoning: >
+      plan.md § (a) FR-014 Seam Extraction now adds the missing precedent as a new
+      paragraph: it states the plan's original citations (decision.py:33/188,
+      runtime_bridge.py:319) establish the `runtime.next -> specify_cli` direction,
+      not the new `orchestrator_api/commands.py -> runtime.next` edge WP08
+      introduces, and adds the correct on-point precedent — next_cmd.py already
+      importing runtime.next directly — citing next_cmd.py:51, :67, :195, :817,
+      :984, plus commands.py:32-66 as having zero such imports today. Verified every
+      one of these against the actual files: next_cmd.py:51 is exactly `from
+      runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice`;
+      :67 is `from runtime.next.decision import decide_next as _decide_next`
+      (inside decide_next); :195 is `from runtime.next.runtime_bridge import
+      MissionNotFoundError as _MissionNotFoundError`; :817 is `from
+      runtime.next.runtime_bridge import MissionNotFoundError`; :984 is `from
+      runtime.next._internal_runtime.engine import _read_snapshot`. All five match
+      exactly, including the "inline import" vs module-level distinction the plan
+      draws. commands.py:32-66's import block was read directly — it contains
+      `from mission_runtime import CommitTarget` (a different package,
+      `mission_runtime`, not `runtime.next`) and no `runtime.next` import at all,
+      confirming the "zero such imports" claim. decision.py:33/188 and
+      runtime_bridge.py:319 (the plan's original, still-cited precedents) were
+      re-verified too: :33 is `from specify_cli.mission_metadata import
+      mission_identity_fields`, :188 is `from specify_cli.mission_v1.events import
+      read_events`, runtime_bridge.py:319 is `from specify_cli.mission_metadata
+      import resolve_mission_identity` — all accurate. The evidentiary gap is
+      substantively closed with the real, correctly-cited precedent.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reasoning: >
+      Gate Set item 14 (renumbered from the original item 13 after the diff-coverage
+      insertion) now reads "patch() target validation — ENFORCED. ci-quality.yml:943's
+      '[ENFORCED] Validate patch() target strings (closes #394)' step runs
+      scripts/check_patch_targets.py, in the same always-on lint job as the
+      TID251/Bandit/pip-audit steps items 12/15/16 cite." Verified against
+      ci-quality.yml: line 943 is exactly
+      `- name: "[ENFORCED] Validate patch() target strings (closes #394)"` and line
+      944 runs `scripts/check_patch_targets.py`; confirmed by scanning backward from
+      line 943 that the nearest enclosing job header is `lint:` at line 616 — so the
+      "same always-on lint job" claim is correct. This replaces the prior "unconfirmed
+      as an automated gate" disclaimer with the accurate ENFORCED status and adds the
+      concrete implication for WP02-WP08 test authors (resolvable dotted patch
+      target). Substantive fix delivered per the remediation.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reasoning: >
+      plan.md § (j) SK-93 Implementation Approach, point 2, now reads "The WP04
+      implementer decides between (a) and (b)" — the internal contradiction ("the
+      WP08-adjacent implementer... WP04") is gone; the section now names WP04 alone,
+      consistent with the Work Package Breakdown table's WP04 row ("FR-004/FR-005 —
+      check-prerequisites/record-analysis, including the NFR-004 artifact-verification
+      mechanism (j)"). Exactly the one-word fix the remediation asked for, verified
+      present and consistent across both places it needs to agree.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reasoning: >
+      plan.md § (a) gained a new subsection, "SC-008 shared regression test helper
+      (pinned contract, WP02 deliverable, reused unmodified in shape by WP08)," that
+      names the previously-missing contract: a module-level
+      `assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug,
+      run_action) -> None` helper, with `run_action` specified as a zero-arg
+      callable the helper is agnostic to (a next_cmd --answer invocation for WP02,
+      an orchestrator-api answer-decision call for WP08), and explicit assertions
+      on both persistence layers (mission-events.jsonl via
+      specify_cli.mission_v1.events.read_events for the MissionNextInvoked entry,
+      and specify_cli.invocation.lifecycle.read_lifecycle_records for the paired
+      completion + new started record), raising via a plain assert on the first
+      mismatch. This matches the remediation's suggested contract almost verbatim
+      and is substantive, not cosmetic — it gives WP02 and WP08 a shared, named
+      interface instead of leaving the drift-prevention mechanism implicit. The
+      contract is also referenced consistently at the end of § (a) ("WP02's task
+      file must land this helper... as the deliverable WP08 is contractually bound
+      to import and reuse").

@@ -1,7 +1,7 @@
 """Scope: models unit tests — no real git or subprocesses."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime, now_utc
 from glossary.models import (
     TermSurface, TermSense, SemanticConflict, Provenance,
     SenseStatus, ConflictType, Severity, SenseRef,
@@ -23,7 +23,7 @@ def test_term_surface_normalized():
 
 def test_term_sense_validation():
     """TermSense validates confidence range and definition."""
-    prov = Provenance("user:alice", datetime.now(), "user_clarification")
+    prov = Provenance("user:alice", now_utc(), "user_clarification")
 
     # Valid
     ts = TermSense(

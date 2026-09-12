@@ -13,7 +13,7 @@ activation sets (``activated_directives``, ``activated_tactics``,
 project would silently expose every doctrine artifact indiscriminately.
 
 This migration writes the default activation values from
-``src/charter/packs/default.yaml`` into ``config.yaml`` for projects that
+``src/charter/activation/packs/default.yaml`` into ``config.yaml`` for projects that
 lack any of the above keys.  Only absent keys are written; any key that is
 already present (even with an empty list) is left untouched.
 
@@ -40,11 +40,16 @@ does not interfere.
 from __future__ import annotations
 
 import shutil
-from datetime import datetime
+from kernel.clock import format_stamp, now_utc
 from pathlib import Path
 
 from rich.console import Console
 from ruamel.yaml import YAML
+
+from specify_cli.charter_pack_registry import (
+    PER_KIND_ACTIVATION_KEYS,
+    merge_pack_into_config,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -52,22 +57,23 @@ from .base import BaseMigration, MigrationResult
 #: The eight per-kind activation keys added by the charter-pack-activation
 #: mission.  Mirrors the keys expected by ``CharterPackManager.YAML_KEY_MAP``
 #: (excluding ``mission_type_activations`` which uses a different pattern).
-_PER_KIND_KEYS: list[str] = [
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-]
+#: Sourced from :mod:`specify_cli.charter_pack_registry` — the single place
+#: this key list is declared (shared with ``spec-kitty charter pack apply``,
+#: #3064 follow-up) — kept as a module attribute so existing test imports of
+#: ``_PER_KIND_KEYS`` from this module keep working.
+_PER_KIND_KEYS: list[str] = list(PER_KIND_ACTIVATION_KEYS)
 
 #: Absolute path to the default charter pack shipped with spec-kitty.
-#: Resolves to ``src/charter/packs/default.yaml`` relative to the repo root.
-#: Four ``.parent`` hops: migrations/ -> upgrade/ -> specify_cli/ -> src/
+#: Resolves to ``src/charter/activation/packs/default.yaml`` relative to the
+#: repo root. Four ``.parent`` hops: migrations/ -> upgrade/ -> specify_cli/
+#: -> src/. ``packs/`` relocated under ``charter/activation/`` by mission
+#: charter-activation-split-01M16ZSE (MAP-A MOVE).
 _DEFAULT_YAML_PATH: Path = (
-    Path(__file__).parent.parent.parent.parent / "charter" / "packs" / "default.yaml"
+    Path(__file__).parent.parent.parent.parent
+    / "charter"
+    / "activation"
+    / "packs"
+    / "default.yaml"
 )
 
 
@@ -162,7 +168,7 @@ class DefaultCharterPackMigration(BaseMigration):
         if charter_md_path.exists() and not dry_run:
             backup_dir = project_path / ".kittify" / "charter" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+            timestamp = format_stamp(now_utc(), "%Y-%m-%dT%H-%M-%S")
             backup_path = backup_dir / f"charter-{timestamp}.md"
             shutil.copy2(charter_md_path, backup_path)
             console = Console()
@@ -188,13 +194,9 @@ class DefaultCharterPackMigration(BaseMigration):
         safe_yaml = YAML(typ="safe")
         defaults = safe_yaml.load(_DEFAULT_YAML_PATH) or {}
 
-        # Incremental write: only write absent keys
-        all_keys = _PER_KIND_KEYS + ["activated_kinds", "mission_type_activations"]
-        keys_written: list[str] = []
-        for key in all_keys:
-            if key not in data:
-                data[key] = defaults.get(key, [])
-                keys_written.append(key)
+        # Incremental write: only write absent keys (force=False), via the
+        # shared pack -> config merge helper (specify_cli.charter_pack_registry).
+        keys_written, _keys_skipped = merge_pack_into_config(data, defaults, force=False)
 
         if not keys_written:
             return MigrationResult(

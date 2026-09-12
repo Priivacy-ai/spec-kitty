@@ -3,9 +3,9 @@
 Verifies the FR-006 caller contract for the dashboard consumer:
 
 * Server still launches on preflight failure (no abort).
-* ``blocked_reason`` is persisted under ``.kittify/`` and surfaced as
-  ``preflight_warning`` in the ``/api/health`` response.
-* On success the field is absent and the persisted warning is cleared.
+* Blocking reasons and passed advisories are persisted under ``.kittify/``
+  and surfaced as ``preflight_warning`` in the ``/api/health`` response.
+* On a clean success the field is absent and stale persistence is cleared.
 """
 
 from __future__ import annotations
@@ -45,6 +45,17 @@ def _fail_result(reason: str) -> CharterPreflightResult:
         auto_refresh_applied=False,
         auto_refresh_actions=[],
         blocked_reason=reason,
+    )
+
+
+def _advisory_result(warning: str) -> CharterPreflightResult:
+    return CharterPreflightResult(
+        passed=True,
+        checks=[],
+        auto_refresh_applied=False,
+        auto_refresh_actions=[],
+        blocked_reason=None,
+        warnings=[warning],
     )
 
 
@@ -118,7 +129,7 @@ def test_dashboard_hook_clears_warning_on_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """On success the persisted warning is cleared, even if one was stale."""
+    """On clean success the persisted warning is cleared, even if one was stale."""
     from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     write_preflight_warning(tmp_path, "stale from a previous run")
@@ -127,7 +138,7 @@ def test_dashboard_hook_clears_warning_on_success(
     result = hook_mod.run_preflight_for_dashboard(tmp_path)
     assert result.passed is True
 
-    # Mimic the dashboard CLI branch: clear on success.
+    # Mimic the dashboard CLI branch: clear on clean success.
     clear_preflight_warning(tmp_path)
     assert read_preflight_warning(tmp_path) is None
 
@@ -150,6 +161,74 @@ def test_dashboard_hook_does_not_warning_log_optional_missing_charter(
     assert result.blocked_reason is None
     assert result.warnings
     assert caplog.records == []
+
+
+def test_dashboard_hook_surfaces_legacy_bundle_warning_detail(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """#3498/#2831: legacy charter.md-only bundle gets the detailed, distinct warning.
+
+    Uses the REAL runner (no mocking of ``run_charter_preflight``) to prove
+    the shared result carries detailed copy. The separate command-boundary
+    test below proves dashboard-specific persistence renders that advisory.
+    """
+    import subprocess
+
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING, logger=hook_mod.__name__):
+        result = hook_mod.run_preflight_for_dashboard(tmp_path)
+
+    assert result.passed is True
+    assert result.blocked_reason is None
+    assert result.warnings
+    assert "charter.md" in result.warnings[0]
+    assert "spec-kitty charter generate" in result.warnings[0]
+    # And it must NOT be the fresh-project warning text.
+    assert "not initialized" not in result.warnings[0]
+    assert caplog.records == []
+
+
+def test_dashboard_command_persists_passed_advisory_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A passed advisory reaches the persisted SPA warning instead of being cleared."""
+    import importlib
+
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    dashboard_mod = importlib.import_module("specify_cli.cli.commands.dashboard")
+    warning = (
+        "a legacy charter.md-only bundle was detected; run "
+        "`spec-kitty charter generate --no-from-interview`"
+    )
+    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
+    monkeypatch.setattr(
+        dashboard_mod,
+        "ensure_dashboard_running",
+        lambda *_args, **_kwargs: ("http://127.0.0.1:9238", 9238, True),
+    )
+    monkeypatch.setattr(
+        hook_mod,
+        "run_preflight_for_dashboard",
+        lambda _root: _advisory_result(warning),
+    )
+
+    dashboard_mod.dashboard(
+        port=None,
+        kill=False,
+        open_browser=False,
+        emit_json=False,
+    )
+
+    assert read_preflight_warning(tmp_path) == warning
 
 
 def test_null_project_config_enabled_still_runs_dashboard_preflight(
@@ -224,20 +303,9 @@ class _StubRequestHandler:
         return json.loads(self._body.decode("utf-8"))
 
 
-def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) -> dict:
+def _invoke_handle_health(project_dir: Path) -> dict:
     """Invoke ``APIHandler.handle_health`` against a stub request handler."""
     from specify_cli.dashboard.handlers.api import APIHandler
-
-    # ``get_sync_daemon_status`` performs IPC; stub it out for a clean payload.
-    import specify_cli.dashboard.handlers.api as api_mod
-
-    class _StubStatus:
-        sync_running = False
-        last_sync = None
-        consecutive_failures = 0
-        websocket_status = "Offline"
-
-    monkeypatch.setattr(api_mod, "get_sync_daemon_status", lambda timeout=0.2: _StubStatus())
 
     handler = _StubRequestHandler(project_dir)
     APIHandler.handle_health(handler)  # type: ignore[arg-type]
@@ -245,23 +313,72 @@ def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) ->
     return handler.response_payload
 
 
-def test_api_health_omits_preflight_warning_when_absent(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_omits_preflight_warning_when_absent(tmp_path: Path) -> None:
     """No persisted warning ⇒ ``preflight_warning`` is not present in the payload."""
     clear_preflight_warning(tmp_path)
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert "preflight_warning" not in payload
 
 
-def test_api_health_populates_preflight_warning_when_present(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_populates_preflight_warning_when_present(tmp_path: Path) -> None:
     """Persisted warning ⇒ exposed verbatim in ``/api/health`` response."""
     reason = "uncommitted generated artifacts; commit or stash and retry"
     write_preflight_warning(tmp_path, reason)
 
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert payload["preflight_warning"] == reason
+
+
+# ---------------------------------------------------------------------------
+# #4123: never-git-init-ed projects — charter resolution failure rendering
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_command_non_git_project_exits_1_with_git_init_advice(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A charter-resolution git failure must not escape the dashboard command
+    as a traceback, and must not reach the server-start path (#4123)."""
+    import importlib
+    import io
+
+    import typer
+    from rich.console import Console
+
+    from charter.resolution import NotInsideRepositoryError
+    from specify_cli.cli import helpers as helpers_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    dashboard_mod = importlib.import_module("specify_cli.cli.commands.dashboard")
+
+    buf = io.StringIO()
+    recording_console = Console(file=buf, force_terminal=False, highlight=False)
+    monkeypatch.setattr(dashboard_mod, "console", recording_console)
+    monkeypatch.setattr(helpers_mod, "console", recording_console)
+    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
+
+    def _raise_not_inside_repository(_root: Path) -> None:
+        raise NotInsideRepositoryError(tmp_path)
+
+    monkeypatch.setattr(hook_mod, "run_preflight_for_dashboard", _raise_not_inside_repository)
+
+    def _server_must_not_start(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("dashboard server must not start on a git-resolution failure")
+
+    monkeypatch.setattr(dashboard_mod, "ensure_dashboard_running", _server_must_not_start)
+
+    with pytest.raises(typer.Exit) as excinfo:
+        dashboard_mod.dashboard(
+            port=None,
+            kill=False,
+            open_browser=False,
+            emit_json=False,
+        )
+
+    assert excinfo.value.exit_code == 1
+    output = buf.getvalue()
+    assert "not inside a git repository" in output
+    assert "git init" in output
+    # The old misdirection from the generic handler ("re-run init") is gone.
+    assert "spec-kitty init ." not in output

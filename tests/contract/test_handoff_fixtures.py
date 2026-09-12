@@ -1,8 +1,9 @@
 """Contract tests: validate fixture data against Pydantic Event model.
 
-These tests prove that the fixture data in contracts/batch-api-contract.md
-and contracts/fixtures/ is valid according to the CLI's Pydantic Event model
-and the payload validation rules defined in the EventEmitter.
+These tests prove that the fixture data documented in
+docs/api/batch-api-contract.md (rehomed from contracts/) and carried in
+contracts/fixtures/ is valid according to the public ``spec_kitty_events``
+Pydantic Event model.
 
 Run: python -m pytest tests/contract/test_handoff_fixtures.py -v
 """
@@ -13,7 +14,6 @@ from pathlib import Path
 import pytest
 
 from spec_kitty_events import Event
-from specify_cli.sync.emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES
 
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
@@ -257,25 +257,6 @@ class TestFixtureValidation:
             f"event_id {event_data['event_id']!r} does not match ULID pattern"
         )
 
-    @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
-    def test_fixture_payload_passes_emitter_rules(self, event_data: dict):
-        """Each fixture payload must satisfy _PAYLOAD_RULES from the emitter."""
-        event_type = event_data["event_type"]
-        payload = event_data["payload"]
-        rules = _PAYLOAD_RULES.get(event_type)
-        assert rules is not None, f"No payload rules found for event type: {event_type}"
-
-        # Check required fields
-        missing = rules["required"] - set(payload.keys())
-        assert not missing, f"{event_type} payload missing required fields: {missing}"
-
-        # Run field-level validators
-        for field_name, validator in rules["validators"].items():
-            if field_name in payload:
-                value = payload[field_name]
-                assert validator(value), f"{event_type} payload field '{field_name}' has invalid value: {value!r}"
-
-
 class TestEventTypeCoverage:
     """Ensure fixtures cover all documented event types."""
 
@@ -295,45 +276,6 @@ class TestEventTypeCoverage:
         assert fixture_types == expected_types, (
             f"Missing types: {expected_types - fixture_types}, Extra types: {fixture_types - expected_types}"
         )
-
-    def test_valid_event_types_match_emitter(self):
-        """Documented outbound types must match VALID_EVENT_TYPES from the emitter."""
-        expected = {
-            "BuildRegistered",
-            "BuildHeartbeat",
-            "DecisionInputAnswered",
-            "DecisionInputRequested",
-            "DependencyResolved",
-            "DiffSummaryRecorded",
-            "ErrorLogged",
-            "HistoryAdded",
-            "MissionClosed",
-            "MissionCompleted",
-            "MissionCreated",
-            "MissionDossierArtifactIndexed",
-            "MissionDossierArtifactMissing",
-            "MissionDossierParityDriftDetected",
-            "MissionDossierSnapshotComputed",
-            "MissionOriginBound",
-            "MissionRunCompleted",
-            "MissionRunStarted",
-            "MissionStarted",
-            "NextStepAutoCompleted",
-            "NextStepIssued",
-            "PhaseEntered",
-            "BenchmarkEvidenceAttached",
-            "HumanApprovalRecorded",
-            "ProofItemRecorded",
-            "PullRequestLineageRecorded",
-            "ReviewProofRecorded",
-            "SecurityScanCompleted",
-            "TestEvidenceCaptured",
-            "TokenUsageRecorded",
-            "WPAssigned",
-            "WPCreated",
-            "WPStatusChanged",
-        }
-        assert expected == VALID_EVENT_TYPES
 
 
 class TestFixtureJsonFiles:

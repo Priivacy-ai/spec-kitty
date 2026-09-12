@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "mission_slug": "event-push-watch-channel-01M1K6W2",
+  "mission_id": "01M1K6W2ENTGEPYAW68V97VN9V",
+  "mission_branch": "kitty/mission-event-push-watch-channel-01M1K6W2",
+  "target_branch": "feat/event-push-watch-channel-3841",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/tail_reader.py",
+        "tests/status/test_tail_reader.py",
+        "tests/status/test_tail_reader_truncation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/context/system-events.md",
+        "src/specify_cli/.contextive/system-events.yml",
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/events.py",
+        "tests/cli/test_events_tail.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/status/test_events_tail_concurrency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-03T11:03:53.875466+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5c1f37638f654f65360143aa5f47a0fd707062b5",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/status/tail_reader.py' vs 'src/specify_cli/status/tail_reader.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/status/tail_reader.py' vs 'src/specify_cli/status/tail_reader.py', 'tests/status/test_tail_reader.py' vs 'tests/status/test_tail_reader.py'; WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

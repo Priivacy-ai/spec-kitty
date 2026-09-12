@@ -31,7 +31,7 @@ python3 -m tests.mutmut_env \
     --repo-root "$REPO_ROOT" \
     --mutants-root "$REPO_ROOT/mutants" \
     --require "src/specify_cli/frontmatter.py" \
-    --require "src/doctrine"
+    --require "src/charter/offering"
 
 echo "✅ Environment prepared successfully!"
 echo ""

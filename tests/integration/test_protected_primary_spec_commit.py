@@ -202,18 +202,19 @@ class TestSpecCommitE2EOnProtectedPrimary:
 
         write-surface-coherence WP02 re-targets this anti-fakeable proof onto the
         COORD path, which is where the materialiser is now load-bearing (primary
-        kinds no longer materialise). An ``ANALYSIS_REPORT`` (coord kind) under
+        kinds no longer materialise). An ``ACCEPTANCE_MATRIX`` (coord kind) under
         coord topology MUST materialise the coordination worktree; if
         ``_materialise_coord_worktree`` is bypassed (returns the primary checkout),
         the commit cannot land on the coord branch — proving the coord-routing
-        path is not vacuously satisfied.
+        path is not vacuously satisfied. (Exemplar swapped from ``ANALYSIS_REPORT``,
+        which FR-003 re-homed to PRIMARY, to a still-COORD kind.)
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
         repo = build_protected_target_repo(tmp_path)
         _feature_dir, spec_path = _seed_mission_on_protected_repo(repo)
-        report = _feature_dir / "analysis-report.md"
-        report.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
+        report = _feature_dir / "acceptance-matrix.json"
+        report.write_text("{}\n", encoding="utf-8")
 
         import specify_cli.coordination.commit_router as commit_router_mod
         from mission_runtime import CommitTarget
@@ -252,9 +253,9 @@ class TestSpecCommitE2EOnProtectedPrimary:
             repo_root=repo.repo_root,
             mission_slug=_MISSION_SLUG,
             files=(report,),
-            message="analysis: FR-001",
+            message="acceptance: FR-001",
             policy=policy,
-            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         )
 
         # NEGATIVE assertion: with the materialiser bypassed, the coord commit
@@ -365,15 +366,17 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
             # write-surface-coherence WP02/WP05 re-pin: a forced-coord placement is
             # only legitimate for a COORD kind now (a primary kind like SPEC NEVER
             # routes to coord and would trip the DECISION-8 guard). Use
-            # ``ANALYSIS_REPORT`` (a coordination kind) so the forced-coord scenario
-            # is consistent with the partition, and bypass the materialiser to a
-            # controlled primary checkout so the direct-call site exercises the
-            # coord-routing arm without needing a real coord worktree.
+            # ``ACCEPTANCE_MATRIX`` (a coordination kind) so the forced-coord
+            # scenario is consistent with the partition, and bypass the materialiser
+            # to a controlled primary checkout so the direct-call site exercises the
+            # coord-routing arm without needing a real coord worktree. (Exemplar
+            # swapped from ``ANALYSIS_REPORT``, re-homed PRIMARY by FR-003, to a
+            # still-COORD kind.)
             import specify_cli.coordination.commit_router as commit_router_mod
             from mission_runtime import CommitTarget
 
-            report = feature_dir / "analysis-report.md"
-            report.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
+            report = feature_dir / "acceptance-matrix.json"
+            report.write_text("{}\n", encoding="utf-8")
 
             def _bypass_materialiser(
                 repo_root: Path,
@@ -409,11 +412,11 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
                     repo_root=repo.repo_root,
                     mission_slug=slug,
                     files=(report,),
-                    message="analysis: test",
+                    message="acceptance: test",
                     policy=policy,
-                    # ANALYSIS_REPORT is a coordination kind: it legitimately routes
+                    # ACCEPTANCE_MATRIX is a coordination kind: it legitimately routes
                     # to coord, so the sibling-site materialiser arm is exercised.
-                    kind=MissionArtifactKind.ANALYSIS_REPORT,
+                    kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
                 )
             # Direct call — the stub itself is what we called, so count = 1 here via the stub.
             # We assert the router returns the committed result (no-error).

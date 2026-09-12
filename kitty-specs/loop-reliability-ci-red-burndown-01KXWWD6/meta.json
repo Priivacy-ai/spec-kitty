@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "8a3ddebe498ab5c695af3e6005b335a07818c268",
   "baseline_merge_commit": "6924ee3e5e0b4ed80418900cbb25199f23acfb5b",
-  "coordination_branch": "kitty/mission-loop-reliability-ci-red-burndown-01KXWWD6",
   "created_at": "2026-07-19T09:48:06.307680+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Loop-reliability + CI-red burndown remediation",
   "mission_id": "01KXWWD693YP76JC0XSB2AN5E4",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "loop-reliability-ci-red-burndown-01KXWWD6",
   "status_phase": "1",
   "target_branch": "fix/loop-reliability-ci-red-burndown",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-19T10:44:26.162115+00:00"
 }

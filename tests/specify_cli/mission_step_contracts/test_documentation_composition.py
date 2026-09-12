@@ -36,8 +36,8 @@ _DOC_ACTIONS: tuple[str, ...] = (
 
 _SHIPPED: Path = (
     Path(__file__).resolve().parents[3]
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "built_in_step_contracts"
 )

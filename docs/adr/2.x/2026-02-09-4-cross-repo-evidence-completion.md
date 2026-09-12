@@ -1,5 +1,6 @@
 ---
 title: Cross-Repo Evidence-Based Completion
+description: Required structured commit evidence before completion, closing the split-brain gap where the planning repository and the implementation repository disagreed.
 status: Superseded
 date: '2026-02-09'
 ---

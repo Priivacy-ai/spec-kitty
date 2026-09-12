@@ -3,7 +3,7 @@
 Covers both derivation paths the mission's IC-01 slice repoints from
 ``answers.selected_*`` to ``config.activated_*``:
 
-- ``charter.compiler.compile_charter`` / ``_build_references_from_service``
+- ``charter.activation.compiler.compile_charter`` / ``_build_references_from_service``
   -- the compiled reference set (``references.yaml``) path.
 - ``specify_cli.cli.commands.charter._synthesis._build_synthesis_request``
   -- the project-graph (``interview_snapshot``/``drg_snapshot``) path.
@@ -34,21 +34,21 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import load_doctrine_catalog
-from charter.compiler import (
+from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.compiler import (
     ConfigActivatedRoots,
     compile_charter,
     resolve_config_activated_roots,
 )
-from charter.interview import (
+from charter.activation.interview import (
     CharterInterview,
     apply_answer_overrides,
     default_interview,
     write_interview_answers,
 )
-from charter.catalog import resolve_doctrine_root
-from charter.kind_vocabulary import UnknownArtifactIdError
-from charter.pack_context import PackContext
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.kind_vocabulary import UnknownArtifactIdError
+from charter.activation.pack_context import PackContext
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
@@ -138,8 +138,8 @@ def test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active() -> N
     """Absent-key semantics: no project config at all -> every built-in directive is active.
 
     Mirrors the three-state default already documented on
-    :class:`~charter.pack_context.PackContext` (``None`` -> "all built-ins
-    available"), which is also what ``charter.resolver`` already applies when
+    :class:`~charter.activation.pack_context.PackContext` (``None`` -> "all built-ins
+    available"), which is also what ``charter.activation.resolver`` already applies when
     filtering paradigms/procedures/agent profiles.
     """
     interview = _interview_with(selected_directives=["DIRECTIVE_003"], selected_paradigms=[])
@@ -262,7 +262,9 @@ def test_resolve_config_activated_roots_reads_kittify_config_yaml(tmp_path: Path
         "activated_directives:\n"
         "  - 010-specification-fidelity-requirement\n"
         "activated_styleguides:\n"
-        "  - aggregate-design-rules\n",
+        "  - aggregate-design-rules\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -271,16 +273,19 @@ def test_resolve_config_activated_roots_reads_kittify_config_yaml(tmp_path: Path
     assert isinstance(roots, ConfigActivatedRoots)
     assert roots.directives == ["DIRECTIVE_010"]
     assert roots.styleguides == ["aggregate-design-rules"]
-    # No `activated_paradigms` key in this fixture's config.yaml -> all built-ins.
-    catalog = load_doctrine_catalog()
-    assert sorted(roots.paradigms) == sorted(catalog.paradigms)
+    # FR-018 (WP07/T038): a present project that OMITS `activated_paradigms`
+    # delivers NOTHING for that kind at this delivery boundary -- absence is no
+    # longer "all built-ins". (Retired: the pre-FR-018 assertion expected every
+    # built-in paradigm here.)
+    assert roots.paradigms == []
 
 
 def test_resolve_config_activated_roots_raises_on_unresolvable_stem(tmp_path: Path) -> None:
     config_path = tmp_path / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
-        "activated_directives:\n  - not-a-real-directive-stem\n",
+        "activated_directives:\n  - not-a-real-directive-stem\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -306,7 +311,8 @@ def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
         "activated_directives:\n  - 010-specification-fidelity-requirement\n"
-        "activated_paradigms:\n  - domain-driven-design\n",
+        "activated_paradigms:\n  - domain-driven-design\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -317,7 +323,7 @@ def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_
     assert "DIRECTIVE_003" not in request.interview_snapshot["selected_directives"]
     assert "deep-module-design" not in request.interview_snapshot["selected_paradigms"]
     assert request.drg_snapshot["nodes"] == [
-        {"urn": "directive:DIRECTIVE_010", "kind": "directive", "id": "DIRECTIVE_010"}
+        {"urn": "directive:DIRECTIVE_010", "kind": "directive"}
     ]
 
 
@@ -346,7 +352,14 @@ def test_build_synthesis_request_first_run_empty_config_selects_zero_directives(
 
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
-    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
+    # Deliberately no activated_directives key at all -- the genuine first-run
+    # signal this test pins. mission_type_activations is provisioned as a
+    # minimal, orthogonal key (WP04, C-A1: absence of THAT key alone is now a
+    # hard construction precondition, independent of the activated_directives
+    # three-state fallback this test exercises).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
     request, _adapter = _build_synthesis_request(tmp_path, "fixture")
 
@@ -361,13 +374,20 @@ def test_build_synthesis_request_first_run_demands_zero_companion_tactics(tmp_pa
     than only inspecting the snapshot, so the assertion is pinned to the
     actual fail-closed surface the bug report described.
     """
-    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
+    from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
 
     from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
 
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
-    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
+    # Deliberately no activated_directives key at all -- the genuine first-run
+    # signal this test pins. mission_type_activations is provisioned as a
+    # minimal, orthogonal key (WP04, C-A1: absence of THAT key alone is now a
+    # hard construction precondition, independent of the activated_directives
+    # three-state fallback this test exercises).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
     request, _adapter = _build_synthesis_request(tmp_path, "fixture")
     snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
@@ -382,7 +402,7 @@ def test_build_synthesis_request_explicit_activation_still_demands_companion_tac
     still expands into one ``how-we-apply-<directive>`` companion-tactic
     target per activated directive -- the #2577 fix must not silence the
     intended (non-empty) expansion, only the first-run/absent-key case."""
-    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
+    from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
 
     from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
 
@@ -394,7 +414,9 @@ def test_build_synthesis_request_explicit_activation_still_demands_companion_tac
     config_path.write_text(
         "activated_directives:\n"
         "  - 010-specification-fidelity-requirement\n"
-        "  - 024-locality-of-change\n",
+        "  - 024-locality-of-change\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -476,7 +498,7 @@ def test_org_only_paradigm_without_org_roots_would_have_raised(tmp_path: Path) -
 # --------------------------------------------------------------------------- #
 # #2530: "Lynn Cole" free-text doctrine-intent alias. `apply_doctrine_intent_
 # aliases` fires at interview *construction* time (`default_interview` /
-# `CharterInterview.from_dict` / `apply_answer_overrides`, charter.interview)
+# `CharterInterview.from_dict` / `apply_answer_overrides`, charter.activation.interview)
 # and WP07's promotion wiring carries the aliased selection into
 # `config.activated_*` -- the sole activation source `compile_charter` reads.
 # `compile_charter` itself no longer re-applies the alias (removed as a
@@ -495,6 +517,18 @@ def test_lynn_cole_free_text_intent_activates_end_to_end_via_config_promotion(tm
     # Construction-time aliasing already fired on the interview object itself.
     assert "DIRECTIVE_039" in interview.selected_directives
     assert "deep-module-design" in interview.selected_paradigms
+
+    # Preseed ONLY `mission_type_activations` (unrelated to the directive/
+    # paradigm promotion this test pins) so the `PackContext.from_config`
+    # round-trip below doesn't hard-fail (WP04, C-A1). `_promote_interview_
+    # selections` never writes this key itself, and `activated_directives`/
+    # `activated_paradigms` are still genuinely absent here, so the
+    # "absent-key parity" promotion warnings asserted below are unaffected.
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     warnings = _promote_interview_selections(tmp_path, interview)
     # No promotion FAILURE (e.g. an unresolvable id) -- the "absent-key

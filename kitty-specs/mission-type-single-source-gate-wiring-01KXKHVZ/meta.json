@@ -1,7 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-mission-type-single-source-gate-wiring-01KXKHVZ",
   "created_at": "2026-07-15T18:50:46.595976+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Mission-Type Single-Source + Gate Wiring",
   "mission_id": "01KXKHVZE3MV3F935WCXBBBJAT",
   "mission_number": null,
@@ -13,7 +12,7 @@
   "slug": "mission-type-single-source-gate-wiring-01KXKHVZ",
   "status_phase": "1",
   "target_branch": "feat/mission-type-single-source-gate-wiring",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-15T19:35:01.452522+00:00"
 }

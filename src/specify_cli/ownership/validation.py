@@ -21,7 +21,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 if TYPE_CHECKING:
     from specify_cli.status import WPMetadata
@@ -271,7 +271,7 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
 
     warnings: list[str] = []
 
-    if manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if manifest.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         # All owned_files should be under kitty-specs/ or docs/
         bad = [
             p
@@ -284,7 +284,7 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
                 f"(kitty-specs/, docs/): {bad!r}"
             )
 
-    elif manifest.execution_mode == ExecutionMode.CODE_CHANGE:
+    elif manifest.execution_mode == WorkProductKind.CODE_CHANGE:
         # At least one owned_files entry should be under src/ or tests/ (not kitty-specs-only)
         has_code_path = any(
             p.startswith(prefix) for p in manifest.owned_files for prefix in _CODE_PREFIXES

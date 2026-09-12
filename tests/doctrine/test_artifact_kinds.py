@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
+    PROJECT_KIND_DIRS,
     ArtifactKind,
     _NON_AUGMENTATION_ELIGIBLE_KINDS,
+    _SINGULAR_PROJECT_DIR_KINDS,
 )
 
 pytestmark = pytest.mark.fast
@@ -26,6 +28,7 @@ class TestArtifactKindValues:
             "mission_step_contract",
             "template",
             "asset",
+            "glossary_pack",
             "anti_pattern",
         }
         assert {m.value for m in ArtifactKind} == expected
@@ -119,29 +122,66 @@ class TestPydanticIntegration:
     """Verify ArtifactKind works as a Pydantic field type."""
 
     def test_directive_reference_deserializes(self) -> None:
-        from doctrine.directives.models import DirectiveReference
+        from charter.offering.directives.models import DirectiveReference
 
         ref = DirectiveReference.model_validate({"type": "tactic", "id": "some-tactic"})
         assert ref.type is ArtifactKind.TACTIC
 
     def test_tactic_reference_deserializes(self) -> None:
-        from doctrine.tactics.models import TacticReference
+        from charter.offering.tactics.models import TacticReference
 
         ref = TacticReference.model_validate({"name": "foo", "type": "styleguide", "id": "sg-01", "when": "always"})
         assert ref.type is ArtifactKind.STYLEGUIDE
 
     def test_procedure_reference_deserializes(self) -> None:
-        from doctrine.procedures.models import ProcedureReference
+        from charter.offering.procedures.models import ProcedureReference
 
         ref = ProcedureReference.model_validate({"type": "paradigm", "id": "p-01"})
         assert ref.type is ArtifactKind.PARADIGM
 
     def test_invalid_type_raises(self) -> None:
         from pydantic import ValidationError
-        from doctrine.directives.models import DirectiveReference
+        from charter.offering.directives.models import DirectiveReference
 
         with pytest.raises(ValidationError):
             DirectiveReference.model_validate({"type": "unknown_type", "id": "x"})
+
+
+class TestProjectKindDirs:
+    """T012: the single canonical project-tier directory authority.
+
+    :data:`PROJECT_KIND_DIRS` is the one place the project-overlay directory
+    name for each :class:`ArtifactKind` is declared. The scaffolder
+    (``doctrine new``), :class:`~charter.offering.service.DoctrineService` (WP04), and
+    the charter resolvers all import it; none re-declares the mapping. It must
+    be **total** (fail-closed) so a new kind cannot silently miss an entry.
+    """
+
+    def test_authority_is_total_over_every_artifact_kind(self) -> None:
+        assert set(PROJECT_KIND_DIRS) == set(ArtifactKind)
+
+    def test_runtime_managed_kinds_use_singular_overlay_dir(self) -> None:
+        for kind in _SINGULAR_PROJECT_DIR_KINDS:
+            assert PROJECT_KIND_DIRS[kind] == kind.value
+        assert frozenset(
+            {
+                ArtifactKind.DIRECTIVE,
+                ArtifactKind.TACTIC,
+                ArtifactKind.STYLEGUIDE,
+                ArtifactKind.PROCEDURE,
+            }
+        ) == _SINGULAR_PROJECT_DIR_KINDS
+
+    def test_every_other_kind_uses_its_plural_overlay_dir(self) -> None:
+        for kind in ArtifactKind:
+            if kind not in _SINGULAR_PROJECT_DIR_KINDS:
+                assert PROJECT_KIND_DIRS[kind] == kind.plural
+
+    def test_asset_project_dir_is_the_plural_assets(self) -> None:
+        # Pins the T018 scaffold/resolver rendezvous: ``doctrine new --kind
+        # asset`` writes under this directory, and DoctrineService (WP04) reads
+        # the same authority for the project tier.
+        assert PROJECT_KIND_DIRS[ArtifactKind.ASSET] == "assets"
 
 
 class TestNonAugmentationEligibleKinds:

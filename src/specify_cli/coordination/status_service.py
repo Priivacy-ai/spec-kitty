@@ -25,10 +25,15 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from specify_cli.status import EventStream, InnerStateChanged, Lane, StatusEvent
+    from specify_cli.status import (
+        CurrentWpState,
+        EventStream,
+        InnerStateChanged,
+        StatusEvent,
+    )
 
 
 class StatusReadSource(enum.StrEnum):
@@ -65,7 +70,7 @@ def _is_coordination_worktree_path(path: Path) -> bool:
     """
     from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 
-    return cast(bool, is_under_worktrees_segment(path))
+    return is_under_worktrees_segment(path)
 
 
 @dataclass(frozen=True)
@@ -256,30 +261,45 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
 def wp_lane_actor_from_events(
     events: list[StatusEvent],
     wp_id: str,
-) -> tuple[Lane, str | None]:
-    """Reduce already-read events into a WP lane/actor snapshot.
+    annotations: list[InnerStateChanged] | None = None,
+) -> CurrentWpState:
+    """Reduce already-read events into a :class:`CurrentWpState` snapshot.
+
+    Lane and actor come from the transition fold; ``role`` is read from the
+    resolved-binding ``role`` slot of the SAME reduction (C-002: no second
+    reduce, no split-brain reader). ``role`` is annotation-folded, so callers
+    that need it (the in-lock re-claim read) MUST pass ``annotations`` — the
+    ``.lane``-only consumers (coherence / done bookkeeping) omit them and simply
+    see ``role=None``. Role is never derived by splitting the compound actor
+    string (#2861): ``actor`` is projected to its bare tool identity while
+    ``role`` rides its own reduced slot.
 
     An *unseeded* WP (no events at all, or no snapshot entry for wp_id)
     defaults to ``Lane.GENESIS`` — matching the write-side
     ``_derive_from_lane`` behaviour (Contract 3, FR-008).
     """
-    from specify_cli.status import Lane, reduce  # noqa: PLC0415
+    from specify_cli.status import (  # noqa: PLC0415
+        CurrentWpState,
+        Lane,
+        actor_identity_str,
+        reduce,
+    )
 
-    if not events:
-        return Lane.GENESIS, None
-    snapshot = reduce(events)
+    if not events and not annotations:
+        return CurrentWpState(Lane.GENESIS, None, None)
+    snapshot = reduce(events, annotations)
     state = snapshot.work_packages.get(wp_id)
     if not state:
-        return Lane.GENESIS, None
+        return CurrentWpState(Lane.GENESIS, None, None)
     try:
         lane = Lane(str(state.get("lane", Lane.GENESIS)))
     except ValueError:
         lane = Lane.GENESIS
-    from specify_cli.status import actor_identity_str  # noqa: PLC0415
 
     actor = state.get("actor")
     actor_key = actor_identity_str(actor) if actor is not None else ""
-    return lane, actor_key or None
+    role = state.get("role")
+    return CurrentWpState(lane, actor_key or None, role)
 
 
 def append_event_log(
@@ -287,7 +307,8 @@ def append_event_log(
     event: StatusEvent | InnerStateChanged,
 ) -> None:
     """Append one event using an explicit mutating contract."""
-    from specify_cli.status import store as _store
+    from specify_cli.status._unsafe import append_annotations_atomic_verified as _append_annotations_atomic_verified
+    from specify_cli.status._unsafe import append_event_verified as _append_event_verified
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_log requires EventLogWriteContract")
@@ -295,9 +316,9 @@ def append_event_log(
     from specify_cli.status import InnerStateChanged  # noqa: PLC0415
 
     if isinstance(event, InnerStateChanged):
-        _store.append_annotations_atomic_verified(contract.feature_dir, [event])
+        _append_annotations_atomic_verified(contract.feature_dir, [event])
     else:
-        _store.append_event_verified(contract.feature_dir, event)
+        _append_event_verified(contract.feature_dir, event)
 
 
 def append_event_stream_log(
@@ -305,12 +326,12 @@ def append_event_stream_log(
     events: list[StatusEvent | InnerStateChanged],
 ) -> None:
     """Atomically append one mixed transition/annotation durability unit."""
-    from specify_cli.status import store as _store
+    from specify_cli.status._unsafe import append_event_stream_atomic_verified as _append_event_stream_atomic_verified
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_stream_log requires EventLogWriteContract")
     _validate_write_contract(contract)
-    _store.append_event_stream_atomic_verified(contract.feature_dir, events)
+    _append_event_stream_atomic_verified(contract.feature_dir, events)
 
 
 def _validate_write_contract(contract: EventLogWriteContract) -> None:

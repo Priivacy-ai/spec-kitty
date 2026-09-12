@@ -14,8 +14,7 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind, placement_seam
 import os
 import subprocess
 import sys
@@ -24,8 +23,8 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -64,6 +63,21 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         command="spec-kitty merge-driver-event-log %O %A %B",
         pattern="kitty-specs/**/status.events.jsonl",
     ),
+    # coord-write-placement-closure-01KYCF83 WP06 (out-of-owned-files leeway,
+    # documented in the move-task note): decisions.events.jsonl
+    # (events/decision_log.py's DecisionGitLog) is structurally identical to
+    # status.events.jsonl -- an append-only JSONL log with an `event_id` +
+    # `at` envelope (merge_event_payloads's only schema requirement) -- so it
+    # reuses the SAME driver command/config, just a second pattern, rather
+    # than a new dedicated driver. Surfaced by
+    # test_merge_reconciliation_class_guard.py's completeness check once WP02
+    # classified DECISION_LOG as a COORD-partition (both-sides-divergent) kind.
+    _MergeDriverSpec(
+        config_key="spec-kitty-event-log",
+        name="Spec Kitty event log union merge",
+        command="spec-kitty merge-driver-event-log %O %A %B",
+        pattern="kitty-specs/**/decisions.events.jsonl",
+    ),
     _MergeDriverSpec(
         config_key="spec-kitty-meta",
         name="Spec Kitty mission meta field merge",
@@ -75,6 +89,34 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         name="Spec Kitty mission traces union merge",
         command="spec-kitty merge-driver-traces %O %A %B",
         pattern="kitty-specs/**/traces/*.md",
+    ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-acceptance-matrix",
+        name="Spec Kitty acceptance matrix filled-side merge",
+        command="spec-kitty merge-driver-acceptance-matrix %O %A %B",
+        pattern="kitty-specs/**/acceptance-matrix.json",
+    ),
+    _MergeDriverSpec(
+        config_key="spec-kitty-issue-matrix",
+        name="Spec Kitty issue matrix row-aware merge",
+        command="spec-kitty merge-driver-issue-matrix %O %A %B",
+        # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the
+        # canonical artifact to structured JSON (C-008); no .md is written by
+        # any canonical path any more, so the .md pattern would be inert.
+        pattern="kitty-specs/**/issue-matrix.json",
+    ),
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): a
+    # refuse-fail-closed driver, NOT a union/field-merge -- see
+    # merge_driver.py::merge_driver_review_cycle's docstring for why this one
+    # driver in the registry never reconciles a collision, only refuses it.
+    # Filename-anchored pattern (never `tasks/*.md`) so genuinely
+    # single-writer WP task files (`tasks/WP*.md`,
+    # `tasks/<wp>/baseline-tests.json`) are unaffected.
+    _MergeDriverSpec(
+        config_key="spec-kitty-review-cycle",
+        name="Spec Kitty review-cycle verdict collision refusal",
+        command="spec-kitty merge-driver-review-cycle %O %A %B",
+        pattern="kitty-specs/**/tasks/*/review-cycle-*.md",
     ),
 )
 
@@ -113,8 +155,8 @@ def _resolve_lane_manifest(
     # FR-001 (#2185): ``lanes.json`` is LANE_STATE (PRIMARY-partition) — it lives
     # ONLY on the PRIMARY checkout post-#2106. The coord-aware resolver lands on
     # the STATUS-only ``-coord`` husk (no lanes.json), so route by kind.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     return read_lanes_json(feature_dir)
 
@@ -261,8 +303,8 @@ def integrate_mission_into_target(
     """
     if lanes_manifest is None:
         # FR-001 (#2185): LANE_STATE read — PRIMARY-partition (see above).
-        feature_dir = resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
         )
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:
@@ -445,9 +487,11 @@ def _ensure_merge_driver_git_config(repo_root: Path) -> None:
     Sets the ``merge.<key>.name`` / ``merge.<key>.driver`` git-config for the
     whole :data:`_MERGE_DRIVERS` registry (event-log union, ``meta.json`` field
     merge, ``traces/*.md`` union) so the drivers are *defined*. ``spec-kitty
-    init`` may run before the project becomes a git repository, so the upgrade
-    migration cannot always install the local merge-driver config at init time;
-    the merge path self-heals that gap here (C-006 / DIRECTIVE_044).
+    init`` calls this directly (#4146), so a fresh init inside an existing git
+    repository gets both halves of the driver wiring; when the project is not
+    a git repository yet at init time, this helper's own ``.git`` guard makes
+    it a no-op and the merge path self-heals that gap later (C-006 /
+    DIRECTIVE_044).
 
     It deliberately does **not** seed ``.git/info/attributes``: defining a driver
     is inert until an attribute maps a path to it. This is the entry point the
@@ -677,7 +721,7 @@ def _merge_branch_into(
                 target_branch,
                 rebased_sha,
                 env=_env,
-                coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+                is_residue=is_toolchain_generated_churn,
             )
             return True  # early return — ref already updated
         else:
@@ -712,6 +756,6 @@ def _merge_branch_into(
             target_branch,
             merge_commit,
             env=_env,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            is_residue=is_toolchain_generated_churn,
         )
         return True

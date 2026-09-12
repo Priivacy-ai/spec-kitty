@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: "§Project Structure's runtime_bridge_composition.py line (plan.md:698) now reads \"# FR-001, FR-002; the :127 C-008 comment fix lands in the campsite-clean commit (see §Campsite-Clean Scope), not bundled into the FR-001/FR-002 diff\", explicitly separating the functional work from the comment fix, and this is consistent with §Campsite-Clean Scope (both files' comments corrected together in one campsite-clean commit) and §Suggested Work Package Sequencing's diagram (single Campsite-clean node preceding all three WPs)."
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: "Decision 1 (plan.md:139-141) adds a new per-field declaration axis (inline-vs-sub-list value shape) and Decision 3(a) (plan.md:260-278) states, as prose design decision with rationale (not a regex or step-by-step algorithm, and the one regex literal present, plan.md:265, is quoted only as evidence of the existing code's gap), the extension of shape-(a)'s value-capture to treat trailing bulleted lines as a sub-list-valued field's value when declared so in Decision 1; the Non-Vacuity table's documentation row (plan.md:555) now requires a Build-Commands-only positive fixture; research.md §R4.1's documentation row (research.md:191) matches this exactly; Generator Tools is consistently and explicitly left out of the declared field set in both plan.md (280-286) and research.md (191); and `sed -n '10,28p' packs/built-in/missions/documentation/templates/documentation-plan-template.md` independently confirms Build Commands' value is a bulleted sub-list (lines 26-28), not inline."

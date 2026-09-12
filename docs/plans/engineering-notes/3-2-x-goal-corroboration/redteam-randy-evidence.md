@@ -1,7 +1,7 @@
 ---
 title: RED TEAM — Refuting the CaaCS-Delta Corroboration (randy-reducer)
 description: Randy Reducer's red-team refutation (dialectic antithesis) of the CaaCS-delta corroboration, challenging its evidence base, read-only at 3.2.0.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # RED TEAM — Refuting the CaaCS-Delta Corroboration (randy-reducer)

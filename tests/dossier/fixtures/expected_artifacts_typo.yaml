@@ -1,0 +1,18 @@
+# Fixture: a deliberately typo'd expected-artifacts.yaml (WP01, T002/T003/T004).
+#
+# Mirrors spec.md AS2's example: the top-level `required_always:` key is
+# misspelled `required_alwyas:`. Used by tests/dossier/test_manifest.py,
+# tests/cli/commands/test_reconcile.py, tests/dossier/test_rebaseline.py, and
+# tests/sync/test_namespace.py to prove the typo raises `pydantic.ValidationError`
+# through `ManifestRegistry.load_manifest()` (FR-016) instead of silently
+# discarding the misspelled key (FR-009's `extra="forbid"`).
+
+schema_version: "1.0"
+mission_type: "typo-fixture"
+manifest_version: "1"
+
+required_alwyas: []
+
+required_by_step: {}
+
+optional_always: []

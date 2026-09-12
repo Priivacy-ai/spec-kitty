@@ -12,10 +12,10 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from kernel.clock import now_utc_iso
 
 from .models import SenseStatus, TermSense
 from .store import GlossaryStore
@@ -218,10 +218,10 @@ def build_glossary_drg_layer(
 ) -> DRGGraph:
     """Build the glossary DRG layer from the active glossary store.
 
-    Mints one :class:`~doctrine.drg.models.DRGNode` of kind
+    Mints one :class:`~charter.offering.drg.models.DRGNode` of kind
     ``NodeKind.GLOSSARY`` per unique active sense surface in
     *applicable_scopes*, then adds a
-    ``Relation.VOCABULARY`` :class:`~doctrine.drg.models.DRGEdge` for every
+    ``Relation.VOCABULARY`` :class:`~charter.offering.drg.models.DRGEdge` for every
     (action URN, glossary URN) pair found in the built-in + project DRG graph.
 
     Args:
@@ -233,7 +233,7 @@ def build_glossary_drg_layer(
     Returns:
         A :class:`DRGGraph` with ``generated_by="glossary-drg-builder-v1"``.
     """
-    from charter._drg_helpers import load_validated_graph
+    from charter.activation._drg_helpers import load_validated_graph
 
     index = build_index(store, applicable_scopes)
 
@@ -279,7 +279,7 @@ def build_glossary_drg_layer(
 
     return DRGGraph(
         schema_version="1.0",
-        generated_at=datetime.now(tz=UTC).isoformat(),
+        generated_at=now_utc_iso(),
         generated_by="glossary-drg-builder-v1",
         nodes=nodes,
         edges=edges,

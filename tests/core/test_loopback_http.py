@@ -22,9 +22,6 @@ import pytest
 
 from specify_cli.core.loopback_http import (
     LOOPBACK_HOST,
-    LOOPBACK_URL_HOST,
-    build_loopback_base_url,
-    build_loopback_url,
     create_loopback_server,
     serve_loopback_server,
 )
@@ -58,18 +55,6 @@ class _Handler(BaseHTTPRequestHandler):
 
 def setup_function() -> None:
     _RecordingServer.instances.clear()
-
-
-def test_build_loopback_url_uses_loopback_host_and_given_path() -> None:
-    assert build_loopback_url(8123, "/api/health") == f"http://{LOOPBACK_URL_HOST}:8123/api/health"
-
-
-def test_build_loopback_url_normalizes_missing_leading_slash() -> None:
-    assert build_loopback_url(8123, "api/health") == f"http://{LOOPBACK_URL_HOST}:8123/api/health"
-
-
-def test_build_loopback_base_url_has_no_trailing_slash() -> None:
-    assert build_loopback_base_url(9999) == f"http://{LOOPBACK_URL_HOST}:9999"
 
 
 def test_create_loopback_server_binds_loopback_only() -> None:

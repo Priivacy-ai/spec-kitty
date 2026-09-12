@@ -1,0 +1,107 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >
+      Re-ran the live checks independently rather than trusting the plan's narration.
+      `gh pr list --repo Priivacy-ai/spec-kitty --state open --limit 50 --json number` returns
+      exactly 18 open PRs today (2026-08-14), matching plan.md:542's "18 open PRs" claim exactly
+      (same 18 numbers: 3383/3379/3378/3377/3374/3332/3300/3293/3166/3152/3151/3067/3015/2890/
+      2719/2606/2492/2239). Fetched each PR's file list individually
+      (`gh pr view <n> --json files`) and cross-referenced against all five mission-touched
+      files: only `src/specify_cli/cli/commands/doctrine.py` gets non-CHANGELOG hits, from
+      exactly #3166 and #2719 — matching the plan's enumeration. `pack_validator.py`,
+      `pack_assembler.py`, and the guide `.md` have zero open-PR overlaps (silently confirmed,
+      correctly not called out). Six other PRs touch `docs/changelog/CHANGELOG.md`, which the
+      finding's own "fix" instruction (plan-fresh-3.yaml:54-56) explicitly scoped out of the
+      open-PR check ("touch doctrine.py, pack_validator.py, or pack_assembler.py") since
+      changelog co-edits are routine append-only merges, not architectural-premise collisions —
+      the plan's silence on them is a correct application of the finding's own scope, not an
+      omission. #2719 characterisation verified against `gh pr diff 2719`: `org_init`
+      (doctrine.py:899-940 on this checkout, matches) is refactored into a dispatcher —
+      `if template is not None: _run_template_render(...); return` else
+      `_run_minimal_scaffold(...)` — confirmed byte-for-byte in the raw diff. `grep -n
+      "validate_pack\|check_drg_root"` over the full 5483-line PR diff returns zero hits,
+      confirming "never calls validate_pack itself" is literally true, not just asserted. #3166
+      touches only `fetch()` (doctrine.py:94-160 region); this mission's only doctrine.py edit
+      is org_validate's call site at :966 (confirmed: current line 966 is
+      `result = validate_pack(pack_path)`, the exact call site IC-04 will modify) — no line
+      overlap, correctly assessed benign. Both merge orderings are stated plainly
+      (plan.md:558-570) without hedging, and the operator-facing resolution
+      (plan.md:571-583) gives two concrete, actionable options rather than dissolving into
+      vagueness — acceptable per this task's own instruction that a merge-order constraint
+      left for the operator is a valid resolution, since redesigning FR-004 is out of plan-phase
+      authority. IC-04's Risks section (plan.md:833-838) cross-references the Chokepoint section
+      correctly. Sections now live at plan.md:540-604 (Chokepoint/Open-PR check) and
+      plan.md:833-838 (IC-04 Risks), not the brief's approximate 452-501/696-701 — the content
+      is present, current, and accurate at its actual location.
+
+  - id: PLAN-FRESH3-002
+    status: partial
+    reason: >
+      Read the charter's actual C-011 text first-hand (.kittify/charter/charter.md:591-604):
+      "The reviewer verifies red→green: the test was RED on the WP's planning_base_branch AND
+      GREEN on the WP's final commit." `planning_base_branch` is not a loose phrase — it is a
+      concrete, defined frontmatter/context field (src/specify_cli/.contextive/orchestration.yml:67,
+      src/specify_cli/frontmatter.py:65) meaning "the branch active in the repository root
+      checkout when WP prompts were generated," fixed once per WP/lane, not a moving intra-lane
+      commit pointer. The plan's new "Per-FR ATDD Sequencing (C-011)" subsection (plan.md:395-463)
+      is real, concrete, and names real AC fixtures — verified FR-002/FR-003/FR-004's AC-1, and
+      FR-004's AC-6/AC-7, all exist verbatim in spec.md (grep confirms AC-1 at spec.md:320/361/466,
+      AC-6 at :483, AC-7 at :493). Named test files exist (tests/specify_cli/doctrine/
+      test_pack_validator.py, tests/doctrine/test_agent_profile_model_field.py). But the Charter
+      Check gate's own summary line (plan.md:104, "the reviewer verifying red-on-
+      `planning_base_branch` / green-on-final-commit") promises exactly the charter's literal
+      check, and the detailed procedure it points readers to does not deliver that for two of
+      the three FRs: FR-002's test commit is specified to run "against the state after FR-003's
+      implementation commit (Lane B's running tip)" (plan.md:425) and FR-004's "against the state
+      after FR-002's implementation commit" (plan.md:437) — neither is Lane B's
+      `planning_base_branch`, only FR-003's (first in sequence) actually is (plan.md:414). The
+      Reviewer-verification paragraph (plan.md:445-451) then generalizes this substituted
+      reference point to all three pairs ("the tree immediately before the paired implementation
+      commit"), never invoking `planning_base_branch` for the actual verification step it
+      describes. This is a real letter-vs-substance gap, not merely stricter rigor dressed up
+      differently: the finding's own prescribed fix (plan-fresh-3.yaml:100-107) explicitly asked
+      for tests "confirmed RED against Lane B's `planning_base_branch`" — the plan substitutes a
+      different (arguably still-valid, since less code at an earlier point implies the same RED
+      result) checkpoint without saying so or reconciling it with the promise made three lines
+      earlier in the same document. FR-001's C-011 exemption (plan.md:456-463) is well-reasoned
+      and correctly grounded in spec.ruling.md's binding documentation-only scope and C-004's
+      test-surface exclusion — that part is fully resolved. Net: satisfies the finding's wording
+      (C-011 is now named, cited, and given a concrete per-FR procedure) but the procedure it
+      actually specifies for 2 of 3 FRs is not the check C-011's own text and the finding's own
+      fix both call for, and the plan does not reconcile or justify the substitution anywhere.
+
+new_findings:
+  - id: PLAN-V4-001
+    severity: 2
+    lens: consistency
+    location: "plan.md:104 vs plan.md:414-451"
+    finding: >
+      Internal inconsistency introduced by this fix: the Charter Check gate's C-011 summary
+      bullet (plan.md:101-108) promises reviewer verification of "red-on-`planning_base_branch`
+      / green-on-final-commit," but the "Per-FR ATDD Sequencing (C-011)" subsection it points to
+      specifies FR-002's and FR-004's red-check against "Lane B's running tip" (the state after
+      the immediately-preceding FR's implementation commit), not against `planning_base_branch`
+      — a term with a fixed, codebase-defined meaning (src/specify_cli/.contextive/
+      orchestration.yml:67) distinct from any intra-lane commit. Only FR-003 (first in sequence)
+      actually gets checked against `planning_base_branch`.
+    evidence: >
+      plan.md:104 "the reviewer verifying red-on-`planning_base_branch` / green-on-final-commit"
+      vs. plan.md:425 "Run against the state after FR-003's implementation commit (Lane B's
+      running tip)" and plan.md:437 "Run against the state after FR-002's implementation
+      commit," and plan.md:445-451's reviewer-verification paragraph, which frames the RED check
+      generically as "the tree immediately before the paired implementation commit" for all
+      three pairs and never names `planning_base_branch` as the actual comparison point used.
+    fix: >
+      Either (a) add an explicit `planning_base_branch`-relative RED check for FR-002 and FR-004
+      alongside the existing intra-lane-tip check (the intra-lane check is still useful for
+      precise attribution, but does not substitute for the charter's specified comparison
+      point), or (b) if the intra-lane-tip check is judged sufficient in substance, say so
+      explicitly and reconcile it with the Charter Check bullet's wording so the plan is not
+      promising one verification method in one place and specifying a different one three
+      sections later.
+
+verdict: fail

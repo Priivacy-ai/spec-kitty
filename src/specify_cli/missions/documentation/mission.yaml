@@ -38,7 +38,7 @@ artifacts:
 # Path conventions for this mission
 paths:
   workspace: "docs/"
-  deliverables: "docs/output/"
+  deliverables: "docs/"
   documentation: "docs/"
 
 # Validation rules

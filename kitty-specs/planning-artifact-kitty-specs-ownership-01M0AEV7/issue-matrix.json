@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#1269": {
+      "evidence_ref": "Historical git-archaeology reference in research.md/plan.md (already-merged prior work), not an in-scope issue for this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2643": {
+      "evidence_ref": "Fixed by WP01 (commit c68f0594c0): confined planning_artifact exemption in _invalid_mission_specs_owned_files; tests/tasks/test_finalize_planning_artifact_kitty_specs.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3214": {
+      "evidence_ref": "Follow-up: #3214 remains open as its own tracking issue; out of scope for this mission (spec C-004), coordinated separately.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3222": {
+      "evidence_ref": "Fixed by WP01 (commit c68f0594c0): confined planning_artifact exemption in _invalid_mission_specs_owned_files; tests/tasks/test_finalize_planning_artifact_kitty_specs.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3432": {
+      "evidence_ref": "Follow-up: #3432 remains open as its own tracking issue; out of scope for this mission (spec C-004), coordinated separately.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#347": {
+      "evidence_ref": "Historical git-archaeology reference in research.md/plan.md (already-merged prior work), not an in-scope issue for this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

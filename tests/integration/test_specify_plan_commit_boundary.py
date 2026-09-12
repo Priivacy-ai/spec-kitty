@@ -24,6 +24,7 @@ import pytest
 
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.missions._substantive import is_committed, is_substantive
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -52,6 +53,10 @@ def _init_git_repo(repo: Path) -> None:
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test")
     _git(repo, "commit", "-m", "init", "--allow-empty")
+    # WP04 fail-closed follow-up: create_mission_core() hard-requires an
+    # activated mission type; a bare git-init fixture never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo)
 
 
 def _summary(slug: str) -> dict[str, str]:
@@ -70,7 +75,6 @@ def _create_mission(repo: Path, slug: str) -> Path:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
     ):
         result = create_mission_core(repo, slug, **_summary(slug))
     feature_dir: Path = result.feature_dir
@@ -287,7 +291,6 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -439,7 +442,6 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -505,7 +507,7 @@ def test_setup_plan_scaffolds_from_doctrine_package_default(
 
     payload = _run_setup_plan(tmp_path, handle)
 
-    doctrine_plan = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions" / "software-dev" / "templates" / "plan-template.md"
+    doctrine_plan = Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions" / "software-dev" / "templates" / "plan-template.md"
     plan_file = feature_dir / "plan.md"
 
     # #2566/WP06: a pristine scaffold (plan.md byte-equal to the template, not

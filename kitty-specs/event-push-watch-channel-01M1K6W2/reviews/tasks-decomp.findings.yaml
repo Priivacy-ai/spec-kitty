@@ -1,0 +1,125 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "PR-shape carry-forward (lens 2 — aggregate-diff review rigor)"
+    severity: 3
+    title: "Plan's 'aggregate diff NOT trivially reviewable in one sitting' note is missing from 3 of 5 WP files, including the highest-risk core WP"
+    evidence:
+      - artifact: "plan.md § PR Shape (lines 859-872)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md, line 86 (carries the note)"
+      - artifact: "tasks/WP05-concurrency-proof.md, lines 83-88 (carries the note)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md (no occurrence of 'PR Shape'/'not trivially reviewable'/'one sitting' anywhere in the file)"
+      - artifact: "tasks/WP02-truncation-detection.md (same — no occurrence)"
+      - artifact: "tasks/WP03-bounded-generator-core.md (same — no occurrence)"
+      - artifact: "tasks.md and tasks/README.md (neither carries the note either)"
+    claim: >
+      plan.md's "PR Shape" section explicitly judges this mission's aggregate diff "NOT trivially
+      reviewable in one sitting as a single undifferentiated diff" and recommends the pre-merge
+      squad and "the WP-level reviews not be compressed or skipped even though the final artifact
+      is one PR." Per this review's lens-2 instruction, that note must be carried forward
+      verbatim into the WP files, not re-derived or dropped. It is present, near-verbatim, in
+      WP04 and WP05's Context sections, but is entirely absent from WP01, WP02, and WP03 — the
+      three core WPs, including WP01, which plan.md itself calls "the piece that does the actual
+      novel domain work" and the one carrying the mission's genuinely hard truncation/tear/backward-scan
+      logic. Each WP file is the self-contained context handed to its own implementer and reviewer
+      (per this mission's own convention: "concrete enough to implement without re-deriving the
+      plan"); a reviewer working from WP01/WP02/WP03's prompt alone has zero signal that plan.md
+      has explicitly flagged this mission's per-WP review as needing elevated, small-subsystem-proportional
+      rigor rather than typical single-command-CLI-addition rigor — precisely the WPs where that
+      elevated rigor matters most, since WP04/WP05 are comparatively thin glue/proof layers over
+      WP01-03's core.
+    remediation: >
+      Add the same PR-Shape recap bullet used in WP04 (line 86) and WP05 (lines 83-88) to WP01,
+      WP02, and WP03's Context sections — e.g. "this mission ships as ONE PR (spec-kitty's
+      default), but plan.md's PR Shape section judges the aggregate diff NOT trivially reviewable
+      in one sitting given the genuine engineering weight of the truncation/tear-tolerance core
+      this WP contributes to, and recommends WP-level review, including this WP's own, NOT be
+      compressed or skipped even though the final artifact is one PR."
+
+  - id: TASKS-DECOMP-002
+    lens: "Single-concern / concrete-without-re-derivation (lens 1) — ownership-overlap narrative accuracy"
+    severity: 4
+    title: "WP02 and WP03 both assert a false claim about their own owned_files, and both omit the real ownership-overlap exemption (scope: codebase-wide) actually used"
+    evidence:
+      - artifact: "wps.yaml, lines 42-44 (WP02 owned_files: includes 'src/specify_cli/status/tail_reader.py')"
+      - artifact: "wps.yaml, lines 74-76 (WP03 owned_files: includes 'src/specify_cli/status/tail_reader.py')"
+      - artifact: "tasks.md, line 23 (WP02 'Owned Files' line lists tail_reader.py)"
+      - artifact: "tasks.md, line 34 (WP03 'Owned Files' line lists tail_reader.py)"
+      - artifact: "tasks/WP02-truncation-detection.md, frontmatter lines 33-35 (owned_files literally lists tail_reader.py)"
+      - artifact: "tasks/WP02-truncation-detection.md, lines 65-71 ('even though that file is NOT listed in this WP's owned_files above... this mission's resolution is that only the file's creator (WP01) lists tail_reader.py in owned_files; WP02 and WP03 both extend the same file without ever claiming it there')"
+      - artifact: "tasks/WP03-bounded-generator-core.md, frontmatter lines 31-33 (owned_files literally lists tail_reader.py)"
+      - artifact: "tasks/WP03-bounded-generator-core.md, lines 62-63 ('This WP has NO exclusive owned_files because it edits ... both already owned in wps.yaml by WP01 (their creator)')"
+      - artifact: "wps.yaml, line 45 (WP02 'scope: codebase-wide') and line 77 (WP03 'scope: codebase-wide') — the actual mechanism used, never mentioned in either WP's prose"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md:71-79 ('codebase-wide is the ONLY exemption. Two narrow WPs that claim the same files always fail ownership validation... If WPs legitimately share a surface, mark the broadly-overlapping one scope: codebase-wide')"
+    claim: >
+      WP02 and WP03's Context sections each build a multi-paragraph justification for why editing
+      tail_reader.py without owning it is safe, explicitly citing this mission's own canonical
+      tasks-finalize doctrine ("two WPs literally claiming the same file 'ALWAYS fails ownership
+      validation'... this mission's resolution is that only WP01 lists tail_reader.py in
+      owned_files"). This claim is factually false against the mission's own machine-readable
+      artifacts: wps.yaml, tasks.md, and each WP's own frontmatter all show WP01, WP02, AND WP03
+      listing 'src/specify_cli/status/tail_reader.py' in owned_files — there is no "only the
+      creator lists it" resolution in the actual data. The real resolution genuinely used is the
+      one the canonical tasks-finalize/prompt.md itself documents: `scope: codebase-wide` is set on
+      WP02 and WP03 (wps.yaml lines 45 and 77), which is "the ONLY exemption" the ownership
+      validator recognizes for narrow overlapping WPs — and this mechanism is never mentioned
+      anywhere in either WP's prose. A reviewer who cross-checks WP02/WP03's stated resolution
+      against wps.yaml (the artifact tasks.md itself calls the generation source, "Do not edit
+      directly") will find the prose and the data disagree, undermining confidence in the accuracy
+      of the WP's own self-description of a safety-relevant mechanism (the file-overlap guard
+      protecting the sequential WP01→WP02→WP03 chokepoint this same prose insists "the review
+      squad checks for"). This is exactly the class of plausible-but-wrong ownership narrative an
+      architecture-scout review is meant to catch before it propagates confusion into the
+      implementation/review loop.
+    remediation: >
+      Correct WP02 and WP03's Context sections to state the actual mechanism: both WPs DO list
+      tail_reader.py in owned_files, and the overlap is resolved via the `scope: codebase-wide`
+      exemption (wps.yaml WP02 line 45 / WP03 line 77) per tasks-finalize/prompt.md's "1b.
+      Ownership Overlap" section — not via WP01 being the sole owned_files claimant. Keep the
+      correct, still-valid parts of the existing narrative (the WP01→WP02→WP03 strict sequential
+      chokepoint in one lane/worktree remains the real execution-safety guard, per the same
+      doctrine's step 1 "linearize shared surfaces" — that half of the prose is accurate and should
+      stay), but remove the false "only WP01 lists it" claim and replace it with the real
+      codebase-wide-exemption explanation so a reviewer checking wps.yaml finds the prose and data
+      in agreement.
+
+  - id: TASKS-DECOMP-003
+    lens: "Mission-derived — marker + CI job completeness (C-008/SK-144)"
+    severity: 4
+    title: "WP02's own subtasks never instruct adding the fast marker to the new file tests/status/test_tail_reader_truncation.py, unlike every sibling WP that creates a new test file"
+    evidence:
+      - artifact: "tasks/WP02-truncation-detection.md — full text search for 'pytestmark'/'module scope'/'module level' returns zero hits outside the Definition-of-Done table header ('| WP | Test file(s) | Marker(s) | CI job |', line ~305)"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T009 (creates the NEW file tests/status/test_tail_reader_truncation.py; no instruction anywhere in T009-T015 to add pytestmark)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md, line 142 ('Create tests/status/test_tail_reader.py with pytestmark = [pytest.mark.fast] at module scope') — the sibling WP that DOES instruct this for its own new file"
+      - artifact: "tasks/WP03-bounded-generator-core.md, line 239 ('Add pytestmark = [pytest.mark.fast] at module level if not already present from WP01/WP02')"
+      - artifact: "tasks/WP05-concurrency-proof.md, line 283 ('Add pytestmark = [pytest.mark.integration, pytest.mark.git_repo] at module level in tests/status/test_events_tail_concurrency.py')"
+      - artifact: "plan.md § Marker Discipline (recap table), line 736 (WP02 row: marker 'fast', job 'fast-tests-status')"
+    claim: >
+      Per this review's mission-derived lens and C-008/SK-144 ("CI selects by marker, not
+      directory"): WP02's Definition-of-Done table asserts its new file
+      tests/status/test_tail_reader_truncation.py carries marker `fast` and is collected by
+      `fast-tests-status`, matching plan.md's recap table. But nowhere in WP02's actual subtask
+      instructions (T009 through T015 — the steps a WP-implementer follows to build the file) is
+      the implementer ever told to add `pytestmark = [pytest.mark.fast]` (or an equivalent
+      per-test `@pytest.mark.fast` decorator) to the new file. This is the exact incompleteness
+      this lens is designed to catch: a WP naming only a directory/file-in-DoD-table without an
+      explicit instruction to apply the marker is incomplete per C-008. Contrast with WP01 (T001,
+      explicit instruction for its own new file), WP03 (T019, explicit "add if not already
+      present"), and WP05 (T034, explicit instruction for its own new file) — all three of the
+      other WPs that create new test files explicitly instruct the marker; WP02 is the sole
+      exception. If a WP02 implementer follows the prompt literally, the resulting
+      test_tail_reader_truncation.py file could carry zero markers and be collected by ZERO CI
+      jobs — the pytest suite would report the tests as passing locally (unfiltered `pytest`
+      collects everything) while `fast-tests-status`'s marker-filtered CI selector silently never
+      runs them.
+    remediation: >
+      Add an explicit instruction to WP02's Subtask T009 (mirroring WP01 T001's phrasing):
+      "Create tests/status/test_tail_reader_truncation.py with pytestmark = [pytest.mark.fast] at
+      module scope" — before any test function is written — so the marker is present from the
+      file's first commit, not left to be inferred from the Definition-of-Done table alone.
+findings_count: 3

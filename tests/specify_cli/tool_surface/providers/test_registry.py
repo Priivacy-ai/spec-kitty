@@ -19,7 +19,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.providers._registry import (
@@ -97,7 +97,7 @@ class _AnotherStubProvider:
         ...
 
 
-def _make_definition(kind: SurfaceKind = SurfaceKind.COMMAND_SKILL) -> SurfaceDefinition:
+def _make_definition(kind: ToolSurfaceKind = ToolSurfaceKind.COMMAND_SKILL) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.CHECKED_IN,
@@ -119,7 +119,7 @@ def test_surface_registration_is_frozen() -> None:
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(_make_definition(),),
-        kind_tokens={"command-skill": SurfaceKind.COMMAND_SKILL},
+        kind_tokens={"command-skill": ToolSurfaceKind.COMMAND_SKILL},
         order=0,
     )
     with pytest.raises(AttributeError):  # frozen dataclass raises FrozenInstanceError
@@ -140,7 +140,7 @@ def test_surface_registration_with_synthetic_key() -> None:
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(_make_definition(),),
-        kind_tokens={"plugin-manifest": SurfaceKind.PLUGIN_MANIFEST},
+        kind_tokens={"plugin-manifest": ToolSurfaceKind.PLUGIN_MANIFEST},
         synthetic_key="plugin_bundle",
         order=10,
     )
@@ -164,7 +164,7 @@ def test_registry_register_single(monkeypatch: pytest.MonkeyPatch) -> None:
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(_make_definition(),),
-        kind_tokens={"command-skill": SurfaceKind.COMMAND_SKILL},
+        kind_tokens={"command-skill": ToolSurfaceKind.COMMAND_SKILL},
         order=0,
     )
     SurfaceProviderRegistry.register(reg)
@@ -219,21 +219,21 @@ def test_build_kind_tokens_merges_in_order(monkeypatch: pytest.MonkeyPatch) -> N
     reg1 = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(),
-        kind_tokens={"token-a": SurfaceKind.COMMAND_SKILL, "token-b": SurfaceKind.HOOK},
+        kind_tokens={"token-a": ToolSurfaceKind.COMMAND_SKILL, "token-b": ToolSurfaceKind.HOOK},
         order=1,
     )
     reg2 = SurfaceRegistration(
         provider_class=_AnotherStubProvider,
         definitions=(),
-        kind_tokens={"token-b": SurfaceKind.RULE, "token-c": SurfaceKind.NATIVE_CONFIG},
+        kind_tokens={"token-b": ToolSurfaceKind.RULE, "token-c": ToolSurfaceKind.NATIVE_CONFIG},
         order=2,
     )
     SurfaceProviderRegistry.register(reg1)
     SurfaceProviderRegistry.register(reg2)
     tokens = SurfaceProviderRegistry.build_kind_tokens()
-    assert tokens["token-a"] is SurfaceKind.COMMAND_SKILL
-    assert tokens["token-b"] is SurfaceKind.RULE  # reg2 wins (higher order)
-    assert tokens["token-c"] is SurfaceKind.NATIVE_CONFIG
+    assert tokens["token-a"] is ToolSurfaceKind.COMMAND_SKILL
+    assert tokens["token-b"] is ToolSurfaceKind.RULE  # reg2 wins (higher order)
+    assert tokens["token-c"] is ToolSurfaceKind.NATIVE_CONFIG
 
 
 # ---------------------------------------------------------------------------
@@ -243,11 +243,11 @@ def test_build_kind_tokens_merges_in_order(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_build_registry_fans_out_per_tool_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [])
-    defn = _make_definition(SurfaceKind.COMMAND_SKILL)
+    defn = _make_definition(ToolSurfaceKind.COMMAND_SKILL)
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(defn,),
-        kind_tokens={"command-skill": SurfaceKind.COMMAND_SKILL},
+        kind_tokens={"command-skill": ToolSurfaceKind.COMMAND_SKILL},
         order=0,
     )
     SurfaceProviderRegistry.register(reg)
@@ -283,7 +283,7 @@ def test_build_registry_synthetic_key_unconditional(
 ) -> None:
     """Providers with synthetic_key are registered regardless of tool_keys."""
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [])
-    defn = _make_definition(SurfaceKind.PLUGIN_MANIFEST)
+    defn = _make_definition(ToolSurfaceKind.PLUGIN_MANIFEST)
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(defn,),
@@ -302,7 +302,7 @@ def test_build_registry_synthetic_key_not_duplicated_per_tool(
 ) -> None:
     """Synthetic-key providers are NOT fanned out per tool_key."""
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [])
-    defn = _make_definition(SurfaceKind.PLUGIN_MANIFEST)
+    defn = _make_definition(ToolSurfaceKind.PLUGIN_MANIFEST)
     reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(defn,),
@@ -321,8 +321,8 @@ def test_build_registry_synthetic_key_not_duplicated_per_tool(
 def test_build_registry_mixed_providers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Standard and synthetic providers coexist correctly."""
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [])
-    std_defn = _make_definition(SurfaceKind.COMMAND_SKILL)
-    syn_defn = _make_definition(SurfaceKind.PLUGIN_MANIFEST)
+    std_defn = _make_definition(ToolSurfaceKind.COMMAND_SKILL)
+    syn_defn = _make_definition(ToolSurfaceKind.PLUGIN_MANIFEST)
     std_reg = SurfaceRegistration(
         provider_class=_StubProvider,
         definitions=(std_defn,),

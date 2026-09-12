@@ -100,16 +100,25 @@ def _patch_boundaries(
         f"{mod}._map_requirements_feature_dir",
         lambda *a, **k: coord_dir,
     )
-    # PRIMARY anchor used for the spec.md read (unchanged) → primary dir.
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the
+    # ``primary_feature_dir_for_mission`` patch this block used to install
+    # (for the spec.md read's PRIMARY anchor) is retired along with the
+    # deleted public wrapper -- the real code path never read that module
+    # attribute (see test_map_requirements_spec_path.py for the full
+    # rationale); a real ``meta.json`` fixture resolves the primary dir
+    # correctly on its own.
+    # The canonical placement seam (the read surface under test). Force its
+    # WORK_PACKAGE_TASK projection to the primary dir.
+    class _StubSeam:
+        def read_dir(self, kind: object) -> Path:
+            from mission_runtime import MissionArtifactKind
+
+            assert kind is MissionArtifactKind.WORK_PACKAGE_TASK
+            return primary_dir
+
     monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
-        lambda *a, **k: primary_dir,
-    )
-    # The kind-aware seam (the read surface under test). POST-FIX the production
-    # code calls this for ``kind=WORK_PACKAGE_TASK``; force it to the primary dir.
-    monkeypatch.setattr(
-        f"{mod}.resolve_planning_read_dir",
-        lambda *a, **k: primary_dir,
+        "specify_cli.cli.commands.agent.tasks_map_requirements.placement_seam",
+        lambda *_args, **_kwargs: _StubSeam(),
     )
 
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import fnmatch
 from pathlib import Path
+from kernel.paths import to_posix
 
 # Glob patterns that match the dossier snapshot path. Both shapes are covered
 # because the snapshot writer (`save_snapshot()` in
@@ -50,7 +51,7 @@ def is_dossier_snapshot(path: str | Path) -> bool:
         True when *path* is a dossier snapshot file that the dirty-state
         preflight must ignore. False otherwise.
     """
-    posix = path.as_posix() if isinstance(path, Path) else str(path).replace("\\", "/")
+    posix = to_posix(path)
 
     # Strip any leading "./" so patterns anchored at the repo root still match.
     if posix.startswith("./"):

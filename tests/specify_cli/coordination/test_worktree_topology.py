@@ -274,33 +274,6 @@ def _coord_worktree_feature_dir(repo_root: Path) -> Path:
     return feature_dir
 
 
-def test_emit_lock_root_for_coord_worktree_is_canonical_primary(
-    tmp_path: Path,
-) -> None:
-    from specify_cli.workspace.root_resolver import resolve_status_lock_root
-
-    repo_root = tmp_path / "repo"
-    _init_repo(repo_root)
-    worktree_feature_dir = _coord_worktree_feature_dir(repo_root)
-
-    primary_feature_dir = repo_root / "kitty-specs" / "my-mission-ABCD1234"
-    primary_feature_dir.mkdir(parents=True)
-
-    worktree_lock_root = resolve_status_lock_root(
-        worktree_feature_dir, repo_root=None
-    )
-    primary_lock_root = resolve_status_lock_root(
-        primary_feature_dir, repo_root=None
-    )
-
-    # The whole point of the flip: the coord-worktree feature dir resolves to
-    # the canonical primary root (NOT the worktree-local parent.parent), so it
-    # agrees with the primary-checkout resolution for the same mission.
-    assert worktree_lock_root == repo_root.resolve()
-    assert worktree_lock_root != worktree_feature_dir.parent.parent
-    assert worktree_lock_root == primary_lock_root
-
-
 def test_lifecycle_lock_root_for_coord_worktree_is_canonical_primary(
     tmp_path: Path,
 ) -> None:

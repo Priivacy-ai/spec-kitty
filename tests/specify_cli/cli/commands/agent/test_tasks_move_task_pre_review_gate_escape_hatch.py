@@ -4,11 +4,12 @@ honoring + running-progress legibility on ``_mt_run_pre_review_gate``.
 ``move-task --to for_review`` runs a synchronous, potentially multi-minute
 scoped pytest subprocess (``pre_review_gate.run_scoped_tests_at_head``) with
 no way to skip it — the loop-friction fast-follow spec
-(``docs/plans/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
+(``docs/plans/investigations/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
 
 1. an explicit ``--skip-pre-review-gate`` CLI flag (``st.skip_pre_review_gate``),
-2. honoring the sync layer's existing ``SPEC_KITTY_SYNC_DISABLE`` /
-   ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` env vars as a process-wide opt-out,
+2. honoring the gate's own ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` env var as a
+   process-wide opt-out (#3980 — the sync-disable vocabulary is no longer
+   read here),
 3. a console notice before the scoped run starts, so it never reads as a
    silent hang.
 
@@ -36,6 +37,7 @@ from specify_cli.cli.commands.agent import tasks_move_task
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
 from specify_cli.review import pre_review_gate
+from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 from specify_cli.status import Lane
 
 pytestmark = pytest.mark.fast
@@ -110,11 +112,11 @@ def test_skip_flag_skips_gate_without_touching_workspace() -> None:
     assert st.pre_review_gate_metadata["blocked"] is False
 
 
-@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"])
+@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SKIP_PRE_REVIEW_GATE"])
 def test_disable_env_var_skips_gate_without_touching_workspace(
     env_var: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Either sync-layer disable env var short-circuits the gate the same way
+    """The gate's own opt-out env var short-circuits the gate the same way
     as the explicit flag — no workspace resolution, no subprocess."""
     monkeypatch.setenv(env_var, "1")
     st = _make_state()
@@ -133,7 +135,17 @@ def test_falsy_env_value_does_not_skip_gate(
 ) -> None:
     """A present-but-falsy env var must NOT trip the skip — only recognized
     truthy tokens (the ``core.env.is_truthy`` grammar) do."""
-    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", falsy_value)
+    monkeypatch.setenv("SPEC_KITTY_SKIP_PRE_REVIEW_GATE", falsy_value)
+
+
+@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"])
+def test_sync_disable_vocabulary_no_longer_skips_gate(
+    env_var: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#3980: disarming sync must not silently skip a review gate — the gate
+    no longer reads the sync-disable vocabulary, so a truthy value there
+    leaves the gate enforcing (the workspace is still resolved)."""
+    monkeypatch.setenv(env_var, "1")
     st = _make_state()
     with patch(
         f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
@@ -184,8 +196,7 @@ def test_default_still_attempts_to_resolve_workspace_and_run_gate() -> None:
     reason = st.pre_review_gate_metadata["reason"] or ""
     assert "gate skipped" not in reason
     assert "--skip-pre-review-gate" not in reason
-    assert "SPEC_KITTY_SYNC_DISABLE" not in reason
-    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" not in reason
+    assert "SPEC_KITTY_SKIP_PRE_REVIEW_GATE" not in reason
 
 
 def test_default_does_not_print_skip_notice() -> None:
@@ -207,56 +218,56 @@ def test_default_does_not_print_skip_notice() -> None:
 
 
 def test_progress_notice_printed_before_running_nonempty_scope() -> None:
-    """An explicit override scope (frontmatter ``pre_review_test_scope``) is a
-    non-empty scope — the gate prints a running notice before evaluating it.
-    ``pre_review_gate.evaluate_with_scope`` is mocked so no real subprocess
-    ever spawns; the assertion is purely about notice-before-evaluate
-    ordering + content.
+    """WP09 migration: under the inverted hook, a non-empty scope = a non-empty
+    changed-file set with an ACTIVE doctrine binding. The hook prints the running
+    notice in ``_mt_collect_transition_gate_verdicts`` BEFORE dispatching the
+    bound handler. The dispatch seam is stubbed so no real handler/subprocess
+    runs; the assertion is purely about notice-before-dispatch ordering + content
+    (the incumbent's frontmatter-override tier is retired — the scope is the
+    changed-files SSOT applied through the ScopeSource).
     """
     st = _make_state()
-    st.wp = SimpleNamespace(
-        path=Path("WP01-x.md"), frontmatter="pre_review_test_scope: tests/foo/test_bar.py\n"
-    )
     call_order: list[str] = []
+    active = GateBindingResolution(
+        coverage=GateCoverage.ACTIVE,
+        edge_key="in_progress->for_review",
+        owning_contract_urn="mission_step_contract:software-dev/review",
+        reason="1 active gate binding(s)",
+        active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
+    )
     fake_verdict = pre_review_gate.GateVerdict(
-        outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
-        scope=pre_review_gate.ScopeResult(
-            test_targets=("tests/foo/test_bar.py",),
-            matched_shard_groups=(),
-            matched_composite_dirs=(),
-            empty_cone_composite_dirs=(),
-            excluded_scope_files=(),
-        ),
-        reason="mocked — no real run",
+        outcome=pre_review_gate.GateOutcome.NO_NEW_FAILURES,
+        scope=pre_review_gate.ScopeResult.from_override(("tests/foo/test_bar.py",)),
+        reason="stubbed dispatch — no real run",
     )
 
-    def _fake_evaluate_with_scope(*args: Any, **kwargs: Any) -> pre_review_gate.GateVerdict:
-        call_order.append("evaluate")
-        return fake_verdict
+    def _fake_dispatch(*args: Any, **kwargs: Any) -> list[pre_review_gate.GateVerdict]:
+        call_order.append("dispatch")
+        return [fake_verdict]
 
     with (
-        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
-        patch(f"{_MODULE}._resolve_wp_slug", return_value="WP01-fake"),
-        patch(
-            "specify_cli.review.baseline.BaselineTestResult.load", return_value=None
-        ),
-        patch.object(
-            pre_review_gate, "evaluate_with_scope", side_effect=_fake_evaluate_with_scope
-        ),
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=Path("/lane")),
+        patch(f"{_MODULE}._mt_pre_review_changed_files", return_value=("src/example.py",)),
+        patch(f"{_MODULE}._mt_pre_review_dirty_paths", return_value=()),
+        patch(f"{_MODULE}._mt_resolve_active_gate_bindings", return_value=active),
+        patch(f"{_MODULE}._mt_build_transition_gate_context", return_value=object()),
+        patch(f"{_MODULE}._mt_dispatch_transition_gates", side_effect=_fake_dispatch),
         patch(f"{_TASKS}.console") as console_mock,
     ):
         console_mock.print.side_effect = lambda *a, **k: call_order.append("print")
         tasks_move_task._mt_run_pre_review_gate(st)
 
-    assert call_order[0] == "print", "the progress notice must print BEFORE the scoped run"
+    assert call_order[0] == "print", "the progress notice must print BEFORE dispatch"
+    assert "dispatch" in call_order
+    assert call_order.index("print") < call_order.index("dispatch")
     printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
     assert "running scoped tests at head" in printed
     assert "may take a few minutes" in printed
 
 
 def test_no_progress_notice_when_scope_is_empty() -> None:
-    """No override, no changed files -> the cheap empty-scope path never
-    claims it's "running" anything (it isn't)."""
+    """No changed files -> the cheap empty-scope path short-circuits before
+    binding resolution and never claims it's "running" anything (it isn't)."""
     st = _make_state()
     with (
         patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
@@ -305,8 +316,7 @@ def test_skip_pre_review_gate_flag_is_registered_on_move_task_help() -> None:
     )
     assert "--skip-pre-review-gate" in option.opts
     assert option.default is False
-    assert "SPEC_KITTY_SYNC_DISABLE" in (option.help or "")
-    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" in (option.help or "")
+    assert "SPEC_KITTY_SKIP_PRE_REVIEW_GATE" in (option.help or "")
 
 
 def test_move_task_cli_forwards_skip_flag_to_orchestrator() -> None:

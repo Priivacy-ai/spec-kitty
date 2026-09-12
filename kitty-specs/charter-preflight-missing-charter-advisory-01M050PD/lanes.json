@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "charter-preflight-missing-charter-advisory-01M050PD",
+  "mission_id": "01M050PDBP9JSR82AYQNHYWERD",
+  "mission_branch": "kitty/mission-charter-preflight-missing-charter-advisory-01M050PD",
+  "target_branch": "fix/charter-preflight-missing-charter-advisory",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/specify_cli/charter_runtime/preflight/hook.py",
+        "src/specify_cli/charter_runtime/preflight/runner.py",
+        "tests/agent/cli/commands/test_implement_preflight.py",
+        "tests/agent/cli/commands/test_next_preflight.py",
+        "tests/specify_cli/charter_preflight/test_runner.py",
+        "tests/test_dashboard/test_dashboard_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-16T17:17:42.537891+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "131ff3eb7ff6fdc1dab0f4a2664b2dc979c970b2"
+}

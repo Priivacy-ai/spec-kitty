@@ -1,7 +1,7 @@
 ---
 title: 'CaaCS — Architect Alphonso: Forensic→Architecture Synthesis (3.2.1)'
 description: Architect Alphonso's CaaCS forensic-to-architecture synthesis (3.2.1) for the naming/identity SSOT strangler, connecting behavioral evidence to the design.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # CaaCS — Architect Alphonso: Forensic→Architecture Synthesis (3.2.1)
@@ -297,5 +297,5 @@ must reach it even if its *refactor* does not.
 (verify-don't-reimplement). The forensics **do not overturn the slice — they re-order it and resize two
 of its classes.** Lead with the hot composer + ratchet (was WP04 → now first), follow with the #1993
 cut into the hotspot, run hygiene in parallel, and trail with the cold project-root work. Confirm the
-#1878 write-side defer, but reframe it: D is the **live #1 crime scene**, we take its safe slice now and
+issue #1878 write-side defer, but reframe it: D is the **live #1 crime scene**, we take its safe slice now and
 guard the rest. The slice's *membership* is right; its *sequence and sizing* change.

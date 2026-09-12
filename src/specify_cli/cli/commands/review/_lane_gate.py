@@ -12,7 +12,6 @@ from typing import cast
 from rich.console import Console
 
 from specify_cli.post_merge.review_artifact_consistency import (
-    REVIEW_ARTIFACT_SCHEMA_INVALID,
     find_rejected_review_artifact_conflicts,
     format_review_artifact_finding,
     review_artifact_finding_diagnostic,
@@ -29,6 +28,14 @@ def check_wp_lanes(
     """Step 1 — WP lane check.
 
     Appends findings to the provided list and prints to console.
+
+    FR-001 (WP07/T029): ``find_rejected_review_artifact_conflicts`` (below) is
+    the single shared implementation also used by the merge gate
+    (``post_merge/review_artifact_consistency.py``) — it already consults both
+    the event-sourced ``review_result`` reducer slot and the frontmatter
+    artifact, with the event winning on disagreement. This call therefore
+    consults the event-sourced answer too, with no separate reader call
+    needed in this module (traced, not assumed).
     """
     snapshot = materialize(feature_dir)
     non_done = [
@@ -72,20 +79,17 @@ def check_wp_lanes(
             console.print(
                 f"       violated_invariant: {diagnostic['violated_invariant']}"
             )
-            if "schema_error" in diagnostic:
-                console.print(f"       schema_error: {diagnostic['schema_error']}")
             for line in cast(list[str], diagnostic["remediation"]):
                 console.print(f"       remediation: {line}")
-            finding_type = (
-                "review_artifact_schema_invalid"
-                if diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
-                else "rejected_review_artifact"
-            )
             finding: dict[str, str] = {
-                "type": finding_type,
+                "type": "rejected_review_artifact",
                 "wp_id": conflict.wp_id,
                 "lane": conflict.lane,
-                "artifact_path": str(conflict.artifact_path),
+                "artifact_path": (
+                    str(conflict.artifact_path)
+                    if conflict.artifact_path is not None
+                    else "<no review artifact>"
+                ),
                 "diagnostic_code": str(diagnostic["diagnostic_code"]),
                 "branch_or_work_package": str(
                     diagnostic["branch_or_work_package"]
@@ -99,8 +103,6 @@ def check_wp_lanes(
                 finding["latest_review_cycle_verdict"] = str(
                     diagnostic["latest_review_cycle_verdict"]
                 )
-            if "schema_error" in diagnostic:
-                finding["schema_error"] = str(diagnostic["schema_error"])
             findings.append(
                 finding
             )

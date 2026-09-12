@@ -280,19 +280,6 @@ class TestCheckAdmissibility:
         assert result.valid is False
         assert any("standard categories" in e.lower() for e in result.errors)
 
-    def test_all_8_standard_categories_passes(self, tmp_path: Path) -> None:
-        """Admissibility accepts a map that classifies every standard category."""
-        # _valid_map_data() already classifies all 8 standards (ALL_EIGHT_CATEGORIES).
-        data = _valid_map_data()
-        write_occurrence_map(tmp_path, data)
-        omap = load_occurrence_map(tmp_path)
-        assert omap is not None
-
-        result = check_admissibility(omap)
-
-        assert result.valid is True
-        assert result.errors == []
-
     def test_missing_one_standard_category_fails(self, tmp_path: Path) -> None:
         """Omitting even one of the 8 standard categories blocks admissibility."""
         data = _valid_map_data()

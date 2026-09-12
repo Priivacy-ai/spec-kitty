@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-22T11:08:15.052377+00:00",
+  "flattened": false,
   "friendly_name": "Glossary DRG Residence and Executor Chokepoint",
   "mission_id": "01KPTE0P5JVQFWESWV07R0XG4M",
   "mission_number": 94,
@@ -9,5 +10,6 @@
   "source_description": "Phase 5 foundation for issue #467. Adds stable glossary:<id> URN nodes to the DRG, vocabulary edges from action nodes to term nodes, and a deterministic non-blocking chokepoint in ProfileInvocationExecutor.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

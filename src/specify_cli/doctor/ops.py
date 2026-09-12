@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from kernel.clock import datetime, UTC, parse_iso
 from pathlib import Path
 
 from specify_cli.invocation.errors import AlreadyClosedError
@@ -109,7 +109,7 @@ def _age_hours(started_at: str, now: datetime) -> float | None:
     Comparisons are timezone-aware only: a naive started_at is interpreted as UTC.
     """
     try:
-        started = datetime.fromisoformat(started_at)
+        started = parse_iso(started_at)
     except ValueError:
         return None
     if started.tzinfo is None:

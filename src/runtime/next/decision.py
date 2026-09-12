@@ -10,23 +10,19 @@ The :class:`Decision` dataclass and :class:`DecisionKind` constants are the
 public JSON contract.  WP helpers (``_compute_wp_progress``,
 ``_find_first_wp_by_lane``) and ``_state_to_action`` are kept for use by the
 bridge layer.
-
-Legacy functions ``derive_mission_state`` and ``evaluate_guards`` are
-preserved for backward compatibility and tests but are no longer called by
-``decide_next``.
 """
 
 from __future__ import annotations
 
 import contextlib
 import io
+import logging
 import os
 import re
 import tempfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 from runtime.next._tmp_namespace import prompt_tmp_dir
@@ -35,6 +31,8 @@ from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +63,18 @@ class DecisionKind(StrEnum):
     blocked = "blocked"
     terminal = "terminal"
     query = "query"  # bare next call; state not advanced
+
+
+# Canonical ``--result`` enum for a mission-step invocation outcome, shared
+# by every caller that validates a raw ``--result``/``result`` string before
+# it reaches the engine: the host CLI's ``next`` command
+# (``specify_cli.cli.commands.next_cmd``) and the orchestrator-api's
+# ``answer-decision`` verb (``specify_cli.orchestrator_api.commands``).
+# Mirrors ``runtime.next._internal_runtime.engine.ResultType`` (a
+# ``typing.Literal``, not a runtime enum, so it cannot itself be introspected
+# for its member values) -- this tuple is the single source both CLI-facing
+# validators import instead of each keeping an independent literal copy.
+VALID_RESULT_VALUES: tuple[str, ...] = ("success", "failed", "blocked")
 
 
 class InvalidStepDecision(ValueError):
@@ -168,121 +178,6 @@ class Decision:
 
 
 # ---------------------------------------------------------------------------
-# State derivation from event log (legacy — kept for backward compat)
-# ---------------------------------------------------------------------------
-
-
-def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
-    """Derive current mission state by replaying the event log.
-
-    Scans ``mission-events.jsonl`` for the last ``phase_entered`` event and
-    returns its state.  Falls back to *initial_state* when the log is empty
-    or contains no ``phase_entered`` events.
-
-    .. deprecated:: 2.0.0
-        No longer used by ``decide_next``.  Runtime state is now managed
-        by the CLI-internal runtime
-        (``runtime.next._internal_runtime``) via ``state.json`` in the
-        run directory.
-    """
-    from specify_cli.mission_v1.events import read_events
-
-    events = read_events(feature_dir)
-    last_state = initial_state
-    for event in events:
-        if event.get("type") == "phase_entered":
-            payload = event.get("payload", {})
-            state = payload.get("state")
-            if state:
-                last_state = state
-    return last_state
-
-
-# ---------------------------------------------------------------------------
-# Guard evaluation (legacy — kept for backward compat / tests)
-# ---------------------------------------------------------------------------
-
-
-def evaluate_guards(
-    mission_config: dict[str, Any],
-    feature_dir: Path,
-    current_state: str,
-) -> tuple[bool, list[str]]:
-    """Evaluate guard conditions for the ``advance`` trigger from *current_state*.
-
-    Checks both ``conditions`` (all must return True) and ``unless``
-    (all must return False) arrays on the advance transition.
-
-    Returns ``(all_passed, list_of_failure_descriptions)``.  If there is no
-    ``advance`` transition from the current state, returns ``(True, [])``.
-
-    .. deprecated:: 2.0.0
-        No longer used by ``decide_next``.  CLI-level guards are now
-        evaluated in :mod:`runtime_bridge`.
-    """
-    transitions = mission_config.get("transitions", [])
-
-    # Find the advance transition from current_state
-    advance_transition = None
-    for t in transitions:
-        if t.get("trigger") == "advance" and t.get("source") == current_state:
-            advance_transition = t
-            break
-
-    if advance_transition is None:
-        return True, []
-
-    # Build a minimal event_data with model for guard evaluation
-    model = SimpleNamespace(feature_dir=feature_dir, inputs={})
-    event_data = SimpleNamespace(model=model)
-
-    failures: list[str] = []
-
-    # Check conditions (all must pass)
-    for cond in advance_transition.get("conditions", []):
-        if callable(cond):
-            try:
-                if not cond(event_data):
-                    failures.append(_describe_guard(cond, negate=False))
-            except Exception as exc:
-                failures.append(f"Guard error: {exc}")
-        elif isinstance(cond, str):
-            failures.append(f"Uncompiled guard: {cond}")
-
-    # Check unless (all must be False; if any is True, guard fails)
-    for cond in advance_transition.get("unless", []):
-        if callable(cond):
-            try:
-                if cond(event_data):
-                    failures.append(_describe_guard(cond, negate=True))
-            except Exception as exc:
-                failures.append(f"Guard error: {exc}")
-        elif isinstance(cond, str):
-            failures.append(f"Uncompiled unless-guard: {cond}")
-
-    return len(failures) == 0, failures
-
-
-def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
-    """Best-effort human description of a guard callable."""
-    qualname = getattr(guard_callable, "__qualname__", "")
-    prefix = "Unless-guard active: " if negate else ""
-    if "artifact_exists" in qualname:
-        return f"{prefix}Required artifact missing"
-    if "all_wp_status" in qualname:
-        return f"{prefix}Not all work packages have required status"
-    if "any_wp_status" in qualname:
-        return f"{prefix}No work package has required status"
-    if "gate_passed" in qualname:
-        return f"{prefix}Required gate not passed"
-    if "event_count" in qualname:
-        return f"{prefix}Insufficient events of required type"
-    if "input_provided" in qualname:
-        return f"{prefix}Required input not provided"
-    return f"{prefix}Guard failed: {qualname or repr(guard_callable)}"
-
-
-# ---------------------------------------------------------------------------
 # WP progress helpers
 # ---------------------------------------------------------------------------
 
@@ -353,16 +248,18 @@ def _compute_wp_progress(
         elif state.progress_bucket() == "not_started":
             counts["planned_wps"] += 1
 
-    # Compute weighted progress from the materialized snapshot
+    # Compute weighted progress from a PURE snapshot reduce (FR-017): this is
+    # a query, so it must never rewrite the tracked status.json the way the
+    # writing ``materialize`` does. The fallback is logged, not swallowed.
     try:
         from specify_cli.status import compute_weighted_progress
-        from specify_cli.status import materialize
+        from specify_cli.status import materialize_snapshot
 
-        snapshot = materialize(lane_read_dir)
+        snapshot = materialize_snapshot(lane_read_dir)
         progress = compute_weighted_progress(snapshot)
         counts["weighted_percentage"] = round(progress.percentage, 1)
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("weighted progress unavailable for %s: %s", lane_read_dir, exc)
 
     return counts
 
@@ -415,6 +312,8 @@ def decide_next(
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Decide the next action for an agent in the mission loop.
 
@@ -432,7 +331,11 @@ def decide_next(
     """
     from runtime.next.runtime_bridge import decide_next_via_runtime
 
-    return decide_next_via_runtime(agent, mission_slug, result, repo_root)
+    if effective_root is None:
+        return decide_next_via_runtime(agent, mission_slug, result, repo_root)
+    return decide_next_via_runtime(
+        agent, mission_slug, result, repo_root, effective_root=effective_root
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -599,7 +502,7 @@ def _build_prompt_or_error(
     # blocked branch in ``_map_runtime_decision``.
     _is_composed_action = False
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
             resolve_mission_type_context,
         )
 

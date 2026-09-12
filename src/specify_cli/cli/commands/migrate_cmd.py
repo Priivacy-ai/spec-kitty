@@ -7,9 +7,20 @@ Subcommands:
   any ``meta.json`` that lacks one.  Idempotent and non-destructive.
 - ``spec-kitty migrate charter-encoding`` — Scan charter content for non-UTF-8
   encodings; normalize-or-fail-loud. Implements FR-026, FR-027, NFR-006.
+- ``spec-kitty migrate backfill-provenance`` — Stamp the ``legacy_unrecorded``
+  provenance sentinel onto non-``pending`` negative invariants recorded before
+  the provenance schema existed. Implements FR-014.
 - ``spec-kitty migrate rewrite-opposed-by`` — Rewrite a downstream/org pack's
   legacy ``opposed_by`` entries into ``in_tension_with``/``rejects`` DRG
   edges. Implements FR-015.
+- ``spec-kitty migrate backfill-mission-type`` — Mint a profile-resolving
+  ``mission_type`` into any legacy ``meta.json`` whose only type signal is
+  the deprecated ``mission`` field. Idempotent; never overwrites an existing
+  ``mission_type``. Implements FR-006, FR-007, FR-008.
+- ``spec-kitty migrate repin-hooks`` — Re-pin this repo's pre-commit hook to
+  the CURRENT interpreter. One-time repair for issue #254: an install-method
+  migration (e.g. pipx -> uv) moves the interpreter the hook pinned at its
+  original install time. Idempotent.
 
 Usage examples::
 
@@ -18,7 +29,10 @@ Usage examples::
     spec-kitty migrate backfill-identity --mission 083-foo-bar
     spec-kitty migrate charter-encoding --dry-run
     spec-kitty migrate charter-encoding --yes --json
+    spec-kitty migrate backfill-provenance --dry-run --json
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
+    spec-kitty migrate backfill-mission-type --dry-run --json
+    spec-kitty migrate repin-hooks --json
 """
 
 from __future__ import annotations
@@ -62,9 +76,50 @@ _MISSION_HELP = "Scope to a single mission (mission_id / mid8 / slug). Omit to p
 _JSON_HELP = "Emit the per-mission cutover result list as structured JSON."
 _RUNTIME_STATE_SUMMARY_TITLE = "backfill-runtime-state summary"
 _LABEL_FLIPPED = "Flipped"
+_LABEL_WOULD_FLIP = "Would flip"
 _LABEL_WOULD_SEED = "Would seed (verify pending)"
 _LABEL_SKIPPED = "Skipped (already migrated)"
 _LABEL_FAILED = "Failed"
+
+#: Header for the FR-010 boundary consumer of WP05's process-level capture-failure
+#: flag (``specify_cli.sync.emitter.captured_failures``). Surfaced at the cutover
+#: epilogue when the emitter swallowed an unrecoverable capture failure during the
+#: run — observable (report + non-zero), non-fatal to the command's own success
+#: computation (it never crashes the command or rewrites the cutover verdict).
+_CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this run:"
+
+#: WP02 (rc3 mission-type backfill, campsite M1 — S1192 fold): the "could not
+#: locate project root" message was previously re-spelled at 5 call sites
+#: across this module. Every ``locate_project_root() is None`` guard (existing
+#: and this WP's new ``backfill-mission-type`` command) now shares this one
+#: constant.
+_NO_PROJECT_ROOT = (
+    "Could not locate project root. No .kittify/ directory found in any parent directory."
+)
+
+#: WP02 (campsite M2): ``backfill-mission-type`` reuses the hoisted
+#: ``_DRY_RUN_FLAG``/``_MISSION_FLAG``/``_MISSION_METAVAR``/``_JSON_FLAG``
+#: option strings above rather than re-spelling them. ``_DRY_RUN_HELP`` above
+#: is worded for the runtime-state cutover ("seed"/"flip") and does not
+#: describe writing a ``mission_type`` key, so this is the one new
+#: command-specific help constant the fold allows; ``_MISSION_HELP`` /
+#: ``_JSON_HELP`` are reused as-is.
+_MISSION_TYPE_DRY_RUN_HELP = (
+    "Report what would change without writing any files. "
+    "The JSON shape is identical to a live run."
+)
+_MISSION_TYPE_SUMMARY_TITLE = "backfill-mission-type summary"
+#: ``backfill_mission_type_repo`` scopes ``--mission`` by directory-name slug only
+#: (``kitty-specs/<slug>``), so this command must NOT reuse ``_MISSION_HELP`` /
+#: ``_MISSION_METAVAR`` ("HANDLE"), which advertise mid8 / mission_id selector
+#: resolution the backend does not honour (a mid8 would raise MissionNotFoundError).
+_MISSION_TYPE_MISSION_HELP = "Scope to a single mission slug (e.g. 083-foo). Omit to process all missions."
+_MISSION_TYPE_MISSION_METAVAR = "SLUG"
+_MISSION_TYPE_JSON_HELP = "Emit the per-mission backfill result list as structured JSON."
+_MISSION_TYPE_MANUAL_DIAGNOSTIC = (
+    "Fix: assign a mission type whose governance profile resolves at some layer "
+    "(built-in / org / project), or author/activate that type. Not necessarily a typo."
+)
 
 
 @app.callback(invoke_without_command=True)
@@ -253,7 +308,7 @@ def backfill_identity(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = backfill_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -262,7 +317,6 @@ def backfill_identity(
     skipped = [r for r in results if r.action == "skip"]
     errored = [r for r in results if r.action == "error"]
     coerced = [r for r in results if r.number_coerced]
-    warned = [r for r in results if r.dossier_warning]
 
     if json_output:
         payload = {
@@ -273,7 +327,6 @@ def backfill_identity(
                 "skip": len(skipped),
                 "error": len(errored),
                 "number_coerced": len(coerced),
-                "dossier_warnings": len(warned),
             },
             "results": [
                 {
@@ -282,7 +335,6 @@ def backfill_identity(
                     "mission_id": r.mission_id,
                     "number_coerced": r.number_coerced,
                     "reason": r.reason,
-                    "dossier_warning": r.dossier_warning,
                 }
                 for r in results
             ],
@@ -296,8 +348,6 @@ def backfill_identity(
         console.print(f"  Skipped (already set)  : {len(skipped)}")
         console.print(f"  Errors                 : {len(errored)}")
         console.print(f"  Number coerced         : {len(coerced)}")
-        if warned:
-            console.print(f"  [yellow]Dossier warnings       : {len(warned)}[/yellow]")
 
         if errored:
             console.print("\n[red]Errors:[/red]")
@@ -368,7 +418,7 @@ def backfill_topology(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = backfill_topology_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -420,6 +470,87 @@ def backfill_topology(
             console.print("\n[green]Done.[/green] All missions already have a ``topology``.")
 
     if errored:
+        raise typer.Exit(1)
+
+
+@app.command(name="backfill-mission-type")
+def backfill_mission_type_cmd(
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_MISSION_TYPE_JSON_HELP)] = False,
+    dry_run: Annotated[
+        bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            _MISSION_FLAG,
+            help=_MISSION_TYPE_MISSION_HELP,
+            metavar=_MISSION_TYPE_MISSION_METAVAR,
+        ),
+    ] = None,
+) -> None:
+    """Mint a profile-resolving ``mission_type`` into legacy ``meta.json`` (rc3 M0).
+
+    Legacy missions store their type only in the deprecated ``mission`` field.
+    This command writes a canonical ``mission_type`` for every candidate whose
+    legacy value resolves a governance profile at *any* layer (built-in / org
+    / project) — activation-independent, per the M3 tolerance authority.  A
+    mission that already has a ``mission_type`` key is always skipped and
+    left byte-for-byte unchanged.
+
+    This command is **idempotent** — running it twice reports ``wrote=0`` on
+    the second pass.
+
+    A candidate whose legacy value resolves **no** governance profile is
+    never written; it is reported ``needs_manual_resolution`` instead. This
+    does **not** by itself fail the command — see the exit codes below — but
+    a distinct, actionable diagnostic is printed naming the affected
+    mission(s): the fix is to assign a valid mission type whose governance
+    profile resolves at some layer, or to author/activate that type. It is
+    not necessarily a typo.
+
+    Exit codes:
+
+    - ``0`` — ``--dry-run`` (always, regardless of findings), or a live run
+      with zero ``error`` results (``needs_manual_resolution`` alone does not
+      fail the command)
+    - ``1`` — a live run with one or more ``error`` results (corrupt /
+      unreadable ``meta.json``), or ``--mission`` naming a slug that has no
+      matching directory under ``kitty-specs/``
+
+    Examples:
+
+        spec-kitty migrate backfill-mission-type --dry-run --json
+
+        spec-kitty migrate backfill-mission-type --mission 083-foo-bar
+
+        spec-kitty migrate backfill-mission-type
+    """
+    from specify_cli.migration.backfill_mission_type import backfill_mission_type_repo
+    from specify_cli.mission import MissionNotFoundError
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    try:
+        results = backfill_mission_type_repo(repo_root, dry_run=dry_run, mission_slug=mission)
+    except MissionNotFoundError as exc:
+        # FR-008/AC-9: a structured, non-zero-exit error — never the sibling
+        # backfills' silent warn-and-return-empty path.
+        _error(str(exc))
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        print(json.dumps(_mission_type_payload(results, dry_run=dry_run), indent=2))
+    else:
+        _print_mission_type_summary(results, dry_run=dry_run)
+
+    # FR-007/AC-8: a live run fails iff error > 0. --dry-run always exits 0
+    # (even over an error mission — the run made no changes to judge).
+    # needs_manual_resolution alone never fails the command.
+    errored = [r for r in results if r.action == "error"]
+    if not dry_run and errored:
         raise typer.Exit(1)
 
 
@@ -507,6 +638,123 @@ def charter_encoding(
         raise typer.Exit(exit_code)
 
 
+@app.command(name="backfill-provenance")
+def backfill_provenance(
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Report what would be stamped without writing any files. "
+                "The JSON shape is identical to a live run."
+            ),
+        ),
+    ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+    project_root: Annotated[
+        Path,
+        typer.Option(
+            "--project-root",
+            help="Root of the Spec Kitty project (default: current working directory).",
+            metavar="DIR",
+        ),
+    ] = Path("."),
+) -> None:
+    """FR-014: backfill provenance onto legacy acceptance-matrix.json invariants.
+
+    Walks every ``kitty-specs/*/acceptance-matrix.json`` and, for each negative
+    invariant whose ``result`` is not ``pending`` and lacks ``provenance_origin``,
+    stamps the ``legacy_unrecorded`` sentinel (data-model.md NI-1 / contract
+    ``negative-invariant-provenance.md`` C1). ``verified_ref`` and
+    ``verified_surface_kind`` are left null for those rows — the sentinel means
+    the surface a pre-schema judgement was established against is genuinely
+    unknowable, not empty by omission.
+
+    This migration is **idempotent** (NI-2 / C3): re-running it on an
+    already-migrated corpus is a no-op — a row already carrying
+    ``provenance_origin`` (``recorded`` or ``legacy_unrecorded``) is never
+    re-stamped.
+
+    The whole-corpus write is enrolled in a commit-or-revert transaction: on
+    any failure partway through, every file already written in that run is
+    restored to its pre-migration bytes — no partial migration state is left
+    on disk.
+
+    AM-4: this migration never auto-archives. A matrix it cannot parse is
+    reported as an error and skipped; it never routes into an archive
+    operation.
+
+    Exit codes:
+
+    - ``0`` — every matrix migrated cleanly (or needed no change)
+    - ``1`` — one or more matrices could not be parsed (see the reported errors)
+
+    Examples:
+
+        spec-kitty migrate backfill-provenance --dry-run
+
+        spec-kitty migrate backfill-provenance --json
+
+        spec-kitty migrate backfill-provenance
+    """
+    from specify_cli.cli.commands.migrate.backfill_provenance import (  # noqa: PLC0415
+        run_backfill_provenance_migration,
+    )
+
+    summary = run_backfill_provenance_migration(project_root.resolve(), dry_run=dry_run)
+
+    if json_output:
+        payload = {
+            "dry_run": summary.dry_run,
+            "result": summary.result,
+            "summary": {
+                "files_inspected": summary.files_inspected,
+                "migrated": len(summary.migrated),
+                "unchanged": len(summary.unchanged),
+                "errors": len(summary.errors),
+                "invariants_stamped": summary.stamped_total,
+            },
+            "migrated": [
+                {"path": str(record.path), "invariants_stamped": record.invariants_stamped}
+                for record in summary.migrated
+            ],
+            "errors": [
+                {"path": str(error.path), "message": error.message}
+                for error in summary.errors
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-provenance summary[/bold]")
+        console.print(f"  Matrices scanned   : {summary.files_inspected}")
+        console.print(f"  Migrated (files)   : {len(summary.migrated)}")
+        console.print(f"  Invariants stamped : {summary.stamped_total}")
+        console.print(f"  Unchanged          : {len(summary.unchanged)}")
+        console.print(f"  Errors             : {len(summary.errors)}")
+
+        if summary.errors:
+            console.print("\n[red]Errors:[/red]")
+            for error in summary.errors:
+                console.print(f"  [red]{error.path}:[/red] {error.message}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif summary.migrated:
+            console.print(
+                f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) "
+                "received the legacy_unrecorded sentinel."
+            )
+        else:
+            console.print("\n[green]Done.[/green] Corpus already carries provenance.")
+
+    if summary.errors:
+        raise typer.Exit(1)
+
+
 @app.command(name="normalize-lifecycle")
 def normalize_lifecycle(
     json_output: Annotated[
@@ -545,7 +793,7 @@ def normalize_lifecycle(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = normalize_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -710,7 +958,11 @@ def backfill_runtime_state_cmd(
 
     Per-mission best-effort (research D-03): a mission whose verify fails is left
     un-flipped (``status_phase`` untouched) and named in the summary; other missions
-    still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+    still flip. Use ``--dry-run`` to preview would-seed and would-flip counts
+    without writing. The summary's ``Flipped`` counter names the missions this
+    run actually flipped — a mission with event-log evidence but no legacy
+    frontmatter state to seed still flips and is counted there, never as
+    "Skipped (already migrated)" (#3212).
 
     Exit codes:
 
@@ -732,10 +984,9 @@ def backfill_runtime_state_cmd(
         cutover_mission,
         cutover_repo,
     )
-
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     if mission is not None:
@@ -760,6 +1011,137 @@ def backfill_runtime_state_cmd(
     # command — the counts + any mismatch are reported for the operator.
     if not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results):
         raise typer.Exit(1)
+
+
+@app.command(name="rebaseline-dossier-hashes")
+def rebaseline_dossier_hashes(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a structured per-mission re-baseline report"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Preview which recorded snapshot hashes would be re-baselined, without writing",
+        ),
+    ] = False,
+) -> None:
+    """One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).
+
+    Recomputes every recorded ``.kittify/dossiers/<slug>/snapshot-latest.json``
+    hash under the canonical definition (WP01/WP02) so content that did not
+    change is not flagged divergent after the cutover. Idempotent (snapshots
+    already in canonical ``sha256:`` form are skipped) and read-only over source
+    artifacts — only the recorded snapshot cache files are written (#2263).
+
+    Exit codes:
+
+    - ``0`` — completed (some snapshots may be reported as errors and skipped)
+    - ``1`` — project root could not be located
+    """
+    from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
+    changed = [o for o in outcomes if o.changed]
+    errored = [o for o in outcomes if o.error]
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "summary": {
+                "total": len(outcomes),
+                "rebaselined": len(changed),
+                "skipped": len(outcomes) - len(changed) - len(errored),
+                "error": len(errored),
+            },
+            "results": [
+                {
+                    "mission_slug": o.mission_slug,
+                    "snapshot_path": str(o.snapshot_path),
+                    "old_hash": o.old_hash,
+                    "new_hash": o.new_hash,
+                    "changed": o.changed,
+                    "error": o.error,
+                }
+                for o in outcomes
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "(dry-run) " if dry_run else ""
+        console.print(
+            f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s)."
+        )
+        for o in errored:
+            err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
+
+
+@app.command(name="repin-hooks")
+def repin_hooks(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+) -> None:
+    """Re-pin this repository's pre-commit hook to the current interpreter (#254).
+
+    ``policy/hook_installer.py`` pins the absolute Python interpreter path
+    into the pre-commit hook at install time. An install-method migration
+    (e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing
+    at a path that no longer exists. This command re-runs the same install
+    the ``implement`` lane calls internally, but without requiring a mission
+    or workspace — the repair does not depend on the very thing it is
+    repairing (the ability to commit).
+
+    Idempotent: safe to re-run; a hook already pinned to the current
+    interpreter is re-written to the same effective hook (only the
+    ``# Installed:`` timestamp comment differs).
+
+    Exit codes:
+
+    - ``0`` — the hook was (re-)installed
+    - ``1`` — project root could not be located, or the current
+      ``sys.executable`` does not refer to an existing file
+
+    Examples:
+
+        spec-kitty migrate repin-hooks
+
+        spec-kitty migrate repin-hooks --json
+    """
+    from specify_cli.cli.commands.migrate.repin_hooks import run_repin_hooks_migration
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    try:
+        result = run_repin_hooks_migration(repo_root)
+    except RuntimeError as exc:
+        _error(str(exc))
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        payload = {
+            "result": "repinned",
+            "hook_path": str(result.hook_path),
+            "interpreter": str(result.interpreter),
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        console.print("\n[bold]repin-hooks summary[/bold]")
+        console.print(f"  Hook        : {result.hook_path}")
+        console.print(f"  Interpreter : {result.interpreter}")
+        console.print(
+            "\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -803,22 +1185,36 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
     ``failed`` / per-mission ``mismatches`` are dry-run-aware: under ``--dry-run`` a
     healthy legacy mission (verify not-ok only because seeds are unwritten) is NOT
     failed and emits no mismatch wall. ``verify_ok`` stays the raw verify value.
+
+    The ``flipped`` / ``would_flip`` counts and per-mission fields are the
+    RUN's truth, not the raw :class:`CutoverResult` field values (#3212):
+    ``flipped`` counts missions whose ``status_phase`` this run actually wrote
+    (``flipped and not already_migrated`` — the flip short-circuits with zero
+    bytes on an already-migrated mission), ``would_flip`` counts missions a
+    live run would write, and the missions that wrote/would write nothing are
+    reported explicitly as ``already_migrated``. The raw signals they replace
+    are derivable from what stays in the payload: ``verify_ok`` carries the
+    verify verdict, ``seeded_count`` the seed outcome.
     """
     return {
         "dry_run": dry_run,
         "summary": {
             "total": len(results),
-            "flipped": len([r for r in results if r.flipped]),
+            "flipped": len([r for r in results if r.flipped and not r.already_migrated]),
+            "already_migrated": len([r for r in results if r.already_migrated]),
             "would_seed": len([r for r in results if r.seeded_count > 0]),
-            "would_flip": len([r for r in results if r.would_flip]),
+            "would_flip": len(
+                [r for r in results if r.would_flip and not r.already_migrated]
+            ),
             "seeded": sum(r.seeded_count for r in results),
             "failed": len([r for r in results if _cutover_failed(r, dry_run=dry_run)]),
         },
         "results": [
             {
                 "slug": r.slug,
-                "flipped": r.flipped,
-                "would_flip": r.would_flip,
+                "flipped": r.flipped and not r.already_migrated,
+                "already_migrated": r.already_migrated,
+                "would_flip": r.would_flip and not r.already_migrated,
                 "would_seed": r.seeded_count > 0,
                 "seeded_count": r.seeded_count,
                 "verify_ok": None if r.verify is None else r.verify.ok,
@@ -838,21 +1234,41 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
 def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
     """Render the rich summary for the backfill-runtime-state command.
 
+    The Flipped / Skipped (already migrated) counters key on the flip outcome,
+    never on ``seeded_count`` (#3212): seeding and flipping are independent —
+    a mission with event-log evidence but no legacy frontmatter state to seed
+    still flips — so ``seeded_count == 0`` cannot tell "flipped with no seeds"
+    from "nothing to do". ``CutoverResult.already_migrated`` is the bit that
+    does: flipped-this-run is ``flipped and not already_migrated`` on a live
+    run, and its dry-run equivalent is ``would_flip and not
+    already_migrated`` (``would_flip`` alone would promise a write the live
+    run's flip short-circuit would never make on an already-migrated mission).
+
     Dry-run reframes the primary count as "would seed (verify pending)" and never
     prints a Failed wall for verify-pending-pre-seed missions — only genuine hard
     aborts (``error`` set) count as failed under ``--dry-run``.
     """
     failed = [r for r in results if _cutover_failed(r, dry_run=dry_run)]
     active = [r for r in results if not _cutover_failed(r, dry_run=dry_run)]
-    migrated = [r for r in active if r.seeded_count > 0]
-    skipped = [r for r in active if r.seeded_count == 0]
     seeded = sum(r.seeded_count for r in results)
 
     prefix = "[dim](dry-run)[/dim] " if dry_run else ""
-    primary_label = _LABEL_WOULD_SEED if dry_run else _LABEL_FLIPPED
     console.print(f"\n{prefix}[bold]{_RUNTIME_STATE_SUMMARY_TITLE}[/bold]")
     console.print(f"  Total missions scanned : {len(results)}")
-    console.print(f"  {primary_label:<27} : {len(migrated)}")
+    if dry_run:
+        would_flip = [r for r in active if r.would_flip and not r.already_migrated]
+        would_seed = [r for r in active if r.seeded_count > 0]
+        skipped = [
+            r
+            for r in active
+            if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0
+        ]
+        console.print(f"  {_LABEL_WOULD_FLIP:<27} : {len(would_flip)}")
+        console.print(f"  {_LABEL_WOULD_SEED:<27} : {len(would_seed)}")
+    else:
+        migrated = [r for r in active if r.flipped and not r.already_migrated]
+        skipped = [r for r in active if not (r.flipped and not r.already_migrated)]
+        console.print(f"  {_LABEL_FLIPPED:<27} : {len(migrated)}")
     console.print(f"  {_LABEL_SKIPPED:<27} : {len(skipped)}")
     console.print(f"  Seed events                 : {seeded}")
     console.print(f"  {_LABEL_FAILED:<27} : {len(failed)}")
@@ -863,7 +1279,9 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
             console.print(f"  [red]{r.slug}:[/red] {_cutover_detail(r)}")
 
     if dry_run:
-        console.print("\n[dim]Dry run — no seeds written; verify runs post-seed on a live run.[/dim]")
+        console.print(
+            "\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]"
+        )
 
 
 def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
@@ -892,6 +1310,78 @@ def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[s
             for r in results
         ],
     }
+
+
+def _mission_type_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
+    """Build the stable ``--json`` payload for ``backfill-mission-type`` (AC-7).
+
+    Key set is identical between ``--dry-run`` and a live run — only count
+    and per-mission values differ.
+    """
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    needs_manual = [r for r in results if r.action == "needs_manual_resolution"]
+    errored = [r for r in results if r.action == "error"]
+    return {
+        "dry_run": dry_run,
+        "summary": {
+            "total": len(results),
+            "wrote": len(wrote),
+            "skip": len(skipped),
+            "needs_manual_resolution": len(needs_manual),
+            "error": len(errored),
+        },
+        "results": [
+            {
+                "slug": r.slug,
+                "action": r.action,
+                "mission_type": r.mission_type,
+                "legacy_value": r.legacy_value,
+                "reason": r.reason,
+            }
+            for r in results
+        ],
+    }
+
+
+def _print_mission_type_summary(results: list[Any], *, dry_run: bool) -> None:
+    """Render the rich summary for ``backfill-mission-type``.
+
+    Lists ``error`` slugs+reasons. When ``needs_manual_resolution > 0``,
+    prints the actionable FR-007 diagnostic naming the affected slugs.
+    """
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    needs_manual = [r for r in results if r.action == "needs_manual_resolution"]
+    errored = [r for r in results if r.action == "error"]
+
+    prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+    console.print(f"\n{prefix}[bold]{_MISSION_TYPE_SUMMARY_TITLE}[/bold]")
+    console.print(f"  Total missions scanned  : {len(results)}")
+    console.print(f"  Written (mission_type)  : {len(wrote)}")
+    console.print(f"  Skipped (already set)   : {len(skipped)}")
+    console.print(f"  Needs manual resolution : {len(needs_manual)}")
+    console.print(f"  Errors                  : {len(errored)}")
+
+    if errored:
+        console.print("\n[red]Errors:[/red]")
+        for r in errored:
+            console.print(f"  [red]{r.slug}:[/red] {r.reason}")
+
+    if needs_manual:
+        console.print("\n[yellow]Needs manual resolution:[/yellow]")
+        for r in needs_manual:
+            console.print(f"  [yellow]{r.slug}:[/yellow] {r.reason}")
+        console.print(f"[dim]{_MISSION_TYPE_MANUAL_DIAGNOSTIC}[/dim]")
+
+    if dry_run:
+        console.print("\n[dim]Dry run — no files were modified.[/dim]")
+    elif wrote:
+        console.print(
+            f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``."
+        )
+    else:
+        console.print("\n[green]Done.[/green] All missions already have a ``mission_type``.")
 
 
 def _print_normalize_lifecycle_summary(results: list[Any], *, dry_run: bool) -> None:

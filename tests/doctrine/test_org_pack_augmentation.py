@@ -10,8 +10,17 @@ Covers:
 * T016 — validator intent-aware parity for the newly-covered kinds via
   fragment edges.
 * T017 — mission-type universe expansion (FR-032, decision locked); lockstep
-  drift guard against ``charter.activations._ALLOWED_KINDS``.
+  drift guard against ``charter.activation.activations._ALLOWED_KINDS``.
 * T018 — topology field-merge semantics for step contracts / mission types.
+
+Note: the T-numbers above are from the ``org-doctrine-profile-integrity-
+activation-closure`` mission that authored this file. Mission
+``glossary-pack-doctrine-kind-01KY30SW`` WP04/T022 later extended
+``test_lockstep_drift_guard_against_allowed_kinds`` to a genuine three-way
+equality (adding ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` as the
+third mirror) and added the sibling
+``test_glossary_packs_ship_active_by_default`` positive default-on
+assertion — see those tests' own docstrings for the RED-first rationale.
 """
 
 from __future__ import annotations
@@ -20,15 +29,16 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import Relation
-from doctrine.drg.org_pack_loader import (
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import Relation
+from charter.offering.drg.org_pack_loader import (
     AUGMENTATION_ELIGIBLE_KINDS,
     AUGMENTATION_RELATIONS,
     TOPOLOGY_KINDS,
     TopologyMergeError,
     _MISSION_TYPE_UNIVERSE_EXTENSION,
     _ORG_DRG_CANONICAL_KINDS,
+    _merge_action_sequence_step,
     augmentation_plural_kinds,
     load_org_pack,
     merge_topology_artifact,
@@ -76,7 +86,7 @@ def test_eligible_set_is_artifactkind_minus_template_plus_mission_type() -> None
     ``_NON_AUGMENTATION_ELIGIBLE_KINDS`` (``template``, ``asset``) plus the
     mission-type extension; adding a kind is a one-line change.
     """
-    from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
+    from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
 
     expected_singulars = {
         k.value for k in ArtifactKind if k not in _NON_AUGMENTATION_ELIGIBLE_KINDS
@@ -337,7 +347,7 @@ def test_mission_types_in_canonical_universe() -> None:
 
 def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
     """FR-032: a mission-type fragment node validates (not silently dropped)."""
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {
@@ -365,7 +375,7 @@ def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
 
 def test_mission_type_singular_alias_resolves_to_plural() -> None:
     """FR-032: the ``mission_type`` singular input form resolves to the plural."""
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {
@@ -389,7 +399,7 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
     against one is not auto-emitted by the loader (only fragment-authored
     edges reach ``fragment.edges`` for these kinds).
     """
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {
@@ -410,14 +420,26 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
 
 
 def test_lockstep_drift_guard_against_allowed_kinds() -> None:
-    """FR-032 lockstep: the org-pack universe == ``_ALLOWED_KINDS`` ∪ mission-type.
+    """FR-032 / glossary-pack-doctrine-kind WP04 (T022) three-way lockstep:
 
-    This is the contract-test sweep the spec requires: neither
-    ``charter.activations._ALLOWED_KINDS`` nor the loader universe may drift
-    silently, and mission types must never be dropped. The org-pack universe
-    additionally retains the ``mission_step_contracts`` backward-compat alias.
+        org-pack universe == ``charter.activation.activations._ALLOWED_KINDS`` ∪ mission-type
+                           == ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS``
+
+    This is the contract-test sweep the spec requires: none of the three
+    mirrors (org-pack DRG universe, the activation-allowed set, and the
+    default-on built-in set) may drift silently, and mission types must
+    never be dropped. The org-pack universe additionally retains the
+    ``mission_step_contracts`` backward-compat alias.
+
+    Prior to WP04 this guard bound only ``_ALLOWED_KINDS`` and
+    ``_ORG_DRG_CANONICAL_KINDS`` — ``_BUILTIN_ARTIFACT_KINDS`` (the list that
+    actually delivers default-on) was UNBOUND, so a new kind could be added
+    to the other two lists, the suite would stay green, and the kind would
+    still ship inactive-by-default. This test closes that hole by making the
+    equality genuinely three-way.
     """
-    from charter.activations import _ALLOWED_KINDS
+    from charter.activation.activations import _ALLOWED_KINDS
+    from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS
 
     # Canonical forms only (drop the loader's backward-compat alias for the
     # comparison): the org-pack universe must equal the activation allowed set
@@ -432,6 +454,44 @@ def test_lockstep_drift_guard_against_allowed_kinds() -> None:
     }
     assert canonical_universe == normalised_allowed | _MISSION_TYPE_UNIVERSE_EXTENSION
     assert frozenset({"mission_types"}) == _MISSION_TYPE_UNIVERSE_EXTENSION
+
+    # Third leg of the lockstep: the default-on built-in set uses the SAME
+    # plural vocabulary as ``_ALLOWED_KINDS`` (no mission-step rename needed
+    # here) so a bare equality is the correct — and strictest — guard.
+    assert _BUILTIN_ARTIFACT_KINDS == _ALLOWED_KINDS, (
+        "charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS has drifted from "
+        "charter.activation.activations._ALLOWED_KINDS. A kind present in one but not "
+        "the other means either an activatable kind can never be the "
+        "default-on set, or a kind ships default-on without being a "
+        "documented activatable kind.\n"
+        f"  _ALLOWED_KINDS only: {sorted(_ALLOWED_KINDS - _BUILTIN_ARTIFACT_KINDS)}\n"
+        f"  _BUILTIN_ARTIFACT_KINDS only: {sorted(_BUILTIN_ARTIFACT_KINDS - _ALLOWED_KINDS)}"
+    )
+
+
+def test_glossary_packs_ship_active_by_default() -> None:
+    """Positive default-on assertion (T022, squad F3 RED-first anchor).
+
+    ``"glossary_packs"`` must be a member of
+    ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` — the list consulted
+    when a project's ``.kittify/config.yaml`` (or ``charter.yaml``) has no
+    explicit ``activated_kinds`` key. Without this membership, the built-in
+    ``spec-kitty-core`` glossary pack would resolve as a DRG node (WP03) but
+    never surface through the charter-mediated activation filter — silently
+    inactive on every project that has not explicitly opted in, which is
+    the exact default-on regression this mission exists to prevent.
+
+    This assertion is authored RED-first: it fails until WP04's T019 adds
+    ``"glossary_packs"`` to ``_BUILTIN_ARTIFACT_KINDS``. Unlike the
+    three-way equality above (which could be green-on-arrival if authored
+    after all the kind-lists are already consistent), this single-membership
+    check is unambiguously RED before T019 lands and unambiguously GREEN
+    after — the demonstrable RED-before-wiring-commit evidence the DoD
+    requires.
+    """
+    from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS
+
+    assert "glossary_packs" in _BUILTIN_ARTIFACT_KINDS
 
 
 # ---------------------------------------------------------------------------
@@ -505,3 +565,44 @@ def test_enhances_rejects_stripping_step_io() -> None:
 def test_merge_rejects_non_augmentation_relation() -> None:
     with pytest.raises(ValueError, match="ENHANCES / OVERRIDES"):
         merge_topology_artifact({"id": "s"}, {"id": "s"}, mode=Relation.REQUIRES)
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — _merge_action_sequence_step (extracted from
+# _merge_action_sequence to keep its cognitive complexity within the ruff
+# C901 limit)
+# ---------------------------------------------------------------------------
+
+
+def test_merge_action_sequence_step_new_overlay_step_passes_through() -> None:
+    """A step id with no base counterpart is deep-copied unchanged."""
+    base_by_id: dict[str, object] = {}
+    step = {"id": "brand-new", "title": "New Step"}
+    merged = _merge_action_sequence_step(step, base_by_id, "steps")
+    assert merged == step
+    assert merged is not step  # deep-copied
+
+
+def test_merge_action_sequence_step_non_mapping_step_passes_through() -> None:
+    """A non-mapping overlay entry (e.g. a bare string) is copied verbatim."""
+    step = "not-a-mapping"
+    merged = _merge_action_sequence_step(step, {"a": {"id": "a"}}, "steps")
+    assert merged == "not-a-mapping"
+
+
+def test_merge_action_sequence_step_merges_matching_base_step() -> None:
+    """A step sharing an id with a base step is field-merged (base fields survive)."""
+    base_by_id = {"a": {"id": "a", "inputs": ["x"], "outputs": ["y"]}}
+    step = {"id": "a", "title": "Refined"}
+    merged = _merge_action_sequence_step(step, base_by_id, "steps")
+    assert merged["title"] == "Refined"
+    assert merged["inputs"] == ["x"]
+    assert merged["outputs"] == ["y"]
+
+
+def test_merge_action_sequence_step_raises_on_io_stripping() -> None:
+    """Deliberately restating an I/O field empty raises TopologyMergeError."""
+    base_by_id = {"a": {"id": "a", "inputs": ["x"]}}
+    step = {"id": "a", "inputs": []}
+    with pytest.raises(TopologyMergeError, match="strips"):
+        _merge_action_sequence_step(step, base_by_id, "steps")

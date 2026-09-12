@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-up-org-doctrine-consumers-01M05YAB",
+  "created_at": "2026-08-16T18:46:04.152058+00:00",
+  "flattened": false,
+  "friendly_name": "up org doctrine consumers",
+  "mission_id": "01M05YABKNFE7C69BNRVZS35X8",
+  "mission_number": null,
+  "mission_slug": "up-org-doctrine-consumers-01M05YAB",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances up org doctrine consumers on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "up org doctrine consumers",
+  "slug": "up-org-doctrine-consumers-01M05YAB",
+  "target_branch": "main",
+  "topology": "coord"
+}

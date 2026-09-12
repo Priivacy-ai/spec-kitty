@@ -1,0 +1,332 @@
+header:
+  generated_by: tests/architectural/_home_pin_anchor.py
+  regeneration_command: python -m tests.architectural._home_pin_anchor --members kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/spec_kitty_home_pin_evidence/members.json
+    --at-sha <sha> --out tests/architectural/census/spec_kitty_home_pin_anchor.yaml
+  resolved_at_sha: fe5d492ed9210907797876066504f419e136b2ff
+  source: kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/spec_kitty_home_pin_evidence/members.json
+  note: Generated, never hand-edited. `resolved_at_sha` is the SHA whose blobs `members.json`'s
+    line numbers index; resolving them against any other tree reads a different line.
+    `members.json` decides WHICH sites are members and is never edited; this file
+    records only their key ENCODING. Regenerating requires `resolved_at_sha` to be
+    reachable.
+rows:
+- key:
+  - tests/cli/commands/test_sync_commands.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/cli/commands/test_sync_commands.py
+  - _isolated_home
+  lineno: 55
+- key:
+  - tests/cli/commands/test_sync_doctor_consent_health_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_doctor_consent_health_3030.py
+  - checkout
+  lineno: 109
+- key:
+  - tests/cli/commands/test_sync_doctor_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_doctor_per_project_3030.py
+  - _isolated_home
+  lineno: 99
+- key:
+  - tests/cli/commands/test_sync_doctor_tracker_egress_3108.py
+  - doctor_environment
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_doctor_tracker_egress_3108.py
+  - doctor_environment
+  lineno: 124
+- key:
+  - tests/cli/commands/test_sync_migrate_backfills_h4.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_migrate_backfills_h4.py
+  - _isolated_home
+  lineno: 94
+- key:
+  - tests/cli/commands/test_sync_now_empty_selection_t005.py
+  - _now_machinery
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_now_empty_selection_t005.py
+  - _now_machinery
+  lineno: 82
+- key:
+  - tests/cli/commands/test_sync_purge_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_purge_3030.py
+  - checkout
+  lineno: 129
+- key:
+  - tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+  - checkout
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py
+  - checkout
+  lineno: 84
+- key:
+  - tests/cli/commands/test_sync_status_per_project_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/cli/commands/test_sync_status_per_project_3030.py
+  - _isolated_home
+  lineno: 108
+- key:
+  - tests/delivery/test_body_queue_purge_differential_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/delivery/test_body_queue_purge_differential_3030.py
+  - _isolated_home
+  lineno: 45
+- key:
+  - tests/delivery/test_dispatch_window_consent_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/delivery/test_dispatch_window_consent_3030.py
+  - _consent_records
+  lineno: 143
+- key:
+  - tests/delivery/test_liveness_predicate_before_limit_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/delivery/test_liveness_predicate_before_limit_3030.py
+  - _consent
+  lineno: 70
+- key:
+  - tests/delivery/test_nfr002_loop_permanence_3030.py
+  - _consent_records
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/delivery/test_nfr002_loop_permanence_3030.py
+  - _consent_records
+  lineno: 103
+- key:
+  - tests/delivery/test_nfr003_predicate_cost_3030.py
+  - _consent
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/delivery/test_nfr003_predicate_cost_3030.py
+  - _consent
+  lineno: 69
+- key:
+  - tests/delivery/test_per_project_report_3030.py
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/delivery/test_per_project_report_3030.py
+  - _home
+  lineno: 36
+- key:
+  - tests/delivery/test_purge_all_body_uploads_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/delivery/test_purge_all_body_uploads_3030.py
+  - _isolated_home
+  lineno: 51
+- key:
+  - tests/delivery/test_purge_all_events_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/delivery/test_purge_all_events_3030.py
+  - _isolated_home
+  lineno: 51
+- key:
+  - tests/specify_cli/identity/test_identity_value_faults_3030.py
+  - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/specify_cli/identity/test_identity_value_faults_3030.py
+  - TestThePolicyGateAnswersInsteadOfCrashing._isolated_home
+  lineno: 297
+- key:
+  - tests/specify_cli/sync/test_local_commit_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/specify_cli/sync/test_local_commit_consent_3030.py
+  - _isolated_home
+  lineno: 84
+- key:
+  - tests/specify_cli/sync/test_local_commit_purge_3030.py
+  - test_the_flush_does_not_delete_the_frames_it_withholds
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/specify_cli/sync/test_local_commit_purge_3030.py
+  - test_the_flush_does_not_delete_the_frames_it_withholds
+  lineno: 434
+- key:
+  - tests/sync/test_body_drain_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_body_drain_consent_3030.py
+  - _isolated_home
+  lineno: 49
+- key:
+  - tests/sync/test_body_upload_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/sync/test_body_upload_consent_3030.py
+  - _isolated_home
+  lineno: 62
+- key:
+  - tests/sync/test_capture_gate_project_identity_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_capture_gate_project_identity_3030.py
+  - _isolated_home
+  lineno: 59
+- key:
+  - tests/sync/test_consent_fault_vocabulary_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
+  join:
+  - tests/sync/test_consent_fault_vocabulary_3030.py
+  - home
+  lineno: 62
+- key:
+  - tests/sync/test_consent_field_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_consent_field_fault_3030.py
+  - _isolated_home
+  lineno: 82
+- key:
+  - tests/sync/test_consent_read_fault_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_consent_read_fault_3030.py
+  - _isolated_home
+  lineno: 66
+- key:
+  - tests/sync/test_consent_resolver_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_consent_resolver_3030.py
+  - _isolated_home
+  lineno: 43
+- key:
+  - tests/sync/test_consent_write_refusal_3030.py
+  - home
+  - monkeypatch . setenv ( , str ( root ) )
+  join:
+  - tests/sync/test_consent_write_refusal_3030.py
+  - home
+  lineno: 75
+- key:
+  - tests/sync/test_daemon_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/sync/test_daemon_publish_consent_3030.py
+  - _isolated_home
+  lineno: 78
+- key:
+  - tests/sync/test_legacy_queue_precondition_3030.py
+  - test_a_credentials_read_failure_is_not_evidence
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_legacy_queue_precondition_3030.py
+  - test_a_credentials_read_failure_is_not_evidence
+  lineno: 162
+- key:
+  - tests/sync/test_routing.py
+  - test_opt_out_purge_targets_the_same_stores_the_drain_reads
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_routing.py
+  - test_opt_out_purge_targets_the_same_stores_the_drain_reads
+  lineno: 303
+- key:
+  - tests/sync/test_ws_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/test_ws_publish_consent_3030.py
+  - _isolated_home
+  lineno: 64
+- key:
+  - tests/sync/tracker/test_tracker_egress_refusal_3108.py
+  - _isolated_home_and_arming
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/sync/tracker/test_tracker_egress_refusal_3108.py
+  - _isolated_home_and_arming
+  lineno: 194
+- key:
+  - tests/sync/tracker/test_tracker_egress_refusal_3108.py
+  - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
+  - mp . setenv ( , str ( tmp_path / ) )
+  join:
+  - tests/sync/tracker/test_tracker_egress_refusal_3108.py
+  - test_bind_counter_wrapper_changes_no_outcome_committed_red
+  lineno: 1165
+- key:
+  - tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_skips_when_global_runtime_is_configured
+  lineno: 27
+- key:
+  - tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  lineno: 58
+- key:
+  - tests/upgrade/test_compat.py
+  - test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/test_compat.py
+  - test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x
+  lineno: 23
+- key:
+  - tests/upgrade/test_compat.py
+  - test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/test_compat.py
+  - test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed
+  lineno: 48
+- key:
+  - tests/upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_skips_when_global_runtime_is_configured
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_skips_when_global_runtime_is_configured
+  lineno: 61
+- key:
+  - tests/upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  - monkeypatch . setenv ( , str ( home ) )
+  join:
+  - tests/upgrade/test_m_0_12_0_documentation_mission_unit.py
+  - test_detect_still_repairs_metadata_less_legacy_repo
+  lineno: 83

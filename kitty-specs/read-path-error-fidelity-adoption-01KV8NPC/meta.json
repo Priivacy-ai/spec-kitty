@@ -15,6 +15,7 @@
   "accepted_from_commit": "afddd75068dcff3ef22e97b4e2020ea39383c444",
   "baseline_merge_commit": "780cd3d309a9b5f33fedab4ca48a2fb8a8f697e1",
   "created_at": "2026-06-16T16:54:35.134398+00:00",
+  "flattened": false,
   "friendly_name": "Read-Path / Error-Fidelity Adoption",
   "mission_id": "01KV8NPCBX0CNAM3VBY50C1AGG",
   "mission_number": 141,
@@ -26,6 +27,7 @@
   "slug": "read-path-error-fidelity-adoption-01KV8NPC",
   "status_phase": "1",
   "target_branch": "feat/read-path-error-fidelity",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-16T20:10:03.062361+00:00"
 }

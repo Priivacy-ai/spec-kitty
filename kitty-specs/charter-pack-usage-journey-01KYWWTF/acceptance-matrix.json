@@ -1,0 +1,129 @@
+{
+  "mission_slug": "charter-pack-usage-journey-01KYWWTF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 6bf6bfacd: is_charter_empty bundle-presence predicate; reviewer 46 tests green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:12.185260+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 6bf6bfacd: org-pack/profile-safe (org_roots/activated_agent_profiles); journey-3 org-pack safety test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:15.574738+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 8ec3beff2: apply --compile chains existing seam, no new compiler; reviewer 23 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:18.930844+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 8ec3beff2: default apply names 'spec-kitty charter generate', git-agnostic (C-004)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:22.322931+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 3f43dc498: presence gate keys on charter.yaml (OR-gate), survives charter.md deletion; reviewer 59 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:25.707167+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 3f43dc498: --json project_charter.present keys on charter.yaml + consumers reconciled; flip pin test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:29.058630+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 e1454d994: resolve_project_governance sources activated_directives, three-state incl frozenset(); reviewer 32 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:32.405342+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 8ec3beff2: apply --compile vs finalize migration convergent charter.yaml shape-from-same-input",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:35.769289+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP08 b8a65c4ab: charter-pack-usage-journey.md documents apply->generate two-step + empty-charter dispatch; terminology guard 10 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:39.150417+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 213c3ed91+a3bf69293: render_critical_section_include honest placeholder (never dead-ends advertised selector); reviewer 61 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:42.543723+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 1e7fdb287: analyze surface reconciled (no bare CLI cmd advertised) + surface-agreement regression guard; reviewer 16 tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:45.899519+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP07 4e8b016cc: path-filtered doctrine/charter CI incl invocation/**, skip-with-green, no double-charge; reviewer YAML-verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-02T01:57:49.266160+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

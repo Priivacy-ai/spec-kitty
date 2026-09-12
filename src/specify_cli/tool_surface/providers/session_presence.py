@@ -3,16 +3,16 @@
 Wraps :mod:`specify_cli.session_presence.writers.registry` as a reporting-layer
 :class:`~specify_cli.tool_surface.providers.protocol.ReportingSurfaceProvider`.
 
-``session_presence`` is a *provider name*, not a :class:`SurfaceKind`. The
+``session_presence`` is a *provider name*, not a :class:`ToolSurfaceKind`. The
 provider expands a tool's session-presence writer into one
 :class:`SurfaceInstance` per managed artefact, tagging each with the distinct
-:class:`SurfaceKind` it represents:
+:class:`ToolSurfaceKind` it represents:
 
-* :data:`SurfaceKind.CONTEXT_FILE` -- always-on orientation files
+* :data:`ToolSurfaceKind.CONTEXT_FILE` -- always-on orientation files
   (``.claude/CLAUDE.md``, ``AGENTS.md``, ``GEMINI.md``, copilot instructions).
-* :data:`SurfaceKind.RULE` -- path/glob-activated rules and steering files
+* :data:`ToolSurfaceKind.RULE` -- path/glob-activated rules and steering files
   (``.cursor/rules/spec-kitty.mdc``, ``.kiro/steering/spec-kitty.md``).
-* :data:`SurfaceKind.HOOK` -- tool lifecycle event handlers
+* :data:`ToolSurfaceKind.HOOK` -- tool lifecycle event handlers
   (``.claude/settings.json`` ``SessionStart`` / ``Stop`` entries).
 
 The provider never reimplements writer logic: ``expand`` asks the writer which
@@ -24,10 +24,18 @@ never a hard failure and never a silent OK.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Sequence, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
+from hashlib import sha256  # noqa: TID251 -- exact physical file bytes, not doctrine hashing.
 from pathlib import Path
+import os
+
+from specify_cli.core.agent_config import load_agent_config, AgentConfigError
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
 
 from specify_cli.session_presence.content import (
+    SECTION_CLOSE,
     SECTION_OPEN,
     SessionPresenceContent,
 )
@@ -41,7 +49,14 @@ from specify_cli.session_presence.writers.claude_code import (
     SESSION_STOP_CMD,
     ClaudeCodeWriter,
 )
-from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWriter
+from specify_cli.session_presence.writers.markdown_rules import (
+    MarkdownRulesWriter,
+    PreparedPresenceFile,
+    observe_presence_path,
+    presence_state,
+    _presence_parent,
+    _walk_confined_parent,
+)
 from specify_cli.session_presence.writers.null_writer import NullWriter
 from specify_cli.session_presence.writers.registry import get_writer
 
@@ -50,7 +65,7 @@ from ..enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     CONTEXT_FILE_MISSING,
@@ -58,14 +73,31 @@ from ..findings import (
     SESSION_PRESENCE_INCOMPLETE,
     SEVERITY_ERROR,
     SEVERITY_INFO,
+    SEVERITY_WARNING,
+    STALE_GENERATED_SURFACE,
     make_finding,
 )
-from ..model import SurfaceDefinition, SurfaceInstance
+from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
+from ..operations import (
+    AssessmentInputs,
+    ApplyConsent,
+    Diagnostic,
+    Disposition,
+    FileState,
+    InputObservation,
+    OperationRoot,
+    OwnerAssessment,
+    OwnerApplyResult,
+    OwnershipProof,
+    PhysicalEffect,
+    coalesce_effects,
+)
 from ..repair import RepairResult
 from ..status import (
     STATE_MISSING,
     STATE_NOT_APPLICABLE,
     STATE_PRESENT,
+    STATE_STALE,
     SurfaceStatus,
     _surface_id,
 )
@@ -80,9 +112,9 @@ _RESEARCH_GAP_SENTINEL = "<unsupported>"
 # a provider name and is deliberately absent from this set.
 _SESSION_PRESENCE_KINDS = frozenset(
     {
-        SurfaceKind.CONTEXT_FILE,
-        SurfaceKind.HOOK,
-        SurfaceKind.RULE,
+        ToolSurfaceKind.CONTEXT_FILE,
+        ToolSurfaceKind.HOOK,
+        ToolSurfaceKind.RULE,
     }
 )
 
@@ -92,16 +124,23 @@ _SESSION_PRESENCE_KINDS = frozenset(
 _RULE_PATH_MARKERS = ("/rules/", "/steering/", ".mdc")
 
 
-def _definition_for(kind: SurfaceKind) -> SurfaceDefinition:
+@dataclass(frozen=True)
+class PreparedSessionBatch:
+    """Retained complete writer members and every source/destination observation."""
+
+    files: tuple[tuple[str, PreparedPresenceFile], ...]
+    observations: tuple[InputObservation, ...]
+    content: SessionPresenceContent | None
+
+    @property
+    def execution_artifacts(self) -> tuple[tuple[str, str, str], ...]:
+        return tuple(dict.fromkeys(artifact for _tool, member in self.files for artifact in member.execution_artifacts))
+
+
+def _definition_for(kind: ToolSurfaceKind) -> SurfaceDefinition:
     """Return the session-presence :class:`SurfaceDefinition` for ``kind``."""
-    activation = (
-        ActivationMode.EVENT
-        if kind == SurfaceKind.HOOK
-        else ActivationMode.GLOB
-        if kind == SurfaceKind.RULE
-        else ActivationMode.ALWAYS
-    )
-    repair_hint = _HOOK_REPAIR_HINT if kind == SurfaceKind.HOOK else _REPAIR_HINT
+    activation = ActivationMode.EVENT if kind == ToolSurfaceKind.HOOK else ActivationMode.GLOB if kind == ToolSurfaceKind.RULE else ActivationMode.ALWAYS
+    repair_hint = _HOOK_REPAIR_HINT if kind == ToolSurfaceKind.HOOK else _REPAIR_HINT
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -116,25 +155,25 @@ def _definition_for(kind: SurfaceKind) -> SurfaceDefinition:
 
 def context_file_definition() -> SurfaceDefinition:
     """Return the built-in ``context_file`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.CONTEXT_FILE)
+    return _definition_for(ToolSurfaceKind.CONTEXT_FILE)
 
 
 def hook_definition() -> SurfaceDefinition:
     """Return the built-in ``hook`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.HOOK)
+    return _definition_for(ToolSurfaceKind.HOOK)
 
 
 def rule_definition() -> SurfaceDefinition:
     """Return the built-in ``rule`` :class:`SurfaceDefinition`."""
-    return _definition_for(SurfaceKind.RULE)
+    return _definition_for(ToolSurfaceKind.RULE)
 
 
-def _markdown_kind(rules_path: str) -> SurfaceKind:
+def _markdown_kind(rules_path: str) -> ToolSurfaceKind:
     """Classify a MarkdownRulesWriter target as ``RULE`` or ``CONTEXT_FILE``."""
     lowered = rules_path.lower()
     if any(marker in lowered for marker in _RULE_PATH_MARKERS):
-        return SurfaceKind.RULE
-    return SurfaceKind.CONTEXT_FILE
+        return ToolSurfaceKind.RULE
+    return ToolSurfaceKind.CONTEXT_FILE
 
 
 class SessionPresenceProvider:
@@ -142,8 +181,169 @@ class SessionPresenceProvider:
 
     provider_key = PROVIDER_KEY
 
+    def assess(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        """Assess complete selected writer batches without network or persistence."""
+        try:
+            return self._prepare(inputs, statuses, selections)
+        except (OSError, ValueError, AgentConfigError, TypeError, AttributeError) as exc:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                complete=False,
+                diagnostics=(Diagnostic("session_input_invalid", PROVIDER_KEY, "error", str(exc)),),
+                consent=inputs.consent,
+            )
+
+    def _prepare(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        root = inputs.root.path
+        observations = list(observe_presence_path(root, ".kittify/config.yaml"))
+        if presence_state(observations[-1]).kind not in ("file", "absent"):
+            raise ValueError("Agent config is not a regular file")
+        configured = None
+        if presence_state(observations[-1]).kind == "file":
+            configured = set(load_agent_config(root).available)
+        content = inputs.projected if isinstance(inputs.projected, SessionPresenceContent) else None
+        if inputs.projected is not None and not isinstance(inputs.projected, SessionPresenceContent):
+            raise ValueError("Session assessment requires supplied SessionPresenceContent")
+        files: list[tuple[str, PreparedPresenceFile]] = []
+        effects: list[PhysicalEffect] = []
+        dispositions: list[Disposition] = []
+        eligible_selections = tuple(
+            s for s in selections if s.definition.activation_mode != ActivationMode.DISABLED and s.definition.required_policy == RequiredPolicy.REPAIRABLE_REQUIRED
+        )
+        selected = sorted({s.tool_key for s in eligible_selections})
+        if not selected:
+            dispositions.append(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No automatically repairable presence selection"))
+        for tool in selected:
+            writer = get_writer(tool)
+            kinds = {s.definition.kind for s in eligible_selections if s.tool_key == tool}
+            managed = _managed_surfaces(writer, root)
+            applicable = isinstance(writer, MarkdownRulesWriter) and (configured is None or tool in configured) and any(kind in kinds for _, kind in managed)
+            if applicable and isinstance(writer, MarkdownRulesWriter):
+                check = writer.check_dir or str(Path(writer.rules_path).parent)
+                observations.extend(observe_presence_path(root, check))
+                applicable = writer.can_write(root)
+            if not applicable or not isinstance(writer, MarkdownRulesWriter):
+                dispositions.append(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", f"No enabled selected writable presence for {tool}"))
+                continue
+            if content is None:
+                content = _orientation_content(root)
+            # Observe every sibling before invoking either format-aware renderer.
+            for path, _kind in managed:
+                observations.extend(observe_presence_path(root, path.relative_to(root).as_posix()))
+            members = writer.prepare_batch(root, content) if isinstance(writer, ClaudeCodeWriter) else (writer.prepare(root, content),)
+            ids = tuple(_surface_id(s.instance) for s in statuses if s.instance.owner == tool)
+            for member in members:
+                files.append((tool, member))
+                if member.changed:
+                    effects.extend(_session_effects(inputs.root, tool, member, tuple(observations), ids))
+                else:
+                    dispositions.append(Disposition(PROVIDER_KEY, inputs.root.root_id, member.path, member.disposition, member.reason))
+        unique: dict[str, InputObservation] = {}
+        for observation in observations:
+            previous = unique.setdefault(observation.name, observation)
+            if previous != observation:
+                raise ValueError(f"Session input changed during preparation: {observation.name}")
+        retained = tuple(unique.values())
+        return OwnerAssessment(
+            PROVIDER_KEY,
+            inputs.root,
+            effects=coalesce_effects(tuple(effects)),
+            dispositions=tuple(dispositions),
+            inputs_fingerprint=retained,
+            prepared=PreparedSessionBatch(tuple(files), retained, content),
+            consent=inputs.consent,
+        )
+
+    @contextmanager
+    def recheck(self, assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
+        """Validate the whole batch before its first write, including config."""
+        try:
+            for old in assessment.inputs_fingerprint:
+                current = observe_presence_path(assessment.root.path, old.name)[-1]
+                if old != current:
+                    raise ValueError(f"Session input changed: {old.name}")
+            diagnostics: tuple[Diagnostic, ...] = ()
+        except (OSError, ValueError) as exc:
+            diagnostics = (Diagnostic("precondition_changed", PROVIDER_KEY, "error", str(exc)),)
+        yield diagnostics
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        """Apply retained members via their original writers after whole-batch recheck."""
+        ids = tuple(e.id for e in assessment.effects)
+        if not assessment.complete or not explicit_consent.automatic or explicit_consent != assessment.consent:
+            return OwnerApplyResult(PROVIDER_KEY, skipped=ids, outcome="skipped")
+        if not ids:
+            return OwnerApplyResult(PROVIDER_KEY)
+        with self.recheck(assessment) as diagnostics:
+            if diagnostics:
+                return OwnerApplyResult(PROVIDER_KEY, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
+            return self._apply_prepared(assessment)
+
+    @staticmethod
+    def _apply_prepared(assessment: OwnerAssessment) -> OwnerApplyResult:
+        prepared = assessment.prepared
+        if not isinstance(prepared, PreparedSessionBatch):
+            raise TypeError("Expected session preparation")
+        members = {item.path: (tool, item) for tool, item in prepared.files}
+        effects = sorted(assessment.effects, key=lambda e: (e.after.kind != "directory", len(Path(e.path).parts), e.path))
+        succeeded: list[str] = []
+        for index, effect in enumerate(effects):
+            try:
+                if effect.after.kind == "directory":
+                    relative = Path(effect.path)
+                    root = assessment.root.path
+                    if fd_relative_dir_ops_supported():
+                        with _presence_parent(root, relative.parent, create=False) as fd:
+                            os.mkdir(relative.name, 0o755, dir_fd=fd)
+                        with _presence_parent(root, relative, create=False) as fd:
+                            os.fchmod(fd, 0o755)
+                    else:
+                        # Windows: no dir_fd support, so fall back to the
+                        # path-based confined walk (mirrors
+                        # markdown_rules._windows_atomic_write). Every
+                        # component up to and including the parent must
+                        # already exist and be a real (non-symlink)
+                        # directory -- this call never creates it.
+                        parent = _walk_confined_parent(root, relative.parent, create=False)
+                        target_dir = parent / relative.name
+                        if target_dir.is_symlink():
+                            raise ValueError(f"Refusing unowned symlink: {target_dir}")
+                        target_dir.mkdir(mode=0o755)
+                        if target_dir.is_symlink():
+                            raise ValueError(f"Refusing unowned symlink: {target_dir}")
+                        target_dir.chmod(0o755)
+                else:
+                    tool, member = members[effect.path]
+                    writer = get_writer(tool)
+                    if not isinstance(writer, MarkdownRulesWriter):
+                        raise ValueError("Selected writer is no longer available")
+                    writer.apply_prepared(assessment.root.path, member)
+                succeeded.append(effect.id)
+            except (OSError, ValueError) as exc:
+                return OwnerApplyResult(
+                    PROVIDER_KEY,
+                    succeeded=tuple(succeeded),
+                    failed=(effect.id,),
+                    skipped=tuple(e.id for e in effects[index + 1 :]),
+                    diagnostics=(Diagnostic("session_apply_failed", PROVIDER_KEY, "error", str(exc)),),
+                    outcome="partial" if succeeded else "failed",
+                )
+        return OwnerApplyResult(PROVIDER_KEY, succeeded=tuple(succeeded))
+
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        # ``session_presence`` is a PROVIDER NAME, not a SurfaceKind. This
+        # ``session_presence`` is a PROVIDER NAME, not a ToolSurfaceKind. This
         # provider handles the context_file, hook, and rule kinds it expands to.
         return definition.kind in _SESSION_PRESENCE_KINDS
 
@@ -198,8 +398,28 @@ class SessionPresenceProvider:
         if str(instance.path) == _RESEARCH_GAP_SENTINEL:
             return self._research_gap_status(instance)
         if _instance_present(instance):
+            if _orientation_version_is_stale(instance):
+                return self._stale_status(instance)
             return SurfaceStatus(instance=instance, state=STATE_PRESENT)
         return self._missing_status(instance)
+
+    @staticmethod
+    def _stale_status(instance: SurfaceInstance) -> SurfaceStatus:
+        return SurfaceStatus(
+            instance=instance,
+            state=STATE_STALE,
+            findings=(
+                make_finding(
+                    STALE_GENERATED_SURFACE,
+                    SEVERITY_WARNING,
+                    f"Orientation version stale for {instance.owner}: {instance.path}",
+                    tool_key=instance.owner,
+                    surface_id=_surface_id(instance),
+                    path=instance.path,
+                    repair_command=_REPAIR_HINT,
+                ),
+            ),
+        )
 
     @staticmethod
     def _research_gap_status(instance: SurfaceInstance) -> SurfaceStatus:
@@ -220,15 +440,15 @@ class SessionPresenceProvider:
     @staticmethod
     def _missing_status(instance: SurfaceInstance) -> SurfaceStatus:
         kind = instance.definition.kind
-        if kind == SurfaceKind.CONTEXT_FILE:
+        if kind == ToolSurfaceKind.CONTEXT_FILE:
             code = CONTEXT_FILE_MISSING
             message = f"Always-on context file missing for {instance.owner}: {instance.path}"
             hint = _REPAIR_HINT
         else:
             code = SESSION_PRESENCE_INCOMPLETE
-            label = "hook entry" if kind == SurfaceKind.HOOK else "rule file"
+            label = "hook entry" if kind == ToolSurfaceKind.HOOK else "rule file"
             message = f"Session-presence {label} missing for {instance.owner}: {instance.path}"
-            hint = _HOOK_REPAIR_HINT if kind == SurfaceKind.HOOK else _REPAIR_HINT
+            hint = _HOOK_REPAIR_HINT if kind == ToolSurfaceKind.HOOK else _REPAIR_HINT
         return SurfaceStatus(
             instance=instance,
             state=STATE_MISSING,
@@ -266,55 +486,84 @@ class SessionPresenceProvider:
         dry_run: bool = False,
     ) -> RepairResult:
         """Rewrite session presence for affected tools via their writers."""
-        actionable = [s for s in statuses if s.state == STATE_MISSING]
-        skipped = tuple(
-            _surface_id(s.instance)
-            for s in statuses
-            if s.state == STATE_NOT_APPLICABLE
-        )
+        actionable = [s for s in statuses if s.state in (STATE_MISSING, STATE_STALE)]
+        skipped = tuple(_surface_id(s.instance) for s in statuses if s.state == STATE_NOT_APPLICABLE)
         if not actionable:
             return RepairResult(skipped=skipped, dry_run=dry_run)
-        if dry_run:
-            return RepairResult(
-                repaired=tuple(_surface_id(s.instance) for s in actionable),
-                skipped=skipped,
-                dry_run=True,
-            )
-        return self._rewrite(project_root, actionable, skipped)
-
-    @staticmethod
-    def _rewrite(
-        project_root: Path,
-        actionable: Sequence[SurfaceStatus],
-        skipped: tuple[str, ...],
-    ) -> RepairResult:
-        content = _orientation_content(project_root)
-        repaired: list[str] = []
-        failed: list[str] = []
-        owners = sorted({s.instance.owner for s in actionable})
-        writers = {owner: get_writer(owner) for owner in owners}
-        for owner in owners:
-            writer = writers[owner]
-            try:
-                writer.write(project_root, content)
-                repaired.extend(
-                    _surface_id(s.instance)
-                    for s in actionable
-                    if s.instance.owner == owner
-                )
-            except Exception as exc:  # surfaced as a failure, never swallowed
-                failed.append(f"{owner}: {exc}")
+        consent = ApplyConsent(automatic=True)
+        selections = tuple(SurfaceSelection(s.instance.owner, s.instance.definition) for s in actionable)
+        assessment = self.assess(
+            AssessmentInputs(OperationRoot("project", "project", project_root), consent=consent),
+            actionable,
+            selections=selections,
+        )
+        if not assessment.complete:
+            return RepairResult(skipped=skipped, failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
+        result = None if dry_run else self.apply(assessment, consent)
+        failed = tuple(d.message for d in result.diagnostics) if result is not None else ()
+        preserved = {d.path for d in assessment.dispositions if d.state == "preserve"}
+        prepared = assessment.prepared
+        eligible = {tool for tool, _member in prepared.files} if isinstance(prepared, PreparedSessionBatch) else set()
         return RepairResult(
-            repaired=tuple(repaired),
-            skipped=skipped,
-            failed=tuple(failed),
-            dry_run=False,
+            repaired=tuple(
+                _surface_id(s.instance)
+                for s in actionable
+                if s.instance.owner in eligible and not failed and s.instance.path.relative_to(project_root).as_posix() not in preserved
+            ),
+            skipped=skipped + tuple(_surface_id(s.instance) for s in actionable if s.instance.owner not in eligible),
+            failed=failed + tuple(f"Preserved drift: {p}" for p in sorted(preserved) if p),
+            dry_run=dry_run,
         )
 
 
-def _managed_surfaces(
-    writer: object, project_root: Path
-) -> list[tuple[Path, SurfaceKind]]:
+def _session_effects(
+    root: OperationRoot,
+    tool: str,
+    member: PreparedPresenceFile,
+    observations: tuple[InputObservation, ...],
+    ids: tuple[str, ...],
+) -> tuple[PhysicalEffect, ...]:
+    proof = (OwnershipProof("managed_path", f"session-presence:{member.path}:managed-region"),)
+    effects = []
+    for observation in observations:
+        before = presence_state(observation)
+        if observation.name == "." or before.kind != "absent" or not member.path.startswith(observation.name + "/"):
+            continue
+        effects.append(
+            PhysicalEffect(
+                PROVIDER_KEY,
+                "surface_repair",
+                root,
+                observation.name,
+                "create",
+                before,
+                FileState("directory", mode=0o755),
+                "Session writer supporting directory",
+                proof,
+                (tool,),
+                ids,
+            )
+        )
+    before = member.before
+    effects.append(
+        PhysicalEffect(
+            PROVIDER_KEY,
+            "surface_repair",
+            root,
+            member.path,
+            "create" if before.kind == "absent" else "update",
+            before,
+            FileState("file", sha256=sha256(member.content).hexdigest(), mode=before.mode if before.mode is not None else 0o644),
+            member.reason,
+            proof,
+            (tool,),
+            ids,
+        )
+    )
+    return tuple(effects)
+
+
+def _managed_surfaces(writer: object, project_root: Path) -> list[tuple[Path, ToolSurfaceKind]]:
     """Return the ``(absolute_path, kind)`` artefacts ``writer`` manages.
 
     Knowledge of which writer manages which artefacts lives here rather than in
@@ -323,19 +572,15 @@ def _managed_surfaces(
     Markdown-family writers manage a single context-or-rule file classified by
     its target path.
     """
-    surfaces: list[tuple[Path, SurfaceKind]] = []
+    surfaces: list[tuple[Path, ToolSurfaceKind]] = []
     if isinstance(writer, ClaudeCodeWriter):
-        surfaces.append(
-            (project_root / writer.rules_path, SurfaceKind.CONTEXT_FILE)
-        )
-        settings = project_root / ".claude" / "settings.json"
-        surfaces.append((settings, SurfaceKind.HOOK))
-        surfaces.append((settings, SurfaceKind.HOOK))
+        surfaces.append((project_root / writer.rules_path, ToolSurfaceKind.CONTEXT_FILE))
+        settings = project_root / ClaudeCodeHookRegistrar().settings_relative_path
+        surfaces.append((settings, ToolSurfaceKind.HOOK))
+        surfaces.append((settings, ToolSurfaceKind.HOOK))
         return surfaces
     if isinstance(writer, MarkdownRulesWriter):
-        surfaces.append(
-            (project_root / writer.rules_path, _markdown_kind(writer.rules_path))
-        )
+        surfaces.append((project_root / writer.rules_path, _markdown_kind(writer.rules_path)))
     return surfaces
 
 
@@ -348,19 +593,19 @@ def _instance_present(instance: SurfaceInstance) -> bool:
     """
     writer = get_writer(instance.owner)
     kind = instance.definition.kind
-    if kind == SurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
+    if kind == ToolSurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
         root = _project_root_from(instance.path, Path(".claude/settings.json"))
         return root is not None and _claude_hooks_present(root)
     if isinstance(writer, MarkdownRulesWriter):
         return _orientation_section_present(instance.path)
-    return instance.path.exists()
+    return bool(instance.path.exists())
 
 
 def _project_root_from(path: Path, rel: Path) -> Path | None:
     """Strip ``rel`` from the tail of ``path`` to recover the project root."""
     parts = path.parts
     rel_parts = rel.parts
-    if len(parts) < len(rel_parts) or parts[-len(rel_parts):] != rel_parts:
+    if len(parts) < len(rel_parts) or parts[-len(rel_parts) :] != rel_parts:
         return None
     return Path(*parts[: len(parts) - len(rel_parts)])
 
@@ -368,7 +613,7 @@ def _project_root_from(path: Path, rel: Path) -> Path | None:
 def _artefact_present(
     writer: object,
     path: Path,
-    kind: SurfaceKind,
+    kind: ToolSurfaceKind,
     project_root: Path,
 ) -> bool:
     """Return whether the specific artefact at ``path`` is currently installed.
@@ -379,7 +624,7 @@ def _artefact_present(
     ``--kind context_file`` probe must report the file's own state regardless of
     whether the sibling hooks happen to be present.
     """
-    if kind == SurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
+    if kind == ToolSurfaceKind.HOOK and isinstance(writer, ClaudeCodeWriter):
         return _claude_hooks_present(project_root)
     if isinstance(writer, MarkdownRulesWriter):
         return _orientation_section_present(project_root / writer.rules_path)
@@ -396,14 +641,76 @@ def _orientation_section_present(target: Path) -> bool:
         return False
 
 
+#: The prefix ``SessionPresenceContent.render`` stamps immediately before the
+#: version (``**Spec Kitty v{version}** — ...``). The version runs up to the
+#: closing ``**``.
+_VERSION_PREFIX = "**Spec Kitty v"
+_VERSION_SUFFIX = "**"
+
+
+def _on_disk_orientation_version(target: Path) -> str | None:
+    """Return the version stamped in ``target``'s orientation block, or ``None``.
+
+    The parse is scoped to the marker-delimited managed block (the same
+    delimiters the writer uses to locate it), so a stray ``**Spec Kitty v...**``
+    elsewhere in the file — a pasted example or a second stamp — cannot be
+    mistaken for the managed version.
+
+    ``None`` means the file is absent, unreadable, has no managed block, or the
+    block carries no parseable ``**Spec Kitty v...**`` stamp — in which case the
+    block is left alone rather than churned (a hand-edited block is drift,
+    handled by a different rule).
+    """
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    open_at = text.find(SECTION_OPEN)
+    if open_at == -1:
+        return None
+    close_at = text.find(SECTION_CLOSE, open_at)
+    section = text[open_at : close_at if close_at != -1 else len(text)]
+    start = section.find(_VERSION_PREFIX)
+    if start == -1:
+        return None
+    start += len(_VERSION_PREFIX)
+    end = section.find(_VERSION_SUFFIX, start)
+    if end == -1:
+        return None
+    stamped = section[start:end].strip()
+    return stamped or None
+
+
+# Orientation-bearing surfaces carry the version stamp: always-on context files
+# and path/glob-activated rule/steering files (both written by the Markdown
+# family). Hooks do not, so they are excluded from the staleness check.
+_ORIENTATION_STAMPED_KINDS = frozenset({ToolSurfaceKind.CONTEXT_FILE, ToolSurfaceKind.RULE})
+
+
+def _orientation_version_is_stale(instance: SurfaceInstance) -> bool:
+    """Return whether a present orientation surface's version stamp is outdated (#2265).
+
+    Covers every Markdown-family orientation surface (context files AND
+    rule/steering files) uniformly. Staleness is a pure version-string mismatch
+    against the installed CLI, so a legitimate health-line change (e.g.
+    ``upgrade-available`` -> ``healthy``) at the same version does not churn the
+    block on every upgrade.
+    """
+    if instance.definition.kind not in _ORIENTATION_STAMPED_KINDS:
+        return False
+    project_root, writer = _resolve_writer_for_instance(instance)
+    if project_root is None or writer is None:
+        return False
+    on_disk = _on_disk_orientation_version(project_root / writer.rules_path)
+    if on_disk is None:
+        return False
+    return bool(on_disk != _orientation_content(project_root).version)
+
+
 def _claude_hooks_present(project_root: Path) -> bool:
     """Return whether both Claude session hooks are registered."""
-    start = ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(
-        project_root, SESSION_START_CMD
-    )
-    stop = ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(
-        project_root, SESSION_STOP_CMD
-    )
+    start = ClaudeCodeHookRegistrar(SESSION_START_EVENT).is_registered(project_root, SESSION_START_CMD)
+    stop = ClaudeCodeHookRegistrar(STOP_EVENT).is_registered(project_root, SESSION_STOP_CMD)
     return bool(start) and bool(stop)
 
 
@@ -426,28 +733,10 @@ def _resolve_writer_for_instance(
 
 
 def _orientation_content(project_root: Path) -> SessionPresenceContent:
-    """Build orientation content, falling back to a minimal healthy block.
+    """Use the session owner's explicit local-only content path."""
+    from specify_cli.session_presence.manager import local_presence_content
 
-    Repair must not depend on agent config or network state; when the richer
-    :class:`SessionPresenceManager` content cannot be built the writer still
-    receives a valid, healthy orientation block.
-    """
-    try:
-        from importlib.metadata import version
-
-        return SessionPresenceContent(
-            version=version("spec-kitty-cli"),
-            project_slug=project_root.name or "unknown",
-            health="healthy",
-            available_version=None,
-        )
-    except Exception:  # never block repair on version lookup
-        return SessionPresenceContent(
-            version="unknown",
-            project_slug=project_root.name or "unknown",
-            health="healthy",
-            available_version=None,
-        )
+    return local_presence_content(project_root.name)
 
 
 # ---------------------------------------------------------------------------
@@ -462,10 +751,10 @@ SurfaceProviderRegistry.register(
             rule_definition(),
         ),
         kind_tokens={
-            "context-file": SurfaceKind.CONTEXT_FILE,
-            "context_file": SurfaceKind.CONTEXT_FILE,
-            "hook": SurfaceKind.HOOK,
-            "rule": SurfaceKind.RULE,
+            "context-file": ToolSurfaceKind.CONTEXT_FILE,
+            "context_file": ToolSurfaceKind.CONTEXT_FILE,
+            "hook": ToolSurfaceKind.HOOK,
+            "rule": ToolSurfaceKind.RULE,
         },
         order=20,
     )

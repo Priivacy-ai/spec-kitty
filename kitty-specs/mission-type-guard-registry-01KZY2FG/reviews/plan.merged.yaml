@@ -1,0 +1,378 @@
+# review-merged/v1 — R2 mechanical merge+dedup of all R1 lens findings files.
+# Produced by the orchestrator (R2 is bookkeeping only, no session). Source files:
+# plan.gov.findings.yaml (2), plan.arch.findings.yaml (2), plan.verify.findings.yaml (6).
+# Dedup check performed: compared every finding's artifact-section/file:line citations and
+# claim substance pairwise across the three source files.
+#
+# One dedup found: PLAN-ARCH-001 and PLAN-VERIFY-003 both cite plan.md's Technical Context
+# "Scale/Scope" line ("_identity_audit.py's ~150-line shape") as evidence and both conclude
+# the citation/LOC claim for the `_identity_audit.py` precedent is wrong. PLAN-ARCH-001 is the
+# broader claim (the "mirrors _identity_audit.py's structure 1:1" architecture claim is itself
+# inaccurate — the real precedent is a two-module split — and the LOC figure is a symptom of
+# that same conflation); PLAN-VERIFY-003 independently found the narrower self-contradiction
+# (the plan's own two citations of the same file disagree: "~150-line shape" at Scale/Scope
+# vs "44-254" i.e. ~210 lines at Charter Check, vs 346 actual). Same severity (3) on both —
+# kept PLAN-ARCH-001 as the surviving merged entry (broader claim, richer remediation),
+# unioned in PLAN-VERIFY-003's additional citation (the internal 44-254 vs ~150 contradiction)
+# and its evidence (wc -l = 346). PLAN-VERIFY-003's id is preserved below as `duplicate_of`
+# metadata, not deleted, per "keep original ids; renumber nothing" — its full original entry
+# is not repeated a second time to avoid re-litigating an already-unioned claim.
+#
+# PLAN-GOV-002 was considered against this same pair but NOT merged: its primary artifact is
+# tracer-approach.md (not plan.md), a different document with a different, independent
+# remediation (edit the tracer's narrative, not plan.md itself) — same underlying two-module
+# confusion in the codebase, different artifact under review, so kept as a distinct finding
+# per the "same artifact section or file:line" dedup criterion.
+#
+# All other 7 findings are distinct concerns with no shared citation/claim overlap. Nothing
+# else was dropped; ids and content are copied verbatim from source files, group provenance
+# added via `source_group`.
+schema: review-merged/v1
+phase: plan
+mission: mission-type-guard-registry-01KZY2FG
+source_files:
+  - reviews/plan.gov.findings.yaml
+  - reviews/plan.arch.findings.yaml
+  - reviews/plan.verify.findings.yaml
+findings:
+  - id: PLAN-GOV-001
+    source_group: gov
+    lens: "Directive (Standing Order 8 mission hygiene / self-consistency) + Scope"
+    severity: 2
+    title: '"PR Shape" file-count rationale undercounts the actual touched-file set by two files'
+    evidence:
+      - artifact: "plan.md § PR Shape (line ~493)"
+      - artifact: "plan.md § Project Structure (Source Code / tests trees, lines ~544-570)"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/plan.md (no external code — internal cross-section inconsistency)"
+    claim: >
+      The "PR Shape" section states the touched-file set as "5 production files + 2 test
+      files + the golden-contract test" (8 files total) to justify the one-PR-for-the-whole-
+      mission decision. The plan's own "Project Structure" section lists 6 production files
+      (runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py,
+      runtime_bridge_io.py, doctor.py, and the new _mission_type_audit.py) and 4 test files
+      actually created/modified (test_bridge_cores.py, test_bridge_composition.py, the new
+      test_doctor_mission_type.py, and test_doctor_cli_surface_golden.py) — 10 files total.
+      In both cases the two newly-created files (_mission_type_audit.py and
+      test_doctor_mission_type.py) are the ones missing from the "PR Shape" tally, as if only
+      modified-existing files were counted and the two brand-new files were dropped. This is
+      an internal inconsistency in the binding plan document; it does not change the
+      qualitative conclusion (the file set is still small either way) but a reviewer or
+      implementer citing "PR Shape" as the authoritative scope-size statement would work from
+      a wrong count.
+    remediation: >
+      Correct the "PR Shape" section's file-count parenthetical to "6 production files + 4
+      test files (including the golden-contract test)" (or otherwise reconcile it with the
+      Project Structure section's actual file list) before tasks-phase authoring, so the
+      stated rationale for "one PR" matches the plan's own file manifest.
+
+  - id: PLAN-GOV-002
+    source_group: gov
+    lens: Tracer files seeded (mission tracer quality) / citation accuracy
+    severity: 1
+    title: tracer-approach.md misattributes classify_mission/audit_repo to "_identity_audit.py's report-builder pattern"
+    evidence:
+      - artifact: "kitty-specs/mission-type-guard-registry-01KZY2FG/tracer-approach.md (§ How the plan was produced, second bullet)"
+      - code: "src/specify_cli/cli/commands/_identity_audit.py:44-346 (no classify_mission/audit_repo/IdentityState/summarize definitions in this file — only imported and called, e.g. line 50 `from specify_cli.status import classify_mission`, lines 214/220/229 for audit_repo/summarize)"
+      - code: "src/specify_cli/status/identity_audit.py:67 (class IdentityState), :103 (def classify_mission), :185 (def audit_repo), :234 (def summarize) — the actual owning module"
+    claim: >
+      tracer-approach.md states it confirmed "doctor identity's command shape (doctor.py:396-444)
+      and _identity_audit.py's report-builder pattern (run_identity_audit, _build_identity_json,
+      _compute_fail_on, classify_mission, audit_repo)" by reading "the full ~260-line
+      implementation." In fact classify_mission, audit_repo, IdentityState, and summarize are
+      defined in the separate domain-layer module src/specify_cli/status/identity_audit.py, not
+      in _identity_audit.py (the CLI-command sibling only imports and calls them). Plan.md
+      itself gets this right in the Seam & Module Placement section ("not the
+      specify_cli/status/identity_audit.py domain-layer split... this is the smallest-viable-
+      diff shape"), so the imprecision is confined to the tracer file's narrative and does not
+      propagate into the actual design — but a tracer file exists specifically to be a
+      trustworthy first-hand verification record, and this one slightly overstates what was
+      verified about a single file's contents.
+    remediation: >
+      Minor edit to tracer-approach.md's second bullet to say the report-builder pattern was
+      confirmed "across _identity_audit.py (CLI report-builder: run_identity_audit,
+      _build_identity_json, _compute_fail_on) and its domain-layer collaborator
+      specify_cli/status/identity_audit.py (classify_mission, audit_repo, IdentityState,
+      summarize)" — matching the split plan.md's own Seam & Module Placement section already
+      documents correctly. No plan.md change needed.
+
+  - id: PLAN-ARCH-001
+    source_group: arch
+    merged_with: [PLAN-VERIFY-003]
+    lens: Canonical sources
+    severity: 3
+    title: "_mission_type_audit.py precedent citation conflates two distinct doctor-identity modules and understates the real LOC scale (includes PLAN-VERIFY-003's internal self-contradiction finding)"
+    evidence:
+      - artifact: "plan.md § Seam & Module Placement — `_mission_type_audit.py (**new sibling module**, mirrors `_identity_audit.py`'s structure 1:1 — same file, not the `specify_cli/status/identity_audit.py` domain-layer split...)`"
+      - artifact: "plan.md § Technical Context Scale/Scope (line 47) — `1 new sibling module (`_mission_type_audit.py`, mirroring `_identity_audit.py`'s ~150-line shape)`"
+      - artifact: "plan.md § Charter Check, 'Canonical sources, never improvise' (line 65) — `_identity_audit.py:44-254`, a self-cited range of ~210 lines, internally contradicting the same document's own '~150-line shape' claim 22 lines earlier"
+      - code: "src/specify_cli/cli/commands/_identity_audit.py (346 lines total, `wc -l` confirmed) — contains ONLY CLI-glue/report-building helpers (`_scope_to_mission`, `_print_identity_human`, `_compute_fail_on`, `_build_identity_json`, `run_identity_audit`); it imports `IdentityState`, `classify_mission`, `audit_repo`, `summarize` from `specify_cli.status` at runtime (lines 29, 50, 213-217) rather than defining them itself."
+      - code: "src/specify_cli/status/identity_audit.py:67 (`class IdentityState`), :103 (`def classify_mission`), :185 (`def audit_repo`), :234 (`def summarize`) — 361 lines total — this is the actual domain-layer module that contains the State-dataclass + classifier + repo-walker + summarizer shape plan.md proposes to replicate for `MissionTypeState`/`classify_mission_type`/`audit_mission_types`/`summarize_mission_types`."
+    claim: >
+      The real `doctor identity` precedent is a genuine two-module architectural split:
+      a 361-line domain-layer classifier/audit module (`specify_cli/status/identity_audit.py`,
+      owning `IdentityState`, `classify_mission`, `audit_repo`, `summarize`) and a separate
+      346-line CLI-glue/report-builder module (`cli/commands/_identity_audit.py`, owning only
+      the print/JSON/fail-on/entry-point helpers, which imports the domain pieces at call time).
+      Plan.md's Seam & Module Placement section proposes putting ALL FIVE of
+      `MissionTypeState`, `classify_mission_type`, `audit_mission_types`,
+      `summarize_mission_types`, AND `run_mission_type_audit` into ONE new `cli/commands/`
+      sibling module, and calls this "mirrors `_identity_audit.py`'s structure 1:1" — but
+      four of those five components structurally correspond to the OTHER file
+      (`specify_cli/status/identity_audit.py`), not to `_identity_audit.py`. The plan is aware
+      a split exists (it explicitly declines to follow the `specify_cli/status/` domain-layer
+      home) but then mischaracterizes what it IS following as "mirrors `_identity_audit.py`'s
+      structure 1:1," which is not literally true — `_identity_audit.py` contains no
+      State-dataclass/classifier/repo-walker/summarizer shape at all. The LOC estimate
+      compounds this and is internally inconsistent within plan.md itself: "~150-line shape"
+      at Scale/Scope (line 47) does not match the plan's OWN other citation of the same file
+      22 lines earlier at Charter Check (line 65, `_identity_audit.py:44-254`, ~210 lines),
+      nor the actual file (346 lines total, ~213 lines for the identity-only section excluding
+      the topology-audit cluster) — a concrete, checkable factual error inside the one section
+      of the plan whose entire stated purpose (per its own text) is to be more rigorous than
+      the issue's unverified figures. A WP05/IC-05 implementer following the plan's literal
+      citation could under-scope the new module, or discover mid-implementation that cramming
+      classifier + repo-walk + summarize + CLI-glue into one file works against the same
+      separation-of-concerns the identity precedent (and the charter's Architectural alignment
+      principle — "respect... the integrity of module seams") already demonstrates is warranted
+      once a decision procedure of FR-008's 6-state complexity is involved.
+    remediation: >
+      Correct the citation in Seam & Module Placement and Technical Context to name BOTH
+      precedent files explicitly: `specify_cli/status/identity_audit.py` (361 lines) for the
+      State-dataclass/classifier/audit-walk/summarize shape, and
+      `cli/commands/_identity_audit.py` (346 lines) for the CLI-glue/report-builder shape, and
+      reconcile the Scale/Scope "~150-line shape" figure with the Charter Check "44-254"
+      citation so the plan does not contradict itself. Either
+      (a) keep the plan's stated single-file rationale but state the real combined LOC scale
+      (revise "~150-line shape" upward and drop the "mirrors 1:1" phrasing in favor of "combines
+      the roles of two identity-precedent modules into one, because mission-type resolution
+      logic already lives in charter/doctrine"), or (b) reconsider splitting `classify_mission_type`
+      / `audit_mission_types` / `summarize_mission_types` into a small domain-layer sibling
+      (e.g. `specify_cli/status/mission_type_audit.py`) with only `run_mission_type_audit` and
+      print/JSON glue staying under `cli/commands/_mission_type_audit.py`, matching the real
+      architectural seam identity uses. Either fix removes the risk of an implementer using a
+      stale size/shape expectation.
+
+  - id: PLAN-ARCH-002
+    source_group: arch
+    lens: Exception class separation soundness
+    severity: 2
+    title: "UnregisteredMissionFamilyError and UnknownMissionTypeError have no code-level cross-reference despite the plan's own FR-008 classifier explicitly reusing the sibling exception's branch logic"
+    evidence:
+      - artifact: "plan.md § Seam & Module Placement — `Add class UnregisteredMissionFamilyError(ValueError) — a new, local exception, deliberately NOT importing or reusing charter.mission_type_profiles.UnknownMissionTypeError. Two independent reasons: (1) this module's own zero-dependency-leaf invariant forbids importing charter at all; (2) the two exceptions answer different questions at different layers...`"
+      - artifact: "plan.md § Seam & Module Placement (FR-008 taxonomy classifier) — `Registered, but repo.get(key) is None → state activated-unresolvable (this is the exact branch _resolve_action_slot in charter/mission_type_profiles.py already hits at its own raise UnknownMissionTypeError(...) call, line 799 ... reused here as a read-only classification instead of a raise).`"
+      - code: "src/runtime/next/runtime_bridge_cores.py:1-9 (module docstring) — 'may import stdlib, Lane/decision types, and nothing else... Every function here is pure: no filesystem, no git, no meta.json reads' — confirms the zero-dependency-leaf claim is real (verified: current imports are stdlib + `runtime.next.decision` only, no architectural gate/test enforces this beyond the docstring convention itself)."
+      - code: "src/charter/mission_type_profiles.py:193-256 (`class UnknownMissionTypeError(ValueError)`) — also a `ValueError` subclass carrying an offending mission-type-ish string (`mission_type_id`) with message-building distinguishing 'unknown' vs 'activated but has no loadable profile,' the same two-way distinction the new FR-008 taxonomy re-derives independently."
+    claim: >
+      The plan's reasoning for NOT reusing `UnknownMissionTypeError` is sound and independently
+      verified: (a) `runtime_bridge_cores.py`'s zero-dependency-leaf invariant is real (confirmed
+      by its own docstring and current import list — importing `charter` would be a genuine,
+      documented violation, even though no automated architectural gate currently enforces this
+      invariant by name); (b) `mission_family` (a coarse, hardcoded 4-value runtime-guard-dispatch
+      key) and `mission_type` (a project-activation-scoped, potentially many-valued charter
+      concept) are conceptually distinct enough to justify two exception classes. No finding is
+      warranted against the decision itself. However, the plan's OWN new `_mission_type_audit.py`
+      module (FR-008 classifier) explicitly reuses `UnknownMissionTypeError`'s `_resolve_action_slot`
+      branch logic conceptually (same mission, same diff) without ever proposing a code-level
+      comment linking the two exception classes together. Two `ValueError` subclasses that "rhyme
+      in shape" (the plan's own words) and are exercised by the same mission's diff, with no
+      cross-reference between them, is a real drift risk: a future maintainer touching one
+      taxonomy (e.g. widening `UnknownMissionTypeError`'s message shape, or adding a third
+      "family" state to `_GUARD_TABLES`) has no in-code signal pointing at the sibling exception
+      to check for a parallel update.
+    remediation: >
+      Add a one-line cross-reference comment to `UnregisteredMissionFamilyError`'s docstring in
+      `runtime_bridge_cores.py` (e.g. "Sibling concept: charter.mission_type_profiles.
+      UnknownMissionTypeError — same shape (ValueError carrying the offending string), different
+      layer (runtime guard-family dispatch vs charter mission-type resolution); intentionally not
+      unified, see plan.md's Seam & Module Placement for the two-independent-reasons rationale").
+      Optionally add the reverse pointer on `UnknownMissionTypeError` itself. This costs one doc
+      comment and closes the "silent taxonomy drift" risk without weakening the (correct) decision
+      to keep the two classes separate.
+
+  - id: PLAN-VERIFY-001
+    source_group: verify
+    lens: gate-set / coverage-floors
+    severity: 4
+    title: Gate Set table omits the enforced diff-coverage critical-path 90% gate that directly covers src/runtime/next/*, the mission's most heavily touched module
+    evidence:
+      - artifact: "plan.md § Gate Set, row 'Kernel coverage ≥90% / mission-loader coverage ≥90%' (line 518)"
+      - code: ".github/workflows/ci-quality.yml:3468-3489 — `critical_paths` array for the 'diff-coverage (critical-path, enforced)' step includes `'src/runtime/next/*'` (line 3489) with `--fail-under=90` (line 3517: `uv run diff-cover ... --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: ".github/workflows/ci-quality.yml:2919-2927 — `integration-tests-next` job runs `tests/next tests/specify_cli/next tests/runtime` with `--cov=src/runtime/next`, uploads `coverage-integration-next-*.xml`, which the `diff-coverage` job (needs: integration-tests-next, line ~3390) consumes"
+      - code: "src/runtime/next/runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py, runtime_bridge_io.py — all four production files this mission's IC-01 through IC-04 change live under `src/runtime/next/`"
+    claim: >
+      Plan.md's Gate Set table has one row addressing per-package coverage floors
+      ("Kernel coverage ≥90% / mission-loader coverage ≥90%: Not a distinct gate
+      for this mission ... This mission's touched files are not under the
+      src/kernel/ coverage-gated boundary or the mission-loader package"). That
+      claim is TRUE for those two specific named gates, but it is not the only
+      per-package coverage floor in this repo's CI. A third, separately-enforced
+      gate — the PR-only "diff-coverage (critical-path, enforced)" job — runs
+      `diff-cover --fail-under=90 --include 'src/runtime/next/*' ...` against
+      changed lines, fed by `integration-tests-next`'s `--cov=src/runtime/next`
+      report. Every one of the four production files this mission's core
+      functional change (IC-01–IC-04) touches lives under `src/runtime/next/`,
+      i.e. inside that gate's scope. Plan.md's Gate Set table — whose stated
+      purpose is "an explicit reason for every listed gate NOT included" — never
+      mentions this gate at all, so a reader relying on the table would
+      reasonably (and wrongly) conclude no per-package coverage floor applies to
+      this mission's runtime-seam changes.
+    remediation: >
+      Add a Gate Set row for the diff-coverage critical-path gate, e.g.: "PR
+      diff-coverage (critical-path, 90%, `src/runtime/next/*`) | Enforced |
+      Every IC-01–IC-04 production file lives under src/runtime/next/, inside
+      this gate's `critical_paths` include list (.github/workflows/ci-quality.yml
+      line 3489); the ATDD-First Sequencing's Commit 2 (unregistered-family raise
+      / catch-and-log / propagation tests) and IC-02's plan-guard-table tests are
+      expected to satisfy the 90% floor on the new/changed lines, but this should
+      be verified locally with `uv run diff-cover` against the base branch before
+      push, not assumed." Optionally also verify locally with a targeted
+      `--cov=src/runtime/next` + `diff-cover` run during implementation.
+
+  - id: PLAN-VERIFY-002
+    source_group: verify
+    lens: revert-discipline (ATDD-First Sequencing)
+    severity: 4
+    title: "ATDD-First Sequencing Commit 1 (FR-010) is labeled 'RED' while plan.md's own text describes it as a currently-passing test, and its DIRECTIVE_034 citation does not support that framing"
+    evidence:
+      - artifact: "plan.md § ATDD-First Sequencing, item 1 'Commit 1 (RED, FR-010)' (lines 447-459)"
+      - artifact: "packs/built-in/directives/034-test-first-development.directive.yaml lines 16-18, 20-22, 24-25"
+      - artifact: ".kittify/charter/charter.md § 'ATDD-First Discipline (binding per C-011)' (lines 591-604)"
+    claim: >
+      Plan.md's Commit 1 is described as "a test driving ... a plan-family
+      snapshot at step_id='review' ... asserting today's actual output ...
+      is what comes back before any fix. This test is RED in the sense that it
+      currently passes by asserting the BUG's own output; the tasks phase will
+      additionally add a second, target-shape assertion (asserting []) that is
+      genuinely RED until the fix lands — both forms are acceptable per
+      DIRECTIVE_034." Three concrete problems: (1) the sentence "RED in the
+      sense that it currently passes" is self-contradictory — a passing test is
+      by definition not red; labeling the commit "(RED, FR-010)" while admitting
+      it passes at the base commit misstates the commit's own state. (2) The
+      genuinely-red assertion is explicitly deferred to "the tasks phase" — a
+      later, unspecified point outside this plan — rather than being part of
+      Commit 1 as this plan pins it, so Commit 1 as literally specified here does
+      not itself satisfy charter C-011's binding requirement ("at least one
+      failing-first ATDD test ... committed as a separate commit ... BEFORE any
+      implementation commits", "the reviewer verifies red→green: the test was
+      RED on the WP's planning_base_branch"). (3) DIRECTIVE_034, cited as
+      license for "both forms," actually requires the opposite: "Prove
+      red-first — run the reproduction test against the unfixed code and confirm
+      it fails for the right reason" and explicitly invalidates a test that
+      "can only run AFTER the fix exists" — nothing in the directive endorses a
+      passing characterization-of-the-bug's-output as an acceptable substitute
+      for a failing reproduction test. Plan.md also never states what happens to
+      the first ("today's actual output") assertion once the fix lands — if left
+      in the same test it becomes false/red post-fix (breaking "GREEN on the
+      final commit"); if removed, plan.md doesn't say when or by whom, undermining
+      the "committed as a separate commit BEFORE implementation" pinning C-011
+      requires.
+    remediation: >
+      Rewrite Commit 1 so the RED-labeled commit itself contains a test that is
+      genuinely failing against the base commit — e.g. assert the target/fixed
+      shape (empty guard-failure list for plan/review) directly, which fails
+      today because the guard actually returns the WP-iteration message. Either
+      drop the "asserting today's actual output" pin entirely (it is not needed
+      to prove the fix — the target-shape assertion alone proves the flip) or, if
+      kept for documentation value, explicitly land it in the SAME commit as the
+      genuinely-red assertion (not deferred to "the tasks phase") and state what
+      happens to it once the fix lands (removed, or converted to a comment) so
+      the commit's own red→green story is unambiguous and directly verifiable by
+      the reviewer per C-011's own verification method.
+
+  - id: PLAN-VERIFY-004
+    source_group: verify
+    lens: gate-set
+    severity: 2
+    title: Two Gate Set rows label CI checks "Not applicable" / "covered only at merge time" when the underlying CI steps actually execute on every push of this mission's PR (and merely pass trivially)
+    evidence:
+      - artifact: "plan.md § Gate Set, row 'Doctrine schema freshness / Contextive glossary' (line 517): \"Not applicable\""
+      - artifact: "plan.md § Gate Set, row 'tests/architectural/test_shared_package_boundary.py / test_pyproject_shape.py' (line 516): \"Not run as a dedicated pass ... covered incidentally by any full-suite run at merge time, not re-justified here\""
+      - code: ".github/workflows/ci-quality.yml:848-869 — the 'Check Contextive glossary files are up-to-date' step is gated on changes under `'glossary/**' 'src/specify_cli/**' 'src/charter/**' '.kittify/traceability/**'`; this mission changes `src/specify_cli/cli/commands/doctor.py` and adds `src/specify_cli/cli/commands/_mission_type_audit.py`, both under `src/specify_cli/**`, so the step WILL run on this PR (and will pass, since no glossary markdown/traceability-map content changes)"
+      - code: ".github/workflows/ci-quality.yml:653-656 — the 'Verify generated doctrine schemas are up to date' step (`scripts/generate_schemas.py --check`) lives in the always-on `lint` job (`if: always()` at line ~615), deliberately placed there per its own comment ('a freshness gate behind a paths filter is the same silence #2957 is about') so it is NOT path-gated and runs on every PR"
+      - code: ".github/workflows/ci-quality.yml:2144-2147 — `arch-adversarial` (which runs `tests/architectural`, including `test_shared_package_boundary.py`) is `if: always()`, i.e. runs on every non-docs-only PR push, not only 'at merge time'"
+    claim: >
+      Both rows' underlying substantive conclusion is correct (nothing this
+      mission touches makes either check fail), but the stated reason
+      mischaracterizes WHEN/WHETHER the check runs. "Not applicable" for the
+      doctrine-schema/Contextive-glossary row implies the check is skipped; in
+      fact the Contextive-glossary step is triggered by this mission's own
+      `src/specify_cli/**` changes and the doctrine-schema-freshness step is
+      always-on — both execute on this PR's CI run and pass trivially, they are
+      not skipped. Likewise, "covered incidentally by any full-suite run at
+      merge time" for the shared-package-boundary/pyproject-shape row implies
+      these architectural tests only run in a separate post-merge full-suite
+      pass; in fact `arch-adversarial` runs them on every CI-gated push of this
+      mission's own PR via an always-on job, unrelated to any merge-time full
+      run. This is the same class of imprecision Lens 1 was asked to hunt for —
+      plan.md elsewhere is careful to distinguish "runs in CI job X, not job Y"
+      (e.g. the terminology-guard row explicitly notes it "runs only in CI's
+      integration-tests-core-misc job, NOT in the fast-tests shards"), making the
+      looser treatment here inconsistent with the plan's own established
+      standard of precision.
+    remediation: >
+      Reword both rows to state that the checks DO run on this PR (Contextive
+      glossary via the src/specify_cli/** path trigger; doctrine-schema-freshness
+      because it is always-on) and are expected to pass because this mission
+      changes no glossary markdown/traceability content and no doctrine Pydantic
+      model — rather than labeling them "Not applicable" / "covered ... at merge
+      time," which reads as "this gate does not fire for this PR."
+
+  - id: PLAN-VERIFY-005
+    source_group: verify
+    lens: silent-success
+    severity: 2
+    title: The tolerant evaluate_guards() wrapper stays public with no in-code guidance steering future callers toward evaluate_guards_strict
+    evidence:
+      - artifact: "plan.md § Seam & Module Placement, runtime_bridge_cores.py bullet (lines 118-126): \"Change evaluate_guards(snapshot) -> list[str] (the existing public name...) to a tolerant, still-pure wrapper: try: return evaluate_guards_strict(snapshot) except UnregisteredMissionFamilyError: return []\""
+      - code: "src/runtime/next/runtime_bridge.py:162 and runtime_bridge_composition.py:88 — the only two production modules that import `runtime_bridge_cores` today (grep confirmed no other production caller exists); both are changed by this mission's IC-03/IC-04 to call `evaluate_guards_strict` directly instead of the tolerant `evaluate_guards`"
+    claim: >
+      After this mission both production call sites bypass the tolerant
+      `evaluate_guards()` wrapper in favor of `evaluate_guards_strict()`, so no
+      LIVE silent-success risk is reintroduced today (verified directly — grep
+      finds no other production importer of `runtime_bridge_cores`). But
+      `evaluate_guards()` remains a public, unprefixed, still-exported name kept
+      alive solely for `tests/runtime/test_bridge_cores.py`'s existing direct
+      calls (per SC-004's unmodified-test requirement). Nothing in the plan adds
+      a docstring/comment on `evaluate_guards()` warning a future maintainer that
+      it silently swallows `UnregisteredMissionFamilyError` and that any NEW
+      production call site should use `evaluate_guards_strict` instead — exactly
+      the kind of footgun this mission exists to close for the two known call
+      sites, left undocumented for hypothetical future ones.
+    remediation: >
+      Add one sentence to `evaluate_guards()`'s docstring (or a `# ` comment) in
+      the implementation, e.g. "Kept tolerant/public only for existing direct
+      test callers; new production call sites should use
+      `evaluate_guards_strict` instead so an unregistered family is never
+      silently swallowed." This is a one-line addition, not a scope change, and
+      the plan should call it out under IC-01's own scope.
+
+  - id: PLAN-VERIFY-006
+    source_group: verify
+    lens: baseline-honesty
+    severity: 3
+    title: "Baseline & Reflexivity's #3284 citation claims CLAUDE.md and spec.md 'both already reference' it, but neither file does"
+    evidence:
+      - artifact: "plan.md § Baseline & Reflexivity, 'Verification method' paragraph (lines 362-365): \"cite #3284 (the known-red-main tracking issue CLAUDE.md and spec.md both already reference) rather than filing a duplicate\""
+      - code: "CLAUDE.md — grep for '3284' and '3283' finds zero matches; the actual known-P0-reds list at CLAUDE.md line 237 is \"e.g. #2736, #2772, #1834\""
+      - artifact: "kitty-specs/mission-type-guard-registry-01KZY2FG/spec.md — grep for '3284' finds zero matches; the only GitHub issue number spec.md references is #3386 (this mission's own issue)"
+      - artifact: "gh issue view 3284 --repo Priivacy-ai/spec-kitty confirms #3284 IS a real, open issue ('main full suite has 23 untracked failures and 2 errors after bootstrap prewarm') — the substantive pointer is plausible, only the stated provenance is wrong"
+    claim: >
+      Plan.md asserts a specific cross-reference fact ("CLAUDE.md and spec.md
+      both already reference" #3284) that is directly falsifiable and false —
+      neither document contains any reference to #3284. #3284 is a real, open,
+      on-topic red-main tracking issue, so the underlying pointer is not
+      fabricated, but the claim that two OTHER canonical documents already
+      establish this cross-reference is inaccurate. This matters specifically
+      because Lens 4 exists to check exactly this kind of provenance claim in a
+      Baseline & Reflexivity section whose entire purpose is to replace hedged/
+      assumed claims with verified ones — a false "already referenced elsewhere"
+      claim is the same class of unverified-claim-presented-as-verified this
+      mission (and this review) is built to catch, even though in this instance
+      it does not affect the mission's own scope or correctness.
+    remediation: >
+      Either drop the "CLAUDE.md and spec.md both already reference" clause (the
+      instruction to "cite #3284 ... rather than filing a duplicate" stands fine
+      on its own without the false provenance claim), or verify and correct it —
+      e.g. "#3284, a real open red-main tracking issue independently confirmed
+      via `gh issue view 3284`, not yet cross-referenced from CLAUDE.md or
+      spec.md."

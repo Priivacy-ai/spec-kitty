@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 
 logger = logging.getLogger(__name__)

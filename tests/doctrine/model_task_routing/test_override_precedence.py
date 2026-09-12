@@ -2,7 +2,7 @@
 NFR-003; D4/C-002; WP08).
 
 Pins the ``evaluate()`` live consumer of a step's ``recommended_model_tier``
-offer, wired through ``doctrine.missions.step_offer_seam``:
+offer, wired through ``charter.offering.missions.step_offer_seam``:
 
 - With a charter/runtime override present, the override wins 100% of the
   time -- the step's offer is surfaced only as advisory provenance, never
@@ -31,13 +31,13 @@ _PROFILE_BASE = {
 
 
 def _build_profile(**overrides: object):
-    from doctrine.agent_profiles.profile import AgentProfile
+    from charter.offering.agent_profiles.profile import AgentProfile
 
     return AgentProfile(**_PROFILE_BASE, **overrides)
 
 
 def _build_catalog(document: dict[str, object]):
-    from doctrine.model_task_routing.models import ModelToTaskType
+    from charter.offering.model_task_routing.models import ModelToTaskType
 
     return ModelToTaskType.model_validate(document)
 
@@ -82,7 +82,7 @@ def test_override_wins_over_step_offer_every_time() -> None:
     """NFR-003: an override present alongside a step offer -- the override
     is the effective value in 100% of cases; the step offer is preserved
     only as advisory provenance, never as ``effective`` (C-002)."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile()
@@ -114,7 +114,7 @@ def test_override_wins_regardless_of_agreement_with_offer(
 ) -> None:
     """The override wins whether it agrees, disagrees, or coincides with
     the step's offer -- precedence is unconditional, not a tie-break."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile()
@@ -135,7 +135,7 @@ def test_override_wins_regardless_of_agreement_with_offer(
 def test_step_offer_used_when_no_override_present() -> None:
     """With no charter/runtime override, the step's advisory offer becomes
     the effective value."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile()
@@ -156,7 +156,7 @@ def test_step_offer_used_when_no_override_present() -> None:
 def test_no_offer_and_no_override_yields_no_model_tier_resolution() -> None:
     """Neither supplied -> ``model_tier`` is ``None`` (not a resolution
     with empty fields) -- the absent-offer state is explicit."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile()
@@ -170,7 +170,7 @@ def test_offer_seam_does_not_change_catalog_or_profile_candidates() -> None:
     """The step model-tier offer/override is additive-only: it never
     influences ``catalog_candidate``/``profile_candidate`` scoring, so
     doctrine cannot leak into routing authority (C-002)."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile(model="human-declared-model")
@@ -197,7 +197,7 @@ def test_evaluate_with_no_offer_arguments_is_unchanged_from_pre_wp08_call() -> N
     arguments) produces a recommendation whose non-``model_tier`` fields
     are identical to a call that explicitly passes ``None`` for both new
     keyword arguments."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document())
     profile = _build_profile()

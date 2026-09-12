@@ -1,5 +1,6 @@
 ---
 title: 'ADR 1 (2026-04-08): Global `~/.kittify/` as Machine-Level Runtime'
+description: 'Makes ~/.kittify the machine-level runtime that init bootstraps, leaving per-project .kittify directories holding nothing but project-specific state.'
 status: Accepted
 date: '2026-04-08'
 ---

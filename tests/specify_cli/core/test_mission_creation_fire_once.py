@@ -2,32 +2,35 @@
 
 PR #2172 review finding #1. The CORE↛INTEGRATION inversion routes mission
 creation through ``emit_mission_created_local`` (canonical lifecycle log +
-lifecycle SaaS fan-out) and ``fire_dossier_sync`` (dashboard/dossier sync) via
-the ``status/adapters.py`` registry instead of direct ``sync``/``tracker``
-imports. After rebasing onto main's rewired lifecycle path (#2070/#1793
-lifecycle/topology, #2134 status decompose, #2158 dead-symbol gate), this test
-pins the observable behaviour the inversion must preserve:
+lifecycle SaaS fan-out) via the ``status/adapters.py`` registry instead of
+direct ``sync``/``tracker`` imports. After rebasing onto main's rewired
+lifecycle path (#2070/#1793 lifecycle/topology, #2134 status decompose, #2158
+dead-symbol gate), this test pins the observable behaviour the inversion must
+preserve:
 
 * the canonical ``MissionCreated`` event is written **exactly once** (no drop,
-  no double-write),
+  no double-write), and
 * the daemon/SaaS lifecycle fan-out (``fire_lifecycle_saas_fanout``) fires
-  **exactly once** for that event, and
-* the dashboard/dossier sync (``fire_dossier_sync``) fires **exactly once**.
+  **exactly once** for that event.
 
-It drives the *real* adapter registry — registering spy observers through the
-public ``register_*`` API rather than patching the fire functions — so a
-double-fire or drop introduced by the rewired lifecycle path would fail here.
+It drives the *real* adapter registry — registering a spy observer through the
+public ``register_lifecycle_saas_fanout_handler`` API rather than patching the
+fire function — so a double-fire or drop introduced by the rewired lifecycle
+path would fail here.
 """
 
 from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+
+from ulid import ULID
 
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.status import adapters as status_adapters
@@ -36,10 +39,20 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
 
+# lifecycle_events surfaced by the ``_isolated_adapter_registry`` fixture.
+_RegistryFixture = list[dict[str, Any]]
+
 
 def _init_repo(repo: Path) -> None:
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set for the default software-dev resolution
+    # exercised throughout this file.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True
@@ -76,7 +89,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def _isolated_adapter_registry():
+def _isolated_adapter_registry() -> Iterator[_RegistryFixture]:
     """Clear the fan-out registry, install spy handlers, restore on teardown.
 
     Uses the real registration API so the test exercises the same fan-out path
@@ -86,27 +99,22 @@ def _isolated_adapter_registry():
     status_adapters.reset_handlers()
 
     lifecycle_events: list[dict[str, Any]] = []
-    dossier_calls: list[tuple[Path, str, Path]] = []
 
     def _lifecycle_spy(*, envelope: Any = None, **_kw: Any) -> None:
         lifecycle_events.append(dict(envelope or {}))
 
-    def _dossier_spy(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-        dossier_calls.append((feature_dir, mission_slug, repo_root))
-
     status_adapters.register_lifecycle_saas_fanout_handler(_lifecycle_spy)
-    status_adapters.register_dossier_sync_handler(_dossier_spy)
     try:
-        yield lifecycle_events, dossier_calls
+        yield lifecycle_events
     finally:
         status_adapters.reset_handlers()
 
 
 def test_mission_created_fanout_fires_exactly_once(
-    tmp_path: Path, _isolated_adapter_registry
+    tmp_path: Path, _isolated_adapter_registry: _RegistryFixture
 ) -> None:
-    """One mission creation => exactly one MissionCreated event + one of each fan-out."""
-    lifecycle_events, dossier_calls = _isolated_adapter_registry
+    """One mission creation => exactly one MissionCreated event + one fan-out."""
+    lifecycle_events = _isolated_adapter_registry
     _init_repo(tmp_path)
     slug = "fire-once-mission"
 
@@ -137,15 +145,9 @@ def test_mission_created_fanout_fires_exactly_once(
         f"{[e.get('event_type') for e in lifecycle_events]}"
     )
 
-    # Dashboard/dossier sync fires exactly once.
-    assert len(dossier_calls) == 1, (
-        f"Dossier (dashboard) sync must fire exactly once; got {len(dossier_calls)}"
-    )
-    assert dossier_calls[0][1] == result.mission_slug
-
 
 def test_mission_created_resume_does_not_double_fire(
-    tmp_path: Path, _isolated_adapter_registry
+    tmp_path: Path, _isolated_adapter_registry: _RegistryFixture
 ) -> None:
     """Re-running create_mission_core (resume) must not duplicate the MissionCreated publish.
 
@@ -153,20 +155,35 @@ def test_mission_created_resume_does_not_double_fire(
     second run must NOT emit a second canonical row nor a second lifecycle
     fan-out — proving the inversion preserves idempotency on the rewired path.
     """
-    lifecycle_events, _dossier_calls = _isolated_adapter_registry
+    lifecycle_events = _isolated_adapter_registry
     _init_repo(tmp_path)
     slug = "fire-once-resume"
 
-    patches = (
+    # Pin the ULID so both create calls resolve to the SAME mission directory,
+    # which is what makes the second call a genuine "resume" of the first. Each
+    # create_mission_core call mints a fresh ULID, and the mission dir name embeds
+    # its ``mid8`` (the first 8 Crockford chars = the top 40 bits of the 48-bit ms
+    # timestamp, so it only changes every ~256ms). Without pinning, the two calls
+    # land in the same dir ONLY when they happen to fall inside the same 256ms
+    # window; under load (parallel CI workers + coverage) they straddle a boundary,
+    # get different dirs, and the per-dir dedup can't see the first event — the
+    # fan-out fires twice and this test flakes. Pinning removes the timing luck and
+    # deterministically exercises the dedup path this test exists to guard.
+    pinned_ulid = ULID()
+    with (
+        patch(f"{_CORE_MODULE}.ULID", return_value=pinned_ulid),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
-    )
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    ):
         first = create_mission_core(tmp_path, slug, **_mission_summary(slug))
-        create_mission_core(tmp_path, slug, **_mission_summary(slug))
+        second = create_mission_core(tmp_path, slug, **_mission_summary(slug))
+
+    # Guard the pin's premise: both calls must resolve to one mission directory,
+    # else the "resume" dedup below is not actually being exercised.
+    assert first.feature_dir == second.feature_dir
 
     rows = _read_jsonl(first.feature_dir / "status.events.jsonl")
     mission_created_rows = [r for r in rows if r.get("event_type") == "MissionCreated"]

@@ -1,0 +1,308 @@
+# Work packages — retire the dead queue-backed event drain
+#
+# ONE LANE. Every WP that touches source touches src/specify_cli/sync/batch.py or
+# a test file another WP also opens, so one-live-agent-per-file forces serial
+# execution. The dependency chain below states that explicitly rather than
+# implying parallelism the file ownership cannot deliver.
+#
+# WP02 is deliberately large and deliberately atomic: there is no green
+# intermediate state between deleting the senders and retiring their coverage.
+# The moment the senders go, the 7 code-coupled test files break at import; if the
+# tests go first, the source still references nothing removed. Splitting it would
+# manufacture a red commit boundary in one direction or the other.
+
+work_packages:
+  - id: WP01
+    title: "Freeze the deletion manifest"
+    dependencies: []
+    owned_files:
+      - "scripts/verify_batch_retirement_3167.py"
+    requirement_refs:
+      - FR-002
+      - NFR-001
+      - NFR-002
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-freeze-the-deletion-manifest.md"
+
+  - id: WP02
+    title: "Retire the dead surface and its coverage, atomically"
+    dependencies:
+      - WP01
+    owned_files:
+      # NOTE: tests/sync/test_batch_retry_hygiene.py and
+      # tests/sync/test_batch_400_no_details_poison_2736.py were owned by this WP and
+      # DELETED by it (whole-file retirements, b0482a832). They are dropped from
+      # owned_files because finalize-tasks validates that literal paths still exist -
+      # a deletion mission ends up unable to declare what it removed. The ownership
+      # record survives in contracts/deletion-manifest.md and in this WP's prompt.
+      - "src/specify_cli/sync/batch.py"
+      # T005's red-first absence assertion needs a file to live in. Flagged by the
+      # post-tasks pass: it was the mission's one genuinely red-first artifact with
+      # nowhere to land.
+      - "tests/architectural/test_batch_drain_retired_3167.py"
+      - "tests/sync/test_batch_sync.py"
+      - "tests/sync/test_batch_error_surfacing.py"
+      - "tests/sync/test_integration.py"
+      - "tests/sync/test_offline_replay.py"
+      - "tests/architectural/test_batch_split_single_authority.py"
+      - "tests/architectural/test_egress_consent_boundary.py"
+      - "tests/architectural/_baselines.yaml"
+    requirement_refs:
+      - FR-001
+      - FR-003
+      - FR-004
+      - FR-007
+      - NFR-001
+      - NFR-002
+      - C-002
+    plan_concern_refs:
+      - IC-02
+      - IC-05
+    subtasks:
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+    prompt_file: "tasks/WP02-retire-the-dead-surface.md"
+
+  - id: WP03
+    title: "Unblind the cone, then measure and attribute"
+    dependencies:
+      - WP02
+    owned_files:
+      - "tests/sync/conftest.py"
+      - "tests/sync/test_no_queue_drain_constructed_3030.py"
+      # C-006 requires the ordering/do-not-re-pin residual be recorded ON the three
+      # _PinnedLeak entries, and T016 may need to un-pin one. Both are impossible
+      # without owning this file. Flagged by the post-tasks pass.
+      - "tests/sync/_leak_guard.py"
+    requirement_refs:
+      - FR-005
+      - FR-006
+      - NFR-003
+      - NFR-004
+      - C-004
+      - C-005
+      - C-006
+    plan_concern_refs:
+      - IC-03
+      - IC-04
+    subtasks:
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP03-unblind-the-cone.md"
+
+  - id: WP04
+    title: "Correct the record and close the tracker"
+    # Sequencing of record, NOT seam coupling. The post-tasks pass corrected the
+    # original rationale: T017 is a comment-only edit to runtime.py and cannot
+    # change whether WP03's retained patch target resolves. The real reason WP04
+    # goes last is that T019/T020 record terminal state - issues filed, #3167's
+    # matrix row made terminal - which is only honest once WP03 has measured.
+    dependencies:
+      - WP02
+      - WP03
+    owned_files:
+      - "src/specify_cli/sync/runtime.py"
+      - "docs/context/orchestration.md"
+    requirement_refs:
+      - FR-008
+      - FR-009
+      - FR-010
+      - C-008
+    plan_concern_refs:
+      - IC-05
+      - IC-06
+    subtasks:
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+    prompt_file: "tasks/WP04-correct-the-record.md"
+
+subtasks:
+  # --- WP01 — freeze the manifest -------------------------------------------
+  - id: T001
+    description: >
+      Run scripts/verify_batch_retirement_3167.py and CONTROL ITS DIAGNOSTIC FIRST: confirm
+      run_final_sync_with_retries, BatchEventResult and BatchSyncResult resolve to
+      src/specify_cli/sync/background.py and categorize_error to
+      src/specify_cli/sync/diagnose.py. If any known production consumer comes back
+      with no reference, the resolver is broken -- fix it before trusting any tier.
+  - id: T002
+    description: >
+      Define "sender" for NFR-001 as "a top-level symbol in sync/batch.py from
+      which a requests.* or request_with_stdlib_fallback_sync call is transitively
+      reachable", compute the BASELINE count with that definition, and record it.
+      SC-001 prints the baseline and the post-change count, so the starting number
+      must exist before the deletion.
+  - id: T003
+    description: >
+      Establish non-reachability beyond static callers: entry points
+      (pyproject.toml [project.scripts]), getattr/importlib/__getattr__ on either
+      sender name, and the specify_cli.sync lazy-import map. State why a caller
+      would otherwise have appeared -- an assertion of absence needs that.
+  - id: T004
+    description: >
+      Write contracts/deletion-manifest.md: the frozen tier table (24 first, 9
+      second, 21 alive), the per-symbol referrer sets, the orphaned module-level
+      imports, and the 7 code-coupled vs 19 prose-only test files. This is the
+      artifact review checks the deletion against.
+
+  # --- WP02 — the atomic retirement -----------------------------------------
+  - id: T005
+    description: >
+      RED FIRST. Land the per-name absence assertion for the manifest's dead
+      symbols -- it must fail now (the symbols exist) and pass after T007. This
+      substitutes for the dead-symbol gate, which does NOT cover sync/batch.py
+      because that module declares no __all__. Do not lean on a gate that never
+      fires.
+  - id: T006
+    description: >
+      Disposition every code-coupled test node BEFORE deleting anything, at node-id
+      granularity, recorded in contracts/deletion-manifest.md. Five of the seven
+      files are SPLITS and must survive: test_batch_sync.py keeps TestBatchSyncResult
+      and test_oversized_batch_error_classifies_without_unknown;
+      test_batch_error_surfacing.py keeps ~28 nodes (TestCategorizeError,
+      TestFormatSyncSummary, TestFailureReport, TestProcessBatchResults,
+      TestBatchSyncResultProperties, TestBatchEventResult); test_integration.py keeps
+      TestLamportClockReconciliation; test_offline_replay.py keeps
+      TestQueueEventsOffline and TestQueueSizeLimit;
+      test_batch_split_single_authority.py keeps T018's AST sweep AND its
+      non-vacuity control verbatim. Each retired node names either a surviving node
+      id that pins the same requirement, or the argument that the requirement died
+      with the drain.
+  - id: T007
+    description: >
+      Delete the 24 first-tier and 9 second-tier symbols, the orphaned module-level
+      imports (ruff F401 will name them), and the retired test nodes -- and remove
+      the E15 entry from tests/architectural/test_egress_consent_boundary.py -- in
+      ONE commit. The two allowlist assertions are bidirectionally coupled, so any
+      boundary between the deletion and the E15 removal is red in one direction or
+      the other. Partial deletion is not a valid intermediate state.
+  - id: T008
+    description: >
+      Correct tests/architectural/_baselines.yaml egress_allowlist_files from 28 to
+      27 and update its justification prose (12 + 1 + 14 = 27). The ratchet is
+      shrink-only, so a stale count reds NOTHING and silently leaves the ceiling one
+      free unconsented-egress file too high.
+  - id: T009
+    description: >
+      Settle the two requirement-bearing dispositions that must not be bulk-retired.
+      (a) TestHistoricalMissionStateGuard (test_batch_sync.py:173): the per-event
+      forbidden-key check exists nowhere else and the live analogue
+      enforce_teamspace_mission_state_ready is entry-time, which a daemon dispatch
+      does not traverse -- state whether the per-event check is still owed and FILE
+      THE GAP if it is. (b) The 4 ingress tests at test_batch_sync.py:1305-1413 pin
+      per-batch /me rehydrate and negative-cache behaviour reachable only through
+      batch_sync; if the claim is "covered at body_transport.py", CHECK that claim,
+      do not assert it.
+  - id: T010
+    description: >
+      Verify the public API is untouched: enumerate specify_cli.sync's exported name
+      set before and after and assert a zero-name delta (NFR-002). The senders were
+      already absent from the lazy map, so a correct deletion changes nothing here.
+      Print both set sizes.
+  - id: T011
+    description: >
+      Confirm zero transmit primitives remain in sync/batch.py -- requests.get
+      (:223), requests.post (:1125), request_with_stdlib_fallback_sync (:1212,
+      :1282) are all inside first-tier symbols. Print the baseline count from T002
+      and the post-change count. This is SC-001.
+
+  # --- WP03 — unblind and measure -------------------------------------------
+  - id: T012
+    description: >
+      Remove ONLY the specify_cli.sync.batch.is_sync_enabled_for_checkout patch from
+      the autouse fixture in tests/sync/conftest.py. The fixture makes THREE patches:
+      keep the specify_cli.sync.runtime seam (C-001 keeps runtime.py:106, and
+      runtime.py:37 imports the name so dropping raising=False resolves rather than
+      errors), and leave EventEmitter._project_consents_to_capture at :284-287
+      COMPLETELY ALONE -- it is the grant the cone actually depends on and it is out
+      of scope.
+  - id: T013
+    description: >
+      Add a negative control proving a wrong patch target now fails loudly rather
+      than going inert. SC-005 as written only proves resolvability, not
+      consultation; the control is what makes it mean something.
+  - id: T014
+    description: >
+      Give tests/sync/test_no_queue_drain_constructed_3030.py the positive control
+      its sibling already has -- a synthetic source string containing
+      "from .batch import batch_sync" that the AST scanner must still flag -- and
+      remove the now-vacuous _DEFINING_MODULE self-exclusion. Once the names no
+      longer exist the guard passes for a reason that no longer discriminates; THIS
+      is the strengthening NFR-004 promises, not the deletion.
+  - id: T015
+    description: >
+      Capture --collect-only -q node-id lists pre/post for tests/sync and
+      tests/architectural and diff them. ~126 nodes disappear, so the comparison
+      must distinguish ABSENT from PRESENT-BUT-FLIPPED -- only the latter is
+      interesting and a bulk sentence hides it. Cheap (~2 min) and catches every
+      collection-level change.
+  - id: T016
+    description: >
+      Run the full tests/sync cone once with -n0 -ra (NOT -rf, which suppresses the
+      ^ERROR lines the standing rules count), redirected, quoting the N passed line,
+      and attribute every difference against the committed baseline of 2376 passed /
+      19 skipped / 5 errors, input 2395. pgrep -af 'run_sync[_]daemon' before it;
+      put any reap in a script file WITH the bracket class -- pgrep -f matches its
+      own shell too. Expect the leak-guard observation set to move: if a pinned leak
+      stops reproducing AS A CONSEQUENCE of this change, un-pin it and record the
+      attribution (C-004/C-005). Do not opportunistically re-pin. Do NOT run
+      tests/cli concurrently.
+
+  # --- WP04 — record and tracker --------------------------------------------
+  - id: T017
+    description: >
+      Comment sync/runtime.py:106 as a non-egress auto-start decision. It must NOT
+      claim the publish gate covers every path -- a started runtime emits a build_id
+      in a pong that gate never sees, classified not-project-data at
+      test_egress_consent_boundary.py:567-575. Point at that per-sender enumeration
+      instead. Overclaiming here ships a fresh false coverage claim two lines from
+      the one this mission is fixing.
+  - id: T018
+    description: >
+      Add one glossary entry disambiguating "the drain" (delivery/selection.py
+      dispatch selection; sync/background.py:280 body upload; sync/batch.py the
+      retired event drain, now gone), following the primary/merge/routing precedent
+      in the Terminology Canon. Per operator decision, in-place naming is scoped to
+      the files this mission already opens; the other 13 files are out of scope and
+      filed.
+  - id: T019
+    description: >
+      File the 9 residuals as issues and record their numbers: the seven in spec.md's
+      out-of-scope register, plus split_in_half's zero-consumer status (operator
+      decision: keep it as a canonical leaf) and FR-009's 13 out-of-scope files. A
+      deferred-with-followup verdict is only honest once the follow-up exists.
+  - id: T020
+    description: >
+      Move #3167's issue-matrix row from in-mission to a terminal verdict -- it is
+      REJECTED on the done transition -- citing WP01's manifest as evidence that one
+      site was retired rather than migrated and that sync/runtime.py:106 was
+      deliberately left unchanged per D-M5a-1=a. Cite foreign issues as
+      owner/repo#NNNN, this mission's own bare.
+  - id: T021
+    description: >
+      Populate acceptance-matrix.json. It currently holds 10 scaffolded FR rows with
+      evidence: None - structurally present and semantically empty, the same shape as
+      the mkdir-contracts trap the accept gate is satisfied by. Record a verdict per
+      criterion via `spec-kitty agent mission acceptance-verdict`, and register the
+      deletion's absence claims as NEGATIVE INVARIANTS with mode grep_absence, which
+      is what a retirement mission can actually prove: batch_sync and
+      sync_all_queued_events absent from sync/batch.py, zero transmit primitives
+      remaining, and the E15 allowlist entry gone. Cite the evidence WP01-WP03 already
+      measured rather than re-deriving it.

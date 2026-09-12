@@ -2,10 +2,10 @@
 title: Core Code Patterns Applied in the Codebase
 description: The core code patterns applied across the Spec Kitty codebase, mapping recurring implementation idioms to the architecture components they realize (2.x-era record).
 doc_status: active
-updated: '2026-05-19'
+updated: '2026-09-08'
 related:
 - docs/architecture/04_implementation_mapping/README.md
-- docs/status-model.md
+- docs/architecture/status-model.md
 ---
 # Core Code Patterns Applied in the Codebase
 
@@ -35,7 +35,7 @@ once it has at least two real consumers.
 
 ## 1. Rule-Based Pipeline (Chain of Responsibility)
 
-**Doctrine:** [`chain-of-responsibility-rule-pipeline`](../../../src/doctrine/tactics/built-in/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml)
+**Doctrine:** [`chain-of-responsibility-rule-pipeline`](../../../packs/built-in/tactics/code-patterns/chain-of-responsibility-rule-pipeline.tactic.yaml)
 
 A pipeline of small, pure functions, each one (1) checking applicability,
 (2) optionally executing its narrow piece of work, and (3) returning a result
@@ -54,14 +54,14 @@ Three flavors are in use, distinguished by what each rule produces:
 - Validator: `src/specify_cli/audit/detectors.py` (`detect_legacy_keys`,
   `detect_forbidden_keys`, `detect_corrupt_jsonl`); composed by
   `src/specify_cli/audit/classifiers/*` (one classifier per artifact type).
-- Validator (class-based): `src/specify_cli/charter_lint/checks/*` —
+- Validator (class-based): `src/specify_cli/charter_runtime/lint/checks/*` —
   `OrphanChecker`, `StalenessChecker`, `ContradictionChecker`,
   `ReferenceIntegrityChecker`, each with `run(drg, scope) -> list[LintFinding]`.
 - Transformer: `src/specify_cli/migration/canonicalization.py::CanonicalRule`
   (Protocol + `apply_rules` runner). Consumed by
   `src/specify_cli/migration/mission_state.py::_canonicalize_status_row` and
   `src/specify_cli/migration/rebuild_state.py`.
-- Scorer: `src/doctrine/agent_profiles/repository.py::_score_profile` —
+- Scorer: `src/charter/offering/agent_profiles/repository.py::_score_profile` —
   DDR-011 weighted-signal profile matching.
 
 **Reach for it when:** you have 3+ independent decisions over a shared input
@@ -77,7 +77,7 @@ see `_auth_doctor.render_report`), orchestrators with side effects.
 
 ## 2. Append-Only Event Log + Reducer
 
-**Reference documentation:** [Status Model](../../../docs/status-model.md);
+**Reference documentation:** [Status Model](../status-model.md);
 canonical specs in
 `kitty-specs/034-feature-status-status-state-model-remediation/data-model.md`.
 
@@ -111,7 +111,7 @@ the pattern to genuine state-machine work, not every dict update.
 
 ## 3. Two-Source Doctrine Repository (Shipped + Project Override)
 
-**Doctrine:** Implemented in `src/doctrine/base.py::BaseDoctrineRepository`.
+**Doctrine:** Implemented in `src/charter/offering/base.py::BaseDoctrineRepository`.
 
 Doctrine artifacts (tactics, directives, paradigms, toolguides, agent
 profiles) load from **two sources**: the shipped package data
@@ -127,9 +127,9 @@ Properties:
 - Inline references to other artifacts are rejected (`reject_inline_refs`) —
   artifacts reference each other by id, never by embedding.
 
-**Canonical implementations:** `src/doctrine/tactics/repository.py`,
-`src/doctrine/directives/repository.py`,
-`src/doctrine/agent_profiles/repository.py`.
+**Canonical implementations:** `src/charter/offering/tactics/repository.py`,
+`src/charter/offering/directives/repository.py`,
+`src/charter/offering/agent_profiles/repository.py`.
 
 **Reach for it when:** introducing a new artifact type that benefits from
 both a shipped default and project-level override. Use the existing
@@ -137,10 +137,10 @@ both a shipped default and project-level override. Use the existing
 
 ---
 
-## 4. Preflight Validation with Structured Result Object
+## 4. preflight validation with Structured Result Object
 
 **Doctrine:** Reflected in
-[`refactoring-extract-first-order-concept`](../../../src/doctrine/tactics/built-in/refactoring/refactoring-extract-first-order-concept.tactic.yaml)
+[`refactoring-extract-first-order-concept`](../../../packs/built-in/tactics/refactoring/refactoring-extract-first-order-concept.tactic.yaml)
 applied to the "validate-then-act" boundary.
 
 Before any non-trivial mutating operation (merge, migration, upgrade), a
@@ -194,7 +194,7 @@ Properties:
 **Canonical implementations:**
 
 - `src/specify_cli/audit/models.py::MissionFinding`
-- `src/specify_cli/charter_lint/findings.py::LintFinding`
+- `src/specify_cli/charter_runtime/lint/findings.py::LintFinding`
 - `src/specify_cli/cli/commands/review/ERROR_CODES.md` and adjacent finding
   emitters in `review/`.
 

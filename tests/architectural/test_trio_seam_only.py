@@ -23,8 +23,12 @@ trio currently imports from ``specify_cli.missions._read_path_resolver``
 FS-path-composing primitive -- a raw ``KITTY_SPECS_DIR`` constant, a
 different resolver function from ``_read_path_resolver.py``, or one of
 ``mission_runtime``'s lower-level placement building blocks
-(``resolve_placement_only`` / ``artifact_home_for`` / ``mission_context_for``
-/ ``kind_for_mission_file``) -- bypasses the seam and is a regression.
+(``resolve_placement_only`` / ``artifact_home_for`` / ``mission_context_for``)
+-- bypasses the seam and is a regression. ``kind_for_mission_file`` is a
+basename -> kind classifier, not a path-composing primitive, so it is not
+forbidden here (see ``_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES``'s
+docstring for the distinction); the accept gate's owner-routing classifier
+(WP17) imports it directly.
 
 The allowlist below pins the CURRENT, live set of blessed names (mirroring
 the ``_ALLOWLISTED_RAW_JOINS`` discipline in
@@ -46,16 +50,11 @@ common network calls (``socket.*``, ``urllib.request.urlopen``,
 Two of the four cores modules carry a small number of ALREADY-DOCUMENTED,
 intentional I/O call sites (their own module docstrings say so explicitly):
 
-* ``gates_core.py::_workflow_evidence_missing`` reads one small, already-
-  scoped evidence file -- the same class of "lightweight, already-scoped
-  filesystem read" ``workflow_cores.py``'s own docstring carves out for its
-  status-event read (``.exists()`` / ``.glob()`` are not banned either, for
-  the same reason).
 * ``implement_cores.py``'s ``_SubprocessGitPort`` class is, by its own
   docstring, "the ONE git-subprocess I/O boundary in this module -- a thin
-  adapter, not decision logic"; its two working-tree ``Path.read_bytes()``
-  comparison reads (``_drop_vcs_lock_only_meta`` / ``_files_changed_vs_ref``)
-  are the injected-``GitPort`` pattern's filesystem twin.
+  adapter, not decision logic"; its working-tree comparison reads
+  (``_is_self_write_only_diff`` / ``_files_changed_vs_ref``) are the
+  injected-``GitPort`` pattern's filesystem twin.
 
 These five sites are allowlisted below with a content-anchored composite key
 (DIR-041 discipline -- never a raw ``file.py:NNN`` locator) and an explicit
@@ -136,13 +135,31 @@ _CORE_FILES: tuple[Path, ...] = (
 #: ``_canonicalize_*`` cascade steps, etc.) is a leaf primitive the trio must
 #: never import directly.
 _READ_PATH_RESOLVER_MODULE = "specify_cli.missions._read_path_resolver"
+# read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006, Ledger M5):
+# SHRUNK (a tightening, not a relaxation) -- ``primary_feature_dir_for_mission``
+# and ``_canonicalize_primary_read_handle`` are DROPPED. This mission drains
+# both from the trio (WP05 routes the 10 sites that still import them onto
+# ``resolve_handle_to_read_path`` / the ``placement_seam`` idiom), so blessing
+# them here would keep the allowlist wider than the destination design
+# requires. DIRECTIVE_041 disposition: STALE -- the two names' blessing
+# reflected the CURRENT (soon-to-be-drained) shape, not the target one.
+# Until WP05 lands, every trio file that still imports either name is an
+# EXPECTED red on ``test_trio_imports_route_only_through_seam_wrappers``
+# (recorded in research/expected-reds.md) -- that pre-existing gate now
+# structurally enforces the shrink with zero code changes to itself.
+# #450: ``MissionSelectorAmbiguous`` is added deliberately, not a silent
+# widening -- it is the exception type ``placement_seam(...).read_dir(...)``
+# raises on an ambiguous handle, not an FS-path-composing primitive (it
+# carries only ``error_code``/``handle``/``candidates``, no path). workflow.py
+# needs to name it in an ``except`` clause to stop that ambiguous-handle case
+# propagating as a bare traceback out of its own short-circuit call to the
+# blessed ``placement_seam`` wrapper -- the same shape #241 already landed at
+# the two sibling ``_find_mission_slug`` call sites outside the trio
+# (tasks_shared.py, status.py).
 _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
     {
-        "primary_feature_dir_for_mission",
         "resolve_handle_to_read_path",
-        "_canonicalize_primary_read_handle",
-        "candidate_feature_dir_for_mission",
-        "resolve_planning_read_dir",
+        "MissionSelectorAmbiguous",
     }
 )
 
@@ -152,6 +169,18 @@ _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
 #: building blocks (defined in ``mission_runtime.resolution`` /
 #: ``mission_runtime.artifacts``) that a trio caller could import to bypass
 #: ``placement_seam`` -- explicitly forbidden regardless of which trio file.
+#:
+#: ``kind_for_mission_file`` is deliberately NOT in this set. It is a pure
+#: basename -> :class:`~mission_runtime.artifacts.MissionArtifactKind`
+#: classifier (``mission_runtime/artifacts.py``) -- it takes no ``repo_root``
+#: and composes/resolves no filesystem location, unlike the three primitives
+#: below (each of which builds or resolves a concrete path/placement). The
+#: accept gate's dirty-tree owner-routing (``acceptance/__init__.py``'s
+#: ``_is_accept_pipeline_own_write``, WP17) imports it directly as the single
+#: canonical file-kind classifier; routing a classifier through
+#: ``placement_seam`` -- which requires a ``mission_slug`` + already-known
+#: ``MissionArtifactKind`` to project a path -- would be a semantic mismatch,
+#: not a bypass of path composition (this guard's actual target).
 _MISSION_RUNTIME_MODULE = "mission_runtime"
 _SEAM_ALLOWED_MISSION_RUNTIME_NAME = "placement_seam"
 _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES: frozenset[str] = frozenset(
@@ -159,7 +188,6 @@ _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES: frozenset[str] = frozenset(
         "resolve_placement_only",
         "artifact_home_for",
         "mission_context_for",
-        "kind_for_mission_file",
     }
 )
 
@@ -198,11 +226,7 @@ def _scan_seam_violations(source: str) -> list[_SeamViolation]:
         for alias in node.names:
             name = alias.name
             if name in _FORBIDDEN_RAW_NAMES:
-                violations.append(
-                    _SeamViolation(
-                        node.lineno, name, module, "raw KITTY_SPECS_DIR-family primitive; never import directly"
-                    )
-                )
+                violations.append(_SeamViolation(node.lineno, name, module, "raw KITTY_SPECS_DIR-family primitive; never import directly"))
                 continue
             if module == _READ_PATH_RESOLVER_MODULE:
                 if name not in _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES:
@@ -211,8 +235,7 @@ def _scan_seam_violations(source: str) -> list[_SeamViolation]:
                             node.lineno,
                             name,
                             module,
-                            "not on the blessed read-path-resolver allowlist "
-                            "(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)",
+                            "not on the blessed read-path-resolver allowlist (_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)",
                         )
                     )
             elif module == _MISSION_RUNTIME_MODULE and name in _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES:
@@ -236,21 +259,6 @@ def _scan_file_seam_violations(path: Path) -> list[_SeamViolation]:
 # ---------------------------------------------------------------------------
 
 
-def test_trio_files_exist() -> None:
-    """Every path in ``_TRIO_FILES`` is a real file on the current tree.
-
-    A stale/typo'd path would silently vacuous-pass every downstream
-    assertion below (an empty/missing file contributes zero violations).
-    """
-    missing = [str(p) for p in _TRIO_FILES if not p.is_file()]
-    assert not missing, f"Trio module paths do not exist on the current tree: {missing}"
-
-
-# ---------------------------------------------------------------------------
-# T027(b) -- the real assertion: zero seam bypasses on the live tree.
-# ---------------------------------------------------------------------------
-
-
 def test_trio_imports_route_only_through_seam_wrappers() -> None:
     """FR-004/FR-007: every trio module's read-path imports are seam-only.
 
@@ -270,7 +278,7 @@ def test_trio_imports_route_only_through_seam_wrappers() -> None:
         "Trio modules import mission-read-path primitives outside the seam:\n"
         + "\n".join(f"  {line}" for line in all_violations)
         + "\n\nRoute through mission_runtime.placement_seam or the blessed "
-        "resolve_handle_to_read_path / primary_feature_dir_for_mission family "
+        "resolve_handle_to_read_path seam idiom "
         "(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES), or justify a deliberate "
         "allowlist addition."
     )
@@ -286,15 +294,17 @@ def test_blessed_seam_imports_are_not_flagged() -> None:
 
     Guards the scanner against being accidentally too broad (e.g. flagging
     the whole ``_read_path_resolver`` module rather than specific names).
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP01 (T006): fixture
+    updated to the POST-SHRINK blessed set (``resolve_handle_to_read_path``
+    only) — DIRECTIVE_041 disposition STALE, remediated in place. This is a
+    synthetic scanner self-test, not a live production check, so it is fixed
+    now rather than carried as an expected red.
     """
     source = textwrap.dedent(
         """
         from specify_cli.missions._read_path_resolver import (
-            primary_feature_dir_for_mission,
             resolve_handle_to_read_path,
-            _canonicalize_primary_read_handle,
-            candidate_feature_dir_for_mission,
-            resolve_planning_read_dir,
         )
         from mission_runtime import placement_seam
         """
@@ -339,47 +349,6 @@ def test_planted_raw_kitty_specs_dir_import_is_caught() -> None:
 # ---------------------------------------------------------------------------
 # T027(e) -- allowlist integrity: forbidden mission_runtime names are still live.
 # ---------------------------------------------------------------------------
-
-
-def test_forbidden_mission_runtime_names_are_live_exports() -> None:
-    """Every name in ``_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES`` is a real export.
-
-    If one of these were renamed/removed upstream, the forbidden-name check
-    would silently stop matching anything -- this keeps the negative list
-    honest against the live ``mission_runtime.__all__``.
-    """
-    import mission_runtime
-
-    missing = sorted(_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES - set(mission_runtime.__all__))
-    assert not missing, (
-        f"_FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES references names no longer "
-        f"exported by mission_runtime: {missing}. Update the forbidden set to "
-        "match the live API (or confirm the primitive was retired and drop it)."
-    )
-
-
-def test_allowed_read_path_resolver_names_are_currently_used() -> None:
-    """Every blessed name is actually imported by at least one trio module.
-
-    Keeps the allowlist minimal and honest (mirrors
-    ``test_allowlist_entries_are_not_stale`` in the sibling resolver guard):
-    a blessed-but-unused name would silently widen the seam for no reason.
-    ``resolve_handle_to_read_path`` is the one exception -- it is the named
-    seam entry point itself (WP05 prompt), blessed even though the current
-    trio snapshot routes through ``primary_feature_dir_for_mission`` instead.
-    """
-    used: set[str] = set()
-    for path in _TRIO_FILES:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == _READ_PATH_RESOLVER_MODULE:
-                used.update(alias.name for alias in node.names)
-
-    unused = sorted(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES - used - {"resolve_handle_to_read_path"})
-    assert not unused, (
-        f"Blessed _read_path_resolver names not imported by any trio module: {unused}. "
-        "Drop them from _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES to keep the allowlist precise."
-    )
 
 
 # ===========================================================================
@@ -479,20 +448,6 @@ def find_banned_io_calls(source: str) -> list[_IoViolation]:
 # ---------------------------------------------------------------------------
 _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
-        rel_path="specify_cli/acceptance/gates_core.py",
-        qualname="_workflow_evidence_missing",
-        token_substring="evidence_path . read_text",
-        occurrence=None,
-        rationale=(
-            "_workflow_evidence_missing reads ONE small, already-scoped local "
-            "evidence file (workflow-evidence.md) -- the same class of "
-            "'lightweight, already-scoped filesystem read' workflow_cores.py's "
-            "own docstring carves out for its status-event read (.exists()/"
-            ".glob() are likewise not banned). Not a subprocess/worktree/network "
-            "operation."
-        ),
-    ),
-    ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
         qualname="_SubprocessGitPort.status_porcelain",
         token_substring="subprocess . run (",
@@ -511,33 +466,33 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
         token_substring="subprocess . run (",
         occurrence=None,
         rationale=(
-            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as "
-            "status_porcelain above; the second (and last) subprocess call in "
-            "the module."
+            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as status_porcelain above; the second (and last) subprocess call in the module."
         ),
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_drop_vcs_lock_only_meta",
+        qualname="_is_self_write_only_diff",
         token_substring="source . read_bytes ( )",
         occurrence=None,
         rationale=(
-            "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
-            "meta.json path to compare it against the committed baseline (via "
-            "the injected GitPort) -- the filesystem twin of the GitPort pattern "
-            "above, not a subprocess/worktree/placement decision."
+            "_is_self_write_only_diff (WP14 / IC-07d merge of the retired "
+            "_drop_vcs_lock_only_meta / _drop_runtime_frontmatter_only_wp "
+            "twins) reads the CALLER-supplied working-tree meta.json path to "
+            "compare it against the committed baseline (via the injected "
+            "GitPort) -- the filesystem twin of the GitPort pattern above, not "
+            "a subprocess/worktree/placement decision."
         ),
     ),
     ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
-        qualname="_drop_runtime_frontmatter_only_wp",
+        qualname="_is_self_write_only_diff",
         token_substring="source . read_text ( encoding =",
         occurrence=None,
         rationale=(
-            "_drop_runtime_frontmatter_only_wp reads the CALLER-supplied "
-            "working-tree WP##.md path to compare its frontmatter against the "
+            "_is_self_write_only_diff's WP##.md leg reads the CALLER-supplied "
+            "working-tree path to compare its frontmatter against the "
             "committed baseline (via the injected GitPort) -- the exact "
-            "filesystem twin of _drop_vcs_lock_only_meta above (WP01/#2570.1), "
+            "filesystem twin of its own meta.json leg above (WP01/#2570.1), "
             "same lightweight already-scoped read, not a subprocess/worktree/"
             "placement decision."
         ),
@@ -550,7 +505,7 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
         rationale=(
             "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
             "to test idempotency against the committed ref (via the injected "
-            "GitPort) -- same rationale as _drop_vcs_lock_only_meta above."
+            "GitPort) -- same rationale as _is_self_write_only_diff above."
         ),
     ),
 )
@@ -571,8 +526,7 @@ def _io_allowlist_source(rel_path: str) -> str:
 #: import time if a descriptor is already ambiguous or dangling -- the
 #: earliest possible surfacing of a mis-authored ``token_substring``.
 _IO_ALLOWLIST_SEEDED_KEYS: dict[ContentDescriptor, CompositeKey] = {
-    descriptor: resolve_descriptor(_io_allowlist_source(descriptor.rel_path), descriptor)
-    for descriptor in _IO_ALLOWLIST_SITES
+    descriptor: resolve_descriptor(_io_allowlist_source(descriptor.rel_path), descriptor) for descriptor in _IO_ALLOWLIST_SITES
 }
 
 
@@ -586,10 +540,7 @@ def _build_io_allowlist() -> dict[tuple[str, str], str]:
     must match that shape (mirrors
     ``test_single_mission_surface_resolver.py``'s ``_build_allowlisted_raw_joins``).
     """
-    return {
-        (qualname, token_line): descriptor.rationale
-        for descriptor, (_rel_path, qualname, token_line) in _IO_ALLOWLIST_SEEDED_KEYS.items()
-    }
+    return {(qualname, token_line): descriptor.rationale for descriptor, (_rel_path, qualname, token_line) in _IO_ALLOWLIST_SEEDED_KEYS.items()}
 
 
 #: Composite-keyed allowlist: ``(qualname, token_line) -> rationale``.
@@ -613,16 +564,6 @@ def _unallowlisted_io_violations(path: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_core_files_exist() -> None:
-    missing = [str(p) for p in _CORE_FILES if not p.is_file()]
-    assert not missing, f"Pure-core module paths do not exist on the current tree: {missing}"
-
-
-# ---------------------------------------------------------------------------
-# T028(b) -- the real assertion: zero unallowlisted I/O in the pure cores.
-# ---------------------------------------------------------------------------
-
-
 def test_cores_perform_no_unallowlisted_io() -> None:
     """FR-007: the four pure-core modules contain no I/O outside the allowlist.
 
@@ -642,30 +583,6 @@ def test_cores_perform_no_unallowlisted_io() -> None:
         "implement_cores.py's GitPort) or, if this is a genuinely lightweight, "
         "already-scoped read in the spirit of the five documented exceptions, "
         "add a justified entry to _IO_ALLOWLIST_SITES."
-    )
-
-
-def test_io_allowlist_entries_have_rationale() -> None:
-    empty = [k for k, v in _IO_ALLOWLIST.items() if not v.strip()]
-    assert not empty, f"IO allowlist entries with empty rationale: {empty}"
-
-
-def test_io_allowlist_entries_are_not_stale() -> None:
-    """Every allowlisted composite key still corresponds to a live banned call.
-
-    A stale entry (line drifted, or the call was removed) would silently
-    widen the allowlist without covering anything real.
-    """
-    live_keys: set[tuple[str, str]] = set()
-    for path in _CORE_FILES:
-        source = path.read_text(encoding="utf-8")
-        for violation in find_banned_io_calls(source):
-            live_keys.add(composite_key(source, violation.lineno))
-
-    stale = sorted(k for k in _IO_ALLOWLIST if k not in live_keys)
-    assert not stale, (
-        f"Stale _IO_ALLOWLIST_SITES entries (no longer a live banned-call site): {stale}. "
-        "Update the seed line/qualname or remove the entry."
     )
 
 

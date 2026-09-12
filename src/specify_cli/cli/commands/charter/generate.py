@@ -24,54 +24,25 @@ __all__ = ["generate"]
 def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
     """Return an activation-filtered ``DoctrineService`` for charter generation.
 
-    Constructs a :class:`doctrine.service.DoctrineService` rooted at
-    built-in doctrine + project + configured org packs, then wraps it in
-    :class:`charter.resolver.DoctrineService` with the current
-    :class:`~charter.pack_context.PackContext`.  The wrapper applies
-    per-kind activation filters (Pattern B for paradigms/procedures,
-    Pattern C for agent_profiles).
-
-    Org-layer roots are resolved from ``.kittify/config.yaml`` via
-    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing
-    from disk are silently dropped (a fresh checkout that has not yet run
-    ``spec-kitty doctrine fetch`` must not fail charter generation).
-
-    Architectural note: this helper lives in ``specify_cli`` because it
-    depends on the ``specify_cli.doctrine.config`` reader and
-    ``charter.invocation_context.ProjectContext``, which the ``charter``
-    layer is forbidden from importing.
+    FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
+    WP01): thin call-through to the single canonical builder,
+    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+    — replaces the former inline "build raw, then best-effort wrap" pattern
+    that lived here (and independently in
+    ``specify_cli.charter_runtime.lint.checks.org_layer`` and
+    ``specify_cli.doctrine_service_factory``, C-001). The unified builder
+    always self-resolves org roots and always computes ``active_languages``,
+    and it always returns the activation-aware
+    :class:`charter.activation.resolver.DoctrineService` wrapper — it never falls back
+    to a raw, unwrapped service, closing the fail-open gap FR-002 named at
+    this site (the previous code's ``pack_context`` resolution was wrapped in
+    a bare ``except Exception: pass`` that silently degraded to an
+    unfiltered service on ANY failure, not just the "not yet available"
+    case it was written for).
     """
-    from charter._doctrine_paths import resolve_project_root
-    from charter.catalog import resolve_doctrine_root
-    from charter.resolver import DoctrineService as ActivationDoctrineService
-    from doctrine.service import DoctrineService
+    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
-    from specify_cli.doctrine.config import resolve_org_roots
-
-    doctrine_root = resolve_doctrine_root()
-    project_root = resolve_project_root(repo_root) if repo_root is not None else None
-    org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
-
-    inner = DoctrineService(
-        built_in_root=doctrine_root,
-        project_root=project_root,
-        org_roots=org_roots,
-    )
-
-    # Obtain pack_context for activation filtering (Pattern B + C).
-    # Degrades silently when charter.invocation_context is not yet available
-    # (WP03 dependency) — returns unfiltered service in that case.
-    pack_context = None
-    if repo_root is not None:
-        try:
-            from charter.invocation_context import ProjectContext  # noqa: PLC0415
-
-            ctx = ProjectContext.from_repo(repo_root)
-            pack_context = ctx.require_pack_context()
-        except Exception:  # noqa: BLE001 — activation filter is best-effort; degraded to unfiltered
-            pass
-
-    return ActivationDoctrineService(inner, pack_context=pack_context)
+    return build_activation_aware_doctrine_service(repo_root)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
@@ -179,7 +150,7 @@ def _sync_charter_if_present(charter_path: Path, charter_dir: Path) -> Any:
     ``charter.md`` yet -- skip the step entirely rather than surfacing a
     "file not found" as a ``generate`` failure.
     """
-    from charter.sync import sync as sync_charter  # noqa: PLC0415
+    from charter.activation.sync import sync as sync_charter  # noqa: PLC0415
 
     if not charter_path.exists():
         return None
@@ -244,13 +215,27 @@ def _load_interview_for_generate(
     profile: str,
 ) -> tuple[Any, str, str]:
     """Resolve interview payload, source label, and mission for generation."""
-    from charter.interview import read_interview_answers
+    from charter.activation.interview import read_interview_answers
 
     interview_data = read_interview_answers(answers_path) if from_interview else None
     if from_interview and interview_data is None:
+        rel_path = answers_path.relative_to(repo_root)
+        # #2940 honesty: ``read_interview_answers`` degrades BOTH a missing file
+        # AND a present-but-unreadable one (unparseable YAML, or a top level
+        # that is not a mapping) to ``None``. Reporting them identically sends
+        # the operator to re-run the interview when the real fault is a corrupt
+        # file a fresh interview would silently overwrite. Distinguish the two.
+        if answers_path.exists():
+            raise ValueError(
+                f"Charter interview answers at {rel_path} are present but "
+                "malformed — the file is not readable as a mapping (invalid "
+                "YAML, or a non-mapping top-level value). Repair or delete it, "
+                "re-run `spec-kitty charter interview --defaults` to rewrite it, "
+                "or pass `--no-from-interview` to generate from defaults."
+            )
         raise ValueError(
             "No charter interview answers found at "
-            f"{answers_path.relative_to(repo_root)}. "
+            f"{rel_path}. "
             "Run `/spec-kitty.charter` so the agent can capture guidance, "
             "run `spec-kitty charter interview --defaults` for a canned bootstrap, "
             "or pass `--no-from-interview` to generate from defaults explicitly."
@@ -300,8 +285,12 @@ def generate(
       gitignore updates, or staging. Update the symlink target directly or
       replace it with a regular runtime charter.
     """
-    from charter.compiler import compile_charter, write_compiled_charter
-    from charter.pack_context import PackContext
+    from charter.activation.compiler import (
+        compile_charter,
+        provision_mission_type_activations,
+        write_compiled_charter,
+    )
+    from charter.activation.pack_context import PackContext
 
     try:
         repo_root = _charter_pkg.find_repo_root()
@@ -356,6 +345,20 @@ def generate(
             resolved_mission_type=resolved_mission_type,
             profile=profile,
         )
+
+        from specify_cli.doctrine.org_charter import validate_org_required_directive_stems
+
+        validate_org_required_directive_stems(repo_root)
+
+        # WP04 (charter-activation-authority): the provisioned charter is the
+        # SOLE mission-type activation authority. Construction returns an empty
+        # set on an absent key; a project with no activated types offers none
+        # (mission-CREATE then fails closed). Emit it
+        # into the activation authority FIRST (additive/idempotent, built-in
+        # set from default.yaml) so `generate` self-heals a pre-provisioning
+        # pointer charter instead of crashing on the very key it is about to
+        # (re)generate.
+        provision_mission_type_activations(repo_root)
 
         # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
         # activation authority the compiled reference set derives from --

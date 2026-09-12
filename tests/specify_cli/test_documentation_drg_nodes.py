@@ -1,6 +1,6 @@
 """DRG node and resolve_context regression tests for documentation mission (#502).
 
-These tests assert four facts on the *real* shipped DRG and the documentation
+These tests assert facts on the *real* shipped DRG and the documentation
 action bundles produced by WP03:
 
 1. Each of the 6 documentation action nodes exists in the validated graph and
@@ -8,27 +8,29 @@ action bundles produced by WP03:
    FR-005).
 2. Each documentation action's bundle ``index.yaml`` (slug-form
    directives/tactics) maps 1-to-1 to the URN-form ``relation: scope`` edges
-   in ``src/doctrine/graph.yaml`` (FR-006).
-3. ``resolve_context`` median latency for documentation actions is at most
-   2x the median latency for research actions (NFR-007).
+   in ``src/charter/offering/graph.yaml`` (FR-006).
 
-The mission spec forbids mocking ``charter._drg_helpers.load_validated_graph``
-or ``doctrine.drg.query.resolve_context`` (C-007); these tests read the real
+The mission spec forbids mocking ``charter.activation._drg_helpers.load_validated_graph``
+or ``charter.offering.drg.query.resolve_context`` (C-007); these tests read the real
 on-disk graph and call the production resolver directly.
+
+(#4015, operator-signed-off 2026-09-09: the former NFR-007 pure-timing test
+``test_resolve_context_within_research_2x`` -- sole assert
+``doc_med <= 2 * research_med``, vocab-blocked, zero functional coverage --
+was deleted rather than split/helper-wrapped; see mission
+``ci-suite-stability-test-isolation-01M22MM5`` WP06.)
 """
 
 from __future__ import annotations
 
-import statistics
-import time
 from pathlib import Path
 
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.query import resolve_context
+from charter.activation._drg_helpers import load_validated_graph
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.query import resolve_context
 
 # The 6 advancing documentation actions covered by the mission-runtime sidecar.
 
@@ -64,6 +66,7 @@ _SLUG_TO_URN: dict[str, str] = {
     "003-decision-documentation-requirement": "directive:DIRECTIVE_003",
     "010-specification-fidelity-requirement": "directive:DIRECTIVE_010",
     "037-living-documentation-sync": "directive:DIRECTIVE_037",
+    "042-common-docs": "directive:DIRECTIVE_042",
     "requirements-validation-workflow": "tactic:requirements-validation-workflow",
     "premortem-risk-identification": "tactic:premortem-risk-identification",
     "adr-drafting-workflow": "tactic:adr-drafting-workflow",
@@ -72,13 +75,55 @@ _SLUG_TO_URN: dict[str, str] = {
     # documentation-curation-audit). Both are shipped graph.yaml nodes.
     "stakeholder-alignment": "tactic:stakeholder-alignment",
     "documentation-curation-audit": "tactic:documentation-curation-audit",
+    # Type-grain (governance-profile.yaml selected_directives/selected_tactics)
+    # entries, needed by ``_type_grain_urns`` -- these never appear in an
+    # action bundle's own index.yaml (FR-013 forbids the duplication), only
+    # in the type-grain exclusion set used by test_action_bundle_matches_drg_edges.
+    "common-docs-curation": "tactic:common-docs-curation",
+    "common-docs-find": "tactic:common-docs-find",
+    "common-docs-scaffold": "tactic:common-docs-scaffold",
+    "common-docs-write": "tactic:common-docs-write",
+    "usage-examples-sync": "tactic:usage-examples-sync",
 }
+
+
+def _type_grain_urns(repo_root: Path) -> set[str]:
+    """Type-grain (``governance-profile.yaml``) directive/tactic URNs.
+
+    FR-013 forbids duplicating a type-grain artifact into an action's own
+    bundle (``index.yaml``), but the DRG may still carry a direct
+    action -> type-grain-artifact ``scope`` edge as a deliberate "reaching"
+    edge (see ``hand_authored_overlay.py``'s
+    ``documentation/generate -> DIRECTIVE_042`` edge, WP09/FR-015:
+    DIRECTIVE_042 is type-wide and therefore governs every action, but only
+    ``generate`` needed a direct scope edge to make the otherwise
+    action-unreachable common-docs cluster reachable at all). Such edges are
+    legitimate type-grain inheritance, not action-grain bundle content, so
+    ``test_action_bundle_matches_drg_edges`` excludes them from the strict
+    bundle<->graph equality check below rather than requiring every action's
+    bundle to redundantly re-declare the whole type grain.
+    """
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
+    profile_path = (
+        repo_root
+        / "packs"
+        / "built-in"
+        / "missions"
+        / "documentation"
+        / "governance-profile.yaml"
+    )
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    slugs: list[str] = list(profile.get("selected_directives", []) or []) + list(
+        profile.get("selected_tactics", []) or []
+    )
+    return {_SLUG_TO_URN[slug] for slug in slugs}
 
 
 def _repo_root() -> Path:
     """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
 
-    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    Keyed on ``pyproject.toml`` rather than ``src/charter/offering/graph.yaml`` so the
     finder survives the WP05 monolith->fragment migration: the shipped
     ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
     """
@@ -107,12 +152,23 @@ def test_each_documentation_action_has_drg_node_and_context(action: str) -> None
 
 @pytest.mark.parametrize("action", _DOC_ACTIONS)
 def test_action_bundle_matches_drg_edges(action: str) -> None:
-    """FR-006: action-bundle index.yaml directives/tactics match graph.yaml URN edges."""
+    """FR-006: action-bundle index.yaml directives/tactics match graph.yaml URN edges.
+
+    Type-grain-aware (landing fold, PR #3070): a type-wide directive/tactic
+    (declared in ``governance-profile.yaml``) may reach a specific action via
+    a direct hand-authored ``scope`` edge (e.g.
+    ``documentation/generate -> DIRECTIVE_042``, WP09/FR-015) without being
+    duplicated into that action's own bundle -- FR-013 forbids the
+    duplication. Such edges are excluded from the equality check via
+    ``_type_grain_urns`` so the assertion still enforces exact parity for
+    genuine action-grain content while tolerating legitimate type-grain
+    inheritance.
+    """
     repo_root = _repo_root()
     bundle_path = (
         repo_root
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "documentation"
         / "actions"
@@ -135,32 +191,12 @@ def test_action_bundle_matches_drg_edges(action: str) -> None:
         and str(edge.relation) == "scope"
     }
 
-    assert expected_urns == actual_urns, (
-        f"bundle <-> DRG mismatch for {action}: "
-        f"bundle has {expected_urns}, graph has {actual_urns}"
-    )
+    type_grain_urns = _type_grain_urns(repo_root)
+    inherited_urns = actual_urns & type_grain_urns
+    actual_action_grain_urns = actual_urns - inherited_urns
 
-
-def test_resolve_context_within_research_2x() -> None:
-    """NFR-007: documentation resolve_context median <= 2x research median."""
-    graph = load_validated_graph(_repo_root())
-
-    def median_runs(actions: tuple[str, ...], mission: str) -> float:
-        durations: list[float] = []
-        for _ in range(5):
-            for action in actions:
-                t0 = time.perf_counter()
-                resolve_context(
-                    graph,
-                    f"action:{mission}/{action}",
-                    depth=_COMPOSITION_RESOLUTION_DEPTH,
-                )
-                durations.append(time.perf_counter() - t0)
-        return statistics.median(durations)
-
-    doc_med = median_runs(_DOC_ACTIONS, "documentation")
-    research_med = median_runs(_RESEARCH_ACTIONS, "research")
-    assert doc_med <= 2 * research_med, (
-        f"documentation median {doc_med:.6f}s exceeds "
-        f"2x research median {research_med:.6f}s"
+    assert expected_urns == actual_action_grain_urns, (
+        f"bundle <-> DRG mismatch for {action}: bundle has {expected_urns}, "
+        f"graph (excl. type-grain-inherited {inherited_urns}) has "
+        f"{actual_action_grain_urns}"
     )

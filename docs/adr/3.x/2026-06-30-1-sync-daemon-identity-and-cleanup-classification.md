@@ -1,8 +1,15 @@
 ---
 title: 'ADR: Sync Daemon Identity Contract and Cleanup Classification'
-status: Accepted
+description: 'The `--spec-kitty-daemon-root` scope marker becomes the sole kill authority for sync daemons; `owner.json` is health reporting and interpreter identity only stale-version evidence.'
+status: Superseded
 date: '2026-06-30'
+superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---
+
+> **Superseded (2026-09-06)** by
+> [`2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`](2026-09-06-1-convergence-retirement-and-client-repo-inversion.md).
+> The sync daemon this ADR governs was retired by the Convergence (#3881 / #3824); daemon identity,
+> `owner.json`, and orphan reaping no longer exist. Retained as historical record.
 
 ## Context and Problem Statement
 
@@ -214,7 +221,7 @@ This decision is confirmed when:
   `src/specify_cli/sync/orphan_sweep.py` (`enumerate_identity_records`, `reset_orphans`),
   `src/specify_cli/sync/daemon.py` (`DAEMON_SCOPE_ARG_PREFIX`, `_daemon_scope_root`)
 - **Operator runbook:**
-  [`docs/development/sync-daemon-orphan-cleanup.md`](../../development/sync-daemon-orphan-cleanup.md)
+  [`docs/operations/sync-daemon-orphan-cleanup.md`](../../operations/sync-daemon-orphan-cleanup.md)
 - **Regression test:** `tests/sync/test_issue_1071_singleton_reconfirmation.py`
 - **Related issues:**
   [#2261](https://github.com/Priivacy-ai/spec-kitty/issues/2261) (primary: 18-orphan report),

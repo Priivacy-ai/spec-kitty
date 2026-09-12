@@ -27,6 +27,8 @@ Resolution rules (from ``contracts/protection-config.md``)
 +--------------------------------------------------+----------------------------------------------+
 | Malformed value (non-list under the key)         | Raises :class:`ProtectionConfigError`        |
 +--------------------------------------------------+----------------------------------------------+
+| Non-mapping top level (e.g. a bare scalar)       | Raises :class:`ProtectionConfigError`        |
++--------------------------------------------------+----------------------------------------------+
 
 The operator hatch ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` (FR-006) is
 resolved onto ``operator_hatch_active``; when active, :meth:`is_protected`
@@ -157,6 +159,16 @@ def _load_kittify_config(repo_root: Path) -> dict:  # type: ignore[type-arg]
 
     Returns an empty dict when the file does not exist (normal for non-SK
     repos or repos without a ``protection:`` block).
+
+    Raises:
+        ProtectionConfigError: The file fails to parse, or parses to a
+            non-mapping top level (e.g. a bare scalar or a list). A YAML
+            document need not be a mapping, and the unguarded ``.get(...)``
+            calls in :func:`_resolve_protected_branches` raised a bare
+            ``AttributeError`` on that shape (same defect class as ledger
+            SK-16's ``charter status --json`` leak) -- fail-closed with a
+            typed, message-carrying error instead, per this module's own
+            documented "malformed value -> ``ProtectionConfigError``" contract.
     """
     config_file = repo_root / ".kittify" / "config.yaml"
     if not config_file.exists():
@@ -166,11 +178,19 @@ def _load_kittify_config(repo_root: Path) -> dict:  # type: ignore[type-arg]
     yaml.preserve_quotes = True
     try:
         with open(config_file, encoding="utf-8") as fh:
-            return yaml.load(fh) or {}
+            loaded = yaml.load(fh) or {}
     except Exception as exc:
         raise ProtectionConfigError(
             f"Failed to parse {config_file}: {exc}"
         ) from exc
+
+    if not isinstance(loaded, dict):
+        raise ProtectionConfigError(
+            f"{config_file} must be a YAML mapping at the top level; found "
+            f"{type(loaded).__name__} instead."
+        )
+
+    return loaded
 
 
 def _resolve_protected_branches(repo_root: Path) -> frozenset[str]:

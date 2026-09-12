@@ -6,6 +6,7 @@ updated: '2026-07-20'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # Charter CLI Reference
 
@@ -14,7 +15,7 @@ related:
 
 This page gives a narrative, example-driven walkthrough of the core charter
 interview/generate/sync/synthesize workflow subcommands. For a task-oriented
-walkthrough, see [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
+walkthrough, see [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md).
 For the complete `spec-kitty charter` subcommand surface — including
 `activate`/`deactivate` (doctrine artifact activation, FR-004/FR-005),
 `preflight`, `list`, `mission-type`, and `pack` — see the exhaustive,
@@ -294,6 +295,18 @@ uv run spec-kitty charter context --action implement --json
 uv run spec-kitty charter context --action specify --no-mark-loaded --json
 ```
 
+> **`--json` `project_charter.present` semantics (authority-of-record).**
+> `project_charter.present` / `project_charter.path` key on the **compiled
+> `charter.yaml`** — the authority-of-record — not on the display-only
+> `charter.md`. This is intentional and deliberately **narrower** than "the
+> charter renders": a project that has a `charter.md` but has never compiled
+> reports `present: false` (the `charter_md_present` / `charter_md_path` keys
+> expose the display file separately). The human `charter context` renderer, by
+> contrast, still renders when *either* file exists — so do not "align" the JSON
+> `present` to the renderer's OR-gate; that would re-introduce the `charter.md`
+> read dependency this surface deliberately retired. External `--json` consumers
+> should treat `charter.yaml` as the presence authority.
+
 ---
 
 ## spec-kitty charter bundle validate
@@ -318,5 +331,8 @@ uv run spec-kitty charter bundle validate --json
 ## See Also
 
 - [How Charter Works](../context/charter-overview.md)
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md)
 - [Governance Files Reference](../context/governance-files.md)
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the `charter pack
+  apply` → `charter generate` two-step and the dispatch safety net (`charter pack` flags: see the
+  generated [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack))

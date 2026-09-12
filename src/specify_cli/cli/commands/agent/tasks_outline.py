@@ -31,6 +31,10 @@ class TaskIdResolutionFormat(enum.StrEnum):
     PIPE_TABLE = "pipe_table"
     INLINE_SUBTASKS = "inline_subtasks"
     WP_ID = "wp_id"
+    #: The authored ``subtasks:`` frontmatter roster — canonical static intent
+    #: since #2816 IC-10, and the shape the shipped software-dev template
+    #: produces. See ``_resolve_authored_roster`` (#2962).
+    AUTHORED_ROSTER = "authored_roster"
 
 
 @dataclass

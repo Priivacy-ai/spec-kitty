@@ -6,7 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
-from datetime import date
+from kernel.clock import date
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ from specify_cli.cli.commands.charter._app import (
 )
 from specify_cli.cli.commands.charter._common import (
     _display_path,
+    _resolve_charter_bundle_path,
     _resolve_charter_path,
 )
 from specify_cli.cli.commands.charter._synthesis import _collect_evidence_result
@@ -59,8 +60,47 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         # The write commands (charter sync / charter generate) legitimately call
         # ensure_charter_bundle_fresh; the status READ path does not.
         canonical_root = repo_root
-        charter_path = _resolve_charter_path(canonical_root)
-        output_dir = charter_path.parent
+        # FR-005: presence keys primarily on charter.yaml (the authoritative
+        # bundle) via the CLI sibling resolver, so status survives
+        # charter.md deletion (SC-002) -- the old ``_resolve_charter_path``
+        # call here used to raise before the charter.yaml-aware staleness
+        # logic below ever ran. Fall back to the legacy charter.md gate for
+        # a pre-consolidation bundle (no charter.yaml written yet) so this
+        # collector keeps reporting available for that shape too; only when
+        # NEITHER file exists does the TaskCliError propagate to the
+        # outer handler below.
+        try:
+            output_dir = _resolve_charter_bundle_path(canonical_root).parent
+            charter_md_path = output_dir / "charter.md"
+            # Header authority: name whichever file is actually present.
+            # charter.md is display-only and may be legitimately absent
+            # post-consolidation (SC-002); reporting a nonexistent
+            # "Charter: .../charter.md" header while charter.yaml (the
+            # authoritative bundle) sits right next to it is misleading.
+            charter_path = (
+                charter_md_path
+                if charter_md_path.exists()
+                else output_dir / CHARTER_YAML_FILENAME
+            )
+        except TaskCliError:
+            # FR-006 pre-consolidation migration-compat branch (spec Edge
+            # Cases + C-001): ``_resolve_charter_bundle_path`` raised because
+            # ``charter.yaml`` (the authoritative bundle) does not exist --
+            # this is the *only* condition that reaches this branch. Fall
+            # back to the legacy ``charter.md``-only resolver so projects
+            # created before the ``charter.yaml`` bundle existed keep
+            # reporting ``available: True`` instead of erroring out.
+            #
+            # This shape is explicitly SUPPORTED today and pinned by
+            # ``tests/specify_cli/cli/commands/charter/
+            # test_status_collectors_legacy_md_shape.py`` (FR-006). Declaring
+            # it unsupported (and flipping this branch to a deterministic
+            # error path) is a support-scope product decision that MUST be
+            # routed through the human-in-charge + issue-matrix (DIR-012 /
+            # C-005) -- it is not an implementer-unilateral call. Do not
+            # remove or narrow this branch without that recorded decision.
+            charter_path = _resolve_charter_path(canonical_root)
+            output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
         charter_yaml_path = output_dir / CHARTER_YAML_FILENAME
 
@@ -126,13 +166,13 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
 def _collect_governance_reference_status(repo_root: Path) -> dict[str, Any]:
     """Collect charter-declared supporting governance doc diagnostics."""
     try:
-        from charter.governance_references import collect_governance_reference_status
-        from charter.sync import load_governance_config
+        from charter.activation.governance_references import collect_governance_reference_status
+        from charter.activation.sync import load_governance_config
 
         governance = load_governance_config(repo_root)
         statuses = collect_governance_reference_status(
             repo_root,
-            governance.doctrine.governance_references,
+            governance.charter.governance_references,
         )
     except Exception as exc:  # noqa: BLE001 - status diagnostics must degrade
         return {
@@ -165,14 +205,17 @@ def _collect_generated_input_status(repo_root: Path) -> dict[str, Any]:
 
 
 def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | None]:
-    from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
     doctrine_root = repo_root / ".kittify" / "doctrine"
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
+    from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
+
     live_artifact_count = sum(
-        len(list((doctrine_root / subdir).glob("*.yaml")))
-        for subdir in ("directive", "tactic", "styleguide")
+        len(list((doctrine_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
+        for kind in (ArtifactKind.DIRECTIVE, ArtifactKind.TACTIC, ArtifactKind.STYLEGUIDE,
+                     ArtifactKind.PROCEDURE, ArtifactKind.AGENT_PROFILE)
     )
     live_provenance_count = len(list(provenance_root.glob("*.yaml")))
 
@@ -255,7 +298,7 @@ def _collect_provenance_status(
     *,
     include_entries: bool,
 ) -> dict[str, Any]:
-    from charter.synthesizer.provenance import load_yaml as load_provenance
+    from charter.activation.synthesizer.provenance import load_yaml as load_provenance
 
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     paths = sorted(provenance_root.glob("*.yaml"))
@@ -398,8 +441,16 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     """Collect org-layer state for ``charter status`` (FR-002).
 
     Returns a structured dict describing the configured organisation-tier
-    DRG packs, their fetched/missing state, node/edge counts, and any
-    collision warnings surfaced by ``merge_three_layers``.
+    DRG packs, their fetched/missing state, node/edge counts, any collision
+    warnings surfaced by ``merge_three_layers``, and — because this collector
+    merges the COMPLETE graph — any org edge endpoint that binds to nothing.
+
+    Dangling endpoints land in the existing ``errors`` array rather than a
+    dedicated key. ``doctor doctrine``'s collector keeps a separate
+    ``dangling_endpoints`` list because its renderer reads it; nothing renders
+    such a key here, and an unread payload slot is the inert-schema-slot defect
+    this mission ratchets elsewhere. ``status`` already prints every ``errors``
+    entry, so one channel serves both the human and the JSON view.
 
     When no packs are configured, returns ``{"packs": [], "has_built_in": True}``.
     The caller (``status``) always emits this key in JSON output so operators
@@ -409,15 +460,18 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     for repos without org pack configuration — no spurious section added.
 
     Per the charter layer architectural boundary (kernel <- doctrine <-
-    charter <- specify_cli), we use ``charter.drg.load_org_drg`` directly
+    charter <- specify_cli), we use ``charter.activation.drg_activation.load_org_drg`` directly
     rather than the ``specify_cli`` config path.  The caller may also pass
     the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
     this implementation stays purely charter-layer.
     """
-    from charter.drg import (  # noqa: PLC0415
+    from charter.drg import (
         OrgDRGConflictError,
         OrgPackMissingError,
         load_built_in_graph,
+        validate_dangling_references,
+    )
+    from charter.activation.drg_activation import (
         load_org_drg,
         merge_three_layers,
     )
@@ -453,11 +507,25 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     if not fragments:
         return result
 
-    # Run merge to surface collision warnings (best-effort).
+    # Run merge to surface collision warnings AND graph completeness. The merge
+    # is the only statement in the try: the completeness check below needs an
+    # assembled graph, and leaving it inside meant a hard-fail raise aborted the
+    # block before it ran — so a pack with BOTH a refused endpoint and a dangling
+    # one reported strictly fewer findings than the dangling one alone.
+    merged = None
     try:
         built_in = load_built_in_graph()
-        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=fragments, project=None
+        )
     except OrgDRGConflictError as exc:
+        # The typed records go to ``collision_warnings``; the subset that made
+        # the merge REFUSE also goes to ``errors``. A conflict resolved by
+        # precedence is a warning, but a conflict the merge refused to resolve
+        # means there is no merged graph at all — reporting that as an advisory
+        # is how ``charter status`` came to print a clean org layer for a pack
+        # ``charter lint`` rejects outright. The partition is read from
+        # ``OrgDRGConflictError`` so the three collectors cannot drift.
         for conflict in exc.conflicts:
             result["collision_warnings"].append(
                 {
@@ -467,7 +535,33 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
                     "resolution": conflict.resolution_applied,
                 }
             )
-    except Exception:  # noqa: BLE001 — collision check is advisory in doctor/status
-        pass
+        result["errors"].extend(exc.hard_failure_messages)
+    except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
+        # A check that could not RUN is not a check that PASSED. This handler
+        # used to be a bare ``pass``, so a crashed merge left ``errors: []`` —
+        # indistinguishable from a verified-clean org layer. Report it on the
+        # same channel the load failure above already uses (``status`` renders
+        # every entry and never gates on it), so the read degrades loudly.
+        result["errors"].append(f"org-layer merge check failed: {exc}")
+
+    if merged is None:
+        # No graph to inspect; ``errors`` already says why.
+        return result
+
+    try:
+        # This merge is the real shipped built-in against every configured pack
+        # — the COMPLETE graph — which is exactly the predicate under which
+        # ``validate_dangling_references`` may escalate a dangling endpoint from
+        # the merge's WARNING to a reported error (see its docstring; ``charter
+        # lint`` merges against an intentionally EMPTY built-in and must not).
+        # Without this, ``charter status --json`` returned ``org_layer.errors:
+        # []`` for a graph whose edge named nothing — a machine-readable clean
+        # bill for an unclean graph, on the very array built to carry the
+        # finding, while ``doctor doctrine`` reported it from identical inputs.
+        result["errors"].extend(validate_dangling_references(merged))
+    except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
+        # Attributed separately from the merge above: the merge succeeded, so
+        # naming it here would point the operator at the wrong artefact.
+        result["errors"].append(f"org-layer completeness check failed: {exc}")
 
     return result

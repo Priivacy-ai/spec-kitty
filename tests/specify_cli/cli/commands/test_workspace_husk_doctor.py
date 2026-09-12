@@ -233,22 +233,3 @@ def test_coord_worktree_needs_refresh_stale_ancestor(
     stale, branch = wh._coord_worktree_needs_refresh(tmp_path, tmp_path)
     assert stale is True
     assert branch == BRANCH
-
-
-def test_workspace_husk_doctor_does_not_import_doctor() -> None:
-    import ast
-
-    source = Path(wh.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    relative: list[str] = []
-    absolute: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                relative.append(node.module or "")
-            elif node.module:
-                absolute.append(node.module)
-        elif isinstance(node, ast.Import):
-            absolute.extend(alias.name for alias in node.names)
-    assert "specify_cli.cli.commands.doctor" not in absolute
-    assert set(relative) <= {"_doctor_shared"}

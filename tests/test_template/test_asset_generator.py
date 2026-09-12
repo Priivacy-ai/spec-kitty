@@ -453,16 +453,19 @@ After {SCRIPT}
         encoding="utf-8",
     )
     repo_root = tmp_path / "project"
-    charter_dir = repo_root / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True)
-    # consolidate-charter-bundle (#2773): SPDD-active detection
-    # (doctrine.spdd_reasons.activation) reads charter.yaml's governance
-    # section, not the retired governance.yaml.
-    (charter_dir / "charter.yaml").write_text(
-        "governance:\n"
-        "  doctrine:\n"
-        "    selected_paradigms:\n"
-        "      - structured-prompt-driven-development\n",
+    kittify_dir = repo_root / ".kittify"
+    kittify_dir.mkdir(parents=True)
+    # spdd-reasons-activation-split-brain-01M1K6VN (WP01): SPDD-active
+    # detection (charter.offering.spdd_reasons.activation) now reads the
+    # project's real activation authority -- `.kittify/config.yaml`'s (or a
+    # resolved `charter:` pointer target's) top-level `activated_<kind>`
+    # keys -- not the charter-authored `governance.doctrine.selected_*`
+    # declaration surface. `selected_paradigms` records what was once
+    # selected; `activated_paradigms` is what PackContext.from_config
+    # actually resolves and is the field this helper's rewrite reads.
+    (kittify_dir / "config.yaml").write_text(
+        "activated_paradigms:\n"
+        "  - structured-prompt-driven-development\n",
         encoding="utf-8",
     )
 
@@ -505,7 +508,10 @@ def test_bundled_software_dev_templates_have_descriptions(tmp_path: Path) -> Non
 
     repo_root = Path(__file__).resolve().parents[2]
     legacy_templates_dir = repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
-    doctrine_templates_dir = repo_root / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated mission-steps/ from src/charter/offering/missions/mission-steps to
+    # packs/built-in/missions/mission-steps.
+    doctrine_templates_dir = repo_root / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
     template_files = (
         sorted(legacy_templates_dir.glob("*.md"))
         if legacy_templates_dir.is_dir()

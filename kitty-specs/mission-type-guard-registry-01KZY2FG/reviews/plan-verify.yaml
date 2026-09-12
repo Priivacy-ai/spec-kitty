@@ -1,0 +1,102 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >
+      plan.md's PR Shape section (line ~524) now states "6 production files + 4
+      test files, including the golden-contract test," which matches Project
+      Structure's actual manifest (runtime_bridge_cores.py,
+      runtime_bridge_composition.py, runtime_bridge.py, runtime_bridge_io.py,
+      doctor.py, _mission_type_audit.py = 6 production; test_bridge_cores.py,
+      test_bridge_composition.py, test_doctor_mission_type.py,
+      test_doctor_cli_surface_golden.py = 4 test files) — counted directly
+      against the current Project Structure section, no discrepancy remains.
+
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >
+      tracer-approach.md's second bullet (lines 41-50) now attributes
+      run_identity_audit/_build_identity_json/_compute_fail_on to
+      cli/commands/_identity_audit.py (346 lines) and
+      classify_mission/audit_repo/IdentityState/summarize to
+      specify_cli/status/identity_audit.py (361 lines) — I re-ran `wc -l` on
+      both actual files (346 and 361, exact match) and grepped both files'
+      def/class lines to confirm every named symbol lives where the fixed text
+      says it does.
+
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >
+      plan.md's Scale/Scope (line 47), Charter Check (lines 63-68), and Seam &
+      Module Placement (lines 231-241) all now cite both precedent files by
+      name with correct LOC (361 / 346, independently re-verified via `wc -l`)
+      and drop the "mirrors 1:1" / "~150-line shape" language entirely — the
+      internal "~150-line shape" vs. "44-254" contradiction the finding
+      flagged no longer exists anywhere in the current file (grepped, zero
+      hits for "150-line" or "44-254").
+
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >
+      Seam & Module Placement (plan.md lines 117-127) now mandates that the
+      implementation's UnregisteredMissionFamilyError docstring include an
+      explicit one-line cross-reference to
+      charter.mission_type_profiles.UnknownMissionTypeError, closing the
+      "no code-level cross-reference required" gap the finding identified at
+      the plan level.
+
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >
+      Gate Set (plan.md line 551) gained a new row, "PR diff-coverage
+      (critical-path, 90%, src/runtime/next/*) | Enforced," and I independently
+      re-read .github/workflows/ci-quality.yml at the cited lines (3489
+      'src/runtime/next/*' in critical_paths, 2927 --cov=src/runtime/next,
+      3515-3517 diff-cover --fail-under=90 --include) and confirmed all three
+      citations are accurate on the current file.
+
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >
+      ATDD-First Sequencing Commit 1 (plan.md lines 476-491) was rewritten to
+      assert the target/fixed shape ([]) directly in the same commit, dropping
+      the self-contradictory "RED in the sense that it currently passes"
+      framing and the deferral of the genuinely-red assertion to "the tasks
+      phase" — the commit as now specified is genuinely RED against the base
+      commit and satisfies DIRECTIVE_034's red-first requirement without a
+      leftover-assertion disposition question.
+
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: >
+      Both flagged Gate Set rows (plan.md lines 549-550) now read "Runs on
+      this PR (arch-adversarial, always-on), expected to pass" and "Runs on
+      this PR, expected to pass" instead of "Not applicable" / "covered ...
+      at merge time" — I independently re-read ci-quality.yml at lines
+      848-869 (Contextive glossary, path-triggered on src/specify_cli/**,
+      which this mission touches), 653 (doctrine-schema-freshness, in the
+      always-on lint job, not path-gated), and 2144-2147 (arch-adversarial,
+      `if: (always())...`) and confirmed all three citations are accurate.
+
+  - id: PLAN-VERIFY-005
+    status: resolved
+    reason: >
+      Seam & Module Placement (plan.md lines 139-147) now requires
+      evaluate_guards()'s docstring to state explicitly that it is kept
+      tolerant/public only for existing direct test callers and that new
+      production call sites should use evaluate_guards_strict instead, closing
+      the undocumented-footgun gap the finding identified.
+
+  - id: PLAN-VERIFY-006
+    status: resolved
+    reason: >
+      Baseline & Reflexivity (plan.md lines 391-395) no longer claims "CLAUDE.md
+      and spec.md both already reference" #3284; it now says #3284 is
+      independently confirmed via `gh issue view 3284` and "not yet
+      cross-referenced from CLAUDE.md or spec.md" — I re-ran `gh issue view
+      3284` (confirms real, open, matching "23 untracked failures and 2 errors"
+      quote) and re-grepped CLAUDE.md and spec.md for "3284" (zero matches in
+      both), confirming the corrected claim is now accurate rather than false.

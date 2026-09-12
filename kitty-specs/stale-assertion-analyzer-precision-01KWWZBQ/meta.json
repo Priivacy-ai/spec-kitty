@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "abc0a300f104ed9981133f8737ddfd23082f4f6b",
-  "coordination_branch": "kitty/mission-stale-assertion-analyzer-precision-01KWWZBQ",
   "created_at": "2026-07-07T00:24:02.572279+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Stale-assertion analyzer precision: cross-file move detection + generic-literal noise suppression",
   "mission_id": "01KWWZBQRBKEJQW964BAS0FFM9",
   "mission_number": 167,
@@ -14,7 +13,7 @@
   "slug": "stale-assertion-analyzer-precision-01KWWZBQ",
   "status_phase": "1",
   "target_branch": "fix/stale-assertion-analyzer-precision",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-07T01:13:38.954315+00:00"
 }

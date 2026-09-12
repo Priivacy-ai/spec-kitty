@@ -1,8 +1,8 @@
 ---
 title: The Mission System Explained
-description: "Why mission types exist and how they nest: the Mission Type, Mission, Work Package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
+description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-09-08'
 related:
 - docs/architecture/divio-documentation.md
 - docs/architecture/kanban-workflow.md
@@ -39,7 +39,7 @@ A workflow designed for software development doesn't fit research:
 
 Mission types solve this by providing domain-specific workflows, validation rules, and artifacts.
 
-## The Hierarchy: Mission Type, Mission, Work Package, Workspace
+## The Hierarchy: Mission Type, Mission, work package, Workspace
 
 Understanding how the pieces nest together is key to understanding Spec Kitty.
 
@@ -67,7 +67,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
 
 **Feature** -- Compatibility alias for a software-delivery mission. In software-dev contexts you will still see `feature` on legacy commands and filesystem fields.
 
-**Work Package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
+**work package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
 
 **Workspace** -- An isolated git worktree where a single WP is implemented. Each workspace has its own branch, its own working directory, and its own agent. Multiple workspaces can run in parallel.
 
@@ -97,7 +97,7 @@ Different missions can use different mission types simultaneously:
 ## Mission Types Are Doctrine Artifacts
 
 A mission type is not hardcoded into the runtime — it is a **doctrine-defined
-artifact**. The canonical catalogue lives in `src/doctrine/missions/<type>/`,
+artifact**. The canonical catalogue lives in `packs/built-in/missions/<type>/`,
 where each type *offers* its governance, action indices, step contracts, and
 templates. The runtime is a finite-state machine that reads the *resolved* mission
 type keyed off the `mission` field in `meta.json`; it holds no per-type knowledge
@@ -131,7 +131,7 @@ Two mission trees exist today:
 
 | Tree | Role |
 |------|------|
-| `src/doctrine/missions/<type>/` | **Canonical** — the source of truth for mission-type behaviour |
+| `packs/built-in/missions/<type>/` | **Canonical** — the source of truth for mission-type behaviour |
 | `src/specify_cli/missions/<type>/` | **Derived copies** that a shrinking set of core readers still bind to directly |
 
 The derived tree is **on the deprecation path**, not to be entrenched: no new
@@ -472,12 +472,12 @@ These instructions guide AI agents to behave appropriately for the domain.
 
 ## Try It
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Use the Dashboard](../guides/use-dashboard.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Reference
 

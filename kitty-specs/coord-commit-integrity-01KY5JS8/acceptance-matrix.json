@@ -1,0 +1,99 @@
+{
+  "mission_slug": "coord-commit-integrity-01KY5JS8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 satisfied: review-cycle artifacts write to their PRIMARY home from every write site",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (dd4573566, c30c04373): review-cycle-N.md write-in-home via _review_cycle_wp_dir unifying read+write on PRIMARY; committed-ref e2e test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord (red-first verified).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP03 cycle-2 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 satisfied: coord-commit never misroutes to legacy safe_commit with repo_root; porcelain runs against resolved worktree",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (917137eab): misroute-to-legacy fail-loud guard + legacy porcelain pre-check against resolved worktree root; real-repo e2e test_coord_commit_integrity_e2e.py (SafeCommitHeadMismatch negative case, git-show assertions, no stubbed safe_commit).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP01 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 satisfied: analysis-report re-homed COORD->PRIMARY; no second-copy residue",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (dd4573566): ANALYSIS_REPORT re-homed COORD->PRIMARY (one frozenset move); classifier kept; copy2 drop narrow; #2198 arch-gate flipped; test_analysis_report_rehome.py committed-ref proof.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP03 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 satisfied: single status write-authority (topology-conditional); empty-second-commit eliminated (#2861)",
+      "proof_type": "automated_test",
+      "evidence": "WP04: topology-conditional status write-authority (_emit_via_non_transactional_fallback, coord commits to coord worktree, coord-less preserved) + empty-second-commit eliminated (commit_idempotent); test_status_write_authority.py + test_2861_causation_repro.py FLIPPED to exit 0 (reviewer empirically confirmed red-on-revert). Closes #2861.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP04 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 satisfied: --agent boundary-normalized; actor identity carries no synthetic defaults",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (3f4c1b8a7): parse_agent_boundary_string normalizes --agent at 3 claim seams to bare tool; build_resolved_actor self-asserted profile/model, no synthetic defaults, no minted ResolvedBinding (C-002/C-007); test_actor_boundary_normalize.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP02 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 satisfied: dict-actor payloads accepted on SaaS fanout validators",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (3f4c1b8a7): WPStatusChanged/WPCreated actor validators widened to Union[str,Dict] via _is_actor_field (rejects empties); _is_proof_actor<->_is_actor_payload clone collapsed; test_actor_boundary_normalize.py dict-accept cases.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP02 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 satisfied: bulk-edit gate exempts the running mission's own runtime state",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (1f8f3e77f): runtime-state gate exemption anchored to running mission's own feature_dir (exact-boundary check, sibling-prefix pinned); named allowlist keeps spec/plan/tasks reviewable; exemption fires before classifier; test_runtime_state_exemption.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP05 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 satisfied: coord-vs-target staleness surfaced non-blockingly",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (bd5f3d293): coord-vs-target staleness detector + doctor coordination --check-staleness + non-blocking finalize-tasks WARN; test_coord_staleness.py (a)+(d).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP06 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 satisfied: safe fast-forward only under strict-ancestor + clean worktree, else fail loud",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (bd5f3d293): --fix safe fast-forward ONLY when strict-ancestor AND coord worktree clean, else fail loud with unified diff mutating nothing (byte-identical ref proven); minimized per C-003; test_coord_staleness.py (b)+(c).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus (WP06 APPROVE)",
+      "verified_at": "2026-07-23T00:00:00+00:00",
+      "notes": "Verified by independent opus WP review + passing automated tests."
+    }
+  ],
+  "negative_invariants": []
+}

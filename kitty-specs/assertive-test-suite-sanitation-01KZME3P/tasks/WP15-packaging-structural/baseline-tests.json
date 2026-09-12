@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP15",
+  "captured_at": "2026-08-10T17:27:37Z",
+  "base_branch": "pr/assertive-test-suite-sanitation",
+  "base_commit": "85127657f3b6855a1a3d6a740d8fd8d9e3aa1336",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

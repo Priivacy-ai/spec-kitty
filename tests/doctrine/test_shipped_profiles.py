@@ -9,46 +9,46 @@ Verifies that all shipped reference profiles:
 - Have non-empty purpose and specialization.primary_focus
 """
 
+import re
 from pathlib import Path
 
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.agent_profiles.validation import validate_agent_profile_yaml
+from charter.offering.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.validation import validate_agent_profile_yaml
+from charter.offering.pack_paths import resolve_pack_root
+from tests.doctrine._builtin_inventory import builtin_profile_ids
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
-BUILT_IN_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
-REPO_ROOT = BUILT_IN_DIR.parent.parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# Post-relocation the shipped built-in profiles live at
+# ``packs/built-in/agent_profiles/`` (the per-kind ``built-in/`` subdir was
+# flattened out). Resolve through the canonical pack-root seam rather than a
+# ``src/doctrine`` literal, which is now emptied of built-in content.
+BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
-    REPO_ROOT / "src" / "doctrine" / "missions",
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
+    REPO_ROOT / "packs" / "built-in" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
-AGENT_PROFILES_README = BUILT_IN_DIR.parent / "README.md"
+# The Python-package README (``src/charter/offering/agent_profiles/README.md``) was NOT
+# relocated; the built-in-pack README moved to the flattened pack dir.
+AGENT_PROFILES_README = REPO_ROOT / "src" / "charter" / "offering" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
-EXPECTED_PROFILE_IDS = {
-    "architect-alphonso",
-    "curator-carla",
-    "debugger-debbie",
-    "designer-dagmar",
-    "doctrine-daphne",
-    "generic-agent",
-    "human-in-charge",
-    "implementer-ivan",
-    "java-jenny",
-    "paula-patterns",
-    "planner-priti",
-    "python-pedro",
-    "randy-reducer",
-    "researcher-robbie",
-    "retrospective-facilitator",
-    "reviewer-renata",
-    "frontend-freddy",
-    "node-norris",
-}
+# Derived from the shipped ``packs/built-in/agent_profiles/*.agent.yaml`` source
+# files (#3234), not a frozen literal: this drives the per-profile contract
+# parametrization AND is the independent inventory the load assertions compare
+# against. ``builtin_profile_ids()`` globs the source files and parses each
+# ``profile-id``; the repository fixtures below LOAD those files through the real
+# ``AgentProfileRepository`` pipeline. So ``loaded_ids == EXPECTED_PROFILE_IDS``
+# still reds if the loader skips a shipped profile or loads a mismatched id --
+# but a newly-added profile file is inventoried automatically and does not red.
+EXPECTED_PROFILE_IDS = builtin_profile_ids()
 
 # Sentinel profiles are workflow markers, not real agents.  They intentionally
 # have empty context sources and directive references.
@@ -263,6 +263,32 @@ class TestShippedProfilesContent:
         assert profile is not None
         assert profile.name.strip(), f"Profile '{profile_id}' has empty name"
 
+    @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
+    def test_self_identity_prose_matches_name(self, repo: AgentProfileRepository, profile_id: str):
+        """Any "<role-word> <Token>"-shaped self-identity phrase in purpose/init prose
+        must equal the profile's own name.
+
+        DIRECTIVE_043 (Close Defect Classes by Construction): the profile's own
+        ``name:`` field is the single source of truth for identity. Prose that
+        restates identity (e.g. "Researcher Robbie reduces uncertainty...", "I am
+        Researcher Robbie...") is free to do so, but it must not drift from
+        ``name`` the way researcher-robbie's purpose/init once drifted to
+        "Researcher Rosa". This does not require every profile to declare an
+        identity at all -- several (generic-agent, human-in-charge,
+        retrospective-facilitator) phrase their prose differently and are left
+        untouched by this check.
+        """
+        profile = repo.get(profile_id)
+        assert profile is not None
+        role_word = profile.name.split()[0]
+        prose = f"{profile.purpose}\n{profile.initialization_declaration}"
+        pattern = re.compile(rf"\b{re.escape(role_word)}\s+[A-Z][A-Za-z'-]*\b")
+        for match in pattern.finditer(prose):
+            assert match.group(0) == profile.name, (
+                f"Profile '{profile_id}' prose declares identity '{match.group(0)}' "
+                f"which does not match its own name '{profile.name}'"
+            )
+
     @pytest.mark.parametrize(
         "profile_id,expected_priority",
         [
@@ -407,16 +433,12 @@ class TestShippedProfilesCollaboration:
 
 
 class TestShippedProfilesContextSources:
-    """Verify context sources are defined."""
+    """Verify the canonical ``*-references`` doctrine surface is defined.
 
-    @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
-    def test_context_sources_has_doctrine_layers(self, repo: AgentProfileRepository, profile_id: str):
-        """Each profile has at least one doctrine layer configured."""
-        profile = repo.get(profile_id)
-        assert profile is not None
-        assert len(profile.context_sources.doctrine_layers) > 0, (
-            f"Profile '{profile_id}' has no doctrine layers in context_sources"
-        )
+    The retired ``context-sources`` surface was removed in mission
+    doctrine-drg-silent-drop-boundary-01M0PE7E; profiles now carry references
+    solely on the top-level ``*-references`` fields.
+    """
 
     @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
     def test_directive_references_are_defined(self, repo: AgentProfileRepository, profile_id: str):
@@ -452,37 +474,65 @@ class TestShippedProfilesContextSources:
                     "language-driven-design",
                     "reverse-speccing",
                     "test-scaffolding-as-design-smell",
+                    "supply-chain-install-safety",
                 ],
             ),
         ],
     )
-    def test_context_sources_preserve_shipped_tactic_lists(
+    def test_shipped_tactic_references_include_expected(
         self,
         repo: AgentProfileRepository,
         profile_id: str,
         expected_tactics: list[str],
     ):
-        """Shipped context-sources.tactics survive repository validation/loading."""
+        """Shipped tactic references survive loading and cover the tactics that
+        the retired ``context-sources.tactics`` surface used to pin.
+
+        The consolidation folded ``context-sources.tactics`` (a subset) onto the
+        canonical ``tactic-references`` surface; every previously-pinned tactic
+        must remain reachable there.
+        """
         profile = repo.get(profile_id)
         assert profile is not None
-        assert profile.context_sources.tactics == expected_tactics
+        tactic_ids = {ref.id for ref in profile.tactic_references}
+        missing = [t for t in expected_tactics if t not in tactic_ids]
+        assert missing == [], (
+            f"Profile '{profile_id}' lost tactic references {missing} in the "
+            f"context-sources consolidation; present: {sorted(tactic_ids)}"
+        )
 
 
-class TestShippedProfilesPerformance:
-    """Performance gate: loading all shipped profiles must complete quickly."""
+class TestShippedProfilesLoadCount:
+    """Functional companion to TestShippedProfilesPerformance (split, #4015):
+    the load-count check must run on the per-PR path, not only nightly."""
 
-    def test_shipped_profile_load_time(self) -> None:
-        """Loading all 12 shipped profiles must complete in under 2 seconds."""
-        import time
-
-        start = time.perf_counter()
+    def test_shipped_profile_load_returns_all_profiles(self) -> None:
+        """Loading all shipped profiles returns exactly EXPECTED_PROFILE_IDS."""
         repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
         profiles = repo.list_all()
-        elapsed = time.perf_counter() - start
 
         assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
             f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
         )
-        assert elapsed < 2.0, (
-            f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"
-        )
+
+
+@pytest.mark.performance
+class TestShippedProfilesPerformance:
+    """Performance gate: loading all shipped profiles must complete quickly.
+
+    Timing budget only (split, #4015): functional coverage moved to
+    TestShippedProfilesLoadCount, above.
+    """
+
+    def test_shipped_profile_load_time(self) -> None:
+        """Loading all shipped profiles must complete in under 2 seconds."""
+        import time
+
+        from tests._perf_helpers import assert_timing_budget
+
+        start = time.perf_counter()
+        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
+        repo.list_all()
+        elapsed = time.perf_counter() - start
+
+        assert_timing_budget(elapsed, 2.0, name="shipped_profile_load")

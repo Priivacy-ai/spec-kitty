@@ -1,0 +1,362 @@
+[
+ {
+  "path": "tests/cli/commands/test_sync_commands.py",
+  "qual": "_isolated_home",
+  "line": 53,
+  "sites": [
+   55
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+  "qual": "checkout",
+  "line": 57,
+  "sites": [
+   109
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_doctor_per_project_3030.py",
+  "qual": "_isolated_home",
+  "line": 49,
+  "sites": [
+   99
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_doctor_tracker_egress_3108.py",
+  "qual": "doctor_environment",
+  "line": 113,
+  "sites": [
+   124
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_migrate_backfills_h4.py",
+  "qual": "_isolated_home",
+  "line": 44,
+  "sites": [
+   94
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_now_empty_selection_t005.py",
+  "qual": "_now_machinery",
+  "line": 73,
+  "sites": [
+   82
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_purge_3030.py",
+  "qual": "checkout",
+  "line": 66,
+  "sites": [
+   129
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py",
+  "qual": "checkout",
+  "line": 69,
+  "sites": [
+   84
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/cli/commands/test_sync_status_per_project_3030.py",
+  "qual": "_isolated_home",
+  "line": 60,
+  "sites": [
+   108
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_body_queue_purge_differential_3030.py",
+  "qual": "_isolated_home",
+  "line": 44,
+  "sites": [
+   45
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_dispatch_window_consent_3030.py",
+  "qual": "_consent_records",
+  "line": 140,
+  "sites": [
+   143
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_liveness_predicate_before_limit_3030.py",
+  "qual": "_consent",
+  "line": 67,
+  "sites": [
+   70
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_nfr002_loop_permanence_3030.py",
+  "qual": "_consent_records",
+  "line": 100,
+  "sites": [
+   103
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_nfr003_predicate_cost_3030.py",
+  "qual": "_consent",
+  "line": 66,
+  "sites": [
+   69
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_per_project_report_3030.py",
+  "qual": "_home",
+  "line": 33,
+  "sites": [
+   36
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_purge_all_body_uploads_3030.py",
+  "qual": "_isolated_home",
+  "line": 50,
+  "sites": [
+   51
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/delivery/test_purge_all_events_3030.py",
+  "qual": "_isolated_home",
+  "line": 50,
+  "sites": [
+   51
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/specify_cli/identity/test_identity_value_faults_3030.py",
+  "qual": "TestThePolicyGateAnswersInsteadOfCrashing._isolated_home",
+  "line": 296,
+  "sites": [
+   297
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/specify_cli/sync/test_local_commit_consent_3030.py",
+  "qual": "_isolated_home",
+  "line": 77,
+  "sites": [
+   84
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/specify_cli/sync/test_local_commit_purge_3030.py",
+  "qual": "test_the_flush_does_not_delete_the_frames_it_withholds",
+  "line": 424,
+  "sites": [
+   434
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/sync/test_body_drain_consent_3030.py",
+  "qual": "_isolated_home",
+  "line": 48,
+  "sites": [
+   49
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_body_upload_consent_3030.py",
+  "qual": "_isolated_home",
+  "line": 53,
+  "sites": [
+   62
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_capture_gate_project_identity_3030.py",
+  "qual": "_isolated_home",
+  "line": 50,
+  "sites": [
+   59
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_consent_fault_vocabulary_3030.py",
+  "qual": "home",
+  "line": 58,
+  "sites": [
+   62
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_consent_field_fault_3030.py",
+  "qual": "_isolated_home",
+  "line": 73,
+  "sites": [
+   82
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_consent_read_fault_3030.py",
+  "qual": "_isolated_home",
+  "line": 58,
+  "sites": [
+   66
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_consent_resolver_3030.py",
+  "qual": "_isolated_home",
+  "line": 42,
+  "sites": [
+   43
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_consent_write_refusal_3030.py",
+  "qual": "home",
+  "line": 71,
+  "sites": [
+   75
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_daemon_publish_consent_3030.py",
+  "qual": "_isolated_home",
+  "line": 67,
+  "sites": [
+   78
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/test_legacy_queue_precondition_3030.py",
+  "qual": "test_a_credentials_read_failure_is_not_evidence",
+  "line": 153,
+  "sites": [
+   162
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/sync/test_routing.py",
+  "qual": "test_opt_out_purge_targets_the_same_stores_the_drain_reads",
+  "line": 292,
+  "sites": [
+   303
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/sync/test_ws_publish_consent_3030.py",
+  "qual": "_isolated_home",
+  "line": 55,
+  "sites": [
+   64
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/tracker/test_tracker_egress_refusal_3108.py",
+  "qual": "_isolated_home_and_arming",
+  "line": 184,
+  "sites": [
+   194
+  ],
+  "fixture": true
+ },
+ {
+  "path": "tests/sync/tracker/test_tracker_egress_refusal_3108.py",
+  "qual": "test_bind_counter_wrapper_changes_no_outcome_committed_red",
+  "line": 1155,
+  "sites": [
+   1165
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py",
+  "qual": "test_detect_skips_when_global_runtime_is_configured",
+  "line": 18,
+  "sites": [
+   27
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/migrations/test_m_0_6_7_ensure_missions.py",
+  "qual": "test_detect_still_repairs_metadata_less_legacy_repo",
+  "line": 49,
+  "sites": [
+   58
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/test_compat.py",
+  "qual": "test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x",
+  "line": 14,
+  "sites": [
+   23
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/test_compat.py",
+  "qual": "test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed",
+  "line": 39,
+  "sites": [
+   48
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py",
+  "qual": "test_detect_skips_when_global_runtime_is_configured",
+  "line": 52,
+  "sites": [
+   61
+  ],
+  "fixture": false
+ },
+ {
+  "path": "tests/upgrade/test_m_0_12_0_documentation_mission_unit.py",
+  "qual": "test_detect_still_repairs_metadata_less_legacy_repo",
+  "line": 74,
+  "sites": [
+   83
+  ],
+  "fixture": false
+ }
+]

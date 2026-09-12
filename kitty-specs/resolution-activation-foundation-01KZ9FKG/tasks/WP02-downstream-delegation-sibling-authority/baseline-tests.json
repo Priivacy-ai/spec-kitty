@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-08-05T21:13:12Z",
+  "base_branch": "feat/resolution-activation-foundation",
+  "base_commit": "1e22a197ebc6c89240e311cc0c66a74f24aa38a4",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

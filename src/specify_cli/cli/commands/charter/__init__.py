@@ -18,7 +18,7 @@ from __future__ import annotations
 # fixtures keep working. The submodules look up these names on the package at
 # call time (see e.g. ``synthesize._charter_pkg.find_repo_root()``); patches
 # therefore propagate correctly across the WP06 split.
-from charter.sync import ensure_charter_bundle_fresh  # noqa: F401
+from charter.activation.sync import ensure_charter_bundle_fresh  # noqa: F401
 from specify_cli.decisions import service as _dm_service  # noqa: F401
 from specify_cli.task_utils import find_repo_root  # noqa: F401
 

@@ -223,7 +223,7 @@ MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Pyth
 
 **Code**: `LIGHTWEIGHT_REVIEW_MISSING_BASELINE`
 
-**When it fires**: `spec-kitty review --mode lightweight` is run against a modern mission (one whose `meta.json` has a populated `mission_id` — the ULID introduced by mission 083) whose `baseline_merge_commit` is still `null`. Without a baseline commit the dead-code scan cannot compute a diff, so the gate now fails-hard instead of silently passing. See issue [#989](https://github.com/Priivacy-ai/spec-kitty/issues/989).
+**When it fires**: `spec-kitty review --mode lightweight` is run against a modern mission (one whose `meta.json` has a populated `mission_id` — the ULID introduced by mission 083) whose `baseline_merge_commit` is still `null`. Without a baseline commit the dead-code scan cannot compute a diff, so the gate now fails-hard instead of silently passing. See issue [#989](https://github.com/spec-kitty/spec-kitty/issues/989).
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
@@ -255,6 +255,31 @@ LIGHTWEIGHT_REVIEW_MISSING_BASELINE: dead-code scan cannot run without baseline_
 
 ```text
 LEGACY_MISSION_DEAD_CODE_SKIP: dead-code scan skipped on a pre-083 mission. Run `spec-kitty migrate backfill-identity` to bring the mission onto the canonical identity schema.
+```
+
+---
+
+## DEAD_CODE_UNDETERMINABLE
+
+**Code**: `MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE`
+
+**When it fires**: the dead-code gate cannot establish a supported, complete Python source
+denominator. This includes a failed or unavailable Git diff, a change set with no supported Python
+files, an empty Python corpus, and source traversal or decoding failures.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an
+opaque identifier.
+
+**Remediation**:
+1. Verify that Git is available and `baseline_merge_commit` names a commit in the current repository.
+2. Confirm the baseline-to-HEAD change set contains Python source that this gate supports.
+3. Repair unreadable or invalidly encoded Python files, then rerun `spec-kitty review`.
+4. Do not interpret this diagnostic as a clean scan; the gate deliberately fails closed.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE: dead-code analysis could not establish a complete supported source set.
 ```
 
 ---

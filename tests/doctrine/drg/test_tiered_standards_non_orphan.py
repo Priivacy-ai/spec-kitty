@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.models import Relation
+from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 _STYLEGUIDE_URN = "styleguide:tiered-standards"
 _SOURCE_DIRECTIVE_URN = "directive:DIRECTIVE_030"
@@ -50,7 +50,7 @@ def test_tiered_standards_has_inbound_edge_from_directive_030(
     This test proves the styleguide is non-orphan via a *specific* source node —
     not a weak ``len(inbound) >= 1`` check.  Removing the ``references`` entry
     for ``tiered-standards`` in
-    ``src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml``
+    ``src/charter/offering/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml``
     and regenerating the graph will make this test fail.
     """
     inbound_from_directive_030 = [

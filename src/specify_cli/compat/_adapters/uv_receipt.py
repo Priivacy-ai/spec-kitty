@@ -90,6 +90,23 @@ def _empty_result() -> UvReceiptResult:
 _PACKAGE_NAME = "spec-kitty-cli"
 
 
+def _candidate_package_names() -> tuple[str, ...]:
+    """Distribution names to match, from the active profile (name + aliases).
+
+    A renamed fork's uv-receipt requirement entry carries the fork name, so
+    matching must span ``{package_name, *aliases}`` rather than the hardcoded
+    upstream name (#2857 / #2872). Falls back to the stock name; never raises.
+    """
+    try:
+        from specify_cli.distribution import resolve_distribution_profile
+
+        profile = resolve_distribution_profile()
+        names = tuple(dict.fromkeys(n for n in (profile.package_name, *profile.package_aliases) if n))
+        return names or (_PACKAGE_NAME,)
+    except Exception:  # noqa: BLE001
+        return (_PACKAGE_NAME,)
+
+
 def _receipt_path_for_executable(executable: str) -> Path | None:
     """Return the receipt path for *executable*, or None.
 
@@ -145,7 +162,7 @@ def _derive_package_source(requirements: list[object]) -> PackageSource:
     for req in requirements:
         if not isinstance(req, dict):
             continue
-        if req.get("name") != _PACKAGE_NAME:
+        if req.get("name") not in _candidate_package_names():
             continue
         if req.get("git") is not None:
             return PackageSource.GIT
@@ -321,7 +338,7 @@ class UvReceiptReader:
             requirements = receipt.get("tool", {}).get("requirements", [])
             if isinstance(requirements, list):
                 for req in requirements:
-                    if isinstance(req, dict) and req.get("name") == _PACKAGE_NAME:
+                    if isinstance(req, dict) and req.get("name") in _candidate_package_names():
                         return True
             return False
         except Exception:

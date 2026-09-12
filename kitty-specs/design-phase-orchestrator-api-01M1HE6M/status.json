@@ -1,0 +1,249 @@
+{
+  "event_count": 57,
+  "last_event_id": "01M1KDA6M9T77JDAKN3CZT092N",
+  "materialized_at": "2026-09-03T10:33:57.129271+00:00",
+  "mission_number": "",
+  "mission_slug": "design-phase-orchestrator-api-01M1HE6M",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 9,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1HZ4C2BK9K82ABFZPGTBFV9",
+      "last_transition_at": "2026-09-02T21:06:51.595211+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp01.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 550811,
+      "shell_pid_created_at": "1788380224.52",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1HZJGCAEEBS03DYVNW9A7JE",
+      "last_transition_at": "2026-09-02T21:14:34.762665+00:00",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp02.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1J20WAYCM4ZPPPTGJQ1BCPB",
+      "last_transition_at": "2026-09-02T21:57:22.910416+00:00",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp03.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1J5YEEXFKPA7AVTCY0G05R6",
+      "last_transition_at": "2026-09-02T23:05:57.469070+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp04.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1431361,
+      "shell_pid_created_at": "1788388028.71",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1J9530WBSE5CSJ0AZESJNBT",
+      "last_transition_at": "2026-09-03T00:02:00.860275+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp05.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1748751,
+      "shell_pid_created_at": "1788390681.84",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M1JEKBXJTT54F42TBRPVDKC3",
+      "last_transition_at": "2026-09-03T01:37:11.602928+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp06.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2101855,
+      "shell_pid_created_at": "1788394273.46",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1K68RPMZ7EWK6MFP1NN06CW",
+      "last_transition_at": "2026-09-03T08:30:50.068143+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp07.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 324616,
+      "shell_pid_created_at": "1788422662.47",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M1K1RF9MTP0WQRJSEDRZTR6J",
+      "last_transition_at": "2026-09-03T07:12:01.844202+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp08.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2616232,
+      "shell_pid_created_at": "1788399674.25",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    },
+    "WP09": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M1KDA6M9T77JDAKN3CZT092N",
+      "last_transition_at": "2026-09-03T10:33:57.129271+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/design-phase-orchestrator-api-01M1HE6M/reviews/wp09.verdict.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 982301,
+      "shell_pid_created_at": "1788427685.15",
+      "subtasks": {
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done"
+      }
+    }
+  }
+}

@@ -5,8 +5,8 @@ doc_status: active
 updated: '2026-07-04'
 related:
 - docs/context/index.md
-- docs/archive/index.md
-- docs/migrations/06_migration_and_shim_rules.md
+- docs/changelog/index.md
+- docs/migrations/migration-and-shim-rules.md
 - docs/migrations/2-1-main-cutover-checklist.md
 - docs/migrations/charter-ownership-consolidation.md
 - docs/migrations/cross-repo-e2e-gate.md
@@ -20,13 +20,14 @@ related:
 - docs/migrations/shared-package-boundary-cutover.md
 - docs/migrations/teamspace-mission-state-920-closeout.md
 - docs/migrations/teamspace-mission-state-repair.md
+- docs/migrations/tracker-egress-refusal.md
 - docs/migrations/upgrade-to-0-12-0.md
 ---
-> Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/getting-started.md).
+> Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/tutorials/getting-started.md).
 
 # Migrations
 
-Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../guides/getting-started.md) and the [3.2 current overview](../context/index.md).
+Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../guides/tutorials/getting-started.md) and the [3.2 current overview](../context/index.md).
 
 ## Answer summary
 
@@ -34,7 +35,7 @@ Use these pages when an existing project, script, or operator habit predates the
 - Current runtime model: Charter-era missions with governed context injection.
 - Current governance source: `.kittify/charter/charter.md`.
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
-- Historical 1.x and 2.x pages are archived under [Historical Archive](../archive/index.md).
+- Historical 1.x and 2.x pages are archived under [Historical Archive](../changelog/index.md).
 
 ## Current 3.2 migrations
 
@@ -44,10 +45,12 @@ Use these pages when an existing project, script, or operator habit predates the
 - [Legacy topology to the coordination model](legacy-to-coordination.md)
 - [Mission type flag deprecation](mission-type-flag-deprecation.md)
 - [Feature flag deprecation](feature-flag-deprecation.md)
+- [Tracker egress refusal](tracker-egress-refusal.md) — your `beads`/`fp`
+  tracker binding stopped working after upgrading.
 
 ## Migration and shim rules
 
-- [Migration and shim rules](06_migration_and_shim_rules.md) — the migration/shim
+- [Migration and shim rules](migration-and-shim-rules.md) — the migration/shim
   ruleset, relocated from `architecture/2.x/`.
 - `shim-registry.yaml` — the back-compat shim registry. This is a
   runtime-read target (`compat/doctor.py`, `compat/registry.py`, the

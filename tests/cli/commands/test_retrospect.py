@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import contextlib
 import json
-from datetime import UTC, datetime, timedelta
+import os
+from kernel.clock import timedelta, now_utc_iso, now_utc
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,6 +29,7 @@ from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.cli.commands.agent_retrospect import app as agent_retrospect_app
 
 from tests._support.ansi import strip_ansi
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -134,7 +136,7 @@ def _make_minimal_gen_record(
         GenProvenance,
         GenRetrospectiveRecord,
     )
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     return GenRetrospectiveRecord(
         schema_version=1,
         mission_id=mission_id,
@@ -187,6 +189,38 @@ def _build_resolved_mission(
     )
 
 
+def _persisting_write_gen_record(
+    captured_mode: list[str] | None = None,
+) -> Any:
+    """Build a `write_gen_record` stand-in that actually persists to disk.
+
+    #3320 fix: `create_cmd` reads the record back via `read_gen_record(record_path)`
+    after writing, so a mock that returns a `Path` with nothing written there
+    (the pre-fix pattern) now raises FileNotFoundError. Delegate to the real
+    writer so the on-disk read-back has a file to load, while still letting
+    the caller observe the `mode` that was requested.
+    """
+    from specify_cli.retrospective.schema import GenRetrospectiveRecord
+    from specify_cli.retrospective.writer import write_gen_record as _real_write_gen_record
+
+    def _write(
+        record: GenRetrospectiveRecord,
+        *,
+        mode: Literal["error", "overwrite", "update"],
+        repo_root: Path,
+    ) -> Path:
+        if captured_mode is not None:
+            captured_mode.append(mode)
+        # `specify_cli.*` mypy override sets follow_imports="skip" (perf
+        # workaround for the CLI bootstrap import graph), so the writer's real
+        # `-> Path` annotation isn't visible here; the local annotation below
+        # re-anchors the type instead of masking a real error with `# type: ignore`.
+        written_path: Path = _real_write_gen_record(record, mode=mode, repo_root=repo_root)
+        return written_path
+
+    return _write
+
+
 # ---------------------------------------------------------------------------
 # TestCreateCommand
 # ---------------------------------------------------------------------------
@@ -204,7 +238,6 @@ class TestCreateCommand:
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
 
         resolved = _build_resolved_mission(
             MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir
@@ -220,7 +253,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, mock_policy_source)),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", return_value=record_path),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -345,23 +381,18 @@ class TestCreateCommand:
 
     def test_create_overwrite_flag(self, tmp_path: Path) -> None:
         """--overwrite flag passes mode='overwrite' to write_gen_record."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
         mock_policy = MagicMock(spec=RetrospectivePolicy)
         captured_mode: list[str] = []
-
-        def _fake_write(record: Any, *, mode: str, repo_root: Path) -> Path:
-            captured_mode.append(mode)
-            return record_path
 
         with (
             patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root),
@@ -369,7 +400,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", side_effect=_fake_write),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(captured_mode),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -380,23 +414,18 @@ class TestCreateCommand:
 
     def test_create_update_flag(self, tmp_path: Path) -> None:
         """--update flag passes mode='update' to write_gen_record."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
         mock_policy = MagicMock(spec=RetrospectivePolicy)
         captured_mode: list[str] = []
-
-        def _fake_write(record: Any, *, mode: str, repo_root: Path) -> Path:
-            captured_mode.append(mode)
-            return record_path
 
         with (
             patch("specify_cli.cli.commands.retrospect.locate_project_root", return_value=repo_root),
@@ -404,7 +433,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", side_effect=_fake_write),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(captured_mode),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -427,14 +459,13 @@ class TestCreateCommand:
 
     def test_create_success_rich_output(self, tmp_path: Path) -> None:
         """Success without --json produces Rich panel output, not bare JSON."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         feature_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
         _write_kitty_meta(feature_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         _write_status_events_all_done(feature_dir, MISSION_SLUG_COMPLETED)
 
         gen_record = _make_minimal_gen_record()
-        record_path = missions_dir / MISSION_ID_COMPLETED / "retrospective.yaml"
         resolved = _build_resolved_mission(MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, feature_dir)
 
         from specify_cli.retrospective.policy import RetrospectivePolicy
@@ -446,7 +477,10 @@ class TestCreateCommand:
             patch("specify_cli.cli.commands.retrospect._check_mission_completed", return_value=[]),
             patch("specify_cli.cli.commands.retrospect.resolve_policy", return_value=(mock_policy, {})),
             patch("specify_cli.cli.commands.retrospect.generate_retrospective", return_value=gen_record),
-            patch("specify_cli.cli.commands.retrospect.write_gen_record", return_value=record_path),
+            patch(
+                "specify_cli.cli.commands.retrospect.write_gen_record",
+                side_effect=_persisting_write_gen_record(),
+            ),
             patch("specify_cli.cli.commands.retrospect.emit_captured", return_value=None),
             patch("specify_cli.cli.commands.retrospect._maybe_auto_commit"),
         ):
@@ -471,7 +505,7 @@ class TestBackfillCommand:
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         # Set up a completed mission in the window
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -502,7 +536,7 @@ class TestBackfillCommand:
         """Missions with existing records are skipped with reason='already_exists'."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -553,7 +587,7 @@ class TestBackfillCommand:
         """--mission flag restricts backfill to a single mission."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
 
         # Two missions
@@ -840,7 +874,7 @@ class TestSynthesizeFabricateEmpty:
         from specify_cli.doctrine_synthesizer import SynthesisResult
 
         # Build a real Pydantic RetrospectiveRecord for the read_record mock
-        now_str = datetime.now(UTC).isoformat()
+        now_str = now_utc_iso()
         pydantic_record = RetrospectiveRecord(
             schema_version="1",
             mission=MissionIdentity(
@@ -1392,7 +1426,7 @@ class TestBackfillDiscovery:
         """Returns empty list when .kittify/missions/ doesn't exist."""
         from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1405,10 +1439,48 @@ class TestBackfillDiscovery:
         # Create a file (not a directory)
         (missions_root / "not-a-dir.txt").write_text("file", encoding="utf-8")
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         # Should not crash; file is silently skipped
         assert isinstance(result, list)
+
+    def test_discover_missions_unstattable_entry_is_not_silently_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        """`#3194`: an unstattable mission entry must not be silently dropped.
+
+        Companion to ``test_discover_missions_skips_non_dirs`` above, which pins
+        the genuinely-absent-shaped case ("a regular file is not a directory").
+        This pins the DIFFERENT case: a candidate that could not be *stat'ed at
+        all* (EACCES via a symlink into an unreadable directory). ``Path.is_dir()``
+        answers ``False`` for that on Python 3.14 only (RAISES on 3.11-3.13),
+        which would silently conflate "unreadable" with "not a directory" and
+        drop the entry with no signal — the exact `#3177` shape, generalized.
+        ``safe_is_dir`` makes this raise on every interpreter instead.
+        """
+        from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
+
+        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root.mkdir(parents=True)
+        vault = tmp_path / "vault"
+        (vault / "m-target").mkdir(parents=True)
+        (missions_root / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+        canary = vault / "canary"
+        canary.write_text("{}", encoding="utf-8")
+        os.chmod(vault, 0o000)
+        try:
+            if not mode_bits_enforced(canary):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can stat through "
+                    "a 0o000 directory (running as root, or a filesystem that "
+                    "ignores mode bits), so the branch cannot be constructed here."
+                )
+            now = now_utc()
+            with pytest.raises(OSError):
+                _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
+        finally:
+            os.chmod(vault, 0o700)
 
     def test_discover_missions_skips_missing_meta(self, tmp_path: Path) -> None:
         """Skips directories without meta.json."""
@@ -1419,7 +1491,7 @@ class TestBackfillDiscovery:
         # Directory without meta.json
         (missions_root / "01SOMEMISSIONID0000001").mkdir()
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1433,7 +1505,7 @@ class TestBackfillDiscovery:
         dir_entry.mkdir()
         (dir_entry / "meta.json").write_text("NOT JSON", encoding="utf-8")
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1449,7 +1521,7 @@ class TestBackfillDiscovery:
             json.dumps({"some_other_field": "value"}), encoding="utf-8"
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert result == []
 
@@ -1469,7 +1541,7 @@ class TestBackfillDiscovery:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert any(c.get("skip_reason") == "not_completed" for c in result)
 
@@ -1490,7 +1562,7 @@ class TestBackfillDiscovery:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
         assert any(c.get("skip_reason") == "not_completed" for c in result)
 
@@ -1505,7 +1577,7 @@ class TestBackfillDiscovery:
         """Dry-run backfill marks candidates as created without writing."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1528,7 +1600,7 @@ class TestBackfillDiscovery:
         """Real backfill run invokes generator and writes record."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1558,7 +1630,7 @@ class TestBackfillDiscovery:
         """FileNotFoundError in _process_candidate is added to failed list."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1585,7 +1657,7 @@ class TestBackfillDiscovery:
         """Generic exception in _process_candidate is added to failed list."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1612,7 +1684,7 @@ class TestBackfillDiscovery:
         """--emit-failures causes emit_capture_failed to be called on failure."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1639,7 +1711,7 @@ class TestBackfillDiscovery:
         """Non-JSON backfill uses progress bar path (Rich output)."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1668,7 +1740,7 @@ class TestBackfillDiscovery:
         """Non-JSON backfill with failures prints failure details."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -1731,7 +1803,7 @@ class TestSummaryCmdExtended:
         # Mission 1: has a retrospective.yaml (will be classified)
         m1_id = "01KS049J4V9CSWBKJHTY2FB80H"
         m1_slug = "completed-with-retro"
-        m1_dir = missions_dir / m1_id
+        m1_dir = kitty_specs_dir / m1_slug  # FR-013 canonical mission-instance home
         m1_dir.mkdir(parents=True, exist_ok=True)
         _write_meta(m1_dir, m1_id, m1_slug)
         (m1_dir / "retrospective.yaml").write_text(
@@ -1742,7 +1814,7 @@ class TestSummaryCmdExtended:
         # Mission 2: no retrospective.yaml (missing)
         m2_id = "01KS049J4V9CSWBKJHTY2FB81H"
         m2_slug = "completed-without-retro"
-        m2_dir = missions_dir / m2_id
+        m2_dir = kitty_specs_dir / m2_slug  # FR-013 canonical mission-instance home
         m2_dir.mkdir(parents=True, exist_ok=True)
         _write_meta(m2_dir, m2_id, m2_slug)
 
@@ -1757,6 +1829,56 @@ class TestSummaryCmdExtended:
         assert "aggregate" in data
         # Should have at least 2 missions
         assert len(data["missions"]) >= 2
+
+    def test_summary_unstattable_mission_candidate_is_not_silently_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        """`#3194`: ``summary``'s mission enumeration must not use the
+        EACCES-divergent ``Path.is_dir()`` predicate anywhere in its path.
+
+        ``build_summary()`` (``specify_cli.retrospective.summary.iter_mission_instance_dirs``)
+        walks the canonical ``kitty-specs/*`` directory (FR-013) before
+        ``summary_cmd``'s own ``missions_with_state`` loop ever runs, so an
+        unstattable candidate is actually caught there first — a second instance
+        of the identical pattern found while writing this test, fixed alongside
+        the 8 originally flagged call sites. ``Path.is_dir()`` answers ``False``
+        for an unreadable candidate on Python 3.14 only (RAISES on 3.11-3.13);
+        routed through ``safe_is_dir`` the raised ``OSError`` is now the SAME on
+        every interpreter, and ``summary_cmd``'s own pre-existing
+        ``except OSError: raise typer.Exit(2)`` around ``build_summary()`` turns
+        it into a clean, actionable CLI error — exactly the "surfaced as
+        unreadable" outcome the fix is for, rather than a silently-empty,
+        misleadingly-successful summary.
+        """
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        vault = tmp_path / "vault"
+        (vault / "m-target").mkdir(parents=True)
+        (kitty_specs_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+        canary = vault / "canary"
+        canary.write_text("{}", encoding="utf-8")
+        os.chmod(vault, 0o000)
+        try:
+            if not mode_bits_enforced(canary):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can stat through "
+                    "a 0o000 directory (running as root, or a filesystem that "
+                    "ignores mode bits), so the branch cannot be constructed here."
+                )
+            result = RUNNER.invoke(
+                retrospect_app,
+                ["summary", "--project", str(tmp_path), "--json"],
+            )
+        finally:
+            os.chmod(vault, 0o700)
+
+        assert result.exit_code == 2, (
+            "an unstattable mission candidate must not silently produce a "
+            f"successful, misleadingly-complete summary: {result.output!r}"
+        )
+        assert "I/O error reading corpus" in strip_ansi(result.output), (
+            f"expected the actionable I/O-error message, got: {result.output!r}"
+        )
 
     def test_summary_rich_rendering_no_json(self, tmp_path: Path) -> None:
         """Non-JSON summary produces Rich output including state table."""
@@ -1855,15 +1977,11 @@ class TestSummaryCmdExtended:
 
     def test_summary_missions_with_kitty_specs_classification(self, tmp_path: Path) -> None:
         """Missions classified via kitty-specs dir when available."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / MISSION_ID_COMPLETED
-        m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # Create kitty-specs dir for this mission
+        # Canonical kitty-specs home carries meta.json (FR-013 discovery anchor).
         kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
         # No retrospective.yaml → "missing"
 
         result = RUNNER.invoke(
@@ -1879,13 +1997,18 @@ class TestSummaryCmdExtended:
         assert len(matching) >= 1
 
     def test_summary_mission_with_retrospective_in_kittify(self, tmp_path: Path) -> None:
-        """Mission classified from .kittify/missions/<id>/retrospective.yaml when kitty-specs missing."""
+        """FR-013 legacy-record resolution: a mission is discovered by its
+        canonical ``kitty-specs/<slug>/`` home (meta.json), while its record was
+        never relocated out of ``.kittify/missions/<id>/retrospective.yaml``."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
+        # Canonical home (discovery anchor) — meta.json, no in-place record.
+        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+
+        # Record lives ONLY in the legacy in-registry location.
         m1_dir = missions_dir / MISSION_ID_COMPLETED
         m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-        # No kitty-specs for this slug, but has retrospective.yaml in .kittify
         (m1_dir / "retrospective.yaml").write_text(
             "schema_version: '1'\nmission: {}\nstatus: completed\nhelped: []\nnot_helpful: []\ngaps: []\nproposals: []\n",
             encoding="utf-8",
@@ -1904,9 +2027,9 @@ class TestSummaryCmdExtended:
 
     def test_summary_mission_with_bad_meta_json(self, tmp_path: Path) -> None:
         """Missions with bad meta.json still appear (with fallback IDs)."""
-        repo_root, missions_dir, _ = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / "BADJSONMISSION00000000000001"
+        m1_dir = kitty_specs_dir / "BADJSONMISSION00000000000001"
         m1_dir.mkdir(parents=True, exist_ok=True)
         # Write bad JSON to meta.json
         (m1_dir / "meta.json").write_text("not valid json", encoding="utf-8")
@@ -1962,7 +2085,7 @@ class TestSummaryCmdExtended:
             encoding="utf-8",
         )
 
-        now = datetime.now(UTC)
+        now = now_utc()
         result = _discover_missions_for_backfill(tmp_path, now - timedelta(days=365), now, None)
         # Should be included (within window), naive tz should be normalized
         assert len(result) == 1
@@ -1975,7 +2098,7 @@ class TestSummaryCmdExtended:
         # Directly test the backfill with a mocked _discover_missions_for_backfill
         # that returns an already_exists skip (normally comes from _process_candidate,
         # but the code also handles it in the pre-screening loop).
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
 
         # Set up a mock candidate that has skip_reason=already_exists
@@ -2013,7 +2136,7 @@ class TestSummaryCmdExtended:
         """RecordExistsError from write_gen_record in backfill adds to skipped."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -2045,7 +2168,7 @@ class TestSummaryCmdExtended:
         """Generic exception + --emit-failures calls emit_capture_failed for generic category."""
         repo_root, missions_dir, _ = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(mission_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED, completed_at=completed_at)
@@ -2093,15 +2216,12 @@ class TestSummaryCmdExtended:
 
     def test_summary_mission_with_events_having_captured_type(self, tmp_path: Path) -> None:
         """Summary reads policy_source from RetrospectiveCaptured events."""
-        repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
+        repo_root, _missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        m1_dir = missions_dir / MISSION_ID_COMPLETED
-        m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # Create kitty-specs dir with a status.events.jsonl that has a RetrospectiveCaptured event
+        # Canonical kitty-specs home (meta.json anchor) with a status.events.jsonl
+        # carrying a RetrospectiveCaptured event.
         kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
 
         captured_event = {
             "type": "RetrospectiveCaptured",
@@ -2147,16 +2267,14 @@ class TestSummaryCmdExtended:
         """When classify returns 'missing' but .kittify retro exists, reclassify from kittify dir."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
+        # Canonical kitty-specs home (discovery anchor), no in-place record →
+        # classify_mission_record returns "missing" initially.
+        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
+        _write_kitty_meta(kitty_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
+
+        # But there IS a retro in the legacy .kittify/missions/<id>/ registry.
         m1_dir = missions_dir / MISSION_ID_COMPLETED
         m1_dir.mkdir(parents=True, exist_ok=True)
-        _write_meta(m1_dir, MISSION_ID_COMPLETED, MISSION_SLUG_COMPLETED)
-
-        # No retro in kitty-specs (will classify as missing initially)
-        kitty_dir = kitty_specs_dir / MISSION_SLUG_COMPLETED
-        kitty_dir.mkdir(parents=True, exist_ok=True)
-        # No retrospective.yaml in kitty_dir → classify_mission_record returns "missing"
-
-        # But there IS a retro in .kittify/missions/<id>/
         (m1_dir / "retrospective.yaml").write_text(
             "schema_version: '1'\nmission: {}\nstatus: completed\nhelped: []\nnot_helpful: []\ngaps: []\nproposals: []\n",
             encoding="utf-8",
@@ -2315,7 +2433,6 @@ class TestSynthesizeFabricateProvenance:
         """
         import pathlib
         import tempfile
-        from datetime import UTC, datetime
         from specify_cli.retrospective.schema import (
             GenActor,
             GenFinding,
@@ -2325,7 +2442,7 @@ class TestSynthesizeFabricateProvenance:
         )
         from specify_cli.retrospective.writer import write_gen_record
 
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         actor = GenActor(kind="runtime", id="test")
 
         # Build a record with synthesize_fabricate provenance AND has_findings — must be rejected
@@ -2374,7 +2491,7 @@ class TestBackfillEmitSkipped:
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
         # Mission with an existing record — will be skipped with reason="already_exists"
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -2428,7 +2545,7 @@ class TestBackfillEmitSkipped:
         """Without --emit-skipped, no RetrospectiveSkipped events are written."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(
@@ -2469,7 +2586,7 @@ class TestBackfillEmitSkipped:
         """--emit-skipped combined with --dry-run must NOT write any events."""
         repo_root, missions_dir, kitty_specs_dir = _setup_project(tmp_path)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         completed_at = (now - timedelta(days=5)).isoformat()
         mission_dir = missions_dir / MISSION_ID_COMPLETED
         _write_meta(

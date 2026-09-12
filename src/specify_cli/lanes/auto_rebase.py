@@ -49,9 +49,9 @@ from specify_cli.merge.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
+from specify_cli.coordination.coherence import is_coord_residue_churn
 from mission_runtime import (
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
     kind_for_mission_file,
 )
 
@@ -71,9 +71,10 @@ RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
 #
 #   1. *Surface residue* — "is a stale PRIMARY-checkout copy of this file mere
 #      residue of a coordination-owned artifact?" Answered by the single authority
-#      ``mission_runtime.is_coordination_artifact_residue_path`` (imported above so
-#      this consumer still draws residue recognition from that authority — WP13 /
-#      FR-012). Post write-surface-coherence (#2090) the COORD-partition members
+#      ``specify_cli.coordination.coherence.is_coord_residue_churn`` (imported
+#      above so this consumer still draws residue recognition from that authority
+#      — WP12 retired the former ``mission_runtime`` predicate onto this owner
+#      leg; FR-012). Post write-surface-coherence (#2090) the COORD-partition members
 #      (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``)
 #      are residue, while ``plan.md`` / ``tasks.md`` / ``lanes.json`` /
 #      ``tasks/WP*.md`` moved to the PRIMARY partition and are NO LONGER residue
@@ -89,6 +90,13 @@ RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
 #      surface residue) yet still managed by auto-rebase — the two concerns are
 #      orthogonal.
 #
+#      ``analysis-report.md`` (``ANALYSIS_REPORT``) joined this arm when
+#      coord-commit-integrity (FR-003) re-homed it COORD→PRIMARY: it left the
+#      surface-residue set (Arm 1) but stays a MACHINE-GENERATED, deterministically
+#      reconcilable artifact (unlike the author-owned narrative docs below), so it
+#      must remain take-theirs. Dropping it from BOTH arms would reintroduce the
+#      #2070 auto-rebase-halt regression on an ``analysis-report.md`` conflict.
+#
 # NOT included here (these stay Manual halts so the operator reconciles real
 # authored drift): ``plan.md`` (``FINALIZED_EXECUTION_PLAN``) and ``tasks.md``
 # (``TASKS_INDEX``) — narrative planning docs whose conflicts are author-owned —
@@ -98,6 +106,7 @@ _AUTO_REBASE_MANAGED_LAYOUT_KINDS: frozenset[MissionArtifactKind] = frozenset(
     {
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.WORK_PACKAGE_TASK,
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
 )
 
@@ -199,19 +208,21 @@ def _is_coordination_owned_artifact(rel_path: str) -> bool:
     :data:`_AUTO_REBASE_MANAGED_LAYOUT_KINDS` for the full rationale):
 
     1. *Surface residue* — drawn from the single authority
-       :func:`mission_runtime.is_coordination_artifact_residue_path`
-       (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``).
-    2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``) and
-       ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``). These moved to the PRIMARY
-       partition in #2090 so they are NO LONGER surface residue, yet auto-rebase
-       still resolves a stale lane copy take-theirs against the finalize-tasks
-       layout. The #2070 delegation to the residue predicate alone dropped them
-       and broke deterministic reconciliation (this regression's root cause).
+       :func:`specify_cli.coordination.coherence.is_coord_residue_churn`
+       (``issue-matrix.md`` / ``acceptance-matrix.json``).
+    2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``),
+       ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``), and ``analysis-report.md``
+       (``ANALYSIS_REPORT``, re-homed COORD→PRIMARY by coord-commit-integrity
+       FR-003). These live on the PRIMARY partition so they are NO LONGER surface
+       residue, yet auto-rebase still resolves a stale lane copy take-theirs
+       against the finalize-tasks / generated layout. The #2070 delegation to the
+       residue predicate alone dropped them and broke deterministic reconciliation
+       (this regression's root cause).
 
     ``plan.md`` / ``tasks.md`` and the planning SOURCE docs are intentionally in
     NEITHER arm — their conflicts surface as Manual halts.
     """
-    if is_coordination_artifact_residue_path(rel_path):
+    if is_coord_residue_churn(rel_path):
         return True
     kind = kind_for_mission_file(rel_path)
     return kind is not None and kind in _AUTO_REBASE_MANAGED_LAYOUT_KINDS
@@ -450,6 +461,31 @@ def _refuse_preexisting_lane_status_deletions(
     worktree: Path,
     mission_branch: str,
 ) -> str | None:
+    """Refuse a lane-side pre-existing deletion of a coordination-owned status file.
+
+    FR-009 reconciliation (ADR ``2026-07-29-1``, T004, #1684): this function's
+    ``git merge-base HEAD <mission_branch>`` reasoning is UNCHANGED by the WP01
+    lane-base fix. That fix merges the recorded finalize-tasks planning commit
+    INTO a lane on top of its existing ``coordination_branch`` /
+    ``mission_branch`` parentage — it never replaces that parentage — so the
+    lane still descends directly from whatever branch ``mission_branch`` names
+    here (either ``coordination_branch`` verbatim, via
+    ``lifecycle_sync.py``'s call, or ``lanes_manifest.mission_branch``, via
+    ``lanes/merge.py``'s ``consolidate_lane_into_mission`` — the SAME branch
+    for coordination-topology missions, since both are composed by the
+    identical ``branch_naming.mission_branch_name`` grammar). The merge-base
+    computed here is therefore exactly what it was before WP01: the lane's own
+    fork point off ``mission_branch``, unaffected by the additional
+    planning-commit ancestor now present elsewhere in the lane's history.
+
+    Note (not fixed here, out of WP01 scope): a SEPARATE lane-hygiene guard
+    (#2274) compares ``kitty-specs/`` by commit-history rather than content and
+    can false-positive immediately after this fix ships, because the extra
+    planning-commit merge changes a lane's commit history under
+    ``kitty-specs/<slug>/`` without changing its content relative to the
+    planning branch. See ADR ``2026-07-29-1`` "More Information" for the
+    coordinating issues (#2273/#2626/#2570).
+    """
     merge_base = _run(["git", "merge-base", "HEAD", mission_branch], worktree)
     if merge_base.returncode != 0:
         return (

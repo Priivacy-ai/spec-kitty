@@ -1,0 +1,58 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Verified WP01 owned_files/lane-a write_scope exclusively holds test_analysis_report.py,
+      WP03 owned_files/lane-c write_scope holds only mission_record_analysis.py, spec.md's §106
+      section literally states "No other file is touched, beyond the six files named above" (a
+      list that excludes any FR-006-specific test module), and WP03's T010 "Files" line (verified
+      at line 127-131) offers exactly the two file choices the finding describes — so every
+      implementer choice really does either collide with WP01's exclusive file or exceed the
+      binding six-file scope.
+  - id: TASKS-DECOMP-002
+    verdict: refuted
+    reason: >
+      The finding's own claim text states it found no defect and requires no action; re-reading
+      all four WPs' "Mission-wide baseline" sections confirms the near-verbatim duplication is
+      necessary and intentional (all four lanes have parallel_group:0/depends_on_lanes:[], so any
+      WP could execute first and each prompt must stand alone) — nothing here is an actionable
+      defect.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >
+      tracer-tooling-friction.md already contains entries F-01 through F-04 (F-03 and F-04 dated
+      2026-08-22/23, appended during this mission's own spec/tasks-authoring pass before any WP
+      implementation begins), while WP01 line 76 (verified) literally reads "next entry is F-03" —
+      genuinely stale, the true next entry is F-05.
+  - id: TASKS-SEQ-002
+    verdict: confirmed
+    reason: >
+      Verified lanes.json: all four lanes carry parallel_group:0 and depends_on_lanes:[], none
+      list tracer-tooling-friction.md in write_scope, models.py:81 confirms same-group lanes can
+      run in parallel, and risk_scorer.py's overlap heuristics (_find_shared_parent_dirs et al.)
+      operate only over each lane's write_scope — so the check-then-act baseline-capture race on
+      the shared tracer file is real and invisible to the existing risk-scoring machinery.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >
+      T010's Steps (verified) describe reproducing the CURRENT subject shape as a fixture without
+      requiring it be captured from the real code path; mission_record_analysis.py:365 is
+      confirmed an inline f-string with no extracted helper; test_mission_record_analysis.py
+      exists but has zero references to commit_for_mission/message= (grep-confirmed); plan.md's
+      "Revert discipline" section (verified) does require the unit proxy to assert the
+      constructed message= string — so T010 as worded permits a vacuous, revert-blind proxy. Note:
+      one supporting citation (test_issue_matrix_finalize_lint.py "inspect message= kwarg") is
+      inaccurate — that file only mocks commit_for_mission and never inspects its message= kwarg
+      anywhere — but this does not undermine the independently-verified core claim.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >
+      T002 step 3 (verified) says "Add a new test" (singular) asserting BOTH halves of NFR-002 in
+      one function, and T003's Validation (verified) literally describes "the write-half...passes
+      GREEN. check_analysis_report_current's half is still RED until T004" — a state pytest cannot
+      report at single-function granularity, since the second assertion block would still raise/
+      fail the whole test until T004 lands.

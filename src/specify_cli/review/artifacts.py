@@ -14,16 +14,76 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
 
-from specify_cli.status import ReviewOverride
+from kernel.yaml_io import serialize_mapping
 
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
-REVIEW_ARTIFACT_VERDICTS = frozenset({"approved", "rejected"})
+
+
+_REVIEW_CYCLE_NUMBER_RE = re.compile(r"review-cycle-(\d+)\.md$")
+
+# Campsite (S1192): the ``review-cycle-*.md`` glob and the ``review-cycle-
+# {n}.md`` filename shape were duplicated as literals throughout this module
+# (~16 occurrences pre-hoist). Both are now sourced from here so every glob
+# and every filename build go through a single spelling.
+_REVIEW_CYCLE_GLOB = "review-cycle-*.md"
+
+
+def _review_cycle_filename(cycle_number: int) -> str:
+    """Build the on-disk filename for *cycle_number* (``review-cycle-{n}.md``)."""
+    return f"review-cycle-{cycle_number}.md"
+
+
+def _parse_review_cycle_candidates(sub_artifact_dir: Path) -> tuple[list[int], list[str]]:
+    """Parse ``review-cycle-*.md`` siblings into cycle numbers, for T032/T033.
+
+    Returns a tuple of (parsed cycle numbers, unparseable filenames). A
+    filename is "unparseable" when it matches the ``review-cycle-*.md`` glob
+    but not the strict ``review-cycle-(\\d+)\\.md$`` numbering regex (e.g.
+    ``review-cycle-final.md``). Used only by :meth:`ReviewCycleArtifact.
+    next_cycle_number` — deliberately NOT shared with :func:`_cycle_number_or_zero`
+    (WP13/T058's consolidation of the two former ``latest()``/
+    ``latest_review_artifact_verdict`` closures), which answers a different
+    question ("highest currently readable artifact", where an unparseable
+    sibling correctly sorts as `0`) under different, already-shipped refusal
+    semantics — this function's REFUSAL on an unparseable sibling must not
+    leak into that helper's tolerant sort.
+    """
+    parsed_numbers: list[int] = []
+    unparseable_names: list[str] = []
+    for candidate in sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB):
+        match = _REVIEW_CYCLE_NUMBER_RE.search(candidate.name)
+        if match is None:
+            unparseable_names.append(candidate.name)
+        else:
+            parsed_numbers.append(int(match.group(1)))
+    return parsed_numbers, unparseable_names
+
+
+def _cycle_number_or_zero(path: Path) -> int:
+    """Sort key answering "what cycle number does *path* look like it is",
+    where an unparseable ``review-cycle-*.md`` sibling sorts as ``0`` (i.e.
+    lowest, never masking a genuinely higher-numbered readable artifact).
+
+    WP13 (T058) consolidation: this was two byte-identical inline closures,
+    one each inside :meth:`ReviewCycleArtifact.latest` and
+    :func:`latest_review_artifact_verdict`. Both answer the SAME question
+    ("highest currently-*readable* artifact") and are consolidated here.
+    Deliberately NOT merged with :func:`_parse_review_cycle_candidates`
+    (used only by :meth:`ReviewCycleArtifact.next_cycle_number`), which
+    answers a DIFFERENT question ("is it safe to allocate the next cycle
+    number") under different, already-shipped refusal semantics (WP09) — an
+    unparseable sibling REFUSES there, it does not sort as `0`. Leaking that
+    refusal semantic into this helper would change `latest()`'s answer for
+    already-passing callers; this helper's behaviour is unchanged from the
+    two closures it replaces.
+    """
+    match = _REVIEW_CYCLE_NUMBER_RE.search(path.name)
+    return int(match.group(1)) if match else 0
 
 
 def _make_yaml() -> YAML:
@@ -73,16 +133,6 @@ class AffectedFile:
 
 
 @dataclass(frozen=True)
-class LatestReviewArtifactVerdict:
-    """Verdict summary for the latest ``review-cycle-N.md`` artifact."""
-
-    path: Path
-    cycle_number: int
-    verdict: str
-    has_override: bool = False  # complete approval override stamped on the artifact
-
-
-@dataclass(frozen=True)
 class ReviewCycleArtifact:
     """A persisted review cycle artifact.
 
@@ -94,7 +144,6 @@ class ReviewCycleArtifact:
     wp_id: str
     mission_slug: str
     reviewer_agent: str
-    verdict: str  # "rejected" | "approved"
     reviewed_at: str  # ISO 8601 UTC
     affected_files: list[AffectedFile] = field(default_factory=list)
     reproduction_command: str | None = None
@@ -125,7 +174,6 @@ class ReviewCycleArtifact:
             "reproduction_command": self.reproduction_command,
             "reviewed_at": self.reviewed_at,
             "reviewer_agent": self.reviewer_agent,
-            "verdict": self.verdict,
             "wp_id": self.wp_id,
         }
         # Round-trip the approval-override block when present so a
@@ -160,9 +208,12 @@ class ReviewCycleArtifact:
         reviewer_agent = data.get("reviewer_agent")
         if not isinstance(reviewer_agent, str) or not reviewer_agent:
             raise ValueError("reviewer_agent must be a non-empty string")
-        verdict = data.get("verdict")
-        if not isinstance(verdict, str) or verdict not in REVIEW_ARTIFACT_VERDICTS:
-            raise ValueError("verdict must be one of: approved, rejected")
+        # FR-003/SC-007 (WP06): the frontmatter no longer carries `verdict` as an
+        # authoritative field -- every verdict reader resolves the event
+        # authority instead (WP05's reader collapse). A stray legacy `verdict`
+        # key on an old, pre-schema-change `.md` file is silently ignored here
+        # (not stored on the dataclass, not validated) -- this deserializer
+        # deliberately no longer requires OR accepts it as authoritative.
         reviewed_at = data.get("reviewed_at")
         if not isinstance(reviewed_at, str) or not reviewed_at:
             raise ValueError("reviewed_at must be a non-empty string")
@@ -187,7 +238,6 @@ class ReviewCycleArtifact:
             wp_id=wp_id,
             mission_slug=mission_slug,
             reviewer_agent=reviewer_agent,
-            verdict=verdict,
             reviewed_at=reviewed_at,
             affected_files=affected_files,
             reproduction_command=reproduction_command,
@@ -200,18 +250,32 @@ class ReviewCycleArtifact:
         """Write this artifact to disk as a markdown file with YAML frontmatter.
 
         The parent directory is created if it does not exist.
+
+        Serialization is delegated to :func:`kernel.yaml_io.serialize_mapping`
+        (#3058 follow-up): its rt/preserve_quotes/default_flow_style/width=4096
+        configuration is byte-for-byte identical to :func:`_make_yaml`'s for
+        every frontmatter scalar within the 4096 wrap width (verified by
+        ``tests/review/test_artifacts_yaml_seam.py``) — the payloads this
+        artifact produces. The sole divergence is a scalar long enough to wrap
+        past 4096 columns, where ``serialize_mapping`` additionally strips the
+        non-semantic trailing whitespace the old path left (a strict
+        improvement, semantically identical). So this migration is a pure
+        internal seam consolidation with no observable output change for real
+        review-cycle payloads.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
-        yaml = _make_yaml()
-        stream = StringIO()
-        yaml.dump(self.to_dict(), stream)
-        frontmatter_text = stream.getvalue()
+        frontmatter_text = serialize_mapping(self.to_dict()).decode("utf-8")
 
         content = f"---\n{frontmatter_text}---\n"
         if self.body:
             content += f"\n{self.body}"
 
-        path.write_text(content, encoding="utf-8")
+        # Write bytes so the canonical LF representation is identical on every
+        # platform.  Text-mode writes with ``newline=None`` translate ``\n`` to
+        # CRLF on Windows, while Git's clean conversion can store LF in the
+        # governed-ref blob; exact durability read-back must compare the same
+        # bytes on both sides rather than normalize that mismatch away.
+        path.write_bytes(content.encode("utf-8"))
 
     @classmethod
     def from_file(cls, path: Path) -> ReviewCycleArtifact:
@@ -274,94 +338,78 @@ class ReviewCycleArtifact:
 
         Returns None if no review-cycle-*.md files exist.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
+        candidates = list(sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB))
         if not candidates:
             return None
 
-        def _cycle_num(p: Path) -> int:
-            m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-            return int(m.group(1)) if m else 0
-
-        candidates.sort(key=_cycle_num)
+        candidates.sort(key=_cycle_number_or_zero)
         return ReviewCycleArtifact.from_file(candidates[-1])
+
+    @staticmethod
+    def latest_cycle_number(sub_artifact_dir: Path) -> int:
+        """Return the highest review-cycle number present, by FILENAME only.
+
+        Unlike :meth:`latest`, this never parses a candidate's body/
+        frontmatter — it reuses the same tolerant :func:`_cycle_number_or_zero`
+        sort key :meth:`latest` sorts with, so an unparseable or otherwise
+        damaged sibling (e.g. a merge-conflict-marked file with no valid YAML
+        frontmatter at all -- #3244) sorts as ``0`` rather than raising.
+        Callers that only need the NUMBER (not the parsed artifact) -- e.g.
+        :func:`specify_cli.review.arbiter.persist_arbiter_decision` -- should
+        prefer this over ``latest(...).cycle_number`` so a damaged artifact
+        cannot crash resolution.
+
+        Returns 0 if no review-cycle-*.md files exist.
+        """
+        candidates = list(sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB))
+        return max((_cycle_number_or_zero(p) for p in candidates), default=0)
 
     @staticmethod
     def next_cycle_number(sub_artifact_dir: Path) -> int:
         """Return the next cycle number for a new artifact in *sub_artifact_dir*.
 
-        Returns 1 if no review-cycle-*.md files exist.
+        Derives the result as ``max(parsed cycle numbers) + 1`` — never a count
+        of files present (FR-006 / I-2) — so a numbering gap (e.g. cycles 1 and
+        3 present, 2 missing) cannot produce a number that collides with an
+        existing artifact. Returns 1 if no review-cycle-*.md files exist.
+
+        Raises:
+            ValueError: if any sibling filename matches the
+                ``review-cycle-*.md`` glob but cannot be parsed for its cycle
+                number under the strict ``review-cycle-(\\d+)\\.md$`` regex —
+                the true next number cannot be established with confidence
+                while such a file is present, so this refuses rather than
+                silently excluding it from the derivation (which would
+                reproduce the identical defect one level down). Also raised
+                (defensively) if the derived next number already names a file
+                that exists on disk.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
-        return len(candidates) + 1
+        parsed_numbers, unparseable_names = _parse_review_cycle_candidates(
+            sub_artifact_dir
+        )
+        if unparseable_names:
+            raise ValueError(
+                f"Cannot determine next cycle number in {sub_artifact_dir}: "
+                "unparseable review-cycle filename(s): "
+                f"{', '.join(sorted(unparseable_names))}"
+            )
+        if not parsed_numbers:
+            return 1
+        next_number = max(parsed_numbers) + 1
+        collision_path = sub_artifact_dir / _review_cycle_filename(next_number)
+        if collision_path.exists():
+            raise ValueError(
+                f"Cannot allocate cycle number {next_number} in "
+                f"{sub_artifact_dir}: {collision_path.name} already exists"
+            )
+        return next_number
 
 
-def latest_review_artifact_verdict(
-    sub_artifact_dir: Path,
-    *,
-    snapshot_override: ReviewOverride | None = None,
-) -> LatestReviewArtifactVerdict | None:
-    """Return verdict metadata for the highest-numbered review artifact.
-
-    This helper is intentionally limited to review artifact state.  Callers can
-    use it in merge or status gates, but it does not decide whether a workflow
-    transition should pass.
-
-    FR-009 (WP09): override recognition resolves from the reduced ``review``
-    snapshot slot. ``snapshot_override`` is the event-sourced
-    :class:`ReviewOverride` for this WP (supplied by the caller that already
-    materialized the snapshot); it is the single authority. The artifact
-    frontmatter parse (``ReviewCycleArtifact.has_complete_override``) is retained
-    ONLY as an FR-005 migration-window fallback — snapshot-first, not dual — so a
-    not-yet-backfilled legacy on-disk override is still honored until WP03's
-    backfill verify passes and WP10 deletes the fallback. An *incomplete* override
-    (missing any of ``at``/``actor``/``wp_id``/``reason``) is never honored on
-    either leg (``ReviewOverride.complete`` mirrors the legacy predicate).
-    """
-    candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
-    if not candidates:
-        return None
-
-    def _cycle_num(p: Path) -> int:
-        m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-        return int(m.group(1)) if m else 0
-
-    candidates.sort(key=_cycle_num)
-    path = candidates[-1]
-    artifact = ReviewCycleArtifact.from_file(path)
-    snapshot_complete = snapshot_override is not None and snapshot_override.complete
-    has_override = snapshot_complete or artifact.has_complete_override
-    return LatestReviewArtifactVerdict(
-        path=path,
-        cycle_number=artifact.cycle_number,
-        verdict=artifact.verdict,
-        has_override=has_override,
-    )
-
-
-def rejected_review_artifact_for_terminal_lane(
-    sub_artifact_dir: Path,
-    lane: str,
-    *,
-    snapshot_override: ReviewOverride | None = None,
-) -> LatestReviewArtifactVerdict | None:
-    """Return the latest rejected artifact when a WP is approved or done.
-
-    A rejected artifact carrying a complete approval override is NOT a conflict:
-    the override is the recorded approval that the approval gate honored, so the
-    terminal-lane consistency gate must honor it too (#1924). Per FR-009 (WP09)
-    the override is resolved from the event-sourced ``review`` snapshot slot
-    (``snapshot_override``) with the artifact-frontmatter parse retained only as a
-    migration-window fallback.
-    """
-    state = latest_review_artifact_verdict(
-        sub_artifact_dir, snapshot_override=snapshot_override
-    )
-    if state is None:
-        return None
-    if (
-        str(lane) in TERMINAL_REVIEW_LANES
-        and state.verdict == "rejected"
-        and not state.has_override
-    ):
-        return state
-    return None
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003) retired
+# ``latest_review_artifact_verdict`` and ``rejected_review_artifact_for_
+# terminal_lane`` here -- the two genuine verdict-parser functions this
+# module carried (squad #1's scope correction: NOT ``ReviewCycleArtifact.
+# latest``/``.from_file``, which are content/cycle-number loaders, kept
+# above). Every consumer now resolves the event authority
+# (``status.event_sourced_review_result``) instead; WP08's reconciliation task
+# records the retired reader set.

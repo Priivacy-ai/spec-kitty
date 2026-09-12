@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PR-CONTRACT-001
+    lens: host-cli-parity
+    severity: 3
+    title: "record-analysis validates body/carrier BEFORE the dirty-worktree preflight; the host CLI validates the dirty-worktree preflight BEFORE reading the body — a real ordering fork, live-confirmed"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:2684-2705 (record_analysis: body = _read_record_analysis_body(...); if not body.strip(): fail RECORD_ANALYSIS_EMPTY_BODY; ... parse_structured_findings(body) -> RECORD_ANALYSIS_MALFORMED_CARRIER; THEN placement_ref resolution -> PLACEMENT_RESOLUTION_REQUIRED; THEN _enforce_analysis_report_write_preflight(...) -> DIRTY_WORKTREE, at line ~2730)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:274-293 (record_analysis: feature_dir resolution -> placement_ref -> _require_record_analysis_placement -> _enforce_analysis_report_write_preflight(...) [dirty-worktree check] ALL run BEFORE `body = sys.stdin.read() ...` / `if not body.strip(): ...` at lines 291-293)"
+    claim: >
+      Under a simultaneous dirty-worktree + empty/malformed-body condition, the
+      two surfaces report DIFFERENT first error_codes for the identical
+      logical request: orchestrator-api's `record-analysis` reads and
+      validates the submitted body (empty-body check, then
+      analysis-findings/v1 carrier parsing) BEFORE resolving placement and
+      running the dirty-worktree preflight; the host CLI's own
+      `record_analysis` (mission_record_analysis.py) does the opposite —
+      placement resolution and the dirty-worktree preflight run FIRST, body
+      is read and validated only afterward. This is exactly the
+      "check in the right place but the wrong order is still a fork" class
+      the mission's own WP05-001 (`defer`/`cancel-decision` empty
+      `--rationale`) and WP08-001 (`answer-decision` invalid `--result`)
+      findings already fixed for two other verbs — a third, undetected
+      instance of the same class in `record-analysis`, not covered by any
+      existing test (grepped `tests/specify_cli/orchestrator_api/
+      test_check_prerequisites_record_analysis.py` for a combined
+      dirty-worktree+empty-body case; none exists).
+
+      Live-reproduced independently (not from the mission's own test suite):
+      built a real mission via `specify`/`plan`/`tasks`, dirtied the working
+      tree with one untracked file, then called `record-analysis` with an
+      empty stdin body (`--input-file -`) through BOTH surfaces against
+      otherwise-identical fixtures. orchestrator-api returned
+      `error_code: "RECORD_ANALYSIS_EMPTY_BODY"`; the host CLI
+      (`spec-kitty agent mission record-analysis --json`) returned
+      `error_code: "DIRTY_WORKTREE"` (with `dirty_paths` naming the
+      untracked file) for the SAME on-disk state. An external orchestrator
+      that branches its remediation logic on `error_code` (e.g. "stash and
+      retry" for `DIRTY_WORKTREE` vs "re-run analyze" for
+      `RECORD_ANALYSIS_EMPTY_BODY`) gets a different, non-parity answer
+      depending on which surface it called — silent behavioural drift from
+      the host CLI this verb is documented to mirror.
+    remediation: >
+      Move the placement-resolution + `_enforce_analysis_report_write_preflight`
+      call in `record_analysis` (commands.py) to run BEFORE the
+      `_read_record_analysis_body`/empty-body check and the
+      `parse_structured_findings` carrier check, matching the host CLI's own
+      ordering exactly (mission_record_analysis.py:274-293). Add a regression
+      test constructing a dirty worktree together with an empty/malformed
+      body and asserting `DIRTY_WORKTREE` is the reported error_code on both
+      surfaces, mirroring the existing WP05-001/WP08-001 ordering-parity
+      tests' pattern.
+  - id: PR-CONTRACT-002
+    lens: error-code-fidelity
+    severity: 2
+    title: "DecisionErrorCode.VERIFY_DRIFT is dormant and absent from upstream_contract.json's allow-list; the mission's four new decision verbs propagate any DecisionErrorCode verbatim with no allow-list guard"
+    evidence:
+      - code: "src/specify_cli/decisions/models.py:62 (VERIFY_DRIFT = \"DECISION_VERIFY_DRIFT\", declared, never diffed by this mission)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2938-2945,3000-3007,3057-3064,3109-3116 (open/resolve/defer/cancel-decision: `except DecisionError as exc: _fail(cmd, exc.code.value, str(exc), exc.details); return` — trusts exc.code.value verbatim for ANY DecisionErrorCode member, no allow-list check)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:357-381 (_fail: builds and emits the envelope with the caller-supplied error_code string directly; no validation against upstream_contract.json's allowed_error_codes at emission time)"
+    claim: >
+      `DecisionErrorCode.VERIFY_DRIFT` is a pre-existing enum member (not
+      touched by this mission's diff) that `decisions/service.py` never
+      raises today (grepped every `DecisionErrorCode.` use site in
+      service.py — six other members are raised, VERIFY_DRIFT is not one of
+      them) and that is absent from `upstream_contract.json`'s
+      `allowed_error_codes` (confirmed: none of the 24 newly-registered
+      codes is `DECISION_VERIFY_DRIFT`, and it was not present pre-mission
+      either). Currently unreachable, so this is not a live defect. But this
+      mission is exactly the one that newly wires FOUR verbs
+      (`open-decision`/`resolve-decision`/`defer-decision`/
+      `cancel-decision`) that catch `DecisionError` and propagate
+      `exc.code.value` straight into the envelope's `error_code` field with
+      no allow-list validation at emission time (`_fail` performs none
+      either) — if `decisions/service.py` ever grows a verify/drift check
+      that raises `DecisionError(code=DecisionErrorCode.VERIFY_DRIFT, ...)`
+      (the member's name and its solitary existing reference, a
+      value-only unit test in `tests/specify_cli/decisions/test_models.py`,
+      both suggest it was anticipated for exactly such a future use), any of
+      these four new verbs would silently emit an unregistered
+      `error_code` — a CI-invisible contract violation, since
+      `TestAllowedErrorCodes` in `tests/contract/test_orchestrator_api.py`
+      checks literal `_fail(...)` call sites statically, not values reached
+      via `exc.code.value` propagation, and nothing at runtime cross-checks
+      an emitted `error_code` against the contract's allow-list.
+    remediation: >
+      Either (a) add `DECISION_VERIFY_DRIFT` to `upstream_contract.json`'s
+      `allowed_error_codes` now, defensively, since the four new verbs this
+      mission adds are the exact propagation path that would surface it the
+      moment `decisions/service.py` starts raising it, or (b) if
+      `VERIFY_DRIFT` is genuinely dead/unplanned, remove the enum member
+      (or add an explicit comment on it and its `test_models.py` reference
+      stating it is reserved-but-unused) so a future contributor does not
+      wire a fifth verb that assumes every `DecisionErrorCode` member is
+      contract-registered.

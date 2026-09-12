@@ -1,0 +1,52 @@
+{
+  "base_commit": "7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41",
+  "block_enabled": false,
+  "expected": {
+    "blocked": false,
+    "console": "[dim]Pre-review regression gate: no new failures[/dim]",
+    "exit_code": null,
+    "force_bypassed": false,
+    "metadata": {
+      "affected_shard_count": 1,
+      "block_enabled": false,
+      "blocked": false,
+      "force_bypassed": false,
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [
+        "status"
+      ],
+      "new_failure_count": 0,
+      "new_failure_nodeids": [],
+      "outcome": "no_new_failures",
+      "pre_existing_failure_count": 0,
+      "reason": null,
+      "run_state": "completed",
+      "test_targets": [
+        "tests/status"
+      ]
+    },
+    "outcome": "no_new_failures",
+    "terminal": false,
+    "transition_applied": true
+  },
+  "force": false,
+  "oracle_provenance": "captured from base commit 7081cf0537c6d2b7cddde3b1bd3c09be2dc61e41 against the incumbent _mt_run_pre_review_gate (never regenerated from HEAD)",
+  "verdict": {
+    "new_failures": [],
+    "outcome": "no_new_failures",
+    "pre_existing_failures": [],
+    "reason": null,
+    "run_state": "completed",
+    "scope": {
+      "empty_cone_composite_dirs": [],
+      "excluded_scope_files": [],
+      "matched_composite_dirs": [],
+      "matched_shard_groups": [
+        "status"
+      ],
+      "test_targets": [
+        "tests/status"
+      ]
+    }
+  }
+}

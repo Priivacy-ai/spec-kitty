@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import builtins
 import json
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from unittest.mock import patch
 
@@ -678,7 +678,7 @@ class TestLifecycleCommand:
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "claimed",
-            "at": datetime.now(UTC).isoformat(),
+            "at": now_utc_iso(),
             "actor": "test-agent",
             "force": False,
             "execution_mode": "worktree",

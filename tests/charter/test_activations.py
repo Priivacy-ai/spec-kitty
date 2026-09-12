@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`charter.activations` — the charter-level
+"""Unit tests for :mod:`charter.activation.activations` — the charter-level
 activation registry surface introduced by WP01 of mission
 ``charter-mediated-doctrine-selection-01KRTZCA``.
 
@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from charter.activations import (
+from charter.activation.activations import (
     ALLOWED_ACTIONS,
     ALLOWED_MISSION_TYPES,
     REGISTERED_TRIGGERS,
@@ -222,9 +222,9 @@ def test_allowed_actions_is_the_canonical_10_token_set() -> None:
             "review",
             "merge",
             "accept",
-            "charter.interview",
+            "charter.activation.interview",
             "charter.generate",
-            "charter.context",
+            "charter.activation.context",
         }
     )
     assert expected_actions == ALLOWED_ACTIONS, (

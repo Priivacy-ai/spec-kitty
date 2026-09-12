@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "kitty-specs"
 GLOSSARY_SEED = ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 GLOSSARY_TEMPLATE = ROOT / "src" / "specify_cli" / "dashboard" / "templates" / "glossary.html"
+GLOSSARY_STATIC_DIR = ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard"
+GLOSSARY_CSS = GLOSSARY_STATIC_DIR / "glossary.css"
+GLOSSARY_JS = GLOSSARY_STATIC_DIR / "glossary.js"
 DEST = ROOT / "docs" / "kitty-specs"
 
 LANES = ["planned", "doing", "for_review", "approved", "done"]
@@ -54,9 +57,10 @@ def read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
+    return data if isinstance(data, dict) else {}
 
 
 def read_text(path: Path) -> str:
@@ -75,11 +79,13 @@ def mission_name(path: Path, meta: dict[str, Any]) -> str:
 
 def sort_key(mission: Mission) -> tuple[int, str]:
     number = mission.meta.get("mission_number")
-    try:
-        return (-int(number), mission.name.lower())
-    except (TypeError, ValueError):
-        created = str(mission.meta.get("created_at") or "")
-        return (0, f"{created} {mission.name}".lower())
+    if isinstance(number, (int, str)):
+        try:
+            return (-int(number), mission.name.lower())
+        except ValueError:
+            pass
+    created = str(mission.meta.get("created_at") or "")
+    return (0, f"{created} {mission.name}".lower())
 
 
 def parse_task_titles(tasks_md: str) -> dict[str, str]:
@@ -91,7 +97,14 @@ def parse_task_titles(tasks_md: str) -> dict[str, str]:
     return titles
 
 
-def parse_frontmatter(markdown: str) -> tuple[dict[str, Any], str]:
+def _parse_frontmatter_and_body(markdown: str) -> tuple[dict[str, Any], str]:
+    """Split a WP prompt's leading ``---`` frontmatter from its body.
+
+    Local body-splitting variant that returns ``(frontmatter, body)`` — distinct
+    from the canonical :func:`scripts.docs._inventory.parse_frontmatter`, which
+    returns only the parsed mapping. Kept private to this generator so the shared
+    name no longer collides across two different signatures.
+    """
     lines = markdown.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, markdown
@@ -207,8 +220,8 @@ def table_to_html(rows: list[str]) -> str:
     body_rows = parsed[2:] if re.fullmatch(r"\s*\|?[\s:|\\-]+\|?\s*", rows[1]) else parsed[1:]
     head_html = "".join(f"<th>{inline_md(cell)}</th>" for cell in header)
     body_html = []
-    for row in body_rows:
-        cells = row + [""] * max(0, len(header) - len(row))
+    for body_row in body_rows:
+        cells = body_row + [""] * max(0, len(header) - len(body_row))
         body_html.append("<tr>" + "".join(f"<td>{inline_md(cell)}</td>" for cell in cells[: len(header)]) + "</tr>")
     return f"<table><thead><tr>{head_html}</tr></thead><tbody>{''.join(body_html)}</tbody></table>"
 
@@ -406,7 +419,7 @@ def active_agents(mission: Mission) -> list[str]:
         prompt_file = prompt_file_for_wp(mission, wp_id)
         if prompt_file is None:
             continue
-        frontmatter, _ = parse_frontmatter(read_text(prompt_file))
+        frontmatter, _ = _parse_frontmatter_and_body(read_text(prompt_file))
         agent = str(frontmatter.get("agent") or "")
         if agent:
             agents.add(agent)
@@ -478,7 +491,7 @@ def lanes(mission: Mission) -> dict[str, list[dict[str, Any]]]:
             column_lane = "planned"
         prompt_file = prompt_file_for_wp(mission, wp_id)
         prompt_markdown = read_text(prompt_file) if prompt_file else ""
-        frontmatter, prompt_body = parse_frontmatter(prompt_markdown)
+        frontmatter, prompt_body = _parse_frontmatter_and_body(prompt_markdown)
         subtasks = frontmatter.get("subtasks")
         if not isinstance(subtasks, list):
             subtasks = []
@@ -873,6 +886,13 @@ def assign_anchor_ids(terms: list[dict[str, str | float]]) -> list[dict[str, str
 def glossary_page(_mission_list: list[Mission]) -> str:
     terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
     template = GLOSSARY_TEMPLATE.read_text(encoding="utf-8")
+    # The dashboard's own CSP (script-src/style-src 'self', src/specify_cli/dashboard/csp.py)
+    # forced the template's styling and behaviour out to same-origin glossary.css/glossary.js
+    # (#71). The static docs site has no dashboard server to serve those from, so this
+    # generator inlines both back into the page it writes, same as when they lived in the
+    # template directly.
+    css = GLOSSARY_CSS.read_text(encoding="utf-8")
+    script = GLOSSARY_JS.read_text(encoding="utf-8")
     static_loader = f"""
 async function loadTerms() {{
   TERMS = {json.dumps(terms, ensure_ascii=False)};
@@ -883,19 +903,17 @@ async function loadTerms() {{
   render();
 }}
 """
-    template = re.sub(
+    script = re.sub(
         r"async function loadTerms\(\) \{.*?\n\}\n\nfunction renderValidationBanner\(",
         lambda _match: static_loader + "\nfunction renderValidationBanner(",
-        template,
+        script,
         count=1,
         flags=re.DOTALL,
     )
-    template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
-    template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
     # FR-012: give every rendered term card a stable id="term-{anchor_id}" (plus a
     # data-surface attribute for debugging/inspection) so glossary_linker.py and any
     # external page can deep-link straight to a term with #term-{anchor_id}.
-    template = template.replace(
+    script = script.replace(
         "      const card = document.createElement('article');\n"
         "      card.className = 'card';\n"
         "      card.dataset.status = t.status;\n",
@@ -904,6 +922,16 @@ async function loadTerms() {{
         "      card.id = 'term-' + t.anchor_id;\n"
         "      card.dataset.status = t.status;\n"
         "      card.dataset.surface = t.surface;\n",
+    )
+    template = template.replace('href="/" title="Dashboard Overview"', 'href="./" title="Mission Runs"')
+    template = template.replace('href="/glossary" title="Glossary"', 'href="glossary.html" title="Glossary"')
+    template = template.replace(
+        '<link rel="stylesheet" href="/static/dashboard/glossary.css">',
+        f"<style>\n{css}\n</style>",
+    )
+    template = template.replace(
+        '<script src="/static/dashboard/glossary.js"></script>',
+        f"<script>\n{script}\n</script>",
     )
     return template
 

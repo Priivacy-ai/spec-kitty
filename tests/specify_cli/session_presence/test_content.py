@@ -30,10 +30,6 @@ class TestRenderHealthy:
         rendered = healthy_content.render()
         assert "spec-kitty.specify" in rendered
 
-    def test_contains_lightweight_pattern(self, healthy_content: SessionPresenceContent) -> None:
-        rendered = healthy_content.render()
-        assert "spec-kitty dispatch" in rendered
-
     def test_contains_dispatch_command(self, healthy_content: SessionPresenceContent) -> None:
         """T016 pin: orientation block must name spec-kitty dispatch (FR-006/NFR-005)."""
         rendered = healthy_content.render()

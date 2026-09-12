@@ -1,0 +1,88 @@
+work_packages:
+  - id: WP01
+    title: "dispatch --dry-run flag + payload shape"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/cli/commands/dispatch.py"
+      - "src/specify_cli/invocation/executor.py"
+      - "src/specify_cli/invocation/router.py"
+      - "docs/api/cli-commands.md"
+      - "tests/specify_cli/invocation/cli/test_dispatch.py"
+      - "tests/invocation/test_dispatch_recommendation.py"
+      - "tests/glossary/test_chokepoint.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-008
+      - FR-009
+      - FR-010
+      - FR-011
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-006
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"
+
+  - id: WP02
+    title: "RouterDecision.alternatives on dry-run and real dispatch"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/invocation/router.py"
+      - "src/specify_cli/invocation/executor.py"
+      - "src/specify_cli/invocation/empty_charter.py"
+      - "tests/specify_cli/invocation/test_router.py"
+      - "tests/specify_cli/invocation/cli/test_dispatch.py"
+      - "tests/specify_cli/invocation/test_invocation_e2e.py"
+    requirement_refs:
+      - FR-005
+    cross_cutting: true
+    subtasks:
+      - T007
+      - T008
+      - T009
+      - T010
+    prompt_file: "tasks/WP02-router-decision-alternatives.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"
+
+  - id: WP03
+    title: "SK-08 rerank: canonical-verb outranks domain-keyword"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/invocation/router.py"
+      - "CHANGELOG.md"
+      - "tests/specify_cli/invocation/test_router.py"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - C-002
+      - C-004
+    cross_cutting: true
+    subtasks:
+      - T011
+      - T012
+      - T013
+    prompt_file: "tasks/WP03-sk08-rerank-canonical-verb-tier.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+    model: "claude-sonnet-4-6"

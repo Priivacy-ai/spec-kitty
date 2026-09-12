@@ -1,0 +1,82 @@
+schema: review-findings/v1
+phase: pr
+group: contract
+complete: true
+findings:
+  - id: PR-CONTRACT-001
+    severity: 3
+    lens: silent-success
+    location: src/specify_cli/doctrine/pack_validator.py:839-875 (_check_profile_skipped_diagnostics), src/specify_cli/doctrine/pack_validator.py:648-683 (_check_drg_root_graph_missing)
+    finding: >-
+      _check_profile_skipped_diagnostics constructs
+      doctrine.agent_profiles.repository.AgentProfileRepository(org_dirs=[...])
+      and calls .skipped_profiles() with zero exception handling around
+      either call. Repository construction resolves the built-in profiles
+      directory via doctrine.pack_paths.built_in_dir(), which is documented
+      to raise PackRootNotFound / BuiltInContentDirNotAvailable when the
+      built-in pack tree cannot be located. Any exception from either call
+      propagates uncaught through validate_pack() and out through both CLI
+      entry points (pack_validate and org_validate in
+      src/specify_cli/cli/commands/doctrine.py), neither of which wraps the
+      validate_pack() call in a try/except. The failure mode is a raw Python
+      traceback, not the structured {"ok": ..., "errors": [...]} JSON payload
+      pack_validate --json / doctrine org validate promise, and not a
+      typer.Exit(1) either. This is the inverse of the silent-success bug
+      this mission fixes (loud, uncontrolled crash rather than a false-clean
+      report), but it is a genuine gap in the same trust boundary: it is a
+      brand-new call in this diff, unlike every other external call this same
+      module makes, all of which already carry matching exception handling
+      for their documented failure modes — _load_built_in_ids_per_kind (a
+      few functions below, in this same file) calls the identical
+      built_in_dir() seam and explicitly catches
+      (PackRootNotFound, BuiltInContentDirNotAvailable); _validate_drg wraps
+      load_built_in_graph() in (ModuleNotFoundError, DRGLoadError, OSError);
+      _scan_artifact_directory wraps schema_cls.model_validate(...) in
+      ValidationError. _check_profile_skipped_diagnostics is the sole new
+      external call in this diff with no matching guard. The sibling new
+      function _check_drg_root_graph_missing has the same shape of gap for a
+      different reason: its two Path.glob("*.graph.yaml") calls are
+      unguarded I/O, so an OSError/PermissionError reading an unreadable or
+      corrupted drg/ directory would also propagate uncaught rather than
+      degrading to "no finding" or a reported issue (this half could not be
+      exercised directly in this sandbox, where chmod 000 did not restrict
+      the review agent's own reads; it is a code-inspection finding, not a
+      reproduced crash, and is reported at lower confidence than the
+      profile-skip half).
+    evidence: >-
+      Direct reproduction: patching
+      doctrine.agent_profiles.repository.AgentProfileRepository to raise
+      RuntimeError and calling
+      specify_cli.doctrine.pack_validator.validate_pack(pack_dir) on an
+      otherwise-valid pack (one agent_profiles/foo.agent.yaml file) raises
+      RuntimeError uncaught out of validate_pack — confirmed by running
+      `uv run python -c "..."` in this checkout; output: "CRASHED
+      (propagated uncaught): RuntimeError simulated: built-in pack root not
+      found in this environment". Contrast
+      src/specify_cli/doctrine/pack_validator.py:909-914
+      (_load_built_in_ids_per_kind), which explicitly catches
+      `(PackRootNotFound, BuiltInContentDirNotAvailable)` around the same
+      built_in_dir() seam. Neither
+      src/specify_cli/cli/commands/doctrine.py:370 (pack_validate) nor :972
+      (org_validate) wraps its validate_pack() call in a try/except, so
+      nothing between the raise site and the Typer command boundary would
+      catch it. tests/specify_cli/doctrine/test_pack_validator.py's
+      TestProfileSkippedDiagnostics class (lines 853-1008) covers the happy
+      path, the schema-invalid dedup path, the clean-pack path, and the
+      absent-directory path, but has no test for AgentProfileRepository
+      construction/skipped_profiles() itself raising — this exact scenario
+      has zero test coverage.
+    fix: >-
+      Wrap the AgentProfileRepository(...) construction and
+      .skipped_profiles() call in _check_profile_skipped_diagnostics in a
+      narrow try/except matching the sibling function's pattern
+      ((PackRootNotFound, BuiltInContentDirNotAvailable), plus any other
+      documented failure mode of that constructor), and surface the failure
+      as a ValidationIssue (e.g. category "profile_check_unavailable",
+      severity advisory or error per the spec's own intent) rather than
+      letting it escape validate_pack. Add a regression test that forces the
+      constructor to raise and asserts validate_pack degrades to a reported
+      issue instead of propagating. Do the same for
+      _check_drg_root_graph_missing's two glob() calls (wrap in OSError, or
+      confirm and document that Path.glob() cannot raise for this call
+      shape and the concern is moot).

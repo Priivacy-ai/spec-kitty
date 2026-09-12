@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 from specify_cli.tool_surface.findings import (
     PROFILE_NAME_INVALID,
     PROFILE_OVERLAY_CONFLICT,

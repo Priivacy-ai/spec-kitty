@@ -1,0 +1,55 @@
+schema: review-verify/v1
+complete: false
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      WP02 T009 step 4 now states explicitly that `path_result` is not an injectable
+      argument of `evaluate_path_conventions` (confirmed against the live signature at
+      summary_core.py:110-117, which has no `path_result` parameter), and names the
+      concrete mechanism — monkeypatching `specify_cli.acceptance.summary_core.validate_mission_paths`
+      to return a `SimpleNamespace` with a pre-set `missing_paths_feature_relative`,
+      matching the sibling `TestEvaluatePathConventions` class's existing convention —
+      resolving remediation option (b) from the finding.
+
+  - id: TASKS-FRESH-002
+    status: unresolved
+    remaining_severity: 3
+    reason: >
+      plan.md's WP4 "Assertions" item 3 (lines ~716-725) still reads verbatim "confirming
+      `optional_missing` and `path_violations` in the JSON payload reflect the same
+      single-severity resolution as the console/summary-object path — no format-specific
+      drift" — the exact non-falsifiable framing WP04-red-first-tests.md's Assertion 3
+      explicitly rejects and replaces (it now asserts directly on the parsed JSON's own
+      keys). The revert-test summary table's WP2 row (line 755) still lists only three
+      tests (dedup+.ok, console-render, lenient-mode) with no mention of Test (d)/the
+      collision guard, and the WP1 row does not name `missing_paths_feature_relative`.
+      Round-3's plan.md commit (924ba2c71) fixed PLAN-FRESH2-001/002/003 (WP1 Case B,
+      the absolute-path branch, the artifact_tokens membership-filter overclaim) but did
+      not touch WP4's Assertions text or add a Test-(d) line to the WP2 table row — a
+      grep for "deviation", "TASKS-VERIFY", "TASKS-FRESH", "independently falsifiable",
+      or "Test (d)" across plan.md returns zero matches. Neither remediation path
+      (reconcile the text, or add an explicit deviation note) was taken; the stale
+      "settled contract" gap this finding described is unchanged.
+
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: >
+      T009 step 4 replaces the prior single mismatched-string fixture with two sub-cases.
+      (d-ii) is a genuine regression guard: `mission.config.artifacts.optional = []`
+      (nothing colliding), `missing_paths_feature_relative = ["build-secrets"]`,
+      `optional_missing_to_dedup = ["build-secrets"]`; asserts the list stays unchanged.
+      Verified against live `paths.py`: a filter-present implementation builds
+      `{t for t in missing_paths_feature_relative if t in artifact_tokens}` = {} (since
+      artifact_tokens is empty), so nothing is removed — matches the assertion. A
+      filter-omitted implementation (matching directly against the raw
+      `missing_paths_feature_relative` list) would remove "build-secrets", producing []
+      — failing the assertion. This is a real presence-vs-absence discriminator, unlike
+      the prior round's fixture. (d-i) is honestly disclaimed in the task text itself as
+      non-discriminating (documents correct behavior only), matching the anti-laziness
+      requirement to say so explicitly rather than pretend it closes the gap. The
+      task's cited branch-selection mechanics (`if candidate.is_absolute(): ... elif
+      _normalize_path_token(declared[key]) in artifact_tokens: ... else: ...` at
+      paths.py:198-202, is_absolute() checked before the artifact_tokens elif) match the
+      live code exactly.

@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event'
+description: 'One generic `InnerStateChanged` event carries a typed `WPInnerStateDelta`, folded per field by the reducer, bypassing transition validation and never touching `force_count`.'
 status: Accepted
 date: '2026-07-19'
 ---

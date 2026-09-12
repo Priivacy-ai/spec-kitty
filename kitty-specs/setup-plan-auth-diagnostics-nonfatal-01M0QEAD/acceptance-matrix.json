@@ -1,0 +1,535 @@
+{
+  "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "mission_number": "196",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Eligible local verification runs regardless of hosted readiness, so an unrelated hosted-delivery condition cannot block planning.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_setup_plan_preserves_full_local_matrix_across_readiness covers 12 local outcomes across 8 readiness variants.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": "Runtime authority: 635925301b171c8a35aed8cd125507b7e639b0e6, ad14a74274a076502a06249ea8838537c6863ead, 257732344d289677f2df6083e66b9f10cecc7640."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The supported local session authority reports both assessment completion and usable-session presence.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_encrypted_refresh_session_never_reads_queue_scope and test_real_unreadable_storage_adds_only_auth_unknown_to_baseline.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Queue scope is excluded from authentication classification and cannot become a second authentication authority.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_encrypted_refresh_session_never_reads_queue_scope plus NI-001.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A usable refresh token establishes a usable local session even when the access token is expired.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_encrypted_refresh_session_never_reads_queue_scope uses real encrypted storage, expired access, and usable refresh.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A conclusively logged-out operator receives one nonfatal SAAS_SYNC_UNAUTHENTICATED warning while local verification continues.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; authenticated/logged-out/auth-failed truth-table and real-entrypoint readiness matrix.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "A failed session assessment emits SAAS_SYNC_AUTH_UNKNOWN and never a false logged-out diagnosis.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_auth_probe_failure_is_unknown_and_never_escapes and test_real_unreadable_storage_adds_only_auth_unknown_to_baseline.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": "Assessment failure is an operational diagnostic, not a third authentication state."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Known unsafe structural results and unexpected structural-assessment failures become hosted diagnostics while local verification continues.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_raised_structural_assessment_preserves_local_events_and_refuses_hosts.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Session assessment, structural safety, canonical read-only routing, and the SaaS flag are composed once into one hosted-delivery decision.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_production_has_one_dominated_hosted_authority and test_real_setup_plan_resolves_route_exactly_once.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Local lifecycle phase history is persisted even when hosted delivery is refused.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sink.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Hosted enqueue, upload, publication, and delivery effects are refused unless the composed decision affirmatively allows them.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET at final product/test ref a825b142853d6ef4805bfc2e28282edfd297f272; package-wide hosted-sink ownership and import-edge controls, the narrow executor import, identity dominance, and hostile mutation controls prove the sole hosted-effects boundary. The production boundary was established at historical ref 1ea3abee88617455776a3bd0e96b52f30737f0b6; NI-002 records production absence.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The independently computed local outcome alone controls primary result fields and process exit.",
+      "proof_type": "automated_test",
+      "evidence": "E-BASELINE and E-TARGET; 12/12 HEAD results exactly equal replayed d060cff9 payloads and exits after root normalization only.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Stable, ordered diagnostics are attached to one result envelope without replacing or rewriting the local outcome.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_combined_diagnostics_are_distinct_deduplicated_and_ordered and test_wire_registry_contains_exactly_four_codes.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Human output communicates the same nonfatal conditions as JSON output and still renders the local result.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; JSON/human hostile-serializer parameterizations reconstruct the same registry-derived envelopes.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Every established complete, scaffold, blocked, and error local outcome is retained under every hosted-readiness state.",
+      "proof_type": "automated_test",
+      "evidence": "E-BASELINE and E-TARGET; 12 x 8 readiness matrix plus 12/12 immutable pre-mission payload/exit replay.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "agent mission create and setup-plan are documented consistently with the logged-out Teamspace local-command policy.",
+      "proof_type": "automated_test",
+      "evidence": "E-DOC-POLICY; tests/docs/test_logged_out_teamspace_local_mission_policy.py verifies the exact agent mission create/setup-plan local-command policy wording.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "100% of covered authentication and boundary variants preserve baseline local result fields and exit code.",
+      "proof_type": "automated_test",
+      "evidence": "E-BASELINE and E-TARGET: 12/12 immutable replays and 12 x 8 readiness cross-product pass.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Every supported usable-session fixture emits zero SAAS_SYNC_UNAUTHENTICATED warnings.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; real encrypted refresh fixture and authenticated matrix rows.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Each diagnostic code occurs at most once per invocation, ordered authentication, structural, then routing.",
+      "proof_type": "automated_test",
+      "evidence": "E-WP02; test_combined_diagnostics_are_distinct_deduplicated_and_ordered.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Every JSON-mode case emits exactly one parseable JSON document.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_setup_plan_cli_emits_exactly_one_json_object_when_refused.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Every refused-decision test records zero calls to every enumerated hosted sink while proving local lifecycle persistence.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; refusal/local persistence test plus architectural dominance mutation test.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "Injected authentication and structural evaluation failures return a local outcome plus warning, never an assessment-derived command exit.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; auth-failure, structural-failure, and hostile hosted-assessment tests.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-007",
+      "description": "Local authentication assessment performs no network I/O and coherent structural assessment remains within the existing 100 ms budget.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET and WP01 approval: local-only TokenManager/readiness tests and existing preflight budget contract remain green.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "NFR-008",
+      "description": "Targeted setup-plan read-surface, branch, metadata, template, and documentation-wiring regressions have zero new failures.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET includes setup_plan_read_surface.py and issue-3425 legacy-layout tests; E-ARCH and E-CONTRACT also pass.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "Every established local-outcome row returns identical primary fields and exit across usable, logged-out, auth-failed, boundary-unsafe, and boundary-exception variants.",
+      "proof_type": "automated_test",
+      "evidence": "E-BASELINE and E-TARGET; exact 12 x 8 compatibility matrix plus 12/12 d060 replay.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "A real encrypted refresh-capable session without queue scope produces zero false unauthenticated warnings through the real setup-plan entry point.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_encrypted_refresh_session_never_reads_queue_scope.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "A real unreadable encrypted-session fixture produces exactly one SAAS_SYNC_AUTH_UNKNOWN warning and zero unauthenticated warnings.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_unreadable_storage_adds_only_auth_unknown_to_baseline.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "All known structural classes and an injected structural exception refuse hosted effects while returning the independently computed local result.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; structural-result/exception cases and real-entrypoint readiness matrix.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "Every refused-decision acceptance test writes local lifecycle history and records zero hosted sink calls.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sink.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "JSON and human outputs preserve local-result authority and communicate matching warning severity.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; JSON/human reporter parity and hostile serializer parameterizations.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Targeted auth, lifecycle, sync-boundary, setup-plan read-surface, and architectural gates pass with no new failures.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET 334 passed; E-WP02 96 passed, 1 skipped; E-CONTRACT 297 passed, 5 skipped; E-ARCH 1712 passed, 5 skipped, 2 xfailed, 1 existing warning; E-E2E 6 passed.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T01:03:00+00:00",
+      "notes": "The final mission-focused, contract, architectural, and E2E gates passed against immutable product/test ref a825b142853d6ef4805bfc2e28282edfd297f272; the E2E harness ref was 71d8202. Historical ref 1ea3abee88617455776a3bd0e96b52f30737f0b6 is the production hosted-boundary implementation ref, not the final test ref."
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "Acceptance records issue #3127 with a terminal deferred-with-followup verdict and does not declare release readiness while it remains unresolved.",
+      "proof_type": "code_review",
+      "evidence": "issue-matrix.json row #3127 is deferred-with-followup with Follow-up: #3127; NI-005 records no release declaration.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": "#3127 is an external P0 release gate, not a Mission-completion dependency."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "The Mission adds no general access-token expiry warnings or re-login workflows.",
+      "proof_type": "code_review",
+      "evidence": "Runtime-commit diff review and E-TARGET; no general token-expiry UX was introduced.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Authentication classification is entirely local and performs no refresh or SaaS request.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET and WP01 authority review; real encrypted-storage fixtures run without network authentication probes.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "No strict-sync option makes hosted readiness control local verification.",
+      "proof_type": "code_review",
+      "evidence": "E-BASELINE and runtime-commit diff review; no --require-sync equivalent exists and local payload/exit remains authoritative.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-004",
+      "description": "Queue scope remains routing metadata and is neither migrated nor consulted as authentication evidence.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_encrypted_refresh_session_never_reads_queue_scope and NI-001.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-005",
+      "description": "sync now and other hosted-only entry points retain their existing refusal and preflight severity.",
+      "proof_type": "automated_test",
+      "evidence": "E-WP02 includes test_sync_boundary_preflight.py; E-ARCH includes full boundaries. Setup-plan warning severity is scoped to this local command only.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": "Hosted-only strictness is a locked compatibility constraint, not the defect class being softened."
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "Failed authentication assessment or unknown boundary/route evidence never authorizes hosted effects.",
+      "proof_type": "automated_test",
+      "evidence": "E-WP02; test_every_nonaffirmative_input_refuses plus E-TARGET dominance proof and NI-002.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-007",
+      "description": "Diagnostics contain no tokens, session contents, encryption details, or other credential material.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; hostile serializer, stable classification, unknown-code rejection tests, and NI-004.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-008",
+      "description": "Queue placement, project-store layout, consent, and delivery-route semantics are unchanged.",
+      "proof_type": "code_review",
+      "evidence": "Runtime diff review and E-CONTRACT/E-ARCH; the Mission adds a read-only decision seam and no sync-store migration.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-009",
+      "description": "Issue #3127 is terminally recorded as fixed or deferred-with-followup; unresolved #3127 blocks release readiness but not Mission completion.",
+      "proof_type": "code_review",
+      "evidence": "issue-matrix.json row #3127 is deferred-with-followup with Follow-up: #3127; Mission status is independently done; NI-005.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-010",
+      "description": "Hosted route availability is read only through resolve_checkout_sync_routing_readonly() and is affirmative only with non-empty project UUID and effective_sync_enabled=true.",
+      "proof_type": "automated_test",
+      "evidence": "E-TARGET; test_real_setup_plan_resolves_route_exactly_once and route null/denied/exception cases.",
+      "pass_fail": "pass",
+      "verified_by": "final-mission-review",
+      "verified_at": "2026-08-24T00:14:50+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "Queue-scope availability must not participate in authentication classification.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/runtime/test_setup_plan_sync_evidence.py::test_real_encrypted_refresh_session_never_reads_queue_scope",
+      "result": "confirmed_absent",
+      "evidence": "Passed in E-TARGET against 7a6a4919465688877f5efca0d3ba5bfe30b8a690.",
+      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No hosted sink may execute before or without the single affirmative hosted-delivery decision.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/architectural/test_setup_plan_hosted_effect_gate.py",
+      "result": "confirmed_absent",
+      "evidence": "Passed in E-TARGET at final product/test ref a825b142853d6ef4805bfc2e28282edfd297f272; package-wide sink ownership, exact import-edge allowlists, the narrow command executor, identity-dominance oracle, boundary census, and hostile alias/reflection/pre-guard mutation controls reject every tested route around the sole hosted-effects boundary.",
+      "verified_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "A failed authentication assessment must not be reported as the conclusive logged-out state.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/runtime/test_setup_plan_sync_evidence.py::test_real_unreadable_storage_adds_only_auth_unknown_to_baseline tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py::test_auth_probe_failure_is_unknown_and_never_escapes",
+      "result": "confirmed_absent",
+      "evidence": "Both nodes passed in E-TARGET/E-WP02; AUTH_UNKNOWN and UNAUTHENTICATED remain distinct.",
+      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "No diagnostic serializer may echo credentials, arbitrary exception text, or unregistered warning fields.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py -k 'registry or hostile or sanitized or arbitrary'",
+      "result": "confirmed_absent",
+      "evidence": "Exact four-code registry and fifth-entry negative control pass at e9bab144253bd918796112faeae506248429aded and 7a6a4919465688877f5efca0d3ba5bfe30b8a690.",
+      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "The Mission must not declare release readiness while issue #3127 remains deferred and unresolved.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run python -c \"import json,pathlib,re; d=pathlib.Path('kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD'); row=json.loads((d/'issue-matrix.json').read_text())['rows']['#3127']; files=[d/n for n in ('spec.md','tasks.md','quickstart.md','acceptance-matrix.json','mission-review-report.md','status.json','issue-matrix.json','retrospective.yaml','dossier-review-notes.md')]; pat=re.compile(r'(?im)^[ ]*(?:[-*][ ]*)?(?:[*][*])?release[-_ ]readiness(?:[*][*])?[ ]*[:=][ ]*(?:passed|pass|ready|true|yes)(?:[ ]|$)'); claims=[f'{p.name}:{m.group(0)}' for p in files for m in pat.finditer(p.read_text(encoding='utf-8'))]; assert row['verdict']=='deferred-with-followup' and 'Follow-up: #3127' in row['evidence_ref']; assert not claims, claims\"",
+      "result": "confirmed_absent",
+      "evidence": "The executable scan found zero affirmative release-readiness declarations across the explicitly bounded nine-file dossier set while issue-matrix.json kept #3127 deferred-with-followup. See dossier-review-notes.md for scope and retry policy.",
+      "verified_ref": "b25de8736ebe3428ddedcd7661a463d4e31619b8",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    }
+  ],
+  "evidence_provenance": {
+    "runtime_commits": [
+      "635925301b171c8a35aed8cd125507b7e639b0e6",
+      "ad14a74274a076502a06249ea8838537c6863ead",
+      "257732344d289677f2df6083e66b9f10cecc7640",
+      "8f4dddb9c10a7893007f0b983f93f81f11d04689",
+      "0dd7e6d0cd089c3c3778cffda6a295f5e91da654"
+    ],
+    "test_evidence_commits": [
+      "e9bab144253bd918796112faeae506248429aded",
+      "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "d55629ac0a850a7b52ca0f64f5f14830636a50ff",
+      "f3d404f5a94611bf4279bd40219b5c208e4e7e86",
+      "1ea3abee88617455776a3bd0e96b52f30737f0b6",
+      "3507370e8107cb47b78b6e04a3a5c47c0262e7ef",
+      "90ecbcb2c08cf8bba0e8ff0cbb6dd952d25e0a28",
+      "a825b142853d6ef4805bfc2e28282edfd297f272"
+    ],
+    "historical_production_boundary_ref": "1ea3abee88617455776a3bd0e96b52f30737f0b6",
+    "final_product_test_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+    "E-BASELINE": {
+      "source_commit": "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a",
+      "source_tree": "b0921b556c12a39032d1e44ac94a4a0e19517bd2",
+      "command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py -k 'matches_replayed_pre_mission_payload_and_exit'",
+      "result": "12 passed; archived source entry point replayed in an isolated subprocess; full normalized payload and exit compared."
+    },
+    "E-TARGET": {
+      "verified_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run pytest -q tests/auth/test_token_manager.py tests/readiness/test_auth_probe.py tests/status/test_lifecycle_events.py tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py tests/architectural/test_setup_plan_hosted_effect_gate.py",
+      "result": "334 passed in 12.87s, 0 failed",
+      "note": "Package-wide hosted-effect gate attributed to 3507370e8107cb47b78b6e04a3a5c47c0262e7ef; fatal-contract documentation/test remediation attributed to 90ecbcb2c08cf8bba0e8ff0cbb6dd952d25e0a28; final isolation fix attributed to a825b142853d6ef4805bfc2e28282edfd297f272."
+    },
+    "E-WP02": {
+      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/sync/test_sync_boundary_preflight.py",
+      "result": "96 passed, 1 skipped in 4.46s"
+    },
+    "E-DOC-POLICY": {
+      "verified_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "command": "uv run pytest -q tests/docs/test_logged_out_teamspace_local_mission_policy.py",
+      "result": "2 passed in 1.02s"
+    },
+    "E-CONTRACT": {
+      "verified_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/ -q",
+      "result": "297 passed, 5 skipped in 44.62s"
+    },
+    "E-ARCH": {
+      "verified_ref": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/architectural/ -q",
+      "result": "1712 passed, 5 skipped, 2 xfailed, 1 existing ratchet-shrink warning in 860.47s, exit 0",
+      "note": "Final current-product/test-HEAD architectural hard-gate rerun."
+    },
+    "E-E2E": {
+      "harness_commit": "71d8202",
+      "product_commit": "a825b142853d6ef4805bfc2e28282edfd297f272",
+      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://app.spec-kitty.ai SPEC_KITTY_REPO=<authoritative-spec-kitty> PATH=<authoritative-spec-kitty>/.venv/bin:$PATH uv run pytest scenarios/ -q",
+      "result": "6 passed in 406.82s"
+    }
+  }
+}

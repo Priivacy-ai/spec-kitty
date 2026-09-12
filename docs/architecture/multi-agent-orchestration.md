@@ -163,8 +163,8 @@ This ensures:
 
 ## See Also
 
-- [Orchestrator Quickstart](../guides/orchestrator-quickstart.md)
-- [Run the External Orchestrator](../guides/run-external-orchestrator.md)
-- [Build a Custom Orchestrator](../guides/build-custom-orchestrator.md)
+- [Orchestrator Quickstart](../guides/tutorials/orchestrator-quickstart.md)
+- [Run the External Orchestrator](../guides/how-to/collaboration/run-external-orchestrator.md)
+- [Build a Custom Orchestrator](../guides/how-to/collaboration/build-custom-orchestrator.md)
 - [Orchestrator API Reference](../api/orchestrator-api.md)
 - [Kanban Workflow](kanban-workflow.md)

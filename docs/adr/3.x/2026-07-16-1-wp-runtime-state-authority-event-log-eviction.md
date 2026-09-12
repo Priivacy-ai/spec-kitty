@@ -1,5 +1,6 @@
 ---
 title: 'WP runtime-state authority — evict runtime-mutable state from tasks/WP##.md into the canonical event log'
+description: 'Runtime-mutable work-package state leaves `tasks/WP##.md` for the append-only event log, carried by an annotation event class so the 9-lane machine gains no self-edges.'
 status: Proposed
 date: '2026-07-16'
 ---
@@ -241,14 +242,14 @@ apply after the transition fold, so a `claimed` transition carrying an initial
 
 ## Considered Options (Decision 1, the pivotal one)
 
-* **(A) Annotation event class, FSM untouched — CHOSEN.** New non-transition
+- **(A) Annotation event class, FSM untouched — CHOSEN.** New non-transition
   event kind folded by the reducer; transition ledger and 9-lane matrix
   unchanged.
-* **(B) Fold onto existing transitions.** Carry runtime payload on the nearest
+- **(B) Fold onto existing transitions.** Carry runtime payload on the nearest
   lane transition; accept a documented resume-staleness behaviour change.
   *Rejected:* cannot carry resume refresh or mid-`in_progress` marks; lossy by
   construction.
-* **(C) Self-edges in the FSM.** Make `X→X` legal so payload-only self-events
+- **(C) Self-edges in the FSM.** Make `X→X` legal so payload-only self-events
   are "transitions." *Rejected:* redefines the FSM invariant and ripples into
   every transition consumer for no capture benefit over (A).
 
@@ -328,5 +329,5 @@ identically to today from the reduced snapshot. Acceptance criteria:
 - Design: [`docs/architecture/wp-runtime-state-eviction.md`](../../architecture/wp-runtime-state-eviction.md)
 - [ADR 2026-07-01-1 — No legacy-compat branches in resolvers](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md)
 - [ADR 2026-06-11-1 — Op as a first-class execution artifact](2026-06-11-1-op-as-first-class-execution-artifact.md)
-- [ADR 2026-06-07-1 — WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md)
+- [ADR 2026-06-07-3 — WP lane FSM, the `genesis` lane, and the finalize event-log clobber fix](2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md)
 - Issues: #2093, #2400 (charter parent), #2160 (co-sequence), #1619 / #1666 (aggregate, gates the later schema flip)

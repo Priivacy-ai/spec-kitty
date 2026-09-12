@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import contextlib
-import datetime
 import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from kernel.clock import now_utc_iso
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
 from specify_cli.invocation.record import (
@@ -240,7 +240,7 @@ class InvocationWriter:
         if (ref is None) == (sha is None):
             raise ValueError("Exactly one of ref or sha must be provided")
         path = self.invocation_path(invocation_id)
-        at_ts = at or datetime.datetime.now(datetime.UTC).isoformat()
+        at_ts = at or now_utc_iso()
         entry: dict[str, object] = {
             "event": "artifact_link" if ref is not None else "commit_link",
             "invocation_id": invocation_id,

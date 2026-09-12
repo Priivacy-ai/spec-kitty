@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP03",
+  "captured_at": "2026-07-28T13:09:12Z",
+  "base_branch": "fix/read-side-seam-primary-primitive-closure",
+  "base_commit": "d9b94bb575d61d1fa88a348478c0c36fb6bbc1de",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

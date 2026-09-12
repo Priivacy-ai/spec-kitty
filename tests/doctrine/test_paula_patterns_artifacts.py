@@ -4,19 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGGraph
-from doctrine.service import DoctrineService
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+from charter.offering.drg.models import DRGGraph
+from charter.offering.service import DoctrineService
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
-
-
-BUILT_IN_ROOT = DOCTRINE_SOURCE_ROOT
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    return DoctrineService(built_in_root=BUILT_IN_ROOT)
+    # No explicit built-in root: repositories self-resolve packs/built-in/<kind>
+    # (WP04 seam); src/doctrine is emptied post-relocation.
+    return DoctrineService()
 
 
 def test_paula_patterns_tactic_loads(service: DoctrineService) -> None:

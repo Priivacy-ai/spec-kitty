@@ -1,0 +1,88 @@
+schema_version: test-sanitation/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+work_package: WP07
+profile: implementer-ivan
+generated_at: '2026-08-10T21:07:37Z'
+planning_base: 28ae75ea998c898aba57364db7a06d2088bd2af2
+census_sha256: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+dispositions:
+  - candidate:
+      id: wp07-terminalize-recursive-route-probe
+      members:
+        - tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection
+      granularity: node
+      source_paths:
+        - tests/architectural/test_ci_quality_path_filters.py
+      production_paths:
+        - .github/workflows/ci-quality.yml
+      oracle: Every node selected by the exact legacy core-misc gate remains selected by the union of its live replacement routes.
+      contract_claim: The recursive eight-subprocess probe is non-proportional; one bounded live universe plus statically parsed real workflow gates preserves its legacy-to-replacement-union boundary.
+      authority:
+        - issue:#3284
+        - kitty-specs/assertive-test-suite-sanitation-01KZME3P/contracts/ci-routing.md
+      duplicate_group: null
+      route_memberships:
+        - route_id: full-parallel
+          role: owner
+          required: true
+          events: [local]
+          selector:
+            paths: [tests/]
+            markers: []
+            ignores: [tests/sync/test_orphan_sweep.py]
+            environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      platforms: [macos]
+      observations:
+        - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+          nodeid: tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection
+          collection_state: collected
+          outcome: failed
+          skip_reason: null
+          markers: [integration]
+          duration: {collection: 0.0, setup: 0.0, call: 240.0, cost_class: slow_collection}
+          artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    evidence:
+      profile: route
+      authority_evidence:
+        - reference: issue:#3284 + proportional CI routing contract
+          result: The inherited recursive probe exceeded its 240-second bound; WP07 must validate changed narrow selectors statically and with bounded owned-path collection.
+      routing_evidence:
+        - route_id: full-parallel
+          role: owner
+          required: true
+          events: [local]
+          selector:
+            paths: [tests/]
+            markers: []
+            ignores: [tests/sync/test_orphan_sweep.py]
+            environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+          result: Frozen local route retained. The same file now evaluates the exact legacy selector against real parsed replacement gates over one shared live universe.
+      base_evidence:
+        identity: tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection
+        result: Repaired-base #3284 replay reached the test body but timed out at the 240-second recursive collection boundary.
+      cost_evidence:
+        identity: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-results.json
+        result: Four stages with three repetitions separate scanner, deletion, and proportional narrow-route effects; canonical raw byte streams and hashes are recorded. Frozen-DAG critical-path saving is honestly reported as 1.3815% MISS, while full-DAG acceptance remains unestablished because full-parallel lacks comparable head repetitions.
+      causal_probe:
+        kind: live replacement-union route fault
+        fault: Remove the real regression-tests gates from the parsed replacement union.
+        authority_violated: The exact legacy core-misc node set must remain covered by the union of live replacement routes.
+        act_reached: true
+        intended_oracle: The exact #2782 node becomes missing from the replacement union, proving the legacy boundary can red without eight recursive collections.
+        intended_oracle_failed: true
+        command: .venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_ci_quality_path_filters.py
+        environment: macOS 15.7.7 arm64; CPython 3.11.15; integrated WP07 lane
+        raw_artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    verdict: DELETE
+    state: terminal
+    action: Delete the recursive eight-subprocess implementation; preserve its exact legacy selector in a one-universe live workflow comparison with a causal route-removal fault.
+    survivor: tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main
+    issue: '#3284'
+    owner: WP07
+    expires: null
+    hic_approval: null
+    review:
+      implementer: implementer-ivan
+      independent_reviewer: pending-WP07-review
+      verdict: implementation-complete-awaiting-review
+      timestamp: '2026-08-10T19:55:17Z'

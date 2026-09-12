@@ -105,6 +105,27 @@ class TestResolveClaimCommitTargetFailClosed:
         clause_body = source[raise_idx:warning_idx]
         assert any(line.strip() == "raise" for line in clause_body.splitlines())
 
+    def test_head_mismatch_is_not_swallowed_as_soft_warning(self) -> None:
+        """#610: the same broad ``except Exception`` downgrade also swallowed
+        ``SafeCommitHeadMismatch`` -- a genuine branch-name mismatch on the
+        WP-status claim commit -- leaving the worktree dirty (the status/lane
+        files were already written to disk before the commit was attempted)
+        for ``merge``'s dirty-worktree gate to trip on later. Mirrors
+        ``test_structured_error_is_not_swallowed_as_soft_warning`` above:
+        needs its own explicit ``except SafeCommitHeadMismatch: raise``
+        clause, ordered before the generic downgrade-to-warning handler.
+        """
+        import inspect
+
+        from specify_cli.cli.commands.implement import implement
+
+        source = inspect.getsource(implement)
+        raise_idx = source.index("except SafeCommitHeadMismatch:")
+        warning_idx = source.index('console.print(f"[yellow]Warning:[/yellow] Could not update WP status')
+        assert raise_idx < warning_idx
+        clause_body = source[raise_idx:warning_idx]
+        assert any(line.strip() == "raise" for line in clause_body.splitlines())
+
 
 # ---------------------------------------------------------------------------
 # T011 -- _ensure_planning_artifacts_committed_git routes via placement_ref
@@ -148,22 +169,29 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
     forbidden ``coord_branch if coord_branch else planning_branch`` ternary
     -- an inline re-derivation of a decision the seam-resolved
     ``placement_ref`` already made (contracts/seam-api.md's explicitly
-    forbidden caller grammar). Post-fix, when ``placement_ref`` is supplied
-    the destination is taken directly from ``placement_ref.ref`` -- proven
-    here by supplying a ``placement_ref`` whose ref does NOT match what the
-    meta-derived ``coord_branch`` alone would produce, and asserting the
-    commit lands on the SEAM value.
+    forbidden caller grammar). The seam value is still consumed directly (no
+    re-derivation), but write-path-integrity WP02 / T008 / FR-001 reverses the
+    prior "whole batch to ``placement_ref.ref`` verbatim" contract (SANCTIONED
+    C-004 reversal): the batch is now PARTITIONED, so the COORD-residue group
+    lands on ``placement_ref.ref`` (the seam value, still verbatim for its
+    partition) while the PRIMARY group lands on the mission's target branch. The
+    rewritten test below (list-capture + mixed-kind batch) asserts BOTH refs
+    receive their own partition -- the old last-write-wins single-``destination_ref``
+    capture could not express the two-commit split.
     """
 
-    def test_effective_destination_ref_is_placement_ref_verbatim(
+    def test_partitioned_batch_routes_each_group_to_its_own_ref(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Mock ``BookkeepingTransaction.acquire`` to capture the resolved
-        ``destination_ref`` and prove it is EXACTLY ``placement_ref.ref`` --
-        a sentinel value the meta-derived ``coord_branch`` computation could
-        never itself produce (it is not a valid ``kitty/mission-...`` shape),
-        so a match proves the seam value drove the commit, not a
-        coincidental agreement between the two derivations.
+        """List-capture every ``acquire`` call's ``(destination_ref, paths)`` and
+        prove the mixed-kind batch splits: the COORD-residue artifact
+        (``issue-matrix.md``) lands on ``placement_ref.ref`` -- a SENTINEL value
+        the meta-derived ``coord_branch`` could never itself produce, so a match
+        proves the seam value drove the coord leg -- while the PRIMARY artifact
+        (``tasks/WP01.md``) lands on the mission's target branch
+        (``planning_branch``), never the coordination ref. Pre-WP02 the whole
+        batch (including the PRIMARY WP file) was committed VERBATIM to
+        ``placement_ref.ref``; this asserts the T008 partition instead.
         """
         from specify_cli.cli.commands.implement import (
             _ensure_planning_artifacts_committed_git,
@@ -184,34 +212,49 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
             mission_slug=mission_slug,
             coord_branch=meta_coord_branch,
         )
+        # PRIMARY-partition artifact: a WP task file.
         wp = feature_dir / "tasks" / "WP01.md"
         wp.parent.mkdir(parents=True, exist_ok=True)
         wp.write_text("lane: in_progress\n", encoding="utf-8")
+        # COORD-residue artifact that SURVIVES staging: issue-matrix.md is a
+        # coord-partition kind (ISSUE_MATRIX) but NOT the status log/snapshot,
+        # so (unlike status.events.jsonl) it is not dropped by the status-state
+        # staging filter -- it reaches files_to_commit and its own coord group.
+        issue_matrix = feature_dir / "issue-matrix.md"
+        issue_matrix.write_text("# Issue Matrix\n", encoding="utf-8")
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "seed feature dir")
 
         wp.write_text("lane: in_progress\nedited\n", encoding="utf-8")
+        issue_matrix.write_text("# Issue Matrix\nedited\n", encoding="utf-8")
 
-        captured: dict[str, object] = {}
+        calls: list[tuple[str, list[str]]] = []
 
         class _FakeTxn:
+            def __init__(self, destination_ref: str) -> None:
+                self._destination_ref = destination_ref
+                self._paths: list[str] = []
+
             def __enter__(self) -> _FakeTxn:
                 return self
 
             def __exit__(self, *exc: object) -> bool:
+                calls.append((self._destination_ref, list(self._paths)))
                 return False
 
-            def write_artifact(self, *_a: object, **_k: object) -> None:
-                return None
+            def write_artifact(self, repo_path: Path, _content: bytes) -> None:
+                self._paths.append(repo_path.as_posix())
 
             def commit(self, _msg: str) -> None:
+                return None
+
+            def commit_idempotent(self, _msg: str) -> None:
                 return None
 
         class _FakeBookkeepingTransaction:
             @classmethod
             def acquire(cls, **kwargs: object) -> _FakeTxn:
-                captured.update(kwargs)
-                return _FakeTxn()
+                return _FakeTxn(str(kwargs["destination_ref"]))
 
         monkeypatch.setattr(
             "specify_cli.coordination.transaction.BookkeepingTransaction",
@@ -228,7 +271,24 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
             placement_ref=CommitTarget(ref=sentinel_seam_ref),
         )
 
-        assert captured.get("destination_ref") == sentinel_seam_ref
+        wp_rel = f"kitty-specs/{mission_slug}/tasks/WP01.md"
+        matrix_rel = f"kitty-specs/{mission_slug}/issue-matrix.md"
+        wp_dest = [ref for ref, paths in calls if wp_rel in paths]
+        matrix_dest = [ref for ref, paths in calls if matrix_rel in paths]
+
+        # COORD-residue group -> the seam-resolved sentinel ref (verbatim for
+        # its partition).
+        assert matrix_dest == [sentinel_seam_ref], (
+            f"expected issue-matrix.md (COORD) on the seam ref {sentinel_seam_ref!r}; "
+            f"got {matrix_dest!r} (all calls: {calls!r})"
+        )
+        # PRIMARY group -> the target branch, NEVER the coordination/sentinel ref
+        # (the #3371 fix: PRIMARY artifacts never land on coord).
+        assert wp_dest == ["main"], (
+            f"expected WP01.md (PRIMARY) on the target branch 'main'; got "
+            f"{wp_dest!r} (all calls: {calls!r})"
+        )
+        assert sentinel_seam_ref not in wp_dest
 
     def test_no_inline_forbidden_ternary_grammar_in_source(self) -> None:
         """Static guard: the exact forbidden grammar named in
@@ -244,3 +304,58 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
         source = inspect.getsource(implement_module)
         assert "coord_branch if coord_branch else planning_branch" not in source
         assert "str(coord_branch) if coord_branch else planning_branch" not in source
+
+
+class TestPrimarySurfaceStatusPaths:
+    """#3784: ``_primary_surface_status_paths`` keeps the #2155 invariant that
+    NO ``.worktrees/``-nested path enters a primary-root ``safe_commit`` bundle.
+
+    The former inline filter dropped only the STATUS_STATE files
+    (``is_status_state_path``) and let the coord-worktree ``tasks.md`` (a
+    ``TASKS_INDEX`` kind) survive; the helper now excludes ANY
+    ``is_under_worktrees_segment`` path on coord topology. On a flat/legacy
+    mission every collected artifact is canonical on PRIMARY and stays.
+    """
+
+    def test_coord_drops_worktrees_nested_tasks_md_and_status_files(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+
+        wt = tmp_path / ".worktrees" / "slug-coord" / "kitty-specs" / "slug"
+        wt.mkdir(parents=True)
+        events = wt / "status.events.jsonl"
+        status = wt / "status.json"
+        tasks_md = wt / "tasks.md"
+        for f in (events, status, tasks_md):
+            f.write_text("x", encoding="utf-8")
+
+        kept = _primary_surface_status_paths(
+            [events, status, tasks_md], routes_through_coord=True
+        )
+
+        # Every coord-owned artifact is under .worktrees/ -> nothing survives.
+        assert kept == []
+
+    def test_flat_topology_keeps_all_collected_artifacts(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+
+        feature_dir = tmp_path / "kitty-specs" / "slug"
+        feature_dir.mkdir(parents=True)
+        events = feature_dir / "status.events.jsonl"
+        status = feature_dir / "status.json"
+        tasks_md = feature_dir / "tasks.md"
+        for f in (events, status, tasks_md):
+            f.write_text("x", encoding="utf-8")
+
+        kept = _primary_surface_status_paths(
+            [events, status, tasks_md], routes_through_coord=False
+        )
+
+        assert {p.resolve() for p in kept} == {
+            events.resolve(),
+            status.resolve(),
+            tasks_md.resolve(),
+        }

@@ -1,7 +1,7 @@
 ---
 title: Session Recap — Runtime & State Overhaul (Architecture Phases 1–2)
 description: 'Session recap of Architecture Phases 1-2 of the runtime and state overhaul (2026-06-03), summarizing the grounding and conceptual-modeling work for #1619.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # Session Recap — Runtime & State Overhaul (Architecture Phases 1–2)
@@ -31,7 +31,7 @@ first, commit to a design later, keep the doctrine honest throughout.
 ## How the investigation unfolded
 
 **1. Capture the tickets (`01`).** We read #1619 and every linked issue (#1615–#1618, the related
-#1602 and #1348, and the #1627 fix). The pattern was unmistakable across all of them: *split
+issues #1602 and #1348, and the #1627 fix). The pattern was unmistakable across all of them: *split
 authority*. Writes go to the coordination branch; many reads and all the prompts still assume the
 main checkout or the target branch. Six tickets, one disease.
 
@@ -48,7 +48,7 @@ must honor: lanes own git, WPs own accounting, ULID identity, atomic WP-start as
 `approved` ≠ `done`, and — crucially — the **Mission Type / Mission / Mission Run** ontology that
 tells us the new object is a *Mission Run* concern. The CAACS audits confirmed this is the repo's
 densest, most complex, least-tested cluster (bus factor ≈ 1), and that the team already filed epic
-#992 "centralize domain invariants." The DDD doctrine (DIRECTIVE_001/031/032) gave us hard rules:
+number #992 "centralize domain invariants." The DDD doctrine (DIRECTIVE_001/031/032) gave us hard rules:
 boundaries by ubiquitous language not runtime stage, no shared mutable state across boundaries,
 resolve overloaded vocabulary *before* building.
 

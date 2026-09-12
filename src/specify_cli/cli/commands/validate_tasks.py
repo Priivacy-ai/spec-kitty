@@ -13,7 +13,6 @@ from rich.table import Table
 
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     scan_all_tasks_for_mismatches,
@@ -115,12 +114,14 @@ def validate_tasks(
     # scan_all_tasks_for_mismatches reads WP-frontmatter from tasks/planned|doing|…/WP*.md
     # (WORK_PACKAGE_TASK partition).  Before this fix, the coord-aware resolver returned the
     # STATUS-only husk which carries no tasks/ → silent {} (pre-fix bug).
-    from mission_runtime import MissionArtifactKind  # late import — keeps cold-start cost low
-
-    planning_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    from mission_runtime import (  # late import — keeps cold-start cost low
+        MissionArtifactKind,
+        placement_seam,
     )
 
+    planning_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
     if not planning_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {planning_dir}")
         raise typer.Exit(1)

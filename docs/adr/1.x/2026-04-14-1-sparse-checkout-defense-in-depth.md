@@ -1,6 +1,7 @@
 ---
 title: 'ADR (2026-04-14): Sparse-Checkout Defence in Depth — Four-Layer Hybrid Preflight
   + Commit-Layer Backstop'
+description: Repairs repositories still carrying git state from the retired 0.11-era checkout policy, adding preflight detection at four layers plus a guard against silent file loss.
 status: Accepted
 date: '2026-04-14'
 ---

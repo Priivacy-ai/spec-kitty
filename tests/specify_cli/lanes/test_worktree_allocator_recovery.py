@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -57,7 +57,7 @@ def _make_manifest(*, lane_id: str = "lane-1", wp_id: str = "WP03") -> LanesMani
             depends_on_lanes=(),
             parallel_group=0,
         )],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test",
     )
 
@@ -193,7 +193,7 @@ def _make_coord_manifest(*, lane_id: str = "lane-1", wp_id: str = "WP01") -> Lan
             depends_on_lanes=(),
             parallel_group=0,
         )],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test",
     )
 

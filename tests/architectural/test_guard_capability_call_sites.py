@@ -42,11 +42,14 @@ _ENUM_HOME = "src/specify_cli/core/commit_guard.py"
 _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     # Test-fixture-only: no production caller, ever.
     "TEST_MODE": frozenset({_ENUM_HOME}),
-    # The bona-fide merge/close done-transitions bookkeeping flow. Both the merge
-    # executor AND the post-merge retrospective terminus (which also runs from the
-    # `mission close` path) land their bookkeeping commit through the ONE shared
-    # seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — a single sanctioned
-    # protected-flow commit surface, not a second guard-capability call site.
+    # The bona-fide merge/close done-transitions bookkeeping flow. Every caller
+    # (the merge executor's done-transitions commit AND its birth-cutover COORD
+    # seed commit, plus the post-merge retrospective terminus) lands through the
+    # ONE shared seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — its two
+    # named entry points (`commit_merge_bookkeeping` PRIMARY /
+    # `commit_coord_seed_bookkeeping` COORD) both delegate to a single guarded
+    # `_commit_bookkeeping` call site. A single sanctioned protected-flow commit
+    # surface, not a second guard-capability call site outside this module.
     "MERGE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/git/bookkeeping_commit.py"}),
     # The bona-fide upgrade bookkeeping flow. Main checkout AND every sibling
     # worktree (#2385 / epic #2392) land their upgrade commit through the ONE
@@ -55,15 +58,37 @@ _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     "UPGRADE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/upgrade/autocommit.py"}),
     # No reachable caller today (S6 debt: wire or delete).
     "RELEASE_FLOW": frozenset({_ENUM_HOME}),
+    # post-merge-write-authoring-finish-01KYRRM5 WP04 (#3033 FR-003/FR-004):
+    # the ONE E2 (published) CONSOLIDATED-surface write flow -- a mission
+    # whose Target Ref has been deleted (published to trunk) commits its
+    # evidence to the repository-root checkout on the resolved Primary
+    # Branch instead. Two authorized call sites, each independently
+    # recognising the E2 CONSOLIDATED destination from PUBLIC signals ONLY
+    # (``coordination.write_seam.is_post_consolidation_write_target``) before
+    # asserting the capability -- never from message text or an ambient env
+    # var (C-GUARD-2): ``coordination/write_seam.py`` (the coord-partition
+    # write-seam bypass of the frozen, capability-less
+    # ``commit_router.commit_for_mission``) and
+    # ``cli/commands/safe_commit_cmd.py`` (the mission-aware PRIMARY-kind CLI
+    # path, ``spec-kitty safe-commit`` -- the #3033 canonical repro, C-006).
+    "POST_CONSOLIDATION_WRITE": frozenset(
+        {
+            _ENUM_HOME,
+            "src/specify_cli/coordination/write_seam.py",
+            "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        }
+    ),
 }
 
 
-def _iter_src_python_files() -> list[Path]:
-    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts)
+def _iter_src_python_files(repo_root: Path = _REPO_ROOT) -> list[Path]:
+    return sorted(
+        p for p in (repo_root / "src").rglob("*.py") if "__pycache__" not in p.parts
+    )
 
 
-def _rel(path: Path) -> str:
-    return path.relative_to(_REPO_ROOT).as_posix()
+def _rel(path: Path, repo_root: Path = _REPO_ROOT) -> str:
+    return path.relative_to(repo_root).as_posix()
 
 
 def _guard_capability_members_referenced(path: Path) -> set[str]:
@@ -80,6 +105,32 @@ def _guard_capability_members_referenced(path: Path) -> set[str]:
     return members
 
 
+def _unexpected_protected_flow_sites(
+    repo_root: Path, member: str, allowlist: frozenset[str]
+) -> set[str]:
+    """Run the live protected-flow enforcement oracle for one capability."""
+    actual = {
+        _rel(path, repo_root)
+        for path in _iter_src_python_files(repo_root)
+        if member in _guard_capability_members_referenced(path)
+    }
+    return actual - allowlist
+
+
+def test_guard_capability_enforcement_has_two_sided_fault_bite(tmp_path: Path) -> None:
+    probe = tmp_path / "src" / "probe.py"
+    probe.parent.mkdir()
+    probe.write_text("capability = GuardCapability.STANDARD\n", encoding="utf-8")
+    assert _unexpected_protected_flow_sites(
+        tmp_path, "TEST_MODE", frozenset()
+    ) == set()
+
+    probe.write_text("capability = GuardCapability.TEST_MODE\n", encoding="utf-8")
+    assert _unexpected_protected_flow_sites(
+        tmp_path, "TEST_MODE", frozenset()
+    ) == {"src/probe.py"}
+
+
 @pytest.mark.parametrize("member", sorted(_PROTECTED_FLOW_ALLOWLISTS))
 def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> None:
     """Each protected-flow GuardCapability member binds to its ONE flow.
@@ -91,13 +142,7 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
     rationale comment naming the ONE flow it authorizes.
     """
     allowlist = _PROTECTED_FLOW_ALLOWLISTS[member]
-    actual = {
-        _rel(path)
-        for path in _iter_src_python_files()
-        if member in _guard_capability_members_referenced(path)
-    }
-
-    unexpected = actual - allowlist
+    unexpected = _unexpected_protected_flow_sites(_REPO_ROOT, member, allowlist)
     assert not unexpected, (
         f"GuardCapability.{member} is asserted outside its flow: "
         f"{sorted(unexpected)}. Each non-standard capability authorizes "
@@ -108,7 +153,13 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
 
     stale = {
         entry
-        for entry in allowlist - actual
+        for entry in allowlist
+        if entry
+        not in {
+            _rel(path)
+            for path in _iter_src_python_files()
+            if member in _guard_capability_members_referenced(path)
+        }
         if entry != _ENUM_HOME  # the enum home may reference members only via the policy set
     }
     if member in {"MERGE_BOOKKEEPING", "UPGRADE_BOOKKEEPING"}:

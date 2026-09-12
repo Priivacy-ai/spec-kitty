@@ -1,7 +1,7 @@
 """Focused unit tests for the promoted override-adjudication predicates.
 
-These pin :func:`doctrine.drg.override_policy.find_overridden_builtin_urns` and
-:func:`doctrine.drg.override_policy.find_unsanctioned_overrides` directly at
+These pin :func:`charter.offering.drg.override_policy.find_overridden_builtin_urns` and
+:func:`charter.offering.drg.override_policy.find_unsanctioned_overrides` directly at
 their production home (WP07 promotion). Inputs are built from the real
 ``DRGGraph`` / ``DRGNode`` / ``ReplaceableBuiltinsPolicy`` constructors — no
 placeholder stubs (C-007) — so a regression in the pure predicates fails here
@@ -10,8 +10,8 @@ without needing a live merge.
 
 from __future__ import annotations
 
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
-from doctrine.drg.override_policy import (
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.offering.drg.override_policy import (
     ReplaceableBuiltin,
     ReplaceableBuiltinsPolicy,
     UnsanctionedOverride,

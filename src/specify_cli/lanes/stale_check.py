@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
+from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
 
 
@@ -75,8 +76,44 @@ def check_lane_staleness(
     return StaleCheckResult(
         is_stale=True,
         stale_files=overlap,
-        remediation=(
+        remediation=_stale_remediation(lane, lane_branch, mission_branch),
+    )
+
+
+def _stale_remediation(lane: ExecutionLane, lane_branch: str, mission_branch: str) -> str:
+    """Build the operator-facing fix-it command for a stale lane.
+
+    The canonical planning lane (:func:`is_planning_lane`) never has a
+    ``.worktrees/`` entry -- it resolves to the repository-root checkout on
+    the mission's target branch (see ``lane_branch_name``'s ``lane-planning``
+    special case). Pointing that lane's remediation at a worktree glob names a
+    directory that cannot exist by construction.
+
+    A raw ``git merge`` on the planning lane frequently conflicts on
+    ``status.json``: it is a derived projection of ``status.events.jsonl``
+    (see ``_NON_DIVERGENT_CANONICAL_ARTIFACTS`` in
+    ``tests/architectural/test_merge_reconciliation_class_guard.py`` --
+    intentionally driver-exempt, so no ``.gitattributes`` merge driver is
+    registered for it here). ``spec-kitty agent status materialize``
+    deterministically rebuilds it from the event log, turning an
+    unreconcilable git conflict into a regenerate-and-``git add`` step. This
+    is verified for the same-schema conflict this remediation targets; the
+    cross-schema all-zeros edge (a log written under a different status
+    schema) is out of scope and tracked separately as #3531.
+    """
+    if is_planning_lane(lane):
+        return (
             f"Lane {lane.lane_id} must incorporate mission changes before merging. "
-            f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
-        ),
+            f"This lane runs in the repository-root checkout (no worktree) on "
+            f"branch '{lane_branch}'. From the repository root: "
+            f"git checkout {lane_branch} && git merge {mission_branch}. "
+            f"If that merge reports a conflict on status.json (a derived "
+            f"projection of status.events.jsonl that git cannot text-merge), "
+            f"do not hand-edit it -- rebuild it from the event log instead: "
+            f"spec-kitty agent status materialize --mission <id> && "
+            f"git add kitty-specs/<id>/status.json"
+        )
+    return (
+        f"Lane {lane.lane_id} must incorporate mission changes before merging. "
+        f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
     )

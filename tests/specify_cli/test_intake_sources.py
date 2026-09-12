@@ -125,3 +125,22 @@ class TestScanForPlans:
         ):
             results = scan_for_plans(tmp_path)
         assert results == []
+
+
+    def test_handoff_dir_is_an_active_scan_entry(self):
+        keys = [entry[0] for entry in HARNESS_PLAN_SOURCES]
+        assert "handoff" in keys
+        handoff = next(e for e in HARNESS_PLAN_SOURCES if e[0] == "handoff")
+        assert handoff[1] is None
+        assert handoff[2] == [".handoff"]
+
+
+    def test_scans_handoff_markdown_files(self, tmp_path: Path):
+        packet = tmp_path / ".handoff" / "widget-booking.md"
+        packet.parent.mkdir()
+        packet.write_text("# Packet\n", encoding="utf-8")
+        results = scan_for_plans(tmp_path)
+        found = [r for r in results if r[1] == "handoff"]
+        assert len(found) == 1  # golden-count: cardinality-is-contract
+        assert found[0][0] == packet
+        assert found[0][2] is None

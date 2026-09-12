@@ -100,8 +100,6 @@ _CROSS_CUTTING = (  # lower-layer re-exports patched/imported via mission
     "is_git_repo",
     "run_command",
     "run_git_preflight",
-    "get_emitter",
-    "is_saas_sync_enabled",
     "validate_feature_structure",
     "resolve_mission_handle",
     "resolve_template",

@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
 from glossary.extraction import (
     extract_metadata_hints,
     extract_quoted_phrases,
@@ -569,8 +570,31 @@ class TestExtractAllTerms:
 class TestPerformance:
     """Performance tests for extraction (T015)."""
 
-    def test_extraction_performance(self):
-        """Extraction completes in <100ms for typical input."""
+    def test_extraction_functional(self) -> None:
+        """Extraction returns terms for typical input (functional, #4015 split)."""
+        # 500 words, typical step input size
+        text = " ".join(
+            [
+                "The workspace contains a mission primitive.",
+                "Each WP has a work_package configuration.",
+                'The "semantic integrity" is validated.',
+            ]
+            * 50  # ~500 words
+        )
+
+        metadata = {
+            "glossary_watch_terms": ["workspace", "mission", "primitive"],
+            "glossary_aliases": {"WP": "work package"},
+        }
+
+        terms = extract_all_terms(text, metadata)
+
+        # Should extract some terms
+        assert len(terms) > 0
+
+    @pytest.mark.performance
+    def test_extraction_performance(self) -> None:
+        """Extraction completes in <100ms for typical input (#4015 split)."""
         # 500 words, typical step input size
         text = " ".join(
             [
@@ -587,15 +611,12 @@ class TestPerformance:
         }
 
         start = time.perf_counter()
-        terms = extract_all_terms(text, metadata)
+        extract_all_terms(text, metadata)
         elapsed = time.perf_counter() - start
 
-        # Should complete in <100ms
-        assert elapsed < 0.1, f"Extraction took {elapsed:.3f}s (expected <0.1s)"
+        assert_timing_budget(elapsed, 0.1, name="elapsed")
 
-        # Should extract some terms
-        assert len(terms) > 0
-
+    @pytest.mark.performance
     def test_large_input_performance(self):
         """Large inputs handled gracefully with limit."""
         # 5000 words, exceeds limit

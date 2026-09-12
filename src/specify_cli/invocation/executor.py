@@ -10,7 +10,6 @@ The invocation executor must NEVER claim a first-load token.
 from __future__ import annotations
 
 import dataclasses
-import datetime
 import hashlib
 import json as _json_mod
 import logging
@@ -19,8 +18,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
-    from doctrine.model_task_routing.evaluator import RoutingRecommendation
+    from charter.activation.context import CharterContextResult
+    from charter.profiles import AgentProfile
+    from charter.model_routing import RoutingRecommendation
     from glossary.chokepoint import (
         GlossaryChokepoint,
         GlossaryObservationBundle,
@@ -28,11 +28,18 @@ if TYPE_CHECKING:
 
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
+from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
-from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
+from specify_cli.invocation.empty_charter import resolve_generic_fallback
+from specify_cli.invocation.errors import (
+    InvalidModeForEvidenceError,
+    InvocationError,
+    RouterAmbiguityError,
+    UndeterminedModeForEvidenceError,
+)
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, promote_to_evidence
@@ -64,22 +71,22 @@ def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecomm
     ``dispatch``/``invoke()`` always succeeds regardless of which branch
     fires -- this function only ever narrows the payload, never the outcome.
     """
-    # Function-local: runtime -> charter -> doctrine boundary forbids
-    # module-level `from doctrine.*` imports outside the charter proxy
-    # (tests/architectural/test_runtime_charter_doctrine_boundary.py).
-    from doctrine.model_task_routing import evaluator as routing_evaluator
-    from doctrine.model_task_routing import loader as routing_loader
+    # Function-local charter-door imports keep model-routing lazy (no import-time
+    # cost when routing is unused). The charter facade fronts
+    # charter.offering.model_task_routing at symbol level (FR-004): import the callables
+    # directly rather than the whole module.
+    from charter.model_routing import evaluate, load
 
     task_type = task_type_for_verb(action)
     if task_type is None:
         return None
     try:
-        catalog_result = routing_loader.load()
+        catalog_result = load()
     except Exception:  # noqa: BLE001 - advisory envelope: never break dispatch (NFR-002/C-001)
         return None
     if catalog_result is None or catalog_result.is_stale:
         return None
-    recommendation = routing_evaluator.evaluate(catalog_result.catalog, task_type, profile)
+    recommendation = evaluate(catalog_result.catalog, task_type, profile)
     if not recommendation.candidates:
         return None
     return recommendation
@@ -108,13 +115,69 @@ class ActionRouterPlugin(Protocol):
     # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
+@dataclasses.dataclass(frozen=True)
+class _UndeterminedMode:
+    """A recorded ``mode_of_work`` that maps to no :class:`ModeOfWork`.
+
+    The third state, and the whole point of this type: a started record can
+    declare **no** mode (a pre-v2 record — the field did not exist yet) or a
+    mode nobody can read (a hand-edited or corrupted ``kitty-ops`` line). Those
+    are different facts and collapsing them into one ``None`` made the second
+    inherit the first's permissive default (#3030). ``raw`` carries the value
+    verbatim so the refusal can name what it could not read.
+    """
+
+    raw: object
+
+
+def classify_mode_of_work(raw: object) -> ModeOfWork | None | _UndeterminedMode:
+    """Classify a recorded ``mode_of_work`` into absent / known / undetermined.
+
+    - ``None`` → **absent**. Pre-v2 records legitimately carry no
+      ``mode_of_work``; its documented legacy default is ``task_execution``
+      (see the WP05 migration ``m_3_3_0_op_record_schema_v2``, which backfills
+      exactly that, and ``propagator._projection_rule_for``). Absence must keep
+      meaning absence — refusing on it would strand every legacy Op.
+    - a :class:`ModeOfWork` value → that mode.
+    - anything else → :class:`_UndeterminedMode`. Note the empty string is
+      absence (a field written blank), while ``0`` / ``False`` / a list / an
+      object are malformation: the old ``if not raw`` test read all of them as
+      absence, which is how a JSON ``false`` bought a legacy default.
+    """
+    if raw is None or (isinstance(raw, str) and raw == ""):
+        return None
+    if isinstance(raw, ModeOfWork):
+        return raw
+    if not isinstance(raw, str):
+        return _UndeterminedMode(raw)
+    try:
+        return ModeOfWork(raw)
+    except ValueError:
+        return _UndeterminedMode(raw)
+
+
+def mode_permits_evidence(mode: ModeOfWork | None | _UndeterminedMode) -> bool:
+    """Whether *mode* may carry a Tier 2 evidence artifact (FR-009).
+
+    The single classification both the advertised close contract and the
+    enforced gate read, so the two cannot drift into offering a flag the
+    executor then refuses.
+    """
+    if isinstance(mode, _UndeterminedMode):
+        return False  # undetermined is not permission
+    if mode is None:
+        return True  # absent → documented legacy default (task_execution)
+    return mode not in (ModeOfWork.ADVISORY, ModeOfWork.QUERY)
+
+
 def build_close_contract(invocation_id: str, mode_of_work: str | None = None) -> dict[str, object]:
     """Machine-readable close contract for an open Op (contracts/cli-do-output.md).
 
     Emitted in every invocation JSON payload so orchestrators know exactly how
     to close the Op with the real outcome.  ``evidence_flag`` is omitted for
             non-evidence-eligible modes because ``profile-invocation complete`` refuses
-    ``--evidence`` there (InvalidModeForEvidenceError, FR-009).
+    ``--evidence`` there (InvalidModeForEvidenceError, FR-009) — including when
+    the recorded mode cannot be read at all, which the gate now refuses too.
     """
     contract: dict[str, object] = {
         "command": (f"spec-kitty profile-invocation complete --invocation-id {invocation_id} --outcome <done|failed|abandoned>"),
@@ -123,7 +186,7 @@ def build_close_contract(invocation_id: str, mode_of_work: str | None = None) ->
         "artifact_flag": "--artifact",
         "commit_flag": "--commit",
     }
-    if mode_of_work in (ModeOfWork.ADVISORY.value, ModeOfWork.QUERY.value):
+    if not mode_permits_evidence(classify_mode_of_work(mode_of_work)):
         del contract["evidence_flag"]
     return contract
 
@@ -147,6 +210,14 @@ class InvocationPayload:
     glossary_observations: GlossaryObservationBundle | None
     mode_of_work: str | None
     recommendation: RoutingRecommendation | None
+    empty_charter_fallback: bool
+    # WP2/#3840 (FR-005): the already-computed losing candidates from
+    # RouterDecision.alternatives, threaded onto both invoke() and dry_run()
+    # payloads. Unlike RouterDecision (a real frozen dataclass), this class's
+    # **kwargs __init__ enforces no required-constructor-argument guarantee
+    # for this slot -- see to_dry_run_dict()'s explicit fail-fast guard below,
+    # which is the real backstop at this layer.
+    alternatives: list[dict[str, str]]
 
     __slots__ = (
         "invocation_id",
@@ -160,18 +231,22 @@ class InvocationPayload:
         "glossary_observations",
         "mode_of_work",
         "recommendation",
+        "empty_charter_fallback",
+        "alternatives",
     )
 
     def __init__(self, **kwargs: object) -> None:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def to_dict(self) -> dict[str, object]:
+    def _serialize_slots(self, *, exclude: frozenset[str]) -> dict[str, object]:
+        """Shared field-serialization walk used by both ``to_dict`` and
+        ``to_dry_run_dict`` -- one branchy walk, two exclude sets, so the two
+        JSON-shape builders can never drift on how a slot gets serialized.
+        """
         result: dict[str, object] = {}
         for s in self.__slots__:
-            # mode_of_work shapes the close contract below but is not part of
-            # the serialized payload surface (contracts/cli-do-output.md).
-            if s == "mode_of_work":
+            if s in exclude:
                 continue
             # Use getattr default so callers that omit glossary_observations
             # (e.g. tests constructing InvocationPayload directly) get None
@@ -190,11 +265,117 @@ class InvocationPayload:
                 result[s] = dataclasses.asdict(val)
             else:
                 result[s] = val
+        return result
+
+    def to_dict(self) -> dict[str, object]:
+        # mode_of_work shapes the close contract below but is not part of
+        # the serialized payload surface (contracts/cli-do-output.md).
+        result = self._serialize_slots(exclude=frozenset({"mode_of_work"}))
         # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
         # every JSON payload carries the explicit close contract.
         result["status"] = "open"
         result["close_contract"] = build_close_contract(self.invocation_id, getattr(self, "mode_of_work", None))
         return result
+
+    def to_dry_run_dict(self) -> dict[str, object]:
+        """FR-004/Key-Entities: the dry-run success envelope.
+
+        Reuses ``InvocationPayload``'s field set minus ``invocation_id`` (no
+        Op was opened) and ``mode_of_work``/``close_contract`` (nothing to
+        close), plus a terminal ``"status": "dry_run"``. ``alternatives`` is
+        read directly off ``self`` (WP2/#3840) -- WP1's original signature
+        took it as a parameter because the field did not exist yet on this
+        class; now that it does, the parameter is redundant and has been
+        dropped (``dispatch.py``'s sole call site updated to match).
+
+        Fail-fast guard (WP2 Context/T009 step 5, required, not optional):
+        unlike ``RouterDecision`` (a real frozen dataclass with no default,
+        so ``mypy --strict`` catches a missed ``alternatives=`` kwarg at
+        every production construction site), ``InvocationPayload.__init__``
+        accepts arbitrary ``**kwargs`` and enforces nothing -- a construction
+        site that omits ``alternatives=`` would otherwise silently serialize
+        ``"alternatives": null`` here instead of failing loudly. This guard
+        is intentionally scoped to THIS method only, never ``to_dict()``:
+        ``to_dict()`` is the generic whole-``__slots__`` serializer that
+        ``tests/invocation/test_dispatch_recommendation.py``'s
+        ``_sample_payload()`` fixture depends on staying permissive for
+        slots it omits (WP01-owned, not touched by this WP).
+        """
+        if getattr(self, "alternatives", None) is None:
+            raise RuntimeError("InvocationPayload.alternatives was not set -- a construction site is missing alternatives=")
+        result = self._serialize_slots(exclude=frozenset({"mode_of_work", "invocation_id"}))
+        result["status"] = "dry_run"
+        return result
+
+
+def build_ambiguous_dry_run_payload(request_text: str, err: RouterAmbiguityError) -> dict[str, object]:  # noqa: ARG001
+    """FR-009: the dedicated payload shape for the ``ROUTER_AMBIGUOUS`` dry-run
+    branch -- a deliberate, narrow exception to reusing ``InvocationPayload``.
+
+    No winner was resolved on this branch (``route()`` raised before returning
+    a decision), so no governance context, no recommendation, no glossary scan
+    tied to a winning profile exists to report. ``InvocationPayload``'s
+    ``profile_id``/``action`` slots stay non-Optional (``mypy --strict``) for
+    every other caller; forcing ``str | None`` through them to accommodate
+    this one branch would ripple an ``Optional`` into the real-dispatch
+    success contract for no benefit (plan.md "Two JSON shapes on the dry-run
+    path"). This is colocated beside ``InvocationPayload.to_dry_run_dict``
+    rather than living in ``dispatch.py`` so both dry-run shape sources stay
+    visibly adjacent for the next maintainer -- it is not a second competing
+    canonical payload type, just the one place the contract legitimately has
+    no winner to describe.
+
+    ``request_text`` is accepted for call-site symmetry with
+    ``to_dry_run_dict`` (``dispatch.py`` calls both as
+    ``builder(request, ...)``) and reserved for a future audit-trail echo;
+    spec.md's Key Entities contract for this branch does not include it in
+    the returned shape, so it is not read here.
+    """
+    return {
+        "status": "dry_run",
+        "profile_id": None,
+        "action": None,
+        "router_confidence": "ambiguous",
+        "alternatives": [
+            {
+                "profile_id": c["profile_id"],
+                "action": c["action"],
+                # FR-009: router.py's ROUTER_AMBIGUOUS raise site now carries a
+                # confidence key on every candidate dict -- guaranteed present,
+                # not defensively .get()'d, so a future regression there is
+                # loud (KeyError), not silently swallowed.
+                "confidence": c["confidence"],
+                "match_reason": c["match_reason"],
+            }
+            for c in err.candidates
+        ],
+    }
+
+
+@dataclasses.dataclass(frozen=True)
+class _RoutingResolution:
+    """Read-only routing-resolution + governance-context result.
+
+    Shared return shape for ``ProfileInvocationExecutor._resolve_routing_and_context``,
+    the helper both ``invoke()`` and ``dry_run()`` call to eliminate their
+    duplicated read-only wiring (PR-BOUNDARY-001). Carries ONLY the read
+    half: resolved profile/action, the advisory model-routing recommendation,
+    the assembled governance context, and the glossary chokepoint scan
+    result. It carries NOTHING from the write half -- no started-record
+    construction, no writer/propagator calls -- those stay in ``invoke()``
+    only, entirely after the duplicated region this type replaces.
+    """
+
+    profile: AgentProfile
+    action: str
+    router_confidence: str | None
+    empty_charter_fallback: bool
+    alternatives: list[dict[str, str]]
+    recommendation: RoutingRecommendation | None
+    ctx_result: CharterContextResult
+    ctx_hash: str
+    ctx_available: bool
+    bundle: GlossaryObservationBundle
 
 
 class ProfileInvocationExecutor:
@@ -217,6 +398,23 @@ class ProfileInvocationExecutor:
         self._router = router
         self._propagator = propagator
         self._chokepoint: GlossaryChokepoint | None = None  # lazy-loaded on first invoke
+
+    def list_available_profiles(self) -> list[AgentProfile]:
+        """Return the invocation catalog: profiles ``invoke`` can resolve.
+
+        Read-only accessor over the same ``ProfileRegistry`` this executor's
+        ``invoke()`` resolves ``profile_hint`` against, so a caller that
+        picks a fallback profile from this list has a guarantee
+        ``invoke(profile_hint=<that id>)`` cannot then fail with
+        ``ProfileNotFoundError`` (#4115: the mission-step executor's
+        role-based default-profile fallback consumes exactly this guarantee).
+        """
+        # Typed local: ``ProfileRegistry`` resolves to Any under a narrow
+        # ``--strict`` check (the ``specify_cli.*`` follow-imports skip), and
+        # this accessor's return type is the guarantee #4115 consumes, so it
+        # must not silently widen to ``Any``.
+        profiles: list[AgentProfile] = self._registry.list_all()
+        return profiles
 
     def invoke(
         self,
@@ -243,26 +441,30 @@ class ProfileInvocationExecutor:
         """
         invocation_id = _new_ulid()  # uses codebase-standard ulid library
 
-        # 1. Resolve (profile_id, action)
-        router_confidence: str | None = None
-        if profile_hint is not None:
-            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
-            # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
-            # use it verbatim; otherwise fall back to the legacy role-default-verb
-            # derivation. Truthiness (not `is not None`) means empty-string falls back.
-            action = action_hint or self._derive_action_from_request(request_text, profile.role)
-            router_confidence = None  # caller supplied explicit hint
-        elif self._router is not None:
-            # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
-            result: RouterDecision = self._router.route(request_text)
-            profile = self._registry.resolve(result.profile_id)
-            action = result.action
-            router_confidence = result.confidence
-        else:
-            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+        # 1-2a. Resolve (profile_id, action), the advisory model-routing
+        # recommendation, the governance context, and the glossary scan --
+        # PR-BOUNDARY-001: shared read-only wiring, see
+        # _resolve_routing_and_context()'s docstring for exactly what it
+        # does and does not do.
+        resolution = self._resolve_routing_and_context(
+            request_text,
+            profile_hint,
+            actor,
+            invocation_id=invocation_id,
+            action_hint=action_hint,
+            explicit_hint_router_confidence=None,  # invoke()'s explicit-hint branch leaves this None
+        )
+        profile = resolution.profile
+        action = resolution.action
+        router_confidence = resolution.router_confidence
+        empty_charter_fallback = resolution.empty_charter_fallback
+        alternatives = resolution.alternatives
+        recommendation = resolution.recommendation
+        ctx_result = resolution.ctx_result
+        ctx_hash = resolution.ctx_hash
+        ctx_available = resolution.ctx_available
+        bundle = resolution.bundle
 
-        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
-        recommendation = _compute_recommendation(profile, action)
         catalog_candidate = (
             recommendation.catalog_candidate if recommendation is not None else None
         )
@@ -270,40 +472,8 @@ class ProfileInvocationExecutor:
             catalog_candidate.model_id if catalog_candidate is not None else None
         )
 
-        # 2. Assemble governance context (mark_loaded=False — critical)
-        # NEVER pass mark_loaded=True here — would corrupt context-state.json
-        # and break the specify/plan first-load detection.
-        ctx_result = build_charter_context(
-            self._repo_root,
-            profile=profile.profile_id,
-            action=action,
-            mark_loaded=False,
-        )
-        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
-        ctx_available = ctx_result.mode != "missing"
-
-        # 2a. Run glossary chokepoint scan (T016/T017)
-        # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
-        # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
-        # Exception guard: any failure returns an error-bundle; the invocation always continues.
-        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
-
-        try:
-            if self._chokepoint is None:
-                self._chokepoint = GlossaryChokepoint(self._repo_root)
-            bundle = self._chokepoint.run(
-                request_text,
-                invocation_id=invocation_id,
-                actor_id=actor,
-            )
-        except Exception as _exc:  # noqa: BLE001
-            import logging as _logging
-
-            _logging.getLogger(__name__).warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
-            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
-
         # 3. Write started record (raises InvocationWriteError on fs failure)
-        started_at = datetime.datetime.now(datetime.UTC).isoformat()
+        started_at = now_utc_iso()
         record = OpStartedEvent(
             invocation_id=invocation_id,
             profile_id=profile.profile_id,
@@ -345,6 +515,207 @@ class ProfileInvocationExecutor:
             glossary_observations=bundle,
             mode_of_work=record.mode_of_work,
             recommendation=recommendation,
+            empty_charter_fallback=empty_charter_fallback,
+            alternatives=alternatives,  # WP2/#3840 (FR-005)
+        )
+
+    def _resolve_routing_and_context(
+        self,
+        request_text: str,
+        profile_hint: str | None,
+        actor: str,
+        *,
+        invocation_id: str,
+        action_hint: str | None = None,
+        explicit_hint_router_confidence: str | None = None,
+    ) -> _RoutingResolution:
+        """Read-only routing-resolution + governance-context wiring shared by
+        ``invoke()`` and ``dry_run()`` (PR-BOUNDARY-001).
+
+        Resolves ``(profile, action)``, computes the FR-004 advisory
+        model-routing recommendation, assembles the governance context
+        (``mark_loaded=False`` — never poisons first-load state), and runs
+        the glossary chokepoint scan. Returns a :class:`_RoutingResolution`.
+
+        Deliberately does NOT: mint an ``invocation_id`` (the caller supplies
+        one), construct an ``OpStartedEvent``, call
+        ``self._writer.write_started``/``write_glossary_observation``, or
+        call ``self._propagator.submit``. All of that write-side behaviour
+        stays in ``invoke()`` only, entirely after this helper returns — so
+        this extraction cannot couple the write path to ``dry_run()``.
+
+        ``invocation_id`` is passed straight through to the glossary
+        chokepoint call: ``invoke()`` passes its freshly-minted ULID;
+        ``dry_run()`` passes ``""``, the explicit falsy value that
+        structurally suppresses the persisted ``TermCandidateObserved``
+        write via ``GlossaryChokepoint``'s own
+        ``if not invocation_id: return None`` gate (chokepoint.py, untouched
+        by this extraction) — FR-003's guarantee, not a runtime ``if`` added
+        here.
+
+        ``action_hint``/``explicit_hint_router_confidence`` capture the one
+        real behavioural difference between the two callers' explicit-hint
+        branches: ``invoke()`` accepts an optional caller-supplied
+        ``action_hint`` (empty string treated as not supplied, EDGE-005) and
+        leaves ``router_confidence`` at ``None``; ``dry_run()`` has no
+        ``action_hint`` parameter of its own (so it always passes ``None``,
+        and ``action_hint or self._derive_action_from_request(...)`` reduces
+        to the plain derivation call) and pins ``router_confidence`` to
+        ``"exact"`` (FR-008 / spec.md Acceptance Scenario 2) — a deliberate,
+        pre-existing asymmetry this extraction preserves rather than resolves.
+        """
+        router_confidence: str | None = None
+        empty_charter_fallback = False
+        # WP2/#3840 (FR-005): the explicit-hint branch below never calls
+        # route(), so there are no candidates to report -- [] unless the
+        # router branch below overwrites it with RouterDecision.alternatives.
+        alternatives: list[dict[str, str]] = []
+        if profile_hint is not None:
+            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
+            # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
+            # use it verbatim; otherwise fall back to the legacy role-default-verb
+            # derivation. Truthiness (not `is not None`) means empty-string falls back.
+            action = action_hint or self._derive_action_from_request(request_text, profile.role)
+            router_confidence = explicit_hint_router_confidence
+        elif self._router is not None:
+            # WP02/#3064: pre-check the composite empty-charter predicate BEFORE
+            # routing. resolve_generic_fallback returns a RouterDecision only when
+            # the charter is wholly empty (Decision 2/3, research.md); otherwise it
+            # returns None and route() runs exactly as before. This does NOT touch
+            # ProfileRegistry or the shared activation gate -- explicit --profile
+            # (the branch above) is never affected by this pre-check.
+            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
+            # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
+            result: RouterDecision = fallback_decision or self._router.route(request_text)
+            profile = self._registry.resolve(result.profile_id)
+            action = result.action
+            router_confidence = result.confidence
+            empty_charter_fallback = fallback_decision is not None
+            alternatives = result.alternatives  # WP2/#3840 (FR-005)
+        else:
+            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+
+        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
+        recommendation = _compute_recommendation(profile, action)
+
+        # 2. Assemble governance context (mark_loaded=False — critical)
+        # NEVER pass mark_loaded=True here — would corrupt context-state.json
+        # and break the specify/plan first-load detection.
+        # WP03/#3064: thread the already-known empty-charter-fallback signal
+        # through as suppress_project_resolver so the compact governance
+        # block does not merge the project catalog-fallback directive canon
+        # (research.md Decision 4 — see charter/compact.py:render_compact_view
+        # for the full rationale). A declared, bounded, out-of-map coupled
+        # edit to charter/context.py (owned by WP06) — no other caller of
+        # build_charter_context passes this kwarg, so behaviour there is
+        # unchanged.
+        ctx_result = build_charter_context(
+            self._repo_root,
+            profile=profile.profile_id,
+            action=action,
+            mark_loaded=False,
+            suppress_project_resolver=empty_charter_fallback,
+        )
+        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
+        ctx_available = ctx_result.mode != "missing"
+
+        # 2a. Run glossary chokepoint scan (T016/T017)
+        # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
+        # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
+        # Exception guard: any failure returns an error-bundle; the invocation always continues.
+        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+
+        try:
+            if self._chokepoint is None:
+                self._chokepoint = GlossaryChokepoint(self._repo_root)
+            bundle = self._chokepoint.run(
+                request_text,
+                invocation_id=invocation_id,
+                actor_id=actor,
+            )
+        except Exception as _exc:  # noqa: BLE001
+            logger.warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
+            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+
+        return _RoutingResolution(
+            profile=profile,
+            action=action,
+            router_confidence=router_confidence,
+            empty_charter_fallback=empty_charter_fallback,
+            alternatives=alternatives,
+            recommendation=recommendation,
+            ctx_result=ctx_result,
+            ctx_hash=ctx_hash,
+            ctx_available=ctx_available,
+            bundle=bundle,
+        )
+
+    def dry_run(
+        self,
+        request_text: str,
+        profile_hint: str | None = None,
+        actor: str = "unknown",
+    ) -> InvocationPayload:
+        """Route the request and assemble governance context; write NOTHING.
+
+        A sibling of :meth:`invoke`, not a boolean flag threaded through it:
+        calls the same read-only ``_resolve_routing_and_context()`` helper
+        ``invoke()`` uses (routing resolution, the advisory model-routing
+        recommendation, governance-context assembly, the glossary scan) and
+        never reaches ``invoke()``'s write half at all. This method body
+        never mints or passes a truthy ``invocation_id`` -- FR-003's
+        structural guarantee, not a runtime ``if`` guard: it calls
+        ``_resolve_routing_and_context(..., invocation_id="", ...)``, an
+        explicit falsy value, so ``GlossaryChokepoint._build_event_context``'s
+        existing ``if not invocation_id: return None`` gate (chokepoint.py,
+        unchanged by this mission) suppresses the persisted
+        ``TermCandidateObserved`` write before it is ever attempted. This
+        method never calls ``self._writer.write_started``,
+        ``self._writer.write_glossary_observation``, or
+        ``self._propagator.submit`` anywhere in its body.
+
+        ``RouterAmbiguityError`` propagates unchanged out of ``route()`` --
+        no internal catch, exactly as ``invoke()`` does today -- covering all
+        three of its error codes (``ROUTER_AMBIGUOUS``, ``ROUTER_NO_MATCH``,
+        and, on the explicit-``profile_hint`` branch, ``PROFILE_NOT_FOUND``).
+        A literal ``ProfileNotFoundError`` DOES reach this method's caller on
+        the explicit-``profile_hint`` branch: the registry is resolved
+        directly (not via ``route()``), so a bad ``--profile`` raises it here.
+        Only the no-hint branch surfaces a miss as
+        ``RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")`` from ``route()``.
+        """
+        # FR-008 (spec.md Acceptance Scenario 2): the dry-run payload
+        # contract pins "exact" for the explicit-hint branch, matching
+        # ActionRouter.route()'s own Level-1 explicit-hint confidence value.
+        # This intentionally does NOT mirror invoke()'s own explicit-hint
+        # branch, which bypasses route() entirely at the executor level and
+        # leaves router_confidence None there — a pre-existing invoke()-only
+        # quirk this WP does not touch.
+        resolution = self._resolve_routing_and_context(
+            request_text,
+            profile_hint,
+            actor,
+            invocation_id="",
+            explicit_hint_router_confidence="exact",
+        )
+
+        # No write_started, no write_glossary_observation, no
+        # propagator.submit, no invocation_id minted anywhere above -- this
+        # is dry_run()'s entire reason to exist.
+        return InvocationPayload(
+            invocation_id="",
+            profile_id=resolution.profile.profile_id,
+            profile_friendly_name=resolution.profile.name,
+            action=resolution.action,
+            governance_context_text=resolution.ctx_result.text,
+            governance_context_hash=resolution.ctx_hash,
+            governance_context_available=resolution.ctx_available,
+            router_confidence=resolution.router_confidence,
+            glossary_observations=resolution.bundle,
+            mode_of_work=None,
+            recommendation=resolution.recommendation,
+            empty_charter_fallback=resolution.empty_charter_fallback,
+            alternatives=resolution.alternatives,  # WP2/#3840 (FR-005)
         )
 
     def complete_invocation(
@@ -372,20 +743,28 @@ class ProfileInvocationExecutor:
         Raises ``InvocationError`` if invocation_id is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
         Raises ``InvalidModeForEvidenceError`` if evidence_ref is supplied on an
-            non-evidence-eligible invocation (FR-009). This is a pre-write check —
-            no JSONL lines are written if this error is raised.
+            non-evidence-eligible invocation (FR-009), or its
+            ``UndeterminedModeForEvidenceError`` subclass when the record's
+            ``mode_of_work`` cannot be read at all (#3030). This is a pre-write
+            check — no JSONL lines are written if this error is raised.
         """
         # Step 1: Read started event for mode enforcement (FR-009).
         started_mode = self._read_started_mode(invocation_id)
 
         # Step 2: Enforce mode gate on evidence promotion BEFORE any write.
-        if evidence_ref is not None and started_mode in {ModeOfWork.ADVISORY, ModeOfWork.QUERY}:
-            raise InvalidModeForEvidenceError(invocation_id, started_mode)
+        # Scoped to the promotion: an Op whose mode cannot be read must still be
+        # closable, or an unreadable field would strand the record forever.
+        if evidence_ref is not None and not mode_permits_evidence(started_mode):
+            if isinstance(started_mode, _UndeterminedMode):
+                raise UndeterminedModeForEvidenceError(invocation_id, started_mode.raw)
+            # mode_permits_evidence() only rejects ADVISORY / QUERY here; absence
+            # (None) is permissive, so started_mode is a ModeOfWork by exhaustion.
+            raise InvalidModeForEvidenceError(invocation_id, ModeOfWork(started_mode))
 
         # Step 3: Append completed event (existing behaviour).
         completed = OpCompletedEvent(
             invocation_id=invocation_id,
-            completed_at=datetime.datetime.now(datetime.UTC).isoformat(),
+            completed_at=now_utc_iso(),
             outcome=outcome,
             closed_by=closed_by,
             evidence_ref=evidence_ref,
@@ -463,21 +842,22 @@ class ProfileInvocationExecutor:
             return
         self._writer.append_correlation_link(invocation_id, sha=commit_sha)
 
-    def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None:
-        """Read mode_of_work from the started event. Returns None for pre-mission records
-        or when the stored value is not a recognised ModeOfWork (malformed trail)."""
+    def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None | _UndeterminedMode:
+        """Read ``mode_of_work`` from the started event, keeping three states apart.
+
+        ``None`` means the record carries no mode (a pre-mission record) and
+        keeps its documented legacy default; :class:`_UndeterminedMode` means
+        the record declares something no reader can map to a ``ModeOfWork``.
+        The two used to collapse into one ``None`` that skipped FR-009
+        enforcement entirely, so a single mangled string bought evidence
+        promotion on an advisory or query Op (#3030).
+        """
         path = self._writer.invocation_path(invocation_id)
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
         first_line = path.read_text(encoding="utf-8").splitlines()[0]
         first = _json_mod.loads(first_line)
-        raw = first.get("mode_of_work")
-        if not raw:
-            return None
-        try:
-            return ModeOfWork(raw)
-        except ValueError:
-            return None  # unknown/invalid mode_of_work → treat as legacy, skip enforcement
+        return classify_mode_of_work(first.get("mode_of_work"))
 
     def _read_started_event(self, invocation_id: str) -> dict[str, object]:
         path = self._writer.invocation_path(invocation_id)
@@ -557,10 +937,11 @@ class ProfileInvocationExecutor:
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""
-        from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES
-        from doctrine.agent_profiles.profile import Role
+        from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 
         caps = DEFAULT_ROLE_CAPABILITIES.get(role) if isinstance(role, Role) else None
         if caps and caps.canonical_verbs:
-            return caps.canonical_verbs[0]
+            # charter.profiles is mypy-quarantined (follow_imports=skip), so
+            # ``caps`` resolves to ``Any``; the verb is a str at runtime.
+            return str(caps.canonical_verbs[0])
         return "review"  # default fallback

@@ -2,7 +2,7 @@
 # Mission: migration-shim-ownership-rules-01KPDYDW (#615)
 #
 # Schema: kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml
-# Rulebook: docs/migrations/06_migration_and_shim_rules.md
+# Rulebook: docs/migrations/migration-and-shim-rules.md
 #
 # To register a new shim: follow the instructions in the rulebook Section 4
 # (rule family d — removal plans and registry contract) and the quickstart at
@@ -18,4 +18,11 @@
 # specify_cli.next (#612) shims deleted; canonical imports are
 # glossary.* and runtime.next.* respectively.
 
-shims: []
+shims:
+  - legacy_path: doctrine
+    canonical_import: charter.offering
+    introduced_in_release: "3.2.6"
+    removal_target_release: "3.3.0"
+    tracker_issue: "#805"
+    grandfathered: false
+    notes: "Lazy PEP 562 shim for CR-06; dotted doctrine.* submodule imports are intentionally unsupported."

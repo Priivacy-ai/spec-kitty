@@ -2,7 +2,7 @@
 title: Spec Kitty slash commands reference — CLI quick reference
 description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-08-15'
 ---
 # Slash Command Reference
 
@@ -34,6 +34,14 @@ Syntax format in this reference:
 - `kitty-specs/<feature>/spec.md`
 - `kitty-specs/<feature>/meta.json`
 - `kitty-specs/<feature>/checklists/requirements.md`
+
+**Optional handoff-packet intake**: if `spec-kitty intake` staged a brief
+whose YAML frontmatter declares `handoff_packet: 1` (an upstream requirements
+tool's export), `/spec-kitty.specify` adopts that packet's FR/AC ids verbatim
+instead of re-minting them — the discovery interview above still runs. A
+packet-less brief, an unrecognised version, or malformed frontmatter all
+degrade to today's plain-prose intake; the command never fails because the
+overlay is absent or invalid. See [Handoff Packet v1](../contracts/handoff-packet-v1.md).
 
 **Related**: `/spec-kitty.plan`, `/spec-kitty.charter`
 
@@ -86,6 +94,73 @@ Syntax format in this reference:
 - `kitty-specs/<feature>/tasks/WPxx-*.md` (flat directory)
 
 **Related**: `/spec-kitty.plan`, `/spec-kitty.implement`, `/spec-kitty.analyze`
+
+---
+
+## /spec-kitty.tasks-outline
+
+**Syntax**: `/spec-kitty.tasks-outline [notes]`
+
+**Purpose**: Create the work package manifest (`wps.yaml`) that defines each work package's metadata, dependencies, and file ownership. This is the first stage of staged work-package authoring; `tasks.md` is generated later from this manifest, not written by hand.
+
+**Prerequisites**:
+- Run from the repository root checkout.
+- `spec.md` and `plan.md` exist for the mission.
+
+**What it does**:
+- Reads the spec and plan to identify work package boundaries.
+- Writes `wps.yaml` as the single source of truth for WP `id`, `title`, `dependencies`, `owned_files`, `requirement_refs`, and `subtasks`.
+- Leaves `tasks.md` untouched — it is generated automatically by `/spec-kitty.tasks-finalize` from `wps.yaml`.
+
+**Creates/updates**:
+- `kitty-specs/<mission>/wps.yaml`
+
+**Related**: `/spec-kitty.plan`, `/spec-kitty.tasks-packages`, `/spec-kitty.tasks`
+
+---
+
+## /spec-kitty.tasks-packages
+
+**Syntax**: `/spec-kitty.tasks-packages [notes]`
+
+**Purpose**: Materialize one prompt file per work package (`tasks/WP*.md`) from the manifest in `wps.yaml`. This is the second stage of staged work-package authoring.
+
+**Prerequisites**:
+- Run from the repository root checkout.
+- `wps.yaml` exists with complete WP definitions (written by `/spec-kitty.tasks-outline`).
+
+**What it does**:
+- Reads `wps.yaml` and generates an independent prompt file for each work package.
+- Updates `wps.yaml` with per-WP `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` values, and assigns an agent profile per WP.
+
+**Creates/updates**:
+- `kitty-specs/<mission>/tasks/WP*.md`
+- `kitty-specs/<mission>/wps.yaml` (per-WP details)
+
+**Related**: `/spec-kitty.tasks-outline`, `/spec-kitty.tasks-finalize`
+
+---
+
+## /spec-kitty.tasks-finalize
+
+**Syntax**: `/spec-kitty.tasks-finalize [options]`
+
+**Purpose**: Finalize the mission's work packages — validate dependencies and requirement mapping, generate `tasks.md`, update WP frontmatter, and commit the task artifacts to the target branch. This is the final stage of staged work-package authoring.
+
+**Prerequisites**:
+- Run from the repository root checkout.
+- WP prompt files and `wps.yaml` exist (from `/spec-kitty.tasks-packages`).
+
+**What it does**:
+- Runs `spec-kitty agent mission finalize-tasks`, starting with a `--validate-only` preflight.
+- Validates dependencies (no cycles, no invalid references) and requirement mapping against `spec.md`.
+- Computes lanes, generates `tasks.md`, updates WP frontmatter, and commits the artifacts automatically.
+
+**Creates/updates**:
+- `kitty-specs/<mission>/tasks.md`
+- `kitty-specs/<mission>/tasks/WP*.md` (frontmatter: dependencies, requirement refs, lanes)
+
+**Related**: `/spec-kitty.tasks-packages`, `/spec-kitty.implement`, `/spec-kitty.analyze`
 
 ---
 
@@ -297,10 +372,10 @@ Syntax format in this reference:
 
 ## Getting Started
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Use the Dashboard](../guides/use-dashboard.md)
-- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)

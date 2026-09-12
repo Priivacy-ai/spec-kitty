@@ -7,9 +7,9 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
    per-file native-delegate assertion for the tracked guard/parse symbols
    (``_check_cli_guards`` / ``_check_composed_action_guard`` / the tracked
    parse helpers) was RETIRED in the #2557 dev-assist cleanup: that invariant
-   is covered family-wide by the frozen
-   ``test_bridge_compat_surface.py::test_guard_b_identity_reexport_for_
-   relocated_symbols``, so duplicating it here was redundant. This file now
+   was then covered family-wide by a dedicated frozen bridge compat-surface
+   guard (itself later retired in #3285), so duplicating it here was redundant.
+   This file now
    retains only the UNTRACKED parse-family identity check — the five helpers
    nothing patches ARE plain re-exports and DO satisfy the identity check
    (unique coverage the family guard's ``_``-private inventory does not track).
@@ -33,6 +33,7 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -183,6 +184,45 @@ def test_evaluate_requirement_mapping_reports_missing_unknown_and_unmapped_in_or
 
 
 # ---------------------------------------------------------------------------
+# 3b. #3394 negative-space regression pins — these must stay [] (non-blocking)
+# both before and after any requirement-mapping change; that is the whole
+# point of #3394's fix (dfec9d7e2/2a1c9b9d7): declared-shape scoping, not a
+# doc-wide raw-token block.
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block() -> None:
+    """The genuinely empty case (no formal requirements at all -- zero
+    declared ids, zero WPs) must NOT block: there is nothing to be missing."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset(),
+        functional_requirement_ids=frozenset(),
+        wp_ids=(),
+        wp_requirement_refs={},
+        feature_dir_name="042-no-requirements",
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+def test_evaluate_requirement_mapping_3394_repro_shape_does_not_block() -> None:
+    """THE regression pin: #3394's actual repro shape -- three FRs DECLARED
+    in a Requirements table, plus a mid-sentence CITATION of a foreign
+    FR-021 elsewhere in prose (never declared) -- must NOT block. Every
+    declared FR is mapped to its WP, so the missing/unknown/unmapped checks
+    are all silent; the foreign citation is simply not this spec's concern
+    (that scoping lives in ``specify_cli.requirement_mapping.
+    parse_requirement_ids_from_spec_md``, upstream of this pure core)."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        functional_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        wp_ids=("WP01",),
+        wp_requirement_refs={"WP01": ("FR-001", "FR-002", "FR-003")},
+        feature_dir_name="3394-repro",
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+# ---------------------------------------------------------------------------
 # 4. evaluate_guards — software-dev family (CLI-native vocabulary)
 # ---------------------------------------------------------------------------
 
@@ -203,6 +243,7 @@ def _snapshot(
         "wp_dependencies_present": {},
         "wp_dependency_records": (),
         "requirement_mapping_failures": (),
+        "bare_prose_requirement_failures": (),
         "occurrence_gate_failures": (),
         "source_documented_count": 0,
         "publication_approved": False,
@@ -390,6 +431,78 @@ def test_composed_tasks_terminal_ready_reports_requirement_and_dependency_then_o
     ]
 
 
+# ---------------------------------------------------------------------------
+# 4b. #3396 bare-prose requirement wiring — per-guard teeth tests (WP05,
+# FR-002/FR-010/NFR-005). Each of the four guard functions FR-003's audit
+# names must read the new ``bare_prose_requirement_failures`` status_facts
+# key BEFORE its own dir-readiness short-circuit — this is the exact
+# ordering fix the reverted ``3823f2b00``-shaped wiring lacked (that revert
+# read the analogous ``requirement_mapping_failures`` fact AFTER
+# ``_tasks_dir_ready``, so it was inert whenever zero WP files existed). Each
+# test below constructs a snapshot in the "guard would otherwise
+# short-circuit" configuration and asserts the bare-prose failure still
+# surfaces — it fails if that specific guard's wiring alone is reverted.
+# ---------------------------------------------------------------------------
+
+_BARE_PROSE_TEETH_MESSAGE = "Bare-prose requirement id(s) found, uncounted by requirement mapping: FR-001, FR-002."
+
+
+def test_cli_native_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 1/4 — zero WP files (``_tasks_dir_ready`` is False)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_cli_native_tasks_finalize_guard_reads_bare_prose_unconditionally() -> None:
+    """Teeth test 2/4 — ``_evaluate_tasks_finalize_guard`` has NO
+    ``_tasks_dir_ready`` call today (it uses its own inline
+    ``tasks_dir_is_dir``/``tasks_wp_files`` branches); confirm the new fact
+    is read as the first statement, independent of those branches."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: tasks/ directory with finalized WP files",
+    ]
+
+
+def test_composed_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 3/4 — tasks.md present, zero WP files."""
+    snapshot = _snapshot(
+        present_artifacts=frozenset({"tasks.md"}),
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_composed_tasks_terminal_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 4/4 — the composed terminal/union branch, tasks.md absent
+    and zero WP files (the highest-risk SC-007 fixture shape)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required artifact missing: tasks.md",
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
 def test_cli_native_and_composed_tasks_vocabularies_diverge_for_same_substep() -> None:
     """tasks_finalize (CLI-native) and tasks/legacy_step_id=tasks_finalize
     (composed) are NOT interchangeable -- the composed branch also checks
@@ -511,3 +624,209 @@ def test_documentation_unknown_action_fail_closed_default() -> None:
     assert cores.evaluate_guards(snapshot) == [
         "No guard registered for documentation action: not-a-real-doc-action"
     ]
+
+
+# ---------------------------------------------------------------------------
+# 8. evaluate_guards -- "plan" mission family (issue #3386 RED pin, T001/FR-002)
+#
+# Today, "plan" is not special-cased in ``evaluate_guards``'s dispatch, so it
+# falls through to ``_evaluate_software_dev_guards`` -- misfiring for
+# ``review`` (the WP-iteration message instead of the terminal `[]`) and for
+# ``research`` (an unconditional `[]`, ignoring `research.md`'s real
+# presence). T003/T004 register a dedicated "plan" guard table
+# (``_evaluate_plan_guards``) that fixes both.
+# ---------------------------------------------------------------------------
+
+
+def test_plan_review_guard_target_shape() -> None:
+    """RED at base: 'plan'/'review' falls through to the software-dev
+    WP-iteration guard (`wp_advance_ready` unset -> the WP-iteration failure
+    message), not the terminal no-op `[]` a dedicated 'plan' guard table
+    gives it (issue #3386's own title)."""
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="review")) == []
+
+
+def test_plan_research_guard_absent_and_present() -> None:
+    """RED at base for the absent-artifact case only (TASKS-VERIFY-001):
+    'plan'/'research' currently returns `[]` unconditionally (falls through
+    to software-dev's bare catch-all `return []`, since "research" is not one
+    of software-dev's own step ids) regardless of research.md's real
+    presence. The present-artifact assertion below already passes at base
+    for that same wrong (unconditional) reason -- it is a companion
+    target-shape assertion, not itself RED evidence."""
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="research")) == [
+        "Required artifact missing: research.md"
+    ]
+    assert (
+        cores.evaluate_guards(
+            _snapshot(
+                mission_family="plan",
+                step_id="research",
+                present_artifacts=frozenset({"research.md"}),
+            )
+        )
+        == []
+    )
+
+
+def test_plan_guard_specify_and_plan_branches_direct_dispatch() -> None:
+    """Direct-dispatch coverage for ``_evaluate_plan_guards`` itself (not the
+    full ``evaluate_guards`` dispatch) -- RED today via ``AttributeError``
+    since ``_evaluate_plan_guards`` does not exist until T003 lands. A
+    full-dispatch assertion alone would NOT catch an implementer swapping
+    SPEC_ARTIFACT/PLAN_ARTIFACT between these two branches, because both
+    branches coincidentally produce the same shape of output via two
+    independent code paths (this function, and software-dev's fallthrough)
+    both pre- and post-fix."""
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="specify")) == [
+        "Required artifact missing: spec.md"
+    ]
+    assert (
+        cores._evaluate_plan_guards(
+            _snapshot(mission_family="plan", step_id="specify", present_artifacts=frozenset({"spec.md"}))
+        )
+        == []
+    )
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="plan")) == [
+        "Required artifact missing: plan.md"
+    ]
+    assert (
+        cores._evaluate_plan_guards(
+            _snapshot(mission_family="plan", step_id="plan", present_artifacts=frozenset({"plan.md"}))
+        )
+        == []
+    )
+
+
+def test_plan_guard_fail_closed_else_branch() -> None:
+    """RED today via ``AttributeError`` (direct-call half) -- once T003
+    lands, asserts the fail-closed message. The companion full-dispatch
+    assertion is genuinely RED via full dispatch too (falls through to
+    software-dev's catch-all `[]` today): it confirms
+    ``_evaluate_plan_guards`` is actually *registered* in ``_GUARD_TABLES``
+    under "plan", not merely correct in isolation."""
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="not-a-real-plan-action")) == [
+        "No guard registered for plan action: not-a-real-plan-action"
+    ]
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="not-a-real-plan-action")) == [
+        "No guard registered for plan action: not-a-real-plan-action"
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 9. evaluate_guards_strict / UnregisteredMissionFamilyError (T002, FR-011)
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_guards_strict_raises_for_unregistered_mission_family() -> None:
+    """RED today via ``AttributeError`` -- neither ``evaluate_guards_strict``
+    nor ``UnregisteredMissionFamilyError`` exists until T003 lands."""
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        cores.evaluate_guards_strict(_snapshot(mission_family="totally-unregistered-family", step_id="review"))
+
+
+def test_evaluate_guards_tolerant_wrapper_degrades_for_unregistered_mission_family() -> None:
+    """Companion coverage for the tolerant ``evaluate_guards`` wrapper's own
+    ``except UnregisteredMissionFamilyError: return []`` branch (T003) --
+    distinct from the strict function above and from
+    ``_check_cli_guards``/``_check_composed_action_guard`` (which bypass this
+    wrapper entirely per IC-03/IC-04). Kept tolerant/public only for direct
+    test callers per its own docstring, so this exercises that contract
+    directly."""
+    assert cores.evaluate_guards(_snapshot(mission_family="totally-unregistered-family", step_id="review")) == []
+
+
+def test_check_cli_guards_propagates_unregistered_mission_family_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """RED today: ``_check_cli_guards`` ends with
+    ``return _cores.evaluate_guards(snapshot)`` (the tolerant function),
+    which currently returns the software-dev misfire (or `[]`), never
+    raises. Once T003/T006 land, the strict lookup's
+    ``UnregisteredMissionFamilyError`` must propagate OUT of
+    ``_check_cli_guards`` itself -- not merely out of an isolated,
+    unwired ``evaluate_guards_strict`` call."""
+
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
+        return ArtifactPresenceSnapshot(
+            present_artifacts=frozenset(),
+            status_facts={},
+            mission_family="totally-unregistered-family",
+            step_id=step_id,
+            legacy_step_id=legacy_step_id,
+        )
+
+    monkeypatch.setattr(rb._io_seam, "gather_artifact_presence", _fake_gather)
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        rb._check_cli_guards("review", tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# 10. evaluate_guards_strict — blocking_artifact_names dispatch branch
+#     (WP01, FR-001/FR-002/FR-006, #3704 Part 1)
+# ---------------------------------------------------------------------------
+#
+# Once ``_GUARD_TABLES`` misses (``snapshot.mission_family`` is unregistered),
+# ``evaluate_guards_strict`` now branches on ``snapshot.blocking_artifact_names``:
+# ``None`` (no manifest reachable at any tier) keeps the existing strict raise;
+# a real (possibly empty) ``frozenset`` is genuinely evaluated by comparing it
+# against ``snapshot.present_artifacts``, restoring the None-vs-frozenset()
+# distinction SPEC-FRESH-001 requires (bare falsiness would silently collapse
+# it, since ``frozenset()`` is falsy).
+
+
+def test_evaluate_guards_strict_still_raises_when_blocking_artifact_names_is_none() -> None:
+    """FR-002 outcome 1 / AC-3 / C-001 -- unchanged: an unregistered family
+    with NO manifest reachable at any tier (``blocking_artifact_names is
+    None``) still fails closed via the strict raise, exactly as before this
+    WP's new branch existed."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset(),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=None,
+    )
+
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        cores.evaluate_guards_strict(snapshot)
+
+
+def test_evaluate_guards_strict_returns_empty_when_blocking_set_is_subset_of_present() -> None:
+    """FR-002 outcome 2: a real, EMPTY ``frozenset`` (manifest resolved,
+    nothing blocking at this step) must be reached via genuine evaluation --
+    not a swallowed exception -- and return ``[]``. This is the crux of the
+    None-vs-frozenset() distinction: ``if not snapshot.blocking_artifact_names``
+    would treat this identically to the ``None`` case above; ``is None`` does
+    not."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset(),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=frozenset(),
+    )
+
+    assert cores.evaluate_guards_strict(snapshot) == []
+
+
+def test_evaluate_guards_strict_reports_blocking_artifacts_not_yet_present() -> None:
+    """FR-002 outcome 3: a non-empty ``blocking_artifact_names`` whose members
+    are NOT a subset of ``present_artifacts`` returns a non-empty failure list
+    naming the missing artifact(s)."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset({"already-here.md"}),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=frozenset({"already-here.md", "still-missing.md"}),
+    )
+
+    assert cores.evaluate_guards_strict(snapshot) == ["still-missing.md"]

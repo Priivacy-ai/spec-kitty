@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-09T07:44:36.964642Z",
+      "decision_id": "01KZJQP5K4C0VGNB53GZZT3QWP",
+      "final_answer": "refuse-with-prune: a plain synthesize that would drop still-backed nodes/edges fails closed and lists the deletions; removal requires an explicit --prune opt-in",
+      "input_key": "drop_semantics",
+      "mission_id": "01KZJQN68SWZ7T1YKGDB4Q4EVH",
+      "mission_slug": "charter-synthesize-reconciliation-01KZJQN6",
+      "opened_by": "cli",
+      "options": [
+        "preserve-by-default",
+        "refuse-with-prune",
+        "hybrid"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Default semantics when a synthesize rebuild no longer targets content that still exists in the on-disk graph (backed by doctrine artifacts)?",
+      "rationale": null,
+      "resolved_at": "2026-08-09T07:44:38.047833Z",
+      "resolved_by": null,
+      "slot_key": "specify.reconciliation.drop-semantics",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-09T08:45:58.906025Z",
+      "decision_id": "01KZJV6H7TW63M6ZGNM05XKM2S",
+      "final_answer": "preserve-and-warn (supersedes 01KZJQP5K4C0VGNB53GZZT3QWP): library seam preserves-and-succeeds (never silent-drops, exit 0, warns); auto_refresh & activate consume it; --prune removes explicitly; non-zero refuse narrowed to manual CLI for genuinely-unpreservable removals (orphaned/backing-deleted without --prune, or unparseable overlay). Re-anchor to ADR 2026-07-26-3 + drg/merge.py conflict model (warn-not-block).",
+      "input_key": "drop_semantics_revised",
+      "mission_id": "01KZJQN68SWZ7T1YKGDB4Q4EVH",
+      "mission_slug": "charter-synthesize-reconciliation-01KZJQN6",
+      "opened_by": "cli",
+      "options": [
+        "preserve-and-warn",
+        "refuse-with-prune"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Post-spec squad revision: default semantics for a synthesize rebuild that would drop still-backed on-disk graph/manifest content?",
+      "rationale": null,
+      "resolved_at": "2026-08-09T08:45:59.972079Z",
+      "resolved_by": null,
+      "slot_key": "specify.reconciliation.drop-semantics-revised",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KZJQN68SWZ7T1YKGDB4Q4EVH",
+  "version": 1
+}

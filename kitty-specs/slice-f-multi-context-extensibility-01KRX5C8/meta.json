@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-18T09:06:24.023605+00:00",
+  "flattened": false,
   "friendly_name": "Slice F — Multi-Context Extensibility + Strategic Remediations",
   "mission_id": "01KRX5C8MQRGG7WJW1YK53DTF5",
   "mission_number": 121,
@@ -10,6 +11,7 @@
   "slug": "slice-f-multi-context-extensibility-01KRX5C8",
   "status_phase": "1",
   "target_branch": "feat/org-doctrine-layer",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-18T12:12:50.313387+00:00"
 }

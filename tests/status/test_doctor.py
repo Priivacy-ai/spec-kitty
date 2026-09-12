@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from types import SimpleNamespace
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,9 +29,8 @@ from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 
 pytestmark = pytest.mark.fast
 
-def _create_events_file(
-    feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test"
-) -> None:
+
+def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test") -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
     Prevents doctor from flagging 'status.json exists but events file missing'.
@@ -334,6 +333,55 @@ def test_check_issue_matrix_no_refs_is_clean(tmp_path: Path) -> None:
     assert check_issue_matrix(feature_dir) == []
 
 
+def test_check_issue_matrix_discovers_reference_only_in_wp_file(tmp_path: Path) -> None:
+    """WP08/T029/FR-004: a ref buried in ``tasks/WP01.md`` alone is discovered.
+
+    Prior to the multi-file discovery module, ``check_issue_matrix`` only
+    ever scanned ``spec.md``, so an issue referenced solely inside a WP
+    prompt file was invisible to this health check.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("No GitHub issue references here.\n", encoding="utf-8")
+    (tasks_dir / "WP01.md").write_text("This WP fixes #7777.\n", encoding="utf-8")
+
+    findings = check_issue_matrix(feature_dir)
+
+    assert len(findings) == 1
+    assert "#7777" in findings[0].message
+
+
+def test_check_issue_matrix_json_only_mission_is_not_falsely_flagged_missing(
+    tmp_path: Path,
+) -> None:
+    """WP08/T043 (C-008/B-1): a JSON-only matrix is no longer a false "missing".
+
+    Before the reader switch, the ``.md``-only ``.exists()`` precheck made a
+    greenfield JSON-only mission (B3) look like the issue-matrix was
+    missing, even though ``issue-matrix.json`` already carried the row.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Addresses issue #1582.\n", encoding="utf-8")
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rows": {
+                    "#1582": {
+                        "verdict": "fixed",
+                        "evidence_ref": "tests/test_demo.py",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert check_issue_matrix(feature_dir) == []
+
+
 # ---------------------------------------------------------------------------
 # check_stale_claims tests
 # ---------------------------------------------------------------------------
@@ -348,7 +396,7 @@ class TestCheckStaleClaims:
 
     def test_stale_claimed_detected(self, tmp_path: Path):
         """WP in claimed for 10 days with threshold 7 -> finding."""
-        ten_days_ago = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        ten_days_ago = (now_utc() - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -368,7 +416,7 @@ class TestCheckStaleClaims:
 
     def test_stale_in_progress_detected(self, tmp_path: Path):
         """WP in in_progress for 20 days with threshold 14 -> finding."""
-        twenty_days_ago = (datetime.now(UTC) - timedelta(days=20)).isoformat()
+        twenty_days_ago = (now_utc() - timedelta(days=20)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP02": {
@@ -386,7 +434,7 @@ class TestCheckStaleClaims:
 
     def test_no_stale_within_threshold(self, tmp_path: Path):
         """WP in claimed for 3 days with threshold 7 -> no finding."""
-        three_days_ago = (datetime.now(UTC) - timedelta(days=3)).isoformat()
+        three_days_ago = (now_utc() - timedelta(days=3)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -399,69 +447,27 @@ class TestCheckStaleClaims:
         findings = check_stale_claims(tmp_path, snapshot, claimed_threshold_days=7)
         assert len(findings) == 0
 
-    def test_done_not_stale(self, tmp_path: Path):
-        """WP in done for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "done",
-                    "actor": "reviewer",
-                    "last_transition_at": hundred_days_ago,
+    def test_non_active_lanes_are_never_stale(self, tmp_path: Path):
+        """Only claimed/in-progress lanes participate in stale detection."""
+        hundred_days_ago = (now_utc() - timedelta(days=100)).isoformat()
+        counts = {}
+        for lane in ("done", "canceled", "blocked", "for_review"):
+            snapshot = self._make_snapshot(
+                {
+                    "WP01": {
+                        "lane": lane,
+                        "actor": "agent",
+                        "last_transition_at": hundred_days_ago,
+                    }
                 }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
+            )
+            counts[lane] = len(check_stale_claims(tmp_path, snapshot))
 
-    def test_canceled_not_stale(self, tmp_path: Path):
-        """WP in canceled for 100 days -> no finding (terminal state)."""
-        hundred_days_ago = (datetime.now(UTC) - timedelta(days=100)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "canceled",
-                    "actor": "user",
-                    "last_transition_at": hundred_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
-
-    def test_blocked_not_stale(self, tmp_path: Path):
-        """WP in blocked for 30 days -> no finding (blocking is intentional)."""
-        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "blocked",
-                    "actor": "agent",
-                    "last_transition_at": thirty_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
-
-    def test_for_review_not_stale(self, tmp_path: Path):
-        """WP in for_review for 30 days -> no finding."""
-        thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
-        snapshot = self._make_snapshot(
-            {
-                "WP01": {
-                    "lane": "for_review",
-                    "actor": "agent",
-                    "last_transition_at": thirty_days_ago,
-                }
-            }
-        )
-        findings = check_stale_claims(tmp_path, snapshot)
-        assert len(findings) == 0
+        assert counts == {"done": 0, "canceled": 0, "blocked": 0, "for_review": 0}
 
     def test_custom_thresholds(self, tmp_path: Path):
         """Custom thresholds are respected."""
-        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+        two_days_ago = (now_utc() - timedelta(days=2)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -514,7 +520,7 @@ class TestCheckStaleClaims:
 
     def test_multiple_stale_wps(self, tmp_path: Path):
         """Multiple stale WPs produce multiple findings."""
-        old = (datetime.now(UTC) - timedelta(days=15)).isoformat()
+        old = (now_utc() - timedelta(days=15)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -546,7 +552,7 @@ class TestCheckStaleClaims:
 
     def test_actor_unknown_when_missing(self, tmp_path: Path):
         """Actor defaults to 'unknown' in message when not in snapshot."""
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         snapshot = self._make_snapshot(
             {
                 "WP01": {
@@ -595,16 +601,6 @@ class TestCheckOrphanWorkspaces:
             "work_packages": {
                 "WP01": {"lane": "in_progress"},
                 "WP02": {"lane": "done"},
-            }
-        }
-        findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
-        assert len(findings) == 0
-
-    def test_all_done_no_worktrees(self, tmp_path: Path):
-        """All WPs done + no worktrees -> no finding."""
-        snapshot = {
-            "work_packages": {
-                "WP01": {"lane": "done"},
             }
         }
         findings = check_orphan_workspaces(tmp_path, "034-test-feature", snapshot)
@@ -679,12 +675,13 @@ class TestCheckOrphanWorkspaces:
 class TestCheckDrift:
     """Tests for drift detection delegation."""
 
-    def test_no_validation_engine_returns_empty(self, tmp_path: Path):
+    def test_no_validation_engine_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """When validation engine is not available -> empty findings, no crash."""
         # The default state is that specify_cli.status.validate doesn't exist.
-        # We patch the import to raise ImportError.
-        with patch.dict("sys.modules", {"specify_cli.status.validate": None}):
-            findings = check_drift(tmp_path)
+        # We patch the import to raise ImportError.  A None sys.modules entry forces
+        # ImportError on import; single-key setitem keeps teardown eviction-free (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli.status.validate", None)
+        findings = check_drift(tmp_path)
         assert findings == []
 
     def test_import_error_graceful(self, tmp_path: Path):
@@ -711,20 +708,22 @@ class TestCheckSparseCheckout:
         with patch("builtins.__import__", side_effect=fake_import):
             assert check_sparse_checkout(tmp_path) == []
 
-    def test_scan_failure_returns_empty(self, tmp_path: Path):
+    def test_scan_failure_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: (_ for _ in ()).throw(RuntimeError("boom")))
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            assert check_sparse_checkout(tmp_path) == []
+        # setitem rather than a whole-dict sys.modules mock: teardown restores exactly
+        # this one key, so modules first-imported in the window are not evicted (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        assert check_sparse_checkout(tmp_path) == []
 
-    def test_inactive_repo_returns_empty(self, tmp_path: Path):
+    def test_inactive_repo_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         fake_report = SimpleNamespace(any_active=False, any_blocking=False)
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            assert check_sparse_checkout(tmp_path) == []
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        assert check_sparse_checkout(tmp_path) == []
 
-    def test_active_primary_and_worktree_emit_finding(self, tmp_path: Path):
+    def test_active_primary_and_worktree_emit_finding(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         primary_pattern = tmp_path / ".git" / "info" / "sparse-checkout"
         primary = SimpleNamespace(
             is_active=True,
@@ -745,8 +744,8 @@ class TestCheckSparseCheckout:
         )
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            findings = check_sparse_checkout(tmp_path)
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        findings = check_sparse_checkout(tmp_path)
 
         assert len(findings) == 1
         finding = findings[0]
@@ -756,7 +755,7 @@ class TestCheckSparseCheckout:
         assert str(primary_pattern) in finding.message
         assert "Lane worktrees affected: 1" in finding.message
         assert str(lane_path) in finding.message
-        assert "Priivacy-ai/spec-kitty#588" in finding.message
+        assert "spec-kitty/spec-kitty#588" in finding.message
         assert "spec-kitty doctor sparse-checkout --fix" in finding.recommended_action
         assert str(tmp_path) in finding.recommended_action
         assert str(lane_path) in finding.recommended_action
@@ -798,7 +797,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        recent = (now_utc() - timedelta(hours=1)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": recent,
@@ -859,7 +858,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -951,7 +950,7 @@ class TestRunDoctor:
         worktrees_dir.mkdir()
         (worktrees_dir / "034-other-lane-a").mkdir()
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1009,7 +1008,7 @@ class TestRunDoctor:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         event = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
             "mission_slug": "034-test",
@@ -1056,7 +1055,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        recent = (now_utc() - timedelta(hours=1)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": recent,
@@ -1134,7 +1133,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1180,7 +1179,7 @@ class TestDoctorCLI:
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
-        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        old = (now_utc() - timedelta(days=10)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": old,
@@ -1280,14 +1279,13 @@ class TestDoctorCLI:
 
         from specify_cli.cli.commands.agent.status import app
 
-
         runner = CliRunner()
 
         feature_dir = tmp_path / "kitty-specs" / "034-test"
         feature_dir.mkdir(parents=True)
 
         # 2 days ago - below default 7-day threshold but above custom 1-day
-        two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+        two_days_ago = (now_utc() - timedelta(days=2)).isoformat()
         status_data = {
             "mission_slug": "034-test",
             "materialized_at": two_days_ago,

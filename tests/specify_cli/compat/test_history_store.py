@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -52,7 +52,7 @@ def _make_record(
     if attempt_id is None:
         attempt_id = _make_ulid()
     if timestamp is None:
-        timestamp = datetime.now(tz=UTC)
+        timestamp = now_utc()
     return UpgradeAttemptRecord(
         attempt_id=attempt_id,
         timestamp=timestamp,
@@ -231,7 +231,7 @@ class TestConsecutiveFailureCount:
         # 300s recency window of consecutive_failure_count() — otherwise the
         # test silently starts returning 0 once wall-clock advances past any
         # fixed seed date (the window is now - window_seconds).
-        now = datetime.now(UTC)
+        now = now_utc()
         # Insert: success (oldest), then 2 more-recent failures.
         store.append(_make_record(
             attempt_id="01HSUCC0000000000000001",

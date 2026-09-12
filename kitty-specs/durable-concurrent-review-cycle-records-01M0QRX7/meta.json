@@ -1,0 +1,40 @@
+{
+  "accept_commit": "8eefaa25b9ec874653cb8c025bbe20fec5bd8ce6",
+  "acceptance_history": [
+    {
+      "accept_commit": "50c58d53096e8fd0c03aac45d58ed9ef51d6039a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-24T14:08:33.607286+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "41918ef070fbb59846ee626d4d081bebb402e182"
+    },
+    {
+      "accept_commit": "8eefaa25b9ec874653cb8c025bbe20fec5bd8ce6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-24T19:14:07.648648+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "d82cbbe6a442cca6681ebc450bbd13c312505819"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-24T19:14:07.648648+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "d82cbbe6a442cca6681ebc450bbd13c312505819",
+  "created_at": "2026-08-23T16:57:51.042369+00:00",
+  "flattened": true,
+  "friendly_name": "Durable Concurrent Review-Cycle Records",
+  "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+  "mission_number": null,
+  "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #3235 documents a P0 race in concurrent review-cycle Git commits. The event log remains authoritative for the current verdict, while each referenced review-cycle artifact must preserve reviewer evidence durably or cause an explicit refusal.",
+  "purpose_tldr": "Prevent concurrent review verdict evidence from being reported successful unless every record is durably committed or explicitly refused.",
+  "slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+  "source_description": "https://github.com/Priivacy-ai/spec-kitty/issues/3235",
+  "status_phase": "1",
+  "target_branch": "mission/durable-concurrent-review-cycle-records",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-24T04:42:00.884891+00:00"
+}

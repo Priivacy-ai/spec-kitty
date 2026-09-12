@@ -100,7 +100,7 @@ def test_open_decision_called_per_question(tmp_path: Path) -> None:
 
     # Minimal profile has 3+ questions; supply one answer line per question
     # plus paradigms/directives/tools prompts
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     # Supply a non-empty answer for every charter question + 3 meta-fields
@@ -140,7 +140,7 @@ def test_resolve_decision_called_with_answer(tmp_path: Path) -> None:
     """After a non-empty answer, resolve_decision is called with that answer."""
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     test_answer = "my specific answer"
@@ -183,12 +183,12 @@ def test_defer_decision_called_on_empty_answer(tmp_path: Path) -> None:
     """
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER, default_interview
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER, default_interview
 
     # Build a version of the interview data where all answers are empty
     real_data = default_interview(mission="software-dev", profile="minimal")
     empty_answers = dict.fromkeys(MINIMAL_QUESTION_ORDER, "")
-    from charter.interview import apply_answer_overrides
+    from charter.activation.interview import apply_answer_overrides
 
     empty_data = apply_answer_overrides(real_data, answers=empty_answers)
 
@@ -227,7 +227,7 @@ def test_answers_yaml_written_after_interview(tmp_path: Path) -> None:
     """answers.yaml is written after collecting all answers (C-005 preserved)."""
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     inputs = "\n".join(["answer"] * n_questions + [""] * 3) + "\n"
@@ -256,7 +256,7 @@ def test_open_decision_error_does_not_abort_interview(tmp_path: Path) -> None:
     """A DecisionError raised by open_decision is silently swallowed."""
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     inputs = "\n".join(["answer"] * n_questions + [""] * 3) + "\n"
@@ -288,7 +288,7 @@ def test_no_dm_calls_without_mission_slug(tmp_path: Path) -> None:
     """When --mission-slug is not provided, no DM service calls are made."""
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     inputs = "\n".join(["answer"] * n_questions + [""] * 3) + "\n"
@@ -324,7 +324,7 @@ def test_cancel_decision_called_on_cancel_sentinel(tmp_path: Path) -> None:
     """
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     # Supply "!cancel" for every question so cancel_decision is called each time

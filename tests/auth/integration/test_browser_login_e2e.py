@@ -100,15 +100,15 @@ def patched_state_manager() -> Any:
     flow and the mocked :class:`CallbackServer`: the fake callback server
     knows the nonce and the real :class:`CallbackHandler.validate` passes.
     """
-    from datetime import datetime, timedelta, UTC
+    from kernel.clock import now_utc, timedelta
 
     fixed_state = PKCEState(
         state=_FIXED_STATE,
         code_verifier=_FIXED_VERIFIER,
         code_challenge=_FIXED_CHALLENGE,
         code_challenge_method="S256",
-        created_at=datetime.now(UTC),
-        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        created_at=now_utc(),
+        expires_at=now_utc() + timedelta(minutes=5),
     )
     with patch(
         "specify_cli.auth.flows.authorization_code.StateManager"
@@ -246,11 +246,11 @@ class TestBrowserLoginE2E:
         Covers the FR-001 idempotency path and proves the CliRunner-driven
         test reaches the real ``login_impl`` shortcut logic.
         """
-        from datetime import datetime, timedelta, UTC
+        from kernel.clock import now_utc, timedelta
 
         from specify_cli.auth.session import StoredSession, Team
 
-        now = datetime.now(UTC)
+        now = now_utc()
         fake_storage._session = StoredSession(
             user_id="u_alice",
             email="alice@example.com",
@@ -283,19 +283,38 @@ class TestBrowserLoginE2E:
         # Raw tokens must not leak.
         assert "at_preexisting" not in result.stdout
 
-    def test_login_errors_when_saas_url_missing(
+    def test_login_proceeds_to_packaged_default_when_saas_url_missing(
         self,
+        tmp_path: Any,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """No SaaS URL in the environment must abort with a clear error.
+        """#3980 (D-5 revised): no SaaS URL in the environment is no longer an
+        error — ``auth login`` proceeds against the packaged default target
+        (the acceptance criterion for the launch defaults flip)."""
 
-        Covers D-5 / C-012 (no hardcoded SaaS URL anywhere in the CLI).
-        """
+        async def _fake_browser_flow(tm: Any, saas_url: str) -> None:
+            recorded["saas_url"] = saas_url
+
+        recorded: dict[str, str] = {}
+        home = tmp_path / "empty-home"
+        home.mkdir()
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
 
-        result = runner.invoke(app, ["login"])
-        assert result.exit_code == 1
-        assert "SPEC_KITTY_SAAS_URL" in result.stdout
+        with (
+            patch(
+                "specify_cli.cli.commands._auth_login._run_browser_flow",
+                side_effect=_fake_browser_flow,
+            ),
+            patch(
+                "specify_cli.cli.commands._auth_login.get_token_manager"
+            ) as tm_cls,
+        ):
+            tm_cls.return_value.is_authenticated = False
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert recorded["saas_url"] == "https://team.spec-kitty.ai"
 
     def test_login_force_resets_session(
         self,
@@ -305,11 +324,11 @@ class TestBrowserLoginE2E:
         mocked_browser: MagicMock,
     ) -> None:
         """``--force`` must clear the existing session and re-run the flow."""
-        from datetime import datetime, timedelta, UTC
+        from kernel.clock import now_utc, timedelta
 
         from specify_cli.auth.session import StoredSession, Team
 
-        now = datetime.now(UTC)
+        now = now_utc()
         fake_storage._session = StoredSession(
             user_id="u_bob",
             email="bob@example.com",

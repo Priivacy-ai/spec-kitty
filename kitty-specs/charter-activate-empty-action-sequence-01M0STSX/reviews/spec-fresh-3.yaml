@@ -1,0 +1,49 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: SPEC-FRESH3-001
+    lens: conceptual-alignment
+    severity: 2
+    title: "Domain Language's write-path note points to \"the Edge Cases cascade note\", but the promote_activations() explanation lives in a different, later Edge Cases bullet"
+    evidence:
+      - artifact: "spec.md § Domain Language, \"Activation-time (write) path\" bullet: \"...see the Edge Cases cascade note for why no caller can route a mission-type through it today.\""
+      - artifact: "spec.md § Edge Cases: the bullet beginning \"What happens to cascade-activated targets (`--cascade`)...\" (the only bullet that mentions \"cascade\") is entirely about `--cascade` CLI-flag reachability (`ArtifactKind.from_operator_token`, `NodeKind.MISSION_TYPE`, `_kind_of()`, `_referenced_artifacts()`) and never mentions `promote_activations`, `_PROMOTABLE_KINDS`, or `REQUIRED_KIND_FIELDS`."
+      - artifact: "spec.md § Edge Cases: the actual explanation (\"Is `activate_cmd` the *only* code path that can ever write `mission_type_activations`? No — `promote_activations()`...\") is a separate, subsequent bullet with no \"cascade\" heading or label of its own."
+    claim: >
+      This round's diff added, in the Domain Language section, a forward
+      reference reading "see the Edge Cases cascade note for why no caller
+      can route a mission-type through it today." The only Edge Cases bullet
+      that uses the word "cascade" is the pre-existing one about the
+      `--cascade` CLI flag's reachability of a mission-type kind — a
+      completely different question (cascade-target eligibility, not
+      promote_activations' write-path exclusivity). The bullet that actually
+      answers "why no caller can route a mission-type through
+      promote_activations() today" (the `_PROMOTABLE_KINDS` /
+      `REQUIRED_KIND_FIELDS` argument) is a distinct bullet immediately
+      after it, with no "cascade" framing. A reader following this
+      cross-reference to "the cascade note" lands on the wrong bullet and
+      finds no answer to the question the reference promised, in a document
+      whose own Edge Cases section already overloads "cascade" for the
+      `--cascade` flag — the exact kind of ambiguous-label trap this
+      document elsewhere goes out of its way to name explicitly (e.g. the
+      `primary`/`merge`/`routing` overload guidance in the repo's own
+      CLAUDE.md). The underlying technical claim (promote_activations is a
+      dormant write chokepoint, verified independently against the current
+      checkout: `_PROMOTABLE_KINDS` has 8 entries with no `MISSION_TYPE`,
+      `REQUIRED_KIND_FIELDS` has 10 entries with no `mission_types`, and all
+      three current callers — interview.py, org_charter.py,
+      m_unify_charter_activation.py — are confirmed) is itself accurate;
+      only the internal cross-reference is mislabeled.
+    remediation: >
+      Either retitle/introduce the "Is activate_cmd the only code path..."
+      bullet with an explicit label (e.g. bold lead-in "**Second write path
+      (promote_activations)**:") and point the Domain Language
+      cross-reference at that label instead of "the Edge Cases cascade
+      note", or merge the promote_activations discussion into the existing
+      cascade bullet if the two are meant to be read together. Either fix
+      keeps the forward reference resolvable on a single read instead of
+      requiring the reader to scan the whole Edge Cases section for the
+      right bullet.

@@ -1,0 +1,12 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true               # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: TASKS-ORDER-001
+    verdict: confirmed
+    reason: Verified live — plan.md:766 mission-wide "precedes all three" prose and the sequencing diagram are accurate quotes, wps.yaml has dependencies:[] on all three WPs, WP02/WP03 files contain zero "campsite" mentions, WP01 T001 folds the fix in, single_branch topology (no per-WP branch isolation) is confirmed in all three frontmatters, and no file (wps.yaml, tasks.md, WP01/02/03) records the reconciliation or a commit-order safeguard for the shared branch.
+  - id: TASKS-COVER-001
+    verdict: confirmed
+    reason: Verified live — wps.yaml/tasks.md render FR-004 with no annotation alongside FR-005 exactly as quoted, WP02-loud-fallback.md independently and unambiguously states FR-004 is not implemented (4 separate mentions incl. T006), and requirement_mapping.py:485-496 (exact function body) confirms compute_coverage does pure set-membership mapping with no implemented-vs-traceability-only distinction.

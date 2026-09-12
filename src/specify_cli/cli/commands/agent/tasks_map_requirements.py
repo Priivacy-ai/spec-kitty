@@ -47,7 +47,7 @@ from pathlib import Path
 import typer
 
 from kernel._safe_re import re
-from mission_runtime import CommitTarget, MissionArtifactKind
+from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_mapping_core import (
     TRACKER_ONLY_MODE,
@@ -55,7 +55,6 @@ from specify_cli.cli.commands.agent.tasks_mapping_core import (
     MappingRequest,
 )
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.requirement_mapping import CoverageSummary
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
@@ -117,6 +116,14 @@ class _MapReqState:
     tasks_dir: Path = field(default_factory=Path)
     all_spec_ids: set[str] = field(default_factory=set)
     functional_ids: set[str] = field(default_factory=set)
+    #: #3394 review F1 -- non-blocking signal: raw requirement-shaped tokens in
+    #: spec.md that matched none of the recognized declared shapes.
+    requirement_extraction_warnings: list[str] = field(default_factory=list)
+    #: WP06 (#3396) T032a plumbing fix: the raw spec.md text, stored here so
+    #: ``_mr_plan`` (Phase D) can feed it to the bare-prose requirement-id
+    #: detector -- previously this text was read locally in this phase and
+    #: discarded, leaving Phase D with no access to it.
+    spec_content: str = ""
     new_mappings: dict[str, list[str]] = field(default_factory=dict)
     # --- phase D: pure decision ---
     mapping_plan: MappingPlan | None = None
@@ -272,7 +279,10 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     blind primitive + the C-002 fold stay co-located INSIDE that adapter method.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
+    from specify_cli.requirement_mapping import (
+        find_undeclared_requirement_citations,
+        parse_requirement_ids_from_spec_md,
+    )
 
     # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses.
     st.feature_dir = _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)
@@ -298,9 +308,14 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
         _tasks._output_error(st.json_output, f"spec.md not found: {spec_md}")
         raise typer.Exit(1)
 
-    spec_ids = parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
+    spec_content = spec_md.read_text(encoding="utf-8")
+    spec_ids = parse_requirement_ids_from_spec_md(spec_content)
     st.all_spec_ids = set(spec_ids["all"])
     st.functional_ids = set(spec_ids["functional"])
+    # #3394 review F1: non-blocking signal, never a gate -- see _mr_emit_output.
+    st.requirement_extraction_warnings = find_undeclared_requirement_citations(spec_content)
+    # WP06 (#3396) T032a: stash the raw text for Phase D's bare-prose detector.
+    st.spec_content = spec_content
 
     _mr_build_new_mappings(st)
 
@@ -309,14 +324,36 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     # through the kind-aware seam (the SAME single authority WP01 routed the rest
     # of the gate reads onto) instead of the topology-routed ``feature_dir``.
     st.tasks_dir = (
-        resolve_planning_read_dir(
-            st.main_repo_root,
-            st.mission_slug,
-            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
         / "tasks"
     )
     _mr_unknown_wp_gate(st)
+
+
+def _mr_detect_bare_prose_requirement_ids(spec_content: str) -> frozenset[str]:
+    """WP06 (#3396) T032a fail-loud wrapper: bare-prose requirement-id
+    detection for ``map-requirements``.
+
+    Lives in the shell, never inside :func:`~.tasks_mapping_core.plan_mapping`
+    (that core is pure/no-I/O, INV-4). Textually separate from the
+    ``find_undeclared_requirement_citations`` advisory read a few lines above
+    in ``_mr_resolve_read_dirs`` (that helper's "never fail the command"
+    contract is the opposite of this one) -- any classification exception is
+    caught ONCE and converted into an explicit, non-empty failure entry
+    (mirroring WP05/T023's ``BareProseRequirementFacts.classification_error``
+    contract) rather than silently reporting "0 uncounted" (NFR-002).
+    """
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        return frozenset(req_id for candidate in candidates for req_id in candidate.ids)
+    except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
+        return frozenset(
+            {f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"}
+        )
 
 
 def _mr_plan(st: _MapReqState) -> None:
@@ -346,6 +383,7 @@ def _mr_plan(st: _MapReqState) -> None:
         _mapping_mode = "batch"
     else:
         _mapping_mode = "wp_refs"
+    bare_prose_requirement_ids = _mr_detect_bare_prose_requirement_ids(st.spec_content)
     st.mapping_plan = _tasks.plan_mapping(
         MappingRequest(
             spec_all_ids=frozenset(st.all_spec_ids),
@@ -355,6 +393,7 @@ def _mr_plan(st: _MapReqState) -> None:
             tasks_md_refs=tasks_md_refs,
             mode=_mapping_mode,
             replace=st.replace,
+            bare_prose_requirement_ids=bare_prose_requirement_ids,
         )
     )
 
@@ -593,6 +632,10 @@ def _mr_emit_output(st: _MapReqState) -> None:
         "committed": st.committed,
         "commit_sha": st.commit_sha,
         "commit_result": st.commit_result_payload,
+        "requirement_extraction_warnings": st.requirement_extraction_warnings,
+        # WP06 (#3396) T032: distinct, separately-labeled signal -- never
+        # merged into ``coverage.unmapped_functional`` (Story 1 / FR-001 / FR-004).
+        "bare_prose_requirement_ids": st.mapping_plan.bare_prose_requirement_ids,
     }
     if st.json_output:
         render = _tasks.RealRender()
@@ -606,6 +649,13 @@ def _mr_emit_output(st: _MapReqState) -> None:
             _tasks.console.print(f"  [yellow]Unmapped:[/yellow] {', '.join(coverage['unmapped_functional'])}")
         if st.committed:
             _tasks.console.print("[cyan]→ Committed mapping changes[/cyan]")
+        for warning in st.requirement_extraction_warnings:
+            _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
+        if st.mapping_plan.bare_prose_requirement_ids:
+            _tasks.console.print(
+                f"  [red]Bare-prose requirement id(s) found, uncounted:[/red] "
+                f"{', '.join(st.mapping_plan.bare_prose_requirement_ids)}"
+            )
 
 
 def _do_map_requirements(
@@ -676,22 +726,21 @@ def _do_map_requirements(
 def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the WP ``tasks/`` read surface for ``map-requirements`` (#2064).
 
-    Routes through ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` — the
+    Routes through ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` — the
     per-leg seam split (WP03 / FR-001 / C-001): the WP-frontmatter read always
     lands on the PRIMARY checkout regardless of topology (INV-5 symmetry), so a
     coord-topology mission no longer routes to the STATUS-only coord husk for this
     planning-artifact read.
 
-    ``resolve_planning_read_dir`` delegates to the topology-blind
-    :func:`primary_feature_dir_for_mission`, which never raises — preserving the
-    user-facing contract that ``map-requirements`` surfaces its own
+    ``PlacementSeam.read_dir(WORK_PACKAGE_TASK)`` selects the PRIMARY partition,
+    preserving the user-facing contract that ``map-requirements`` surfaces its own
     ``"Mission directory not found: …"`` message via the caller's existence guard
     on the returned path (Risk #1 — unchanged user-facing behaviour).
     """
     # WP03 / FR-001 / C-001: tasks/ is WORK_PACKAGE_TASK (PRIMARY-partition).
     # The topology-blind primary_feature_dir_for_mission never raises, so the
     # caller's existence guard preserves the historical user-facing contract.
-    resolved: Path = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     return resolved

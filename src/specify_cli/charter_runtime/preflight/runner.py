@@ -7,13 +7,31 @@ that:
    the current freshness payload.
 2. Translates each :class:`FreshnessSubState` into a
    :class:`CharterPreflightCheck`.
-3. Optionally runs the safe refresh sequence
-   (``charter sync`` → ``charter synthesize`` → ``charter bundle
-   validate``) when the caller passes ``auto_refresh=True`` AND the
-   worktree has no uncommitted generated artifacts (FR-008).
+3. Optionally runs the safe refresh sequence (the freshness-computed
+   ``charter_source`` remediation — ``charter generate`` or
+   ``upgrade --yes``, never a hardcoded ``charter sync``, H1/#2831 — →
+   ``charter synthesize`` → ``charter bundle validate``) when the caller
+   passes ``auto_refresh=True`` AND the worktree has no uncommitted
+   generated artifacts (FR-008). See :func:`_attempt_auto_refresh`'s
+   docstring for why step one is no longer ``charter sync``.
 4. Returns a frozen :class:`CharterPreflightResult` whose
-   ``blocked_reason`` always points the operator at one exact recovery
-   command.
+   ``blocked_reason`` names one exact recovery command for every check that
+   has one — and, for a check on the declared exemption set (no effective
+   self-service remediation, C-EFF-2), names the check and explains why
+   instead of fabricating a command it cannot act on (R-006).
+
+Boundary heal semantics (WP04, charter-synthesize-reconciliation-01KZJQN6):
+the ``charter synthesize`` call inside the refresh sequence is invoked
+flagless — no ``--prune``, no ``--dry-run`` — which selects
+``SynthesizeMode.preserve`` (the library default): a successful heal never
+drops backed content, and ``synthesized_drg`` self-clears to ``fresh``
+because ``rewrite_manifest`` re-stamps the manifest's
+``bundle_content_hash`` on every write. This is a "never silently drops
+content" guarantee, NOT a "never refuses" guarantee: orphaned
+(backing-artifact-deleted) content and an unparseable on-disk doctrine
+overlay still make the subprocess exit non-zero, and this runner surfaces
+that as an actionable ``blocked_reason`` exactly like any other refresh
+failure — it never coerces that outcome to ``passed=True``.
 
 Performance contract (NFR-001):
 
@@ -28,19 +46,24 @@ failure produces a result with a sensible ``blocked_reason``.
 
 from __future__ import annotations
 
+import logging
 import os
+import shlex
 import subprocess
+from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from specify_cli.charter_runtime.freshness import compute_freshness
 
-from .result import CharterPreflightCheck, CharterPreflightResult
+from .result import CharterPreflightCheck, CharterPreflightResult, CheckState
 
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
-__all__ = ["run_charter_preflight"]
+__all__ = ["SYNTHESIZED_DRG_LAYER", "run_charter_preflight"]
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -48,12 +71,21 @@ __all__ = ["run_charter_preflight"]
 # ---------------------------------------------------------------------------
 
 
+#: Canonical freshness-check name for the synthesized-DRG layer. This is the
+#: single source of truth for the string ``"synthesized_drg"`` — both
+#: ``_LAYER_ORDER`` below and ``references_refresh``'s references-parity
+#: cause matching (:func:`references_refresh.is_references_parity_cause`)
+#: consume this constant rather than re-declaring the literal, so a rename
+#: here cannot silently desync the references-parity heal from the runner's
+#: actual layer set.
+SYNTHESIZED_DRG_LAYER = "synthesized_drg"
+
 # Layer ordering is part of the contract — consumers MAY index by name but
 # humans scanning ``--json`` output rely on this order.
 _LAYER_ORDER: tuple[tuple[str, str], ...] = (
     ("charter_source", "charter source"),
     ("synced_bundle", "synced bundle"),
-    ("synthesized_drg", "synthesized DRG"),
+    (SYNTHESIZED_DRG_LAYER, "synthesized DRG"),
 )
 
 # Passing states — see contracts/charter-preflight-json.md "State semantics".
@@ -62,6 +94,18 @@ _PASS_STATES: frozenset[str] = frozenset({"fresh", "skipped", "built_in_only"})
 _FRESH_PROJECT_MISSING_CHARTER_WARNING = (
     "project charter is not initialized; run `spec-kitty charter generate` "
     "when this project is ready for charter-governed workflows"
+)
+
+#: Distinct from ``_FRESH_PROJECT_MISSING_CHARTER_WARNING`` per FR-003 — a
+#: legacy ``charter.md``-only bundle means governance intent already
+#: existed and needs migration, not initial setup, so the message names the
+#: legacy file and the exact migration command explicitly.
+_LEGACY_CHARTER_BUNDLE_WARNING = (
+    "a legacy charter.md-only bundle was detected "
+    "(.kittify/charter/charter.md exists but .kittify/charter/charter.yaml "
+    "does not); this project has governance intent that predates the "
+    "charter.yaml bundle format — run "
+    "`spec-kitty charter generate --no-from-interview` to migrate it forward"
 )
 
 # Refresh-step timeout.  Overridable via env so very slow CI runners can
@@ -82,10 +126,14 @@ _DIRTY_SCOPE_PATHS: tuple[str, ...] = (
     ".kittify/doctrine/",
 )
 
-# Shared prefix for the three refresh-sequence subprocess commands (#2157a
-# campsite — S1192).  The tails differ (``sync`` / ``synthesize`` /
-# ``bundle validate``), so only the common ``["spec-kitty", "charter"]``
-# tokens are hoisted; each call site appends its own tail.
+# Shared prefix for the refresh-sequence subprocess commands that always
+# stay under ``spec-kitty charter`` (#2157a campsite — S1192): ``synthesize``
+# and ``bundle validate``. The tails differ, so only the common
+# ``["spec-kitty", "charter"]`` tokens are hoisted; each call site appends
+# its own tail. The step-one command (H1, #2831) is NOT built from this
+# prefix — it is `shlex.split` straight from the freshness computer's own
+# `remediation` string, which may or may not sit under `charter` (e.g.
+# `spec-kitty upgrade --yes`).
 _SPEC_KITTY_CHARTER_PREFIX: tuple[str, ...] = ("spec-kitty", "charter")
 
 
@@ -99,9 +147,18 @@ def run_charter_preflight(
     *,
     auto_refresh: bool = False,
     allow_missing_charter: bool = False,
-    strict: bool = False,  # noqa: ARG001 — surfaced for caller symmetry; consumed by CLI exit-code mapping, not by the runner itself.
+    strict: bool = False,
 ) -> CharterPreflightResult:
     """Compute charter freshness, optionally refresh, return a result.
+
+    In addition to the freshness layers, the result carries advisory
+    ``warnings`` (never affecting ``passed``) for shipped mission-step
+    default profiles the activation state has deactivated (#4115) — a
+    project that deactivated e.g. ``researcher-robbie`` still reports
+    FRESH on every freshness layer while its built-in missions are one
+    dispatch away from a role fallback (or a blocked step when no
+    same-role profile is activated); the warning names that state instead
+    of leaving it invisible.
 
     Args:
         repo_root: Path to the repository root.  Must contain ``.kittify/``
@@ -109,10 +166,11 @@ def run_charter_preflight(
             checks rather than exceptions.
         auto_refresh: When ``True`` AND the worktree has no uncommitted
             generated artifacts, attempt the safe refresh sequence.
-        allow_missing_charter: Treat a fully absent charter stack as advisory.
-            Read-only/dashboard consumers may enable this for fresh projects;
-            mutation gates leave it disabled so missing governance still fails
-            closed when the workflow requires charter-derived state.
+        allow_missing_charter: Treat a canonically missing charter stack as
+            advisory. Dashboard, next, and implement enable this for projects
+            that have no charter source or synced bundle and whose synthesized
+            layer is either absent or built-in-only. Stale, invalid, or other
+            partial state still fails closed.
         strict: Accepted for API symmetry with the CLI flag.  The runner
             itself does not change behaviour based on ``strict`` — the CLI
             wrapper translates ``passed=False`` + ``strict=True`` into exit
@@ -123,25 +181,88 @@ def run_charter_preflight(
     Returns:
         A frozen :class:`CharterPreflightResult`.  Never raises.
     """
+    result = _run_charter_preflight_freshness(
+        repo_root,
+        auto_refresh=auto_refresh,
+        allow_missing_charter=allow_missing_charter,
+        strict=strict,
+    )
+    profile_warnings = _deactivated_mission_default_profile_warnings(repo_root)
+    if not profile_warnings:
+        return result
+    return replace(result, warnings=[*result.warnings, *profile_warnings])
+
+
+def _deactivated_mission_default_profile_warnings(repo_root: Path) -> list[str]:
+    """#4115: advisory warnings for deactivated mission-step default profiles.
+
+    Reads the three-state ``activated_agent_profiles`` set from project
+    config: ``None`` (default-allow) is inert and yields no warnings; an
+    explicit set yields one warning per
+    ``mission_step_contracts.profile_defaults._ACTION_PROFILE_DEFAULTS``
+    profile it does not contain. Never raises (the runner's own contract):
+    a config that cannot be read produces no warnings and a DEBUG note, not
+    a crash — a broken config is the freshness layers' problem to block on,
+    not this advisory note's.
+    """
+    try:
+        from charter.activation.pack_context import PackContext  # noqa: PLC0415
+
+        activated = PackContext.from_config(repo_root).activated_agent_profiles
+    except Exception:  # noqa: BLE001 — the never-raise contract above; the
+        # freshness layers own fail-closed treatment of a malformed config.
+        logger.debug(
+            "could not read activation state for the mission-default-profile "
+            "preflight warning at %s; skipping the advisory",
+            repo_root,
+        )
+        return []
+    if activated is None:
+        return []
+    from specify_cli.mission_step_contracts.profile_defaults import (  # noqa: PLC0415
+        _ACTION_PROFILE_DEFAULTS,
+        mission_default_profile_warning,
+    )
+
+    warnings: list[str] = []
+    for profile_id in sorted(set(_ACTION_PROFILE_DEFAULTS.values())):
+        if profile_id in activated:
+            continue
+        warning = mission_default_profile_warning(profile_id)
+        if warning is not None:
+            warnings.append(warning)
+    return warnings
+
+
+def _run_charter_preflight_freshness(
+    repo_root: Path,
+    *,
+    auto_refresh: bool = False,
+    allow_missing_charter: bool = False,
+    strict: bool = False,
+) -> CharterPreflightResult:
+    """Freshness-only core of :func:`run_charter_preflight` (pre-#4115 body)."""
+    del strict  # kept for caller symmetry; consumed by the CLI exit-code mapping, not by the runner itself.
     freshness = compute_freshness(repo_root)
     checks = _build_checks(freshness)
 
-    if allow_missing_charter and _is_optional_missing_charter_fresh_project(checks):
-        return CharterPreflightResult(
-            passed=True,
-            checks=[
-                CharterPreflightCheck(
-                    name=c.name,
-                    state="skipped",
-                    detail="project charter is not initialized",
-                    remediation=None,
-                )
-                for c in checks
-            ],
-            auto_refresh_applied=False,
-            auto_refresh_actions=[],
-            blocked_reason=None,
-            warnings=[_FRESH_PROJECT_MISSING_CHARTER_WARNING],
+    # C-001 / FR-016: only canonical freshness states decide pass/block.
+    # charter.md is display-only and may select advisory copy only after the
+    # canonical state has independently qualified for the exemption.
+    if allow_missing_charter and _is_optional_missing_charter_stack(checks):
+        legacy_bundle = _is_legacy_charter_bundle(repo_root)
+        return _advisory_missing_charter_result(
+            checks,
+            detail=(
+                "legacy charter.md-only bundle; charter.yaml not yet migrated"
+                if legacy_bundle
+                else "project charter is not initialized"
+            ),
+            warning=(
+                _LEGACY_CHARTER_BUNDLE_WARNING
+                if legacy_bundle
+                else _FRESH_PROJECT_MISSING_CHARTER_WARNING
+            ),
         )
 
     passed = all(c.state in _PASS_STATES for c in checks)
@@ -189,13 +310,21 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
     payload = freshness.to_dict()
     for layer_key, layer_label in _LAYER_ORDER:
         sub = payload[layer_key]
-        state = str(sub.get("state", "missing"))
+        # Fail-closed default: an absent ``state`` must NOT be advisory-eligible.
+        # ``FreshnessSubState.state`` is always set today, so this only guards a
+        # future freshness regression — but on a preflight safety gate the safe
+        # fallback is a blocking value (``invalid``), never advisory-eligible
+        # ``missing``.
+        state = str(sub.get("state", "invalid"))
         detail = sub.get("detail") or _default_detail(layer_label, state, sub.get("last_change"))
         remediation = sub.get("remediation")
         result.append(
             CharterPreflightCheck(
                 name=layer_key,
-                state=state,  # type: ignore[arg-type]
+                # FreshnessState is a strict subset of CheckState and the fail-closed
+                # "invalid" fallback above is itself a CheckState member, so the cast
+                # narrows an honest value; it is not a suppression.
+                state=cast(CheckState, state),
                 detail=str(detail),
                 remediation=str(remediation) if remediation else None,
             )
@@ -203,19 +332,77 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
     return result
 
 
-def _is_optional_missing_charter_fresh_project(checks: list[CharterPreflightCheck]) -> bool:
-    """Return True for a never-initialized charter stack.
+def _is_optional_missing_charter_stack(checks: list[CharterPreflightCheck]) -> bool:
+    """Return True only for canonically safe missing-charter states.
 
-    Missing project charter is optional in a fresh project.  Treat only the
-    fully absent stack as advisory; partial/generated residue still blocks so
-    stale charter state remains visible.
+    The source and synced bundle must both be absent. The synthesized layer
+    may also be absent, or may be ``built_in_only`` (a passing state carrying
+    no project charter content). Any stale, invalid, or other partial residue
+    remains blocking.
     """
     states = {c.name: c.state for c in checks}
-    return states == {
-        "charter_source": "missing",
-        "synced_bundle": "missing",
-        "synthesized_drg": "missing",
-    }
+    return (
+        states.get("charter_source") == "missing"
+        and states.get("synced_bundle") == "missing"
+        and states.get("synthesized_drg") in {"missing", "built_in_only"}
+    )
+
+
+def _is_legacy_charter_bundle(repo_root: Path) -> bool:
+    """Return whether display-only legacy prose exists for advisory copy.
+
+    A project may carry governance intent captured in
+    ``.kittify/charter/charter.md`` from before the charter.yaml-based
+    bundle inversion. This predicate runs only after
+    ``_is_optional_missing_charter_stack`` has decided the outcome from
+    canonical freshness state. It chooses warning text and never changes
+    pass/block behavior.
+
+    NFR-001: this adds exactly one additional filesystem existence check
+    (``Path.exists()`` on ``charter.md``) beyond the existing freshness
+    computation.
+
+    FR-016 clause (b): this allow-listed ``.exists()`` call is an
+    informational readout, matching ``_collect_charter_sync_status``; the
+    canonical state predicate above has already fixed the outcome.
+    """
+    # Keep this chokepoint import off the `next` startup path. Importing any
+    # charter.* submodule executes charter.__init__ and its heavyweight graph.
+    from charter.bundle import CHARTER_MD
+
+    return bool((repo_root / CHARTER_MD).exists())
+
+
+def _advisory_missing_charter_result(
+    checks: list[CharterPreflightCheck],
+    *,
+    detail: str,
+    warning: str,
+) -> CharterPreflightResult:
+    """Build the shared "advisory, not blocking" missing-charter result shape.
+
+    Both warning presentations of the canonical missing-charter exemption
+    produce an identical result shape (every check marked ``"skipped"``, no
+    ``blocked_reason``) differing only in the per-check ``detail`` text and
+    which warning constant is attached — factored out once a second call
+    site made the duplication real (DIRECTIVE_025 Boy Scout Rule).
+    """
+    return CharterPreflightResult(
+        passed=True,
+        checks=[
+            CharterPreflightCheck(
+                name=c.name,
+                state="skipped",
+                detail=detail,
+                remediation=None,
+            )
+            for c in checks
+        ],
+        auto_refresh_applied=False,
+        auto_refresh_actions=[],
+        blocked_reason=None,
+        warnings=[warning],
+    )
 
 
 def _default_detail(label: str, state: str, last_change: str | None) -> str:
@@ -235,21 +422,39 @@ def _derive_blocked_reason(checks: list[CharterPreflightCheck]) -> str:
     ``checks`` order so a single pass surfaces the whole remediation list.
 
     Per-check formatting is unchanged from the prior single-check behaviour
-    (``"<name> <state>; run `<remediation>`"``) — for exactly one
-    non-passing check this still returns that identical single-line string;
-    for multiple, the lines are joined with a newline into one string (the
-    ``blocked_reason`` field stays a single ``str`` — see the output-shape
-    pin in ``result.py``).
+    for a check that names a remediation (``"<name> <state>; run
+    `<remediation>`"``) — for exactly one non-passing check this still
+    returns that identical single-line string; for multiple, the lines are
+    joined with a newline into one string (the ``blocked_reason`` field
+    stays a single ``str`` — see the output-shape pin in ``result.py``).
+
+    R-006 / C-EFF-2: a check with ``remediation is None`` used to have a
+    default command (``spec-kitty charter status``, itself a pure reporter
+    that cannot change any check's state) fabricated in its place — the
+    same defect class as BC-2, sitting on the default path. That backfill is
+    gone: see :func:`_blocked_reason_line`.
     """
-    lines = [
-        f"{check.name} {check.state}; run `{check.remediation or 'spec-kitty charter status'}`"
-        for check in checks
-        if check.state not in _PASS_STATES
-    ]
+    lines = [_blocked_reason_line(check) for check in checks if check.state not in _PASS_STATES]
     if not lines:
         # Should not happen — callers only enter this path when passed=False.
-        return "charter preflight failed; run `spec-kitty charter status`"
+        return "charter preflight failed; no non-passing check found (internal inconsistency)"
     return "\n".join(lines)
+
+
+def _blocked_reason_line(check: CharterPreflightCheck) -> str:
+    """Compose one ``blocked_reason`` line for a single non-passing check.
+
+    When the check names a remediation, the operator is shown the exact
+    command (unchanged from prior behaviour). When ``remediation`` is
+    ``None`` the check is a declared exemption (C-EFF-2) — the operator
+    still learns which check failed, its state, and why (``check.detail``),
+    but no command is manufactured in its place (R-006). This must not
+    degrade to a silent or empty line — the diagnostic stays, only the
+    fabricated command goes.
+    """
+    if check.remediation:
+        return f"{check.name} {check.state}; run `{check.remediation}`"
+    return f"{check.name} {check.state}: {check.detail}"
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +544,38 @@ def _refresh_timeout_secs() -> float:
     return value
 
 
+def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
+    """References-parity extension point (T019 install / WP06 implement, #2777).
+
+    Delegates to :func:`specify_cli.charter_runtime.preflight.
+    references_refresh.refresh_references_if_needed`, WP06's implementation
+    of the real references-parity ``generate`` call (FR-011). The import is
+    deferred to call time — not module-import time — so this rarely-taken
+    branch does not grow ``run_charter_preflight``'s hot-path import surface
+    (mirrors the lazy-import discipline this package already uses for
+    ``charter.bundle``/``charter.activation.synthesizer`` elsewhere, LD-3/NFR-003).
+
+    Args:
+        repo_root: Repository root the just-completed heal ran against.
+        cause: Comma-joined names of the freshness checks that triggered the
+            heal (e.g. ``"synthesized_drg"``). See ``references_refresh``'s
+            module docstring for why ``synthesized_drg`` is the
+            references-parity signal.
+
+    Returns:
+        ``True`` iff a targeted ``generate`` was attempted (i.e. *cause*
+        named the references-parity layer) — the caller uses this to decide
+        whether ``charter.yaml``'s derived catalog may have just changed and
+        the synthesis manifest needs re-stamping (MAJOR-1, WP06 rejection
+        cycle 1) before the post-refresh freshness recompute. ``False`` for
+        a non-references-parity cause (true no-op, nothing to re-stamp).
+    """
+    from .references_refresh import refresh_references_if_needed as _refresh_references
+
+    result: bool = _refresh_references(repo_root, cause)
+    return result
+
+
 def _attempt_auto_refresh(
     repo_root: Path,
     freshness: CharterFreshness,
@@ -348,12 +585,38 @@ def _attempt_auto_refresh(
 
     The sequence is:
 
-    1. ``spec-kitty charter sync`` — skipped iff both ``charter_source``
-       and ``synced_bundle`` are already ``fresh``.
+    1. The freshness-computed ``charter_source`` remediation — skipped iff
+       both ``charter_source`` and ``synced_bundle`` are already ``fresh``.
+       H1 (#2831 HIGH finding): this used to be a hardcoded
+       ``spec-kitty charter sync``, but ``charter sync`` is a pure
+       staleness reporter (``src/charter/sync.py``'s own docstring: "it
+       always reports ``synced=False`` / ``files_written=[]``") that can
+       never create or repair ``charter.yaml`` — so for a missing or
+       invalid ``charter_source`` this step always failed and the sequence
+       stopped here, never reaching ``synthesize``/``bundle validate`` (a
+       real F2 legacy-bundle probe: auto-refresh ran only ``sync``, exited
+       1, left every state unchanged). This step now runs whatever command
+       :func:`~specify_cli.charter_runtime.freshness.computer.compute_freshness`
+       already derived for ``charter_source`` (H3's F1/F2-aware
+       ``remediation`` — ``spec-kitty charter generate --no-from-interview``
+       for "no charter at all", ``spec-kitty upgrade --yes`` for a legacy
+       bundle) — the same command the non-refresh blocking path shows the
+       operator, so auto-refresh can never claim to have "tried" something
+       the operator's own ``blocked_reason`` already proves is a no-op.
+       When ``remediation`` is ``None`` (the ``invalid``/cascading-``stale``
+       exempt states, C-EFF-2 — no write path repairs broken or
+       non-bundle-shaped YAML), no command is attempted; the sequence stops
+       and surfaces the check's own detail, exactly like the non-refresh
+       blocking path does for the same exempt states.
     2. ``spec-kitty charter synthesize`` — skipped iff ``synthesized_drg``
        is already ``fresh``.
     3. ``spec-kitty charter bundle validate`` — always run when we reach
        this branch.
+    4. ``refresh_references_if_needed`` (WP06, #2777) — a targeted
+       ``spec-kitty charter generate``, gated on the references-parity
+       cause. When it fires, step 5 (below) re-runs ``synthesize`` once
+       more to re-stamp the manifest against generate's rewritten
+       ``charter.yaml`` — see that step's own comment for why.
 
     On any non-zero exit, we stop, surface the failing command's first
     stderr line via ``blocked_reason``, and mark
@@ -390,9 +653,29 @@ def _attempt_auto_refresh(
     drg_fresh = freshness.synthesized_drg.state == "fresh"
 
     if not (source_fresh and bundle_fresh):
-        sync_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "sync"]
-        ok, reason = _run_refresh_step(sync_cmd, repo_root, timeout_secs)
-        actions.append(" ".join(sync_cmd))
+        # H1 (#2831 HIGH finding): run the SAME command the freshness
+        # computer already derived for this exact state — never a
+        # hardcoded `charter sync` (a pure staleness reporter that can
+        # never create/repair `charter.yaml`, see this function's
+        # docstring). `synced_bundle` mirrors `charter_source`'s F1/F2
+        # answer whenever it differs from fresh, so `charter_source`'s
+        # remediation is authoritative here; the `or` is a defensive
+        # fallback only.
+        source_remediation = freshness.charter_source.remediation or freshness.synced_bundle.remediation
+        if source_remediation is None:
+            # Exempt state (`invalid` charter.yaml / cascading `stale`
+            # synced_bundle, C-EFF-2) — no command can repair this. Stop
+            # here rather than run something known to be a no-op.
+            return CharterPreflightResult(
+                passed=False,
+                checks=initial_checks,
+                auto_refresh_applied=True,
+                auto_refresh_actions=actions,
+                blocked_reason=_derive_blocked_reason(initial_checks),
+            )
+        source_cmd = shlex.split(source_remediation)
+        ok, reason = _run_refresh_step(source_cmd, repo_root, timeout_secs)
+        actions.append(source_remediation)
         if not ok:
             return CharterPreflightResult(
                 passed=False,
@@ -403,6 +686,11 @@ def _attempt_auto_refresh(
             )
 
     if not drg_fresh:
+        # WP04: flagless invocation — no --prune, no --dry-run — selects
+        # SynthesizeMode.preserve (the library default). See the module
+        # docstring's "Boundary heal semantics" section: this never drops
+        # backed content, but orphaned/unparseable causes still exit
+        # non-zero and are surfaced below via `reason`, never swallowed.
         synth_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
         ok, reason = _run_refresh_step(synth_cmd, repo_root, timeout_secs)
         actions.append(" ".join(synth_cmd))
@@ -426,6 +714,43 @@ def _attempt_auto_refresh(
             auto_refresh_actions=actions,
             blocked_reason=reason,
         )
+
+    # References-parity extension point (WP04 install / WP06 implement,
+    # #2777): fires a targeted `generate` once the refresh sequence has
+    # succeeded, before the post-refresh freshness recompute. Gated, not
+    # unconditional — `synthesized_drg` is the post-#2759 proxy for
+    # "references-parity drift" (the stand-alone parity check it used to
+    # name is retired; see `references_refresh`'s module docstring), so this
+    # only fires when the ORIGINAL stale-cause set actually named that
+    # layer.
+    stale_cause = ",".join(sorted({c.name for c in initial_checks if c.state not in _PASS_STATES}))
+    references_refreshed = refresh_references_if_needed(repo_root, cause=stale_cause)
+
+    if references_refreshed:
+        # MAJOR-1 (WP06 rejection cycle 1): `generate` rewrites
+        # `charter.yaml`'s derived catalog but — unlike `synthesize` — never
+        # re-stamps the synthesis manifest's `bundle_content_hash` itself.
+        # Left alone, the freshness recompute below would then see
+        # stored_hash (pre-generate) != current_hash (post-generate) and
+        # report `synthesized_drg="stale"`, turning a heal that genuinely
+        # succeeded into `passed=False`. Re-running the same flagless
+        # `synthesize` step (`SynthesizeMode.preserve`, never --prune/
+        # --dry-run) re-stamps the manifest against the NEW `charter.yaml`
+        # — the same self-clearing mechanism the module docstring's
+        # "Boundary heal semantics" section already documents for the
+        # first synthesize call — so the recompute below sees a
+        # manifest-coherent state.
+        restamp_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
+        ok, reason = _run_refresh_step(restamp_cmd, repo_root, timeout_secs)
+        actions.append(" ".join(restamp_cmd))
+        if not ok:
+            return CharterPreflightResult(
+                passed=False,
+                checks=initial_checks,
+                auto_refresh_applied=True,
+                auto_refresh_actions=actions,
+                blocked_reason=reason,
+            )
 
     # Refresh succeeded — recompute freshness and rebuild checks so
     # callers see the post-refresh state.

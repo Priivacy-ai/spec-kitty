@@ -1,0 +1,12 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: >-
+      The Domain Language write-path bullet now cross-references the Edge
+      Cases "Second write path (`promote_activations`)" note, a label that
+      matches verbatim (and uniquely) the bold lead-in newly added to the
+      promote_activations Edge Cases bullet, so the reader lands on the
+      correct bullet instead of the unrelated `--cascade` CLI-flag one.

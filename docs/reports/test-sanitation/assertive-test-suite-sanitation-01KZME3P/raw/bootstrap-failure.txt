@@ -1,0 +1,7 @@
+issue: #3283
+inventory_commit: 28ae75ea998c898aba57364db7a06d2088bd2af2
+workload: full-parallel
+classification: infrastructure-before-Act
+summary: shared test-environment lock timeout cascaded into worker setup errors; no test/product disposition is inferred
+preservation: compact planning-time summary; original complete log remains issue evidence and is not duplicated here
+harness_patch_sha256: null

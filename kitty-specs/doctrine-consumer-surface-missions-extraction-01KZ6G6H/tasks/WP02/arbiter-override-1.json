@@ -1,0 +1,13 @@
+{
+  "arbiter": "claude",
+  "category": "custom",
+  "checklist": {
+    "is_correct_context": true,
+    "is_environmental": false,
+    "is_in_scope": true,
+    "is_pre_existing": false,
+    "should_follow_on": false
+  },
+  "decided_at": "2026-08-04T20:44:32.399714+00:00",
+  "explanation": "Override without explanation"
+}

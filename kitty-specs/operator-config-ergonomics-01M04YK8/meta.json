@@ -1,0 +1,32 @@
+{
+  "accept_commit": "a22db2c3031232d4c33dc4c95abefa4e3608564e",
+  "acceptance_history": [
+    {
+      "accept_commit": "a22db2c3031232d4c33dc4c95abefa4e3608564e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-16T13:34:23.973965+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "67201423c1518f483d702af65592b6272f95d188"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-16T13:34:23.973965+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "67201423c1518f483d702af65592b6272f95d188",
+  "baseline_merge_commit": "ccc698672ea77a3d60ff19a98c25d3e673953389",
+  "created_at": "2026-08-16T09:31:41.823361+00:00",
+  "flattened": true,
+  "friendly_name": "Operator Config & Install Ergonomics",
+  "mission_id": "01M04YK8VYHH8G1J31C58F8K2H",
+  "mission_number": null,
+  "mission_slug": "operator-config-ergonomics-01M04YK8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators, the dev team, and early adopters hit friction opting into SaaS sync (hand-exported env vars), non-portable absolute paths committed into charter governance files, and no smooth way to catfood rc builds. This mission introduces a single kernel env-expansion seam, a two-tier .kitty.env operator config file, token-based portable provenance, and a default-off unstable release channel — honored by migration/upgrade/doctor and documented with a new Team Kitty (SaaS) architecture section.",
+  "purpose_tldr": "One .kitty.env for all operator knobs, portable committed provenance, and an opt-in rc channel — so install and SaaS opt-in stop requiring manual env exports.",
+  "slug": "operator-config-ergonomics-01M04YK8",
+  "status_phase": "1",
+  "target_branch": "fix/operator-config-ergonomics",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-16T10:20:37.909435+00:00"
+}

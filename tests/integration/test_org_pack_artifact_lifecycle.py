@@ -200,7 +200,7 @@ def test_case_2_org_pack_styleguide_appears_in_consumer_prompt(tmp_path: Path) -
     and unions it into the project selection via
     ``apply_org_charter_to_interview`` (and the resolver renders it).
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -304,7 +304,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
         f"Apply messages: {messages!r}\n"
         "Fix lives in Mission B WP04 — extend the schema in "
         "src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy, "
-        "extend CharterInterview in src/charter/interview.py, and extend "
+        "extend CharterInterview in src/charter/activation/interview.py, and extend "
         "apply_org_charter_to_interview to union the new field."
     )
 
@@ -327,8 +327,8 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     fired). Mission B WP04 must verify / extend the collision pipeline for
     every artifact kind that becomes per-artifact selectable.
     """
-    from doctrine.base import DoctrineLayerCollisionWarning
-    from doctrine.service import DoctrineService
+    from charter.offering.base import DoctrineLayerCollisionWarning
+    from charter.offering.service import DoctrineService
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -345,10 +345,13 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
         consumer, pack_name="very-serious-developers", local_path=pack_path
     )
 
-    built_in_root = Path(__file__).resolve().parents[2] / "src" / "doctrine"
     with pytest.warns(DoctrineLayerCollisionWarning) as warning_records:
+        # No explicit built-in root: the styleguide repository self-resolves
+        # the shipped ``packs/built-in/styleguides/`` tier, which really ships
+        # ``python-conventions`` -- the collision this test asserts requires
+        # the built-in styleguide to actually load (a stale ``src/doctrine``
+        # root loads zero styleguides, so nothing could ever collide).
         service = DoctrineService(
-            built_in_root=built_in_root,
             project_root=consumer / ".kittify" / "doctrine",
             org_roots=[pack_path],
         )
@@ -394,7 +397,7 @@ def test_case_2_consumer_without_fetched_pack_fails_loudly(tmp_path: Path) -> No
     See pre-flight edge case 9 — "Caveman in org-charter.yaml but consumer
     project lacks the pack on disk."
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()

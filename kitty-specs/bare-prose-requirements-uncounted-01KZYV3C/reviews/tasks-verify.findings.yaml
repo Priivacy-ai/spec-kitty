@@ -1,0 +1,45 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-VERIFY-001
+    lens: red-first-stated-per-wp
+    severity: 2
+    title: WP08's new blocking corpus-ratchet gate has no explicit ATDD/C-011 applicability statement, unlike WP02's
+    evidence:
+      - artifact: "tasks.md § Work Package WP08 (lines 590-651), Requirements Coverage Summary row 'C-002' (line 752)"
+      - artifact: "tasks/WP08-corpus-fixture-ratchet.md (whole file, esp. T037-T040 and 'Context & Constraints')"
+      - artifact: "tasks/WP02-campsite-clean-validate-requirement-mapping.md lines 58-64 (the comparison precedent)"
+    claim: >
+      WP08 ships tests/architectural/test_bare_prose_corpus_ratchet.py — a brand-new,
+      production-relevant, CI-blocking gate (Standing Order 5's non-vacuous ratchet) —
+      yet neither tasks.md's WP08 section nor tasks/WP08-corpus-fixture-ratchet.md states
+      whether/why charter C-011's literal "failing-first test as a separate commit before
+      any implementation commit" applies to it, and WP08 is not listed among the WPs
+      credited with C-002 in tasks.md's Requirements Coverage Summary table (line 752:
+      "C-002 | WP03, WP05, WP06"). WP02 — the mission's other non-standard-ATDD WP — makes
+      exactly this judgment call explicit in its own body ("This is a tasks-authoring
+      judgment call ... record it as such if challenged in review", WP02 lines 58-64).
+      WP08's four assertions (subset/shrink, non-empty floor, self-mutation teeth test)
+      functionally substitute for a literal RED-first commit — T040's self-mutation test
+      IS effectively "RED-first" proof that the gate is load-bearing — but this equivalence
+      is left for a reviewer to infer rather than stated, unlike WP02's explicit disclosure.
+      For a P0 chokepoint gate implementing charter Standing Order 5 by name, an implementer
+      or reviewer without the same inference could either (a) spuriously object that WP08
+      skips ATDD, or (b) not realize T040 is the substitute discipline and treat it as
+      optional polish rather than the non-vacuity requirement Standing Order 5 makes
+      binding.
+    remediation: >
+      Add a short "Context & Constraints" note to tasks/WP08-corpus-fixture-ratchet.md
+      (and a parenthetical in tasks.md's WP08 section) mirroring WP02's disclosure: state
+      that C-011's literal red-first-separate-commit form does not apply to a test-only
+      WP with no separate production implementation to pin RED against, and that T040's
+      self-mutation ("stub the detector to return [], assert the ratchet test then fails")
+      is the WP's load-bearing substitute for RED-first — it must be written and
+      demonstrated to fail correctly before T038/T039's assertions are considered proven
+      non-vacuous, i.e. the self-mutation check itself should be verified (run once,
+      observed failing) before the WP is marked done, the same way a RED-first commit
+      would be verified RED before the implementation commit lands.

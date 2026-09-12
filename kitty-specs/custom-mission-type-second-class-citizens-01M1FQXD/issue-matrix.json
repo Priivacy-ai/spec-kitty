@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2652": {
+      "evidence_ref": "Referenced only as the blocker on #2660 (#2652-T templates-as-config, #2652-E activation-driven enumeration). Not in this mission's scope; no work performed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": ""
+    },
+    "#2660": {
+      "evidence_ref": "Referenced, deliberately not folded. Targets the same get_mission_for_feature block as #3831 but scoped to template-file selection, and asserts the governance leak was closed by #883 - which this mission measured as still live. Relationship documented in spec.md.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": ""
+    },
+    "#3283": {
+      "evidence_ref": "Referenced as the shared test-venv lock hazard; baseline context only, no work performed. Follow-up: #3283 itself remains open and tracked upstream \u2014 this mission neither addressed nor encountered it as a blocker across its four measured shards.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": ""
+    },
+    "#3284": {
+      "evidence_ref": "Referenced as the known-red baseline. Measured this mission: #3284's known-red set does NOT appear in any of the four shards this mission touches (tests/next, tests/runtime, tests/specify_cli agent-commands, tests/specify_cli mission-scoped) - all four green at zero source changes. Not addressed; baseline context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": ""
+    },
+    "#3830": {
+      "evidence_ref": "Fixed: fe387ae99 removes the profile_hint-blanking early return; d920a1789 pins NFR-001 non-regression. Independently reviewed APPROVED; RED-FIRST reproduced by revert; diff-cover 100% on src/runtime/next/*.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3831": {
+      "evidence_ref": "PARTIAL. FR-005 fixed at 5bd60ac7a (loud CLI-visible fallback signal). FR-004 (org-tier lookup) DESCOPED per the plan-phase SPLIT verdict in research.md R2: legacy MissionConfig and org-tier MissionTypeProfile are incompatible without new schema work. PR uses Refs #3831, not a closing keyword.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#3832": {
+      "evidence_ref": "Fixed: 3abb5d884 template-derived per-type substantive gate; 98b53150a NFR-005 non-vacuity matrix. Reviewer independently confirmed the matrix detects a weakened implementation (neutralising the new placeholder patterns flips 3 scaffolds False->True).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#505": {
+      "evidence_ref": "Referenced via executor.py's FR-008/Phase-6 #505 comment, which mandates that _ACTION_PROFILE_DEFAULTS stay built-ins-only. This mission upheld that contract rather than changing it: FR-003 explicitly forbade adding custom-mission entries, and the WP01 reviewer confirmed executor.py has zero diff and the table still holds only software-dev/research/documentation. Contract verified intact, not modified.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#883": {
+      "evidence_ref": "Referenced only via #2660's claim that it closed the path-convention/artifact leak. Measured first-hand this mission: the leak is still live (mission.config.paths and required artifacts still resolve to software-dev's). Not addressed here; left for whoever reconciles #2660.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": ""
+    }
+  },
+  "schema_version": 1
+}

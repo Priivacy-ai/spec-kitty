@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import suppress
 import json
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 import typer
@@ -29,13 +30,15 @@ from specify_cli.tracker.config import (
     TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
+    _warn_legacy_ownership_key_once,
 )
 from specify_cli.identity.project import ensure_identity
+from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
+from specify_cli.tracker.saas_readiness import evaluate_readiness
+from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
-from specify_cli.saas.readiness import evaluate_readiness
-from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
-from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
+from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
 app = typer.Typer(
@@ -55,18 +58,27 @@ app.add_typer(sync_app, name="sync")
 # Stable wording constants (asserted byte-for-byte by tests)
 # ---------------------------------------------------------------------------
 
-_MANUAL_MODE_MESSAGE = (
-    'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\n'
-    "Run `spec-kitty sync run` to perform a one-shot remote sync."
-)
-
-_MANUAL_MODE_SYNC_RUN_MESSAGE = (
-    "Background sync is in manual mode. Running a one-shot remote sync now."
-)
-
 
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
+
+def _echo_saas_sync_summary(label: str, payload: Mapping[str, Any]) -> None:
+    """Render the SaaS sync envelope shared by ``sync pull``/``push``/``run``.
+
+    Status line, the authority used (``identity_path``, #1221), then the
+    ``summary`` counters. One helper so the three commands cannot drift again.
+    """
+    summary = payload.get("summary", {})
+    typer.echo(f"{label} {payload.get('status', 'complete')}")
+    if payload.get("identity_path"):
+        ip = payload["identity_path"]
+        typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
+        typer.echo(f"- type: {ip.get('type', 'unknown')}")
+    typer.echo(f"- total: {summary.get('total', 0)}")
+    typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
+    typer.echo(f"- failed: {summary.get('failed', 0)}")
+    typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+
 
 
 def _print_ticket_rows(rows: list[dict[str, Any]]) -> None:
@@ -122,7 +134,7 @@ def _resolve_output_policy_for_tracker() -> str:
        deriving the policy from ``sys.argv`` via the coordinator's helper.
 
     Lazy-imports the coordinator to avoid an import cycle with
-    ``specify_cli.saas.readiness``.
+    ``specify_cli.tracker.saas_readiness``.
     """
     import click  # noqa: PLC0415 — keep coordinator import-time cheap
     from specify_cli.readiness.coordinator import (  # noqa: PLC0415
@@ -198,14 +210,7 @@ def _render_readiness_failure(result: Any) -> None:
         next_token = "spec-kitty-auth-login"  # noqa: S105 - command token, not a secret.
     else:
         # Deterministic slug from the remediation phrase; fallback to "unknown".
-        next_token = (
-            "-".join(
-                tok.strip("`.,").lower()
-                for tok in next_action.split()
-                if tok.strip("`.,")
-            )
-            or "unknown"
-        )
+        next_token = "-".join(tok.strip("`.,").lower() for tok in next_action.split() if tok.strip("`.,")) or "unknown"
     typer.echo(
         f"spec-kitty tracker: readiness={state_value} next={next_token}",
         err=True,
@@ -254,29 +259,6 @@ def _check_readiness(
         _render_readiness_failure(result)
 
 
-def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
-    """Pre-flight: handle manual daemon policy for sync sub-commands.
-
-    For sync pull/push/publish: prints the manual-mode message and exits 0.
-    For sync run (is_sync_run=True): prints the one-shot message and returns
-    (does NOT exit — sync run proceeds as a foreground one-shot).
-
-    **Only applies to SaaS-backed bindings.**  Callers that may hit a local
-    provider should invoke :func:`_check_sync_readiness` or manually gate on
-    :func:`_is_local_binding` before calling this helper.  The background
-    daemon belongs to the SaaS sync path; local providers use direct
-    connectors and are unaffected by the policy.
-    """
-    cfg = SyncConfig()
-    if cfg.get_background_daemon() == BackgroundDaemonPolicy.MANUAL:
-        if is_sync_run:
-            typer.echo(_MANUAL_MODE_SYNC_RUN_MESSAGE)
-            # Do NOT exit — sync run is the explicit one-shot.
-        else:
-            typer.echo(_MANUAL_MODE_MESSAGE)
-            raise typer.Exit(0)
-
-
 def _is_local_binding() -> bool:
     """Return True iff the current repo has a bound *local* tracker provider.
 
@@ -293,38 +275,98 @@ def _is_local_binding() -> bool:
     return False
 
 
-def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
+def _check_sync_readiness(*, root: Path | None = None) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
-    the SaaS surface at all: no auth token, no ``SPEC_KITTY_SAAS_URL``, no
-    reachability probe, no background daemon.  Their direct connectors handle
+    the SaaS *readiness* surface: no auth token, no ``SPEC_KITTY_SAAS_URL``,
+    no reachability probe, no background daemon.  Their direct connectors handle
     connectivity errors on their own.  For those bindings this helper is a
     no-op — the rollout gate is already enforced by :func:`tracker_callback`
     and the binding itself is the proof that setup is complete.
 
+    ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run`` each
+    consult ``tracker_egress_verdict`` as the first executable statement of
+    their body (local subprocess spawns gate on the committed
+    ``tracker.egress`` key; hosted sends ride the authenticated session).
+    "No auth token, no reachability probe" still holds — nothing here calls
+    the SaaS HTTP client. (The former hosted-sync consent channel retired
+    with the sync transport, issue #5.)
+
+    **HIGH-1 fix (2026-08-10):** for a SaaS-backed binding, the hosted egress
+    verdict is now consulted *here*, before ``_check_readiness`` is ever
+    called. Previously this function's first act on the hosted path was
+    ``_check_readiness(..., probe_reachability=True)``, which -- when auth
+    and host-config both resolve -- issues a real ``urllib.request.urlopen``
+    HEAD probe to the configured SaaS host (``saas/readiness.py:_probe_reachability``)
+    *before* ``SaaSTrackerClient._request``'s own Channel-1/Channel-2 gate ever
+    ran. A project whose hosted-sync consent is absent or refused therefore
+    still emitted one HTTP HEAD to the tracker host ahead of the eventual
+    refusal, violating "refusal precedes any HTTP attempt." Refusing here,
+    with the exact ``tracker_egress_verdict``/``TrackerEgressRefusedError``
+    pairing ``SaaSTrackerClient._request`` already uses, keeps the message
+    byte-identical to the transport-layer refusal while moving it ahead of
+    the network probe. A permitted verdict changes nothing: execution falls
+    through to the readiness probe exactly as before.
+
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
-    chain plus the manual-mode daemon-policy check.
+    chain plus the ``tracker_egress_verdict`` gate above.
+
+    **Pass ``root`` so the pre-flight gate judges the same project the transport
+    will.** ``SaaSTrackerClient._request`` resolves its own ``project_root``
+    from the ``TrackerService`` the command builds (``_service`` →
+    ``require_repo_root()``). If this pre-flight resolved ``require_repo_root()``
+    independently, the two hosted gates could -- for a caller whose cwd is not
+    the data-owning root -- answer for two different projects. The sync commands
+    resolve the root once and thread the same value into both this gate and
+    ``_service(root=...)``, so a single resolution decides both. Absent ``root``
+    (direct callers) this falls back to ``require_repo_root()`` unchanged.
     """
     if _is_local_binding():
         return
+
+    verdict = tracker_egress_verdict(
+        root if root is not None else require_repo_root(),
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
+    if verdict.refused:
+        exc = TrackerEgressRefusedError(verdict.message)
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+
     _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy(is_sync_run=is_sync_run)
 
 
 def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     """Provider-aware readiness gate for non-sync commands that act on a binding.
 
-    Mirrors :func:`_check_sync_readiness` without the daemon-policy step: used
-    by ``status``, ``map add``, ``map list``, and ``unbind`` which require a
-    binding to operate on but do not interact with the background sync daemon.
+    Mirrors :func:`_check_sync_readiness` without its ``tracker_egress_verdict``
+    gate: used by ``status``, ``map add``, ``map list``, and ``unbind`` which
+    require a binding to operate on but never construct a connector or run a
+    subprocess.
+
+    **Does not inherit :func:`_check_sync_readiness`'s corrected note about
+    ``tracker_egress_verdict`` and Channel 1 (#3108).** The commands this
+    helper gates construct no connector and run no subprocess -- ``status``
+    reaches ``load_tracker_config`` directly, and ``map add``/``map list``/
+    ``unbind`` are deliberately left ungated by the tracker-egress verdict
+    (only ``sync_pull``/``sync_push``/``sync_run`` consult it) -- so nothing
+    reachable through this helper touches the hosted-sync consent chain at
+    all, and the mirroring stops there.
     """
     if _is_local_binding():
         return
     _check_readiness(require_mission_binding=True, probe_reachability=probe_reachability)
 
 
-def _service(*, allow_unbound: bool = False) -> TrackerService:
+def _service(*, allow_unbound: bool = False, root: Path | None = None) -> TrackerService:
+    # ``root`` lets a caller pin the exact project root (see _check_sync_readiness):
+    # the sync commands resolve the root once and pass the same value to both the
+    # egress pre-flight and the transport, so the two hosted gates cannot answer
+    # for different projects.
+    if root is not None:
+        return TrackerService(root)
     if allow_unbound:
         try:
             repo_root = require_repo_root()
@@ -353,13 +395,13 @@ def _run_or_exit(fn):  # type: ignore[no-untyped-def]
 
 @app.callback()
 def tracker_callback() -> None:
-    """Defense-in-depth rollout gate for tracker commands.
+    """Rollout gate for tracker commands.
 
-    The conditional registration in cli/commands/__init__.py already hides
-    this group entirely when the flag is off.  This callback is a
-    defense-in-depth check in case the env-var state drifts between import
-    time and invocation time.  Per-command readiness checks handle all
-    prerequisite validation beyond the rollout gate.
+    Registration in cli/commands/__init__.py is unconditional, so this
+    callback is the sole gate: it checks env-var state at invocation time
+    and blocks every tracker command when the rollout flag is off.
+    Per-command readiness checks handle all prerequisite validation beyond
+    the rollout gate.
     """
     if not is_saas_sync_enabled():
         typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
@@ -405,10 +447,9 @@ def providers_command(
     Local providers use direct connectors with locally stored credentials.
 
     This command is purely informational and prints the hard-coded provider
-    categories.  It does **not** consult hosted readiness — the rollout gate
-    itself is enforced by ``tracker_callback`` (and by the conditional
-    registration in ``cli/commands/__init__.py``), which is all the gating
-    this static output needs.
+    categories.  It does **not** consult hosted readiness — ``tracker_callback``
+    is the sole rollout gate for the tracker Typer app, which is all the
+    gating this static output needs.
     """
 
     def _run() -> None:
@@ -537,10 +578,16 @@ def bind_command(
         "--workspace",
         help="Provider workspace/team/project identifier (local providers only)",
     ),
-    doctrine_mode: str = typer.Option(
-        "external_authoritative",
+    ownership_mode: str | None = typer.Option(
+        None,
+        "--ownership-mode",
+        help="Ownership mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+    ),
+    doctrine_mode: str | None = typer.Option(
+        None,
         "--doctrine-mode",
-        help="Doctrine mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+        help="Deprecated alias for --ownership-mode",
+        hidden=True,
     ),
     field_owners: list[str] = typer.Option(
         [],
@@ -563,7 +610,14 @@ def bind_command(
     For local providers (beads, fp):
       Requires --provider, --workspace, and --credential flags.
     """
-    _check_readiness(require_mission_binding=False, probe_reachability=False)
+    # HIGH-3 fix (#3174, 2026-08-10): a local-provider bind must not require hosted
+    # readiness. `bind` creates the binding, so `_is_local_binding()` (which reads an
+    # *existing* config) cannot be used here -- gate on the `--provider` argument itself
+    # instead, mirroring how the sync commands skip readiness for an already-local binding.
+    # SaaS providers (and removed/unknown provider strings, which `_run` rejects on their
+    # own terms below) keep the existing hosted readiness check.
+    if normalize_provider(provider) not in LOCAL_PROVIDERS:
+        _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         provider_normalized = normalize_provider(provider)
@@ -605,12 +659,13 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            mode = doctrine_mode.strip().lower()
+            selected_mode = ownership_mode or doctrine_mode or "external_authoritative"
+            if doctrine_mode is not None and ownership_mode is None:
+                _warn_legacy_ownership_key_once()
+
+            mode = selected_mode.strip().lower()
             if mode not in set(_doctrine_modes()):
-                raise TrackerServiceError(
-                    f"Invalid doctrine mode '{doctrine_mode}'. "
-                    f"Expected one of: {', '.join(_doctrine_modes())}"
-                )
+                raise TrackerServiceError(f"Invalid ownership mode '{selected_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
 
             parsed_field_owners = parse_kv_pairs(field_owners)
             parsed_credentials = parse_kv_pairs(credentials)
@@ -618,24 +673,21 @@ def bind_command(
             config = _service().bind(
                 provider=provider_normalized,
                 workspace=workspace,
-                doctrine_mode=mode,
-                doctrine_field_owners=parsed_field_owners,
+                ownership_mode=mode,
+                ownership_field_owners=parsed_field_owners,
                 credentials=parsed_credentials,
             )
 
             typer.echo("Tracker binding saved")
             typer.echo(f"- provider: {config.provider}")
             typer.echo(f"- workspace: {config.workspace}")
-            typer.echo(f"- doctrine_mode: {config.doctrine_mode}")
-            typer.echo(f"- field_owners: {len(config.doctrine_field_owners)}")
+            typer.echo(f"- ownership_mode: {config.ownership_mode}")
+            typer.echo(f"- field_owners: {len(config.ownership_field_owners)}")
             typer.echo(f"- credentials_saved: {'yes' if bool(parsed_credentials) else 'no'}")
             return
 
         # Unknown provider
-        raise TrackerServiceError(
-            f"Unknown provider '{provider_normalized}'. "
-            f"Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}"
-        )
+        raise TrackerServiceError(f"Unknown provider '{provider_normalized}'. Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}")
 
     _run_or_exit(_run)
 
@@ -701,9 +753,7 @@ def _bind_saas(
         return False
 
     # No candidates (should not reach here -- service raises on no-match)
-    raise TrackerServiceError(
-        f"No bindable resources found for provider '{provider}'."
-    )
+    raise TrackerServiceError(f"No bindable resources found for provider '{provider}'.")
 
 
 def _display_bind_success(
@@ -761,9 +811,7 @@ def _handle_candidate_selection(
 
 @app.command("status")
 def status_command(
-    all_installations: bool = typer.Option(
-        False, "--all", help="Show installation-wide status (SaaS providers only)"
-    ),
+    all_installations: bool = typer.Option(False, "--all", help="Show installation-wide status (SaaS providers only)"),
     as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
 ) -> None:
     """Show tracker binding and sync status.
@@ -819,7 +867,6 @@ def _print_installation_wide_status(payload: dict) -> None:
     from rich.panel import Panel
     from rich.table import Table
 
-
     provider = payload.get("provider", "unknown")
     connected = payload.get("connected", payload.get("status", "unknown"))
     bindings = payload.get("bindings")
@@ -846,9 +893,7 @@ def _print_installation_wide_status(payload: dict) -> None:
             table.add_row("No bindings", str(provider), str(connected), "-")
 
         if "resource_count" in payload:
-            table.caption = (
-                f"Connected: {connected} | Resources: {payload['resource_count']}"
-            )
+            table.caption = f"Connected: {connected} | Resources: {payload['resource_count']}"
 
         panel = Panel(table, title="Installation-wide tracker status", border_style="green")
         console.print(panel)
@@ -893,11 +938,7 @@ def _binding_project_label(binding: dict[str, Any]) -> str:
 
 def _binding_status_label(binding: dict[str, Any]) -> str:
     """Return a normalized status label for installation-wide bindings."""
-    return str(
-        binding.get("status")
-        or binding.get("sync_state")
-        or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown")
-    )
+    return str(binding.get("status") or binding.get("sync_state") or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown"))
 
 
 # ---------------------------------------------------------------------------
@@ -975,10 +1016,7 @@ def map_list_command(
         if not mappings:
             typer.echo("No mappings found")
             if pending_binding_upgrade:
-                typer.echo(
-                    "Tracker binding upgrade available: "
-                    f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
-                )
+                typer.echo(f"Tracker binding upgrade available: {pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply.")
             return
 
         typer.echo("Mappings")
@@ -986,10 +1024,7 @@ def map_list_command(
             key = row.get("external_key") or row.get("external_id")
             typer.echo(f"- {row.get('wp_id')}: {row.get('system')}:{key}")
         if pending_binding_upgrade:
-            typer.echo(
-                "Tracker binding upgrade available: "
-                f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
-            )
+            typer.echo(f"Tracker binding upgrade available: {pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply.")
 
     _run_or_exit(_run)
 
@@ -1030,26 +1065,18 @@ def sync_pull_command(
 
     For local providers: pulls directly from the tracker API.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_pull(limit=limit)
+        payload = _service(root=root).sync_pull(limit=limit)
         if as_json:
             _print_json(payload)
             return
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Pull {payload.get('status', 'complete')}")
-            if payload.get("identity_path"):
-                ip = payload["identity_path"]
-                typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
-                typer.echo(f"- type: {ip.get('type', 'unknown')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Pull", payload)
             if payload.get("has_more"):
                 typer.echo(f"- has_more: yes (next_cursor: {payload.get('next_cursor', 'N/A')})")
         # Local format
@@ -1074,7 +1101,8 @@ def sync_pull_command(
 def sync_push_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000, help="Max items (local providers only)"),
     items_json: str | None = typer.Option(
-        None, "--items-json",
+        None,
+        "--items-json",
         help="Path to JSON file with PushItem[] array (SaaS providers). Use '-' for stdin.",
     ),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
@@ -1089,12 +1117,13 @@ def sync_push_command(
 
     For local providers: pushes directly to the tracker API using --limit.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
     import sys as _sys
 
     def _run() -> None:
-        service = _service()
-        config = load_tracker_config(require_repo_root())
+        service = _service(root=root)
+        config = load_tracker_config(root)
 
         if config.provider and config.provider in SAAS_PROVIDERS:
             # --- SaaS path: explicit items required ---
@@ -1117,8 +1146,7 @@ def sync_push_command(
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
                 typer.secho(
-                    "Error: --items-json must contain a JSON array of "
-                    "PushItem objects.",
+                    "Error: --items-json must contain a JSON array of PushItem objects.",
                     fg=typer.colors.RED,
                     err=True,
                 )
@@ -1135,12 +1163,7 @@ def sync_push_command(
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Push {payload.get('status', 'complete')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Push", payload)
         # Local format
         else:
             stats = payload.get("stats", {})
@@ -1171,22 +1194,18 @@ def sync_run_command(
 
     For local providers: runs pull then push using direct connectors.
     """
-    _check_sync_readiness(is_sync_run=True)
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_run(limit=limit)
+        payload = _service(root=root).sync_run(limit=limit)
         if as_json:
             _print_json(payload)
             return
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Sync run {payload.get('status', 'complete')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Sync run", payload)
         # Local format
         else:
             stats = payload.get("stats", {})
@@ -1219,10 +1238,11 @@ def sync_publish_command(
     For local providers: the facade will raise an error if this operation
     is not supported by the bound provider.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_publish()
+        payload = _service(root=root).sync_publish()
         if as_json:
             _print_json(payload)
             return

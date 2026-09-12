@@ -103,6 +103,11 @@ class _FakeTxn:
     def commit(self, _msg: str) -> None:
         return None
 
+    def commit_idempotent(self, _msg: str) -> None:
+        # WP02 / T009: ``_run_planning_artifact_commit`` now uses the
+        # crash-recovery-safe idempotent re-drive; the fake records the same way.
+        return None
+
 
 def _fake_bookkeeping_transaction(calls: list[tuple[str, list[str]]]) -> type:
     class _FakeBookkeepingTransaction:
@@ -361,6 +366,70 @@ class TestNarrowTripleProtectedPlanningBranchFailsClosed:
         # No transaction of any kind (coord or primary) ran -- the fail-close
         # is loud, not a partial/silent commit to either ref.
         assert calls == []
+
+
+class TestSeamAPartitionGuard:
+    """WP02 / T011 / FR-002 / C-008: the Seam-A guard on the kind-agnostic
+    ``BookkeepingTransaction`` planning-commit seam. A PRIMARY kind reaching the
+    coord commit (or a COORD kind reaching a primary/lane commit) raises the SAME
+    ``PrimaryKindReachedCoordStagingError`` the ``commit_for_mission`` classifier
+    already raises -- with ``meta.json`` (and spec-kitty's other self-bookkeeping)
+    exempted BEFORE kind classification so a coord status commit co-travelling
+    ``meta.json`` is NOT falsely refused.
+    """
+
+    _SLUG = "seam-a-demo"
+
+    def _p(self, name: str) -> str:
+        return f"kitty-specs/{self._SLUG}/{name}"
+
+    def test_coord_status_commit_with_meta_cotravel_succeeds(self) -> None:
+        """POSITIVE (C-008): a COORD-destination commit carrying the status log
+        AND ``meta.json`` must NOT raise -- ``meta.json`` is self-bookkeeping,
+        exempted before the ``PRIMARY_METADATA``->coord classification."""
+        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+
+        # No raise.
+        _guard_planning_commit_partition(
+            [self._p("status.events.jsonl"), self._p("meta.json")],
+            destination_is_coord=True,
+        )
+
+    def test_primary_kind_reaching_coord_raises(self) -> None:
+        """NEGATIVE (PRIMARY->coord): a PRIMARY ``lanes.json`` on a coord
+        destination is the #3371 mis-route -- fail loud."""
+        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.commit_router import (
+            PrimaryKindReachedCoordStagingError,
+        )
+
+        with pytest.raises(PrimaryKindReachedCoordStagingError):
+            _guard_planning_commit_partition(
+                [self._p("lanes.json")], destination_is_coord=True
+            )
+
+    def test_coord_kind_reaching_primary_or_lane_raises(self) -> None:
+        """NEGATIVE (COORD->primary/lane): a coord-residue status file on a
+        PRIMARY/lane destination is the #2549 mis-route -- fail loud."""
+        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+        from specify_cli.coordination.commit_router import (
+            PrimaryKindReachedCoordStagingError,
+        )
+
+        with pytest.raises(PrimaryKindReachedCoordStagingError):
+            _guard_planning_commit_partition(
+                [self._p("status.events.jsonl")], destination_is_coord=False
+            )
+
+    def test_primary_commit_with_meta_and_lanes_succeeds(self) -> None:
+        """POSITIVE: a PRIMARY-destination commit carrying ``lanes.json`` +
+        ``meta.json`` is the correct partition -- no raise."""
+        from specify_cli.cli.commands.implement import _guard_planning_commit_partition
+
+        _guard_planning_commit_partition(
+            [self._p("lanes.json"), self._p("meta.json")],
+            destination_is_coord=False,
+        )
 
 
 class TestBannerConstantsHoisted:

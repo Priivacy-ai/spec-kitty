@@ -1,0 +1,99 @@
+{
+  "mission_slug": "next-committed-state-authority-01M1CA8W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_merged_mission_terminal.py::test_merged_mission_returns_terminal_and_creates_no_run (advancing kind:terminal, no run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:12.360675+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_merged_mission_short_circuit runs before mission_context_for; verified by merged-mission terminal/query tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:14.548744+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_merged_mission_terminal.py artifact-missing -> kind:blocked",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:16.709129+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_status_committed_authority.py (board reports committed lanes not planned)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:18.933297+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_runtime_bridge.py::test_should_advance_review_canceled_with_operator_provenance",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:21.117198+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_runtime_bridge.py::test_should_not_advance_review_synthetic_cancellation (fail-closed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:23.327862+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "committed_authority.wp_ending routes through is_acceptable_ending/has_operator_provenance; operator vs synthetic observably differ",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:25.492738+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "single committed_authority.py module consumed by board (WP01) + both next entry points (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:27.674984+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_merged_mission_terminal.py conflict cases -> kind:blocked (both modes)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-31T18:39:29.821318+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -20,6 +20,7 @@ import subprocess
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from kernel.paths import to_posix
 
 __all__ = [
     "ConflictType",
@@ -77,7 +78,7 @@ def classify_conflict(file_path: str) -> ConflictType:
         ConflictType indicating how to handle this conflict.
     """
     # Derived / runtime files should be gitignored — flag as error if seen
-    normalized = file_path.replace("\\", "/")
+    normalized = to_posix(file_path)
     if (
         normalized.startswith(".kittify/derived/")
         or normalized.startswith(".kittify/runtime/")

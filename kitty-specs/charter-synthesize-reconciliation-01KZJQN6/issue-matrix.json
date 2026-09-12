@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#1912": {
+      "evidence_ref": "WP01 extends #1912 byte-stability to the reconcile path (b91bdd872); non-terminal",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#2519": {
+      "evidence_ref": "Mission-target issue under active work; owned by a later WP (not WP01); non-terminal at WP01 approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#2759": {
+      "evidence_ref": "Mission-target issue under active work; owned by a later WP (not WP01); non-terminal at WP01 approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#2772": {
+      "evidence_ref": "Mission-target issue under active work; owned by a later WP (not WP01); non-terminal at WP01 approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#2777": {
+      "evidence_ref": "Mission-target issue under active work; owned by a later WP (not WP01); non-terminal at WP01 approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3052": {
+      "evidence_ref": "Mission-target issue under active work; owned by a later WP (not WP01); non-terminal at WP01 approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3270": {
+      "evidence_ref": "WP01 reconciliation seam (b91bdd872): preserve-and-succeed; full resolution spans WP03/WP04 (non-terminal)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

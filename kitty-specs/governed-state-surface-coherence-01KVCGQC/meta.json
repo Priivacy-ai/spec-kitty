@@ -15,6 +15,7 @@
   "accepted_from_commit": "24a6ff6d61b6d7be493ffbf52686ac6b03845519",
   "baseline_merge_commit": "fa091791cf4a7189057a5609a3b40a718436525f",
   "created_at": "2026-06-18T04:44:43.221522+00:00",
+  "flattened": false,
   "friendly_name": "Governed-State-Surface Coherence",
   "mission_id": "01KVCGQCTNN5K5YD2YEZ8F2DA6",
   "mission_number": null,
@@ -26,6 +27,7 @@
   "slug": "governed-state-surface-coherence-01KVCGQC",
   "status_phase": "1",
   "target_branch": "feat/governed-state-surface-coherence",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-18T05:49:54.639551+00:00"
 }

@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP13",
+  "captured_at": "2026-08-04T18:14:08Z",
+  "base_branch": "pr/review-verdict-write-integrity-01KZ1CGF",
+  "base_commit": "32a5c47396efdc547252521e06d21d95a095206f",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "22d62164266872aab29d72ac556d082ec0f73a7a",
-  "coordination_branch": "kitty/mission-test-suite-acceleration-01KV3H59",
   "created_at": "2026-06-14T16:59:08.185164+00:00",
+  "flattened": true,
   "friendly_name": "Test Suite Acceleration",
   "mission_id": "01KV3H590RHSQHF8XV843X5YHA",
   "mission_number": 136,
@@ -13,6 +13,7 @@
   "slug": "test-suite-acceleration-01KV3H59",
   "status_phase": "1",
   "target_branch": "feat/test-suite-acceleration",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-14T17:28:29.269154+00:00"
 }

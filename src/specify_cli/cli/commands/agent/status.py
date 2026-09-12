@@ -13,17 +13,19 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
+    MissionSelectorAmbiguous,
     resolve_bare_modern_mission_dir_name,
 )
 from specify_cli.status import feature_status_lock
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
+from specify_cli.status import parse_review_result_json
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +71,29 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = candidate_feature_dir_for_mission(get_main_repo_root(repo_root), raw_handle)
+        try:
+            legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(
+                MissionArtifactKind.PRIMARY_METADATA
+            )
+        except MissionSelectorAmbiguous as exc:
+            # Same shape as tasks_shared._find_mission_slug (#241): this
+            # read-path resolver family raises BEFORE resolve_mission_handle
+            # runs, so the ambiguous case must map onto the SAME shared
+            # {"success": False, "error_code": ..., "error": ..., "handle":
+            # ..., "candidates": [...]} envelope resolve_mission_handle emits
+            # below, not a bare {"error": str(exc)}.
+            envelope = {
+                "success": False,
+                "error_code": exc.error_code,
+                "error": str(exc),
+                "handle": exc.handle,
+                "candidates": exc.candidates,
+            }
+            if json_output:
+                print(json.dumps(envelope))
+                raise typer.Exit(1) from None
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -217,6 +241,54 @@ def _resolve_status_surface_for_repo(
     return ms.read_dir, mission_slug, main_repo_root
 
 
+def _enforce_emit_for_review_gate(
+    json_output: bool,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    to: str,
+    force: bool,
+) -> None:
+    """Reject an in_progress->for_review emit with no lane commit (FR-011).
+
+    Thin CLI adapter over the shared, surface-neutral gate leaf
+    (:func:`specify_cli.lanes.for_review_gate.evaluate_for_review_gate`) --
+    mirrors the orchestrator-api ``transition`` surface's
+    ``_enforce_for_review_commit_gate`` so BOTH surfaces enforce identical
+    semantics (a WP with zero commits on its lane branch cannot reach
+    ``for_review``). No-ops when the alias-resolved target lane is not
+    ``for_review``, when bypassed (``--force``), or when the gate does not
+    apply (no ``lanes.json``, or the WP is not in any lane) -- the leaf
+    decides those cases and returns a passing decision.
+
+    Raises:
+        typer.Exit: With code 1 when the gate rejects the transition.
+    """
+    from specify_cli.lanes.for_review_gate import (
+        GateDecision,
+        evaluate_for_review_gate,
+    )
+    from specify_cli.status import Lane, resolve_lane_alias
+
+    if resolve_lane_alias(to) != Lane.FOR_REVIEW:
+        return
+
+    decision: GateDecision = evaluate_for_review_gate(
+        main_repo_root, mission_slug, wp_id, force=force
+    )
+    if not decision.passed:
+        _output_error(
+            json_output,
+            decision.reason,
+            {
+                "error": decision.reason,
+                "wp_id": wp_id,
+                "lane_id": decision.lane_id,
+            },
+        )
+        raise typer.Exit(1)
+
+
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
@@ -237,6 +309,13 @@ def emit(
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[str | None, typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
     review_ref: Annotated[str | None, typer.Option("--review-ref", help="Review feedback reference")] = None,
+    review_result_json: Annotated[
+        str | None,
+        typer.Option(
+            "--review-result-json",
+            help="JSON structured review outcome for transitions from in_review",
+        ),
+    ] = None,
     workspace_context: Annotated[
         str | None,
         typer.Option(
@@ -269,7 +348,7 @@ def emit(
 
     Examples:
         spec-kitty agent status emit WP01 --to claimed --actor claude
-        spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
+        spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}'
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
@@ -305,6 +384,23 @@ def emit(
                 )
                 raise typer.Exit(1)
 
+        # Parse/validate the structured review verdict through the SAME hoisted
+        # parser the orchestrator-api transition surface uses (FR-010/FR-013),
+        # so both surfaces accept/reject an identical shape.
+        review_result = None
+        if review_result_json is not None:
+            try:
+                review_result = parse_review_result_json(review_result_json)
+            except ValueError as exc:
+                _output_error(json_output, str(exc))
+                raise typer.Exit(1)
+
+        # FR-011: the shared, topology-aware for_review commit gate -- no-ops
+        # unless the alias-resolved target lane is for_review, mirroring the
+        # orchestrator-api transition surface's identical gate placement
+        # (immediately before the transition is emitted).
+        _enforce_emit_for_review_gate(json_output, main_repo_root, mission_slug, wp_id, to, force)
+
         # Lazy import to avoid circular imports
         from specify_cli.status import TransitionError
         from specify_cli.status import TransitionRequest
@@ -322,6 +418,7 @@ def emit(
             reason=reason,
             evidence=evidence,
             review_ref=review_ref,
+            review_result=review_result,
             workspace_context=workspace_context,
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
@@ -429,7 +526,7 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        with feature_status_lock(main_repo_root, mission_slug):
+        with feature_status_lock(main_repo_root, feature_dir.name):
             # Materialize snapshot from event log
             snapshot = do_materialize(feature_dir)
 

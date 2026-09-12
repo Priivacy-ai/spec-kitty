@@ -8,7 +8,15 @@ The migration hint emitted by :class:`InlineReferenceRejectedError` must
 match the schema's regex pattern::
 
     ^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\}
-     to src/doctrine/graph.yaml$
+     to packs/built-in/<kind>.graph.yaml$
+
+The trailing path is the per-kind DRG fragment for the *source* artifact's
+kind -- the file the operator actually has to open. Naming the pre-#2680
+monolith sent them to a path that is not on disk (mission
+``doctrine-silence-guards-01KYFV7Q`` WP07, FR-008); mission
+``relocate-builtin-doctrine-packs-01KYT87F`` then moved the shipped fragments
+from ``src/charter/offering/`` to ``packs/built-in/``, so the followable path is now
+under the pack root.
 
 The hint uses the actual ``DRGEdge`` schema (``source``/``target``/``relation``)
 and the ``requires`` relation -- the ``Relation`` enum does not contain
@@ -27,14 +35,14 @@ from typing import Any
 
 import pytest
 
-from doctrine.agent_profiles.validation import reject_agent_profile_inline_refs
-from doctrine.directives.validation import reject_directive_inline_refs
-from doctrine.paradigms.validation import reject_paradigm_inline_refs
-from doctrine.procedures.validation import reject_procedure_inline_refs
-from doctrine.shared.exceptions import InlineReferenceRejectedError
-from doctrine.styleguides.validation import reject_styleguide_inline_refs
-from doctrine.tactics.validation import reject_tactic_inline_refs
-from doctrine.toolguides.validation import reject_toolguide_inline_refs
+from charter.offering.agent_profiles.validation import reject_agent_profile_inline_refs
+from charter.offering.directives.validation import reject_directive_inline_refs
+from charter.offering.paradigms.validation import reject_paradigm_inline_refs
+from charter.offering.procedures.validation import reject_procedure_inline_refs
+from charter.offering.shared.exceptions import InlineReferenceRejectedError
+from charter.offering.styleguides.validation import reject_styleguide_inline_refs
+from charter.offering.tactics.validation import reject_tactic_inline_refs
+from charter.offering.toolguides.validation import reject_toolguide_inline_refs
 
 #: Matches ``migration_hint`` per the JSON schema.
 
@@ -43,7 +51,7 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 HINT_PATTERN = re.compile(
     r"^Remove .+ from YAML; add edge "
     r"\{source: .+, target: .+, relation: requires\} "
-    r"to src/doctrine/graph\.yaml$"
+    r"to packs/built-in/[a-z_]+\.graph\.yaml$"
 )
 
 #: Registry of (reject_fn, artifact_kind, sample_data_factory) entries for each
@@ -176,7 +184,7 @@ def test_directive_repository_rejects_project_inline_refs(tmp_path: Path) -> Non
     """Loading a project directive that carries ``applies_to:`` must raise
     :class:`InlineReferenceRejectedError` at _load time, not warn.
     """
-    from doctrine.directives.repository import DirectiveRepository
+    from charter.offering.directives.repository import DirectiveRepository
 
     project_dir = tmp_path / "directives"
     _write_yaml(
@@ -197,7 +205,7 @@ def test_directive_repository_rejects_project_inline_refs(tmp_path: Path) -> Non
 
 def test_tactic_repository_rejects_shipped_inline_refs(tmp_path: Path) -> None:
     """Shipped tactics with forbidden inline refs must raise at load time."""
-    from doctrine.tactics.repository import TacticRepository
+    from charter.offering.tactics.repository import TacticRepository
 
     built_in_dir = tmp_path / "tactics_shipped"
     _write_yaml(
@@ -212,7 +220,7 @@ def test_tactic_repository_rejects_shipped_inline_refs(tmp_path: Path) -> None:
 
 
 def test_paradigm_repository_rejects_inline_refs(tmp_path: Path) -> None:
-    from doctrine.paradigms.repository import ParadigmRepository
+    from charter.offering.paradigms.repository import ParadigmRepository
 
     built_in_dir = tmp_path / "paradigms_shipped"
     _write_yaml(
@@ -227,7 +235,7 @@ def test_paradigm_repository_rejects_inline_refs(tmp_path: Path) -> None:
 
 
 def test_styleguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
-    from doctrine.styleguides.repository import StyleguideRepository
+    from charter.offering.styleguides.repository import StyleguideRepository
 
     built_in_dir = tmp_path / "styleguides_shipped"
     _write_yaml(
@@ -242,7 +250,7 @@ def test_styleguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
 
 
 def test_toolguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
-    from doctrine.toolguides.repository import ToolguideRepository
+    from charter.offering.toolguides.repository import ToolguideRepository
 
     built_in_dir = tmp_path / "toolguides_shipped"
     _write_yaml(
@@ -257,7 +265,7 @@ def test_toolguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
 
 
 def test_procedure_repository_rejects_top_level_inline_refs(tmp_path: Path) -> None:
-    from doctrine.procedures.repository import ProcedureRepository
+    from charter.offering.procedures.repository import ProcedureRepository
 
     built_in_dir = tmp_path / "procedures_shipped"
     _write_yaml(
@@ -276,7 +284,7 @@ def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> 
     structured :class:`InlineReferenceRejectedError`, not Pydantic's generic
     ``extra_forbidden`` warning.
     """
-    from doctrine.procedures.repository import ProcedureRepository
+    from charter.offering.procedures.repository import ProcedureRepository
 
     built_in_dir = tmp_path / "procedures_shipped"
     _write_yaml(
@@ -311,7 +319,7 @@ def test_agent_profile_repository_surfaces_inline_refs_as_skip(tmp_path: Path) -
     result — the skip is loud and carries the readable error (operator
     preference: loud over hidden).
     """
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
 
     built_in_dir = tmp_path / "agent_profiles_shipped"
     # agent profile YAMLs use kebab-case keys; the rejection scan is for

@@ -10,19 +10,19 @@ end-to-end on a realistic (Regnology-shaped) org pack and that nothing
 regressed for the 9 pre-existing kinds.
 
 Unlike ``tests/doctrine/test_drg_merge.py::TestGlobalURNUniquenessScan``
-(which hand-constructs :class:`~doctrine.drg.org_pack_loader.OrgDRGFragment`
+(which hand-constructs :class:`~charter.offering.drg.org_pack_loader.OrgDRGFragment`
 instances directly), every test here drives the **real** on-disk pipeline:
 
-1. :func:`doctrine.drg.org_pack_loader.load_org_pack` parses an actual
+1. :func:`charter.offering.drg.org_pack_loader.load_org_pack` parses an actual
    ``drg/fragment.yaml`` (and, for the negative path/mime cases,
    :func:`specify_cli.doctrine.pack_validator.validate_pack` scans an actual
    ``assets/*.asset.yaml`` sidecar) from
    ``tests/doctrine/fixtures/org_pack_template_asset/``.
-2. :func:`doctrine.drg.merge.merge_three_layers` merges the loaded fragment(s)
-   onto the **real, shipped** built-in DRG (``src/doctrine/graph.yaml``, not a
+2. :func:`charter.offering.drg.merge.merge_three_layers` merges the loaded fragment(s)
+   onto the **real, shipped** built-in DRG (``src/charter/offering/graph.yaml``, not a
    synthetic stub) — the strongest available proof that the two kinds compose
    correctly with the full built-in node/edge set.
-3. :func:`doctrine.drg.query.resolve_transitive_refs` walks the merged graph.
+3. :func:`charter.offering.drg.query.resolve_transitive_refs` walks the merged graph.
 
 No mocked shortcuts (NFR-004): behavior is asserted from what the real loader
 produces, not from API shape alone.
@@ -34,14 +34,15 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.merge import DuplicateURNError, merge_three_layers
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
-from doctrine.drg.query import resolve_transitive_refs
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.merge import DuplicateURNError, merge_three_layers
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
+from charter.offering.drg.query import resolve_transitive_refs
 from specify_cli.doctrine.pack_validator import validate_pack
+from tests.doctrine._builtin_inventory import builtin_asset_urns
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "org_pack_template_asset"
 
@@ -250,7 +251,7 @@ class TestNoRegressionForExistingKinds:
         """Two org packs shipping the same `directive:` id is UNCHANGED
         behavior: first-wins, no `DuplicateURNError` (that hard-fail is
         scoped strictly to `asset:`/`template:` by
-        :func:`doctrine.drg.merge._check_node_urn_unique`'s prefix
+        :func:`charter.offering.drg.merge._check_node_urn_unique`'s prefix
         argument)."""
         pack_a = OrgDRGFragment.model_validate(
             {
@@ -295,14 +296,43 @@ class TestNoRegressionForExistingKinds:
         # First-wins: pack_a's node survives (declared first in org_fragments).
         assert directive_node.label == "Pack A's Referenced Policy"
 
-    def test_builtin_graph_still_reports_only_the_pre_mission_asset_free_kinds(
+    def test_builtin_graph_references_the_first_shipped_asset(
         self,
     ) -> None:
-        """The real shipped graph has zero `asset:` nodes (ASSET is new in
-        this mission) and its `template:` population is untouched."""
+        """The real shipped graph carries the built-in ASSET nodes, and the first
+        shipped one — the common-docs structural lint — is REFERENCED (non-orphan):
+        the four common-docs artifacts that name it in prose point at it with
+        `requires` edges. An un-linked asset that everything references is the
+        un-navigable state the asset kind exists to fix, so the wiring is asserted,
+        not merely the node's presence.
+
+        The asset set grew from one to six with mission rehome-writing-comms-doctrine,
+        which shipped the five ``asset:writing-audience-*`` audience descriptors
+        (see the composition ledger in
+        ``tests/doctrine/drg/migration/test_extractor_projection.py`` entry (15));
+        each is edge-incident (non-orphan) by construction — none is a bare node.
+
+        The expected URN set is DERIVED from the shipped
+        ``packs/built-in/assets/**/*.asset.yaml`` sidecars (#3234), not frozen: the
+        loaded-graph asset URNs must equal the source inventory, so a loader that
+        drops a shipped asset reds while a newly-shipped asset is picked up
+        automatically. See ``tests/doctrine/_builtin_inventory.py``."""
         built_in = _built_in_graph()
         kinds_present = {node.kind for node in built_in.nodes}
+        asset_urns = {
+            node.urn for node in built_in.nodes if node.kind == NodeKind.ASSET
+        }
 
-        assert NodeKind.ASSET not in kinds_present
+        assert asset_urns == builtin_asset_urns()
         assert NodeKind.TEMPLATE in kinds_present
         assert NodeKind.DIRECTIVE in kinds_present
+
+        inbound = built_in.edges_to(
+            "asset:common-docs-structural-lint", relation=Relation.REQUIRES
+        )
+        assert {edge.source for edge in inbound} == {
+            "directive:DIRECTIVE_042",
+            "styleguide:common-docs",
+            "tactic:common-docs-curation",
+            "tactic:common-docs-scaffold",
+        }

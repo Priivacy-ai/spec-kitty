@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 SEVERITY_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 

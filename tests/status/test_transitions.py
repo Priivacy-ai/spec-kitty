@@ -429,15 +429,20 @@ class TestGuardConditions:
         ok, error = validate_transition("in_progress", "planned", GuardContext(reason="reassigning to other agent"))
         assert ok is True
 
-    def test_conflict_detection_rejects_double_claim(self) -> None:
-        """for_review -> in_review rejects when a different actor already holds the review."""
+    def test_conflict_detection_allows_distinct_actor(self) -> None:
+        """for_review -> in_review is allow-only: a different actor ALLOWs.
+
+        Re-pointed (WP01): the FSM guard carries no role and never invokes the
+        collision predicate, so it cannot express a role-carrying reject — it
+        must ALLOW. The genuine reviewer-vs-reviewer reject is asserted at the
+        ``in_review`` re-claim lifecycle test, not here (NFR-002).
+        """
         ok, error = validate_transition(
             "for_review",
             "in_review",
             GuardContext(actor="reviewer-B", current_actor="reviewer-A"),
         )
-        assert ok is False
-        assert "already claimed" in error.lower()
+        assert ok is True, f"allow-only guard must permit a distinct actor; error={error}"
 
     def test_conflict_detection_allows_same_actor_reclaim(self) -> None:
         """for_review -> in_review permits idempotent re-claim by the same actor."""
@@ -718,3 +723,77 @@ class TestTerminalForceExitParity:
         ok, err = validate_transition(terminal, "planned", GuardContext())
         assert ok is False
         assert err is not None and "Illegal transition" in err
+
+
+# ---------------------------------------------------------------------------
+# WP02 / T010: acceptable-ending authority + shared provenance accessor.
+#
+# The single acceptable-ending predicate (FR-005) and the single shared reader
+# of WP01's ``reason_source`` snapshot slot (paula: no 3-site whack-a-field)
+# live in ``specify_cli.status_lanes`` — a pure-constants module. Terminality,
+# acceptability, and provenance are three SEPARABLE decisions (post-spec F2):
+# ``is_acceptable_ending`` must reject every non-canceled non-terminal lane,
+# admit ``approved``/``done`` unconditionally, and admit ``canceled`` only with
+# operator-authored provenance.
+# ---------------------------------------------------------------------------
+
+from specify_cli.status_lanes import (  # noqa: E402 -- grouped with the T010 block it serves
+    CANONICAL_LANES as _STATUS_LANES_CANONICAL,
+    has_operator_provenance,
+    is_acceptable_ending,
+)
+
+
+class TestAcceptableEndingPredicate:
+    """Truth table for ``is_acceptable_ending`` over all nine lanes × provenance."""
+
+    _ACCEPTABLE_WITHOUT_PROVENANCE = {"approved", "done"}
+
+    @pytest.mark.parametrize("lane", list(_STATUS_LANES_CANONICAL))
+    @pytest.mark.parametrize("has_provenance", [True, False])
+    def test_truth_table_all_lanes(self, lane: str, has_provenance: bool) -> None:
+        expected = lane in self._ACCEPTABLE_WITHOUT_PROVENANCE or (
+            lane == "canceled" and has_provenance
+        )
+        assert is_acceptable_ending(lane, has_provenance=has_provenance) is expected
+
+    def test_all_nine_lanes_are_covered(self) -> None:
+        # Guards against a lane being added to the model without a decision here.
+        assert len(_STATUS_LANES_CANONICAL) == 9
+
+    def test_approved_and_done_ignore_provenance(self) -> None:
+        for lane in ("approved", "done"):
+            assert is_acceptable_ending(lane, has_provenance=False) is True
+            assert is_acceptable_ending(lane, has_provenance=True) is True
+
+    def test_canceled_turns_on_provenance(self) -> None:
+        assert is_acceptable_ending("canceled", has_provenance=True) is True
+        assert is_acceptable_ending("canceled", has_provenance=False) is False
+
+    @pytest.mark.parametrize(
+        "lane", ["planned", "claimed", "in_progress", "for_review", "in_review", "blocked"]
+    )
+    def test_non_terminal_lanes_never_acceptable(self, lane: str) -> None:
+        assert is_acceptable_ending(lane, has_provenance=True) is False
+        assert is_acceptable_ending(lane, has_provenance=False) is False
+
+
+class TestHasOperatorProvenance:
+    """The single shared reader of the ``reason_source`` snapshot slot."""
+
+    def test_operator_snapshot_is_operator(self) -> None:
+        snapshot = {"lane": "canceled", "reason_source": "operator", "cancellation_reason": "replan"}
+        assert has_operator_provenance(snapshot) is True
+
+    def test_synthetic_snapshot_is_not_operator(self) -> None:
+        snapshot = {"lane": "canceled", "reason_source": "synthetic", "cancellation_reason": "Force move to canceled"}
+        assert has_operator_provenance(snapshot) is False
+
+    def test_none_snapshot_is_not_operator(self) -> None:
+        assert has_operator_provenance(None) is False
+
+    def test_legacy_snapshot_without_reason_source_is_not_operator(self) -> None:
+        # A snapshot with no ``reason_source`` key at all (a non-canceled WP, or
+        # a snapshot shape predating the slot): the accessor never guesses.
+        assert has_operator_provenance({"lane": "done"}) is False
+        assert has_operator_provenance({}) is False

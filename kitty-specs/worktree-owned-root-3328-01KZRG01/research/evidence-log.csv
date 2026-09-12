@@ -1,0 +1,27 @@
+finding_id,claim,file_path,line_range,verified_by,date
+D1-A,"mission create refuses via CWD-based is_worktree_context check, disconnected from repo_root",src/specify_cli/core/mission_creation.py,309-314,direct read,2026-08-11
+D1-B,"is_worktree_context is generic (gitdir-pointer aware), not .worktrees-literal",src/specify_cli/core/paths.py,281-328,direct read,2026-08-11
+D1-C,"next/merge/implement gated by require_main_repo -> detect_execution_context, .worktrees-literal only",src/specify_cli/core/context_validation.py,65-111;190-216,direct read,2026-08-11
+D1-D,"require_main_repo applied to next, merge, implement",src/specify_cli/cli/commands/next_cmd.py;merge.py;implement.py,60;419;1586,direct read,2026-08-11
+D2-A,"locate_project_root collapses worktree caller to primary via gitdir pointer follow",src/specify_cli/core/paths.py,182-267,direct read,2026-08-11
+D2-B,"get_status_read_root is the one existing read-only worktree-scoped resolver precedent",src/specify_cli/core/paths.py,560-611,direct read,2026-08-11
+D2-C,"assert_worktree_supported is a dead stub, not called by any active command",src/specify_cli/core/paths.py,614-635,direct read,2026-08-11
+D2-D,"resolve_canonical_repo_root is a 4th independent common-dir-based resolver",src/specify_cli/charter/resolution.py,66-136,direct read,2026-08-11
+D3-A,"allow_worktree_context production gate is the sole src/ call site",src/specify_cli/core/mission_creation.py,217;256;313,direct read,2026-08-11
+D3-B,"AST architectural fence forbids production allow_worktree_context=True",tests/architectural/test_no_production_worktree_guard_bypass.py,1-85,direct read,2026-08-11
+D4-A,"_is_worktree_of is the generic (non-.worktrees-literal) common-dir comparator",src/specify_cli/git/commit_helpers.py,609-634,direct read,2026-08-11
+D4-B,"safe_commit calls _is_worktree_of as validation step 3",src/specify_cli/git/commit_helpers.py,904-937,direct read,2026-08-11
+D4-C,"classify_worktree_topology / _enclosing_worktree_root is .worktrees-literal only",src/specify_cli/coordination/surface_resolver.py,286-348,direct read,2026-08-11
+D4-D,"read_worktree_registry shells git worktree list --porcelain, fails closed",src/specify_cli/coordination/surface_resolver.py,231-262,direct read,2026-08-11
+D5-A,"safe_commit signature accepts distinct repo_root/worktree_root",src/specify_cli/git/commit_helpers.py,904-913;958-960,direct read,2026-08-11
+D5-B,"BookkeepingTransaction is the one production call site where repo_root != worktree_root",src/specify_cli/coordination/transaction.py,173-354;769-776,direct read,2026-08-11
+D5-C,"mission_creation._commit_feature_file always passes repo_root==worktree_root",src/specify_cli/core/mission_creation.py,155;191-198,direct read,2026-08-11
+D6-A,"feature-runs.json path is keyed purely by caller-supplied repo_root",src/runtime/next/runtime_bridge_io.py,143-145,direct read,2026-08-11
+D6-B,"next_cmd always resolves repo_root via locate_project_root (ambient primary)",src/specify_cli/cli/commands/next_cmd.py,91-94,direct read,2026-08-11
+D6-C,"merge runtime dir keyed purely by caller-supplied repo_root",src/specify_cli/merge/workspace.py,32-34,direct read,2026-08-11
+D6-D,"status lock is intentionally shared at git common-dir, not per-checkout",src/specify_cli/status/locking.py,1-62,direct read,2026-08-11
+D7-A,"No ADR addresses invoking-checkout ownership validation as of this research",docs/adr/3.x/,n/a,directory search + grep,2026-08-11
+D8-A,"#3129 explicitly names #3328 as its narrow implementation child, non-goal shadow redesign",GitHub issue #3129,comment,gh issue view,2026-08-11
+D8-B,"#3128 is the post-ownership caller-vs-declared-workspace guard, scoped after this mission",GitHub issue #3128,comment,gh issue view,2026-08-11
+D8-C,"SaaS #864 PR body states fake installed-CLI test proves routing only, not real worktree creation",spec-kitty-saas PR #864,body,gh pr view,2026-08-11
+D8-D,"SaaS #836 explicitly blocked on core #3328 per comment",GitHub issue #836 (spec-kitty-saas),comment,gh issue view,2026-08-11

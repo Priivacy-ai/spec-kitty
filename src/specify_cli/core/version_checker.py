@@ -41,18 +41,30 @@ def get_cli_version() -> str:
     if override_version:
         return override_version
 
+    # Resolve the installed version through the active DistributionProfile so a
+    # renamed / private-index fork reports its own distribution (and aliases),
+    # not the hardcoded upstream name (#2857). Falls back to __version__ when no
+    # matching distribution metadata is installed (e.g. editable checkout).
     try:
-        from importlib.metadata import PackageNotFoundError, version as get_version
+        from specify_cli.distribution import resolve_distribution_profile
+        from specify_cli.distribution.installed_version import (
+            resolve_installed_distribution_version,
+        )
 
-        return get_version("spec-kitty-cli")
-    except PackageNotFoundError:
-        # Fall back to __version__ from __init__.py
-        try:
-            from specify_cli import __version__
+        profile = resolve_distribution_profile()
+        resolved = resolve_installed_distribution_version(profile.package_name, profile.package_aliases, default="")
+        if resolved:
+            return resolved
+    except Exception:
+        pass
 
-            return __version__
-        except (ImportError, AttributeError):
-            return "unknown"
+    # Fall back to __version__ from __init__.py
+    try:
+        from specify_cli import __version__
+
+        return __version__
+    except (ImportError, AttributeError):
+        return "unknown"
 
 
 def get_project_version(project_root: Path) -> str | None:
@@ -283,6 +295,11 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
     """
     try:
         if not should_check_version(command_name):
+            return False
+
+        from specify_cli.distribution import resolve_distribution_profile
+
+        if resolve_distribution_profile().disable_public_pypi_notifier:
             return False
 
         # Deferred import to keep this module light and to avoid pulling httpx

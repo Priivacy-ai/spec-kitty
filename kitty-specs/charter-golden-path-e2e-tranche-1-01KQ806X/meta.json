@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-27T17:36:21.282813+00:00",
+  "flattened": false,
   "friendly_name": "Charter Golden-Path E2E (Tranche 1)",
   "mission_id": "01KQ806XN4TTJRAQGZWVPQP7V7",
   "mission_number": 104,
@@ -11,5 +12,6 @@
   "source_description": "First testing tranche for Priivacy-ai/spec-kitty#827 (parent epic #461): a product-repo, public-CLI Charter golden-path E2E test that proves the shipped Charter epic works through the operator path with zero source-checkout pollution. Brief lives at workspace-root start-here.md.",
   "status_phase": "1",
   "target_branch": "test/charter-e2e-827-tranche-1",
+  "topology": "lanes",
   "vcs": "git"
 }

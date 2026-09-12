@@ -129,7 +129,7 @@ flowchart TB
 | Next-Action Recommendation Output | Emits decisioning output without applying lifecycle mutation |
 | Charter Interview Flow | Captures governance intent from the Human in Charge |
 | Charter Compiler | Produces charter bundles and references |
-| Action Context Resolver | Provides command-scoped governance context |
+| `Action Context Resolver` | Provides command-scoped governance context |
 | Doctrine Catalog Loader | Loads doctrine assets as typed artifacts |
 | Schema Validation Gate | Enforces artifact compliance before runtime use |
 | Glossary Hook Coordinator | Applies glossary checks during mission execution |
@@ -146,14 +146,14 @@ flowchart TB
 
 ## Domain Alignment Matrix
 
-See [2.x Domain Breakdown](../README.md#domain-breakdown) for domain-level definitions.
+See [2.x Domain Breakdown](../README.md) for domain-level definitions.
 
 | Domain | Primary Components |
 |---|---|
 | Project and Governance Onboarding | `Governance Command Set`, `Charter Interview Flow`, `Charter Compiler` |
 | Mission Runtime and Flow Control | `Command Router`, `Next Loop Coordinator`, `Mission Discovery and Resolution`, `Runtime Asset Lifecycle Coordinator`, `Tiered Template Resolution Pipeline`, `Next-Action Recommendation Output` |
 | Doctrine and Knowledge Governance | `Doctrine Catalog Loader`, `Schema Validation Gate`, `Glossary Hook Coordinator` |
-| Work Package State and Evidence | `Status Mutation Command Set`, `Lifecycle Command Gateway`, `Target-Line Router`, `WP Lifecycle Engine`, `Event Semantics Reducer`, `Feature Context Detection` |
+| `Work Package State and Evidence` | `Status Mutation Command Set`, `Lifecycle Command Gateway`, `Target-Line Router`, `WP Lifecycle Engine`, `Event Semantics Reducer`, `Feature Context Detection` |
 | External Integration Boundaries | `Orchestrator API Command Set`, `Sync Runtime Coordinator`, `Sync Transport Session`, `Tracker Connector Gateway` |
 
 ## Behavioral Sequences
@@ -233,7 +233,7 @@ sequenceDiagram
     GovCmd-->>Human: confirmation and next actions
 ```
 
-## Canonical Work Package FSM
+## Canonical work package FSM
 
 ```mermaid
 stateDiagram-v2
@@ -280,8 +280,8 @@ Guard summary:
 
 ## Traceability
 
-- Domain map: `../README.md#domain-breakdown`
-- Usage flow reference: `../README.md#usage-flow-high-level-user-journey`
+- Domain map: `../README.md`
+- Usage flow reference: `../README.md`
 - Context view: `../01_context/README.md`
 - Container view: `../02_containers/README.md`
 - Runtime loop ADR: `../adr/2026-02-17-1-canonical-next-command-runtime-loop.md`

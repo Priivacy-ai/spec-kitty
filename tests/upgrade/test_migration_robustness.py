@@ -5,7 +5,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import time
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +100,7 @@ def migration_project(tmp_path: Path) -> Path:
     kittify_dir.mkdir(parents=True)
     metadata = ProjectMetadata(
         version="0.0.0",
-        initialized_at=datetime.now(),
+        initialized_at=now_utc(),
         python_version="3.11",
         platform="test",
         platform_version="test",
@@ -141,7 +141,7 @@ class TestAtomicWrites:
         kittify_dir.mkdir(parents=True)
         metadata = ProjectMetadata(
             version="0.0.0",
-            initialized_at=datetime.now(),
+            initialized_at=now_utc(),
             python_version="3.11",
             platform="test",
             platform_version="test",

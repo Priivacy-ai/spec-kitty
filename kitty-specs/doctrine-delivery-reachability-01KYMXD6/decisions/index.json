@@ -1,0 +1,102 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-28T18:50:16.295065Z",
+      "decision_id": "01KYN10CV7ZMNVK603XTK6HKNR",
+      "final_answer": "resolve_context asserted at BOTH d=1 (compact, steady state) and d=2 (bootstrap); two named sets",
+      "input_key": "reachability_traversal",
+      "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+      "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+      "opened_by": "cli",
+      "options": [
+        "resolve_context d=1 and d=2 both",
+        "resolve_context d=2 only",
+        "action-doctrine bundle union"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Which traversal and depth defines FR-016 reachability?",
+      "rationale": null,
+      "resolved_at": "2026-07-28T19:01:43.593826Z",
+      "resolved_by": null,
+      "slot_key": "plan.reachability.traversal-and-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-28T18:50:17.422989Z",
+      "decision_id": "01KYN10DYEJQ76TW5DZMXZA07C",
+      "final_answer": "Both seed sets count: action nodes AND activated agent profiles seed the reachability walk",
+      "input_key": "profile_seeded_reachability",
+      "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+      "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+      "opened_by": "cli",
+      "options": [
+        "Yes, both seed sets",
+        "No, actions only",
+        "Actions only now, profiles filed"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does profile-seeded reachability count alongside action-seeded for FR-016?",
+      "rationale": null,
+      "resolved_at": "2026-07-28T19:01:44.678494Z",
+      "resolved_by": null,
+      "slot_key": "plan.reachability.profile-seeded",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-28T18:50:18.588813Z",
+      "decision_id": "01KYN10F2WAR79K7MYPP3NQ58X",
+      "final_answer": "Registry every edge-serializing writer joins; the field-completeness test iterates the registry",
+      "input_key": "writer_class_closure",
+      "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+      "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+      "opened_by": "cli",
+      "options": [
+        "Registry every writer joins",
+        "AST gate on dict-literal edge payloads",
+        "Both"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "What shape closes the writer defect class per C-010?",
+      "rationale": null,
+      "resolved_at": "2026-07-28T19:01:45.754730Z",
+      "resolved_by": null,
+      "slot_key": "plan.writers.class-closure-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-28T18:50:19.751794Z",
+      "decision_id": "01KYN10G77GA15N55016HYT06N",
+      "final_answer": "Assets are delivered in the action bundle (not activation-gated); reached via inbound edges from reachable sources",
+      "input_key": "asset_bundle_slot",
+      "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+      "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+      "opened_by": "cli",
+      "options": [
+        "Resolution-only, record verdict",
+        "Deliver assets in bundle",
+        "Defer with filed issue"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should ASSET/TEMPLATE be delivered in the action bundle, or resolution-only?",
+      "rationale": null,
+      "resolved_at": "2026-07-28T19:01:46.845702Z",
+      "resolved_by": null,
+      "slot_key": "plan.delivery.asset-bundle-slot",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+  "version": 1
+}

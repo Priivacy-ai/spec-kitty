@@ -1,0 +1,102 @@
+schema: review-findings/v1
+complete: true             # flipped after the yaml self-check passed
+phase: spec
+lens_group: verify
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+# correspondence coverage: 22 claims checked / 20 held / 2 failed (plus 1 external-org-pack claim
+# — qa's test-plan-template.md — not counted: qa is an org-tier pack not present in this checkout,
+# so it is structurally unverifiable here, not contradicted)
+findings:
+  - id: SPEC-VERIFY-001
+    lens: baseline-honesty / mandatory-correspondence
+    severity: 3
+    title: >-
+      "Ledger entry #3284" mischaracterizes provenance — SPEC-KITTY-LEDGER.md has no #3284 entry
+    evidence:
+      - artifact: "spec.md § C-007 (line 108), § Edge Cases (line 71), § SC-005 (line 163)"
+      - code: "SPEC-KITTY-LEDGER.md (workspace root, outside this repo) (grep '3284' — single hit, line 1331, unrelated to this mission: an example inside SK-95/mission `cascade-asset-silent-drop-01M0RME0`'s issue-matrix discussion, not a documented baseline entry)"
+      - code: "GitHub issue #3830/#3831/#3832 upstream — confirmed via `gh issue view 3284`: the 23-failures/2-errors detail genuinely exists, but as the BODY of GitHub issue #3284 itself, not as ledger content"
+    claim: >
+      C-007 states "Ledger entry #3284 documents 23 pre-existing test failures + 2 errors on
+      main," and the Edge Cases / SC-005 sections repeat "ledger #3284" as the citation form.
+      SPEC-KITTY-LEDGER.md (the tracked defect ledger this repo's CLAUDE.md/AGENTS.md instruct
+      every agent to read first) contains no entry keyed by "#3284" and no content resembling
+      the 23-failures/2-errors breakdown — it has exactly one incidental mention of the string
+      "3284" elsewhere, in an unrelated mission's issue-matrix example. The real source of the
+      23-failures/2-errors data is GitHub issue #3830...#3284 itself (confirmed live via `gh
+      issue view 3284`), not the ledger file. Two prior missions in this same workspace
+      (mission-scaffold-tasks-lanes-defects-01M0NERD's analysis-report.md §8, and
+      mission-types-empty-action-sequence-01M0RMCA's WP01 task file) already independently
+      documented this exact confusion ("SPEC-KITTY-LEDGER.md has no #3284 entry ... gh issue
+      view 3284 and its comments are the real source, not the ledger"). This spec repeats the
+      same imprecise citation instead of correcting it, which risks an implementer/reviewer
+      searching SPEC-KITTY-LEDGER.md for "the #3284 entry" per C-007/SC-005, finding nothing,
+      and either wrongly concluding the baseline claim is unsubstantiated or wasting time
+      re-deriving what is already a confirmed, live GitHub issue.
+      Severity reasoning (rubric #3, moderate): the underlying numeric baseline fact (23
+      failures + 2 errors) IS accurate and independently verified against the live issue, so
+      this does not produce a wrong implementation outright — but it is a load-bearing
+      provenance citation tied directly to the charter's Pre-existing Failure Reporting Rule
+      (C-007, SC-005), and getting the citation wrong is exactly the kind of gap likely to cause
+      rework inside the WP that has to classify test reds against this baseline.
+    remediation: >
+      Reword C-007, the Edge Cases bullet, and SC-005 to cite "GitHub issue #3284 (23
+      pre-existing test failures + 2 errors)" and "GitHub issue #3283 (shared test-venv lock)"
+      rather than "ledger entry #3284" / "ledger #3284" — since neither is actually documented
+      in SPEC-KITTY-LEDGER.md. If the intent was to also record these in the ledger for future
+      missions' benefit, that should be a separate, explicit action item, not implied by the
+      current citation wording.
+
+  - id: SPEC-VERIFY-002
+    lens: mandatory-correspondence
+    severity: 3
+    title: "User Story 3 / Acceptance Scenario 1 still claims three call sites for is_substantive(plan_file, \"plan\") after FR-007 corrected the count to two"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (line 58): \"mission_setup_plan.py calls is_substantive(plan_file, \\\"plan\\\") (its three call sites, symbols _commit_plan_if_substantive and the resume/finalize paths, currently unguarded — see verified citations below)\""
+      - artifact: "spec.md § FR-007 (line 85): \"verified: line 794 inside _commit_plan_if_substantive, and line 1230 in the scaffold/resume path — both kind=\\\"plan\\\"; a third call site at line 553 checks kind=\\\"spec\\\" and is out of scope for this FR\""
+      - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:553 — `spec_is_substantive = is_substantive(spec_file, \"spec\")` (kind=\"spec\", operates on spec_file, NOT plan_file)"
+      - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:794 — `if is_substantive(plan_file, \"plan\"):` inside `_commit_plan_if_substantive` (def at line 769)"
+      - code: "src/specify_cli/cli/commands/agent/mission_setup_plan.py:1230 — `plan_is_substantive = is_substantive(plan_file, \"plan\")`"
+    claim: >
+      Verified directly against mission_setup_plan.py: `is_substantive(plan_file, "plan")` (the
+      exact call form named in AC1) occurs at exactly TWO locations (794, 1230), not three — the
+      third occurrence (553) calls `is_substantive(spec_file, "spec")`, a different kind and a
+      different argument variable. FR-007 (two paragraphs later in the same document) correctly
+      states this corrected two-plan/one-spec breakdown, and the mission's own tracer file
+      (tracer-design-decisions.md lines 26/32) records the correction explicitly: "is_substantive
+      (plan_file, "plan") at three call sites (~553, 794, 1230)" was the pre-correction belief,
+      and "FR-007 targets the two genuine kind="plan" call sites" is the corrected picture. AC1
+      in User Story 3 was not updated to match — it still asserts "its three call sites" in the
+      same breath as `is_substantive(plan_file, "plan")`, which is now internally inconsistent
+      with FR-007 in the same artifact. Per the charter's ATDD-first governing principle
+      ("the acceptance test is the contract"), an implementer or test-writer working directly
+      from AC1 without cross-referencing FR-007 could reasonably (but wrongly) target three
+      kind="plan" call sites, or apply the template-derived fix to the kind="spec" call site at
+      line 553, which FR-007 explicitly places out of scope.
+      Severity reasoning (rubric #3, moderate): the correct information exists elsewhere in the
+      same document (FR-007) and in the tracer file, so this will not silently reach
+      implementation uncaught — but it is a genuine, verifiable self-contradiction inside a
+      "mandatory" load-bearing artifact section (Acceptance Scenarios), which is exactly the
+      class of ambiguity likely to cause rework inside the WP that implements/tests FR-006/FR-007.
+    remediation: >
+      Update User Story 3's Acceptance Scenario 1 to match FR-007's corrected count: replace
+      "its three call sites" with "its two kind=\"plan\" call sites (line 794 inside
+      _commit_plan_if_substantive, and line 1230 in the scaffold/resume path)" and drop the
+      implication that all three occurrences of is_substantive in mission_setup_plan.py share
+      the same (plan_file, "plan") signature.
+
+findings_meta:
+  external_unverifiable_claims:
+    - claim: "qa mission type's own plan template (`missions/qa/templates/test-plan-template.md`) has eight sections — Test Items, Environments, Test-Data Strategy, Suite Breakdown, Tooling, Schedule, Responsibilities, Traceability-Matrix Skeleton — none of them Technical Context (spec.md § User Story 3 Independent Test, line 54)"
+      reason: >
+        `qa` is an org-tier custom mission type shipped by an external doctrine pack (per the
+        spec's own Story 2 framing: "activated through an org-tier doctrine pack ... no
+        .kittify/missions/<name> project-tier directory"). No `qa` mission-type directory,
+        `mission_types/qa/`, or `test-plan-template.md` exists anywhere in this checkout
+        (verified via `find . -iname test-plan-template.md` and `find . -type d -iname qa`,
+        both empty), so this specific citation cannot be checked against source IN THIS
+        CHECKOUT. It is corroborated indirectly by SPEC-KITTY-LEDGER.md's SK-126/SK-128 entries,
+        which independently describe the same `qa` pack and its `researcher-robbie`
+        agent-profile entries, but the eight-section template-shape claim itself is not
+        independently verifiable here. Not counted as failed — the checkout genuinely does not
+        contain org-tier packs by design.

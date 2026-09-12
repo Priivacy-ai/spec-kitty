@@ -71,9 +71,6 @@ def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 def _git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), *args],

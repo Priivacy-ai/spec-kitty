@@ -1,0 +1,46 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >
+      plan.md now states one consistent order in all three locations — the "Sequencing"
+      paragraph (lines 457-468), the WP00 ATDD-first table row (line 479), and the Phasing
+      section's WP00/WP02 entries (lines 504-507, 514-519) — all say the campsite-clean commit
+      (stale-comment removal + __all__ restoration) lands immediately AFTER (or combined with)
+      WP02's functional commit that gives required_artifacts_for its first real caller, never
+      before it, resolving the original precedes/requires-caller-first contradiction.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >
+      tracer-tooling-friction.md's first entry now cites "SK-63/SK-65/SK-70" by ID and
+      distinguishes this occurrence as the milder warned-but-completed variant vs SK-70's full
+      hang; independently confirmed SK-63 (line 4812), SK-65 (line 4880), and SK-70 (line 461)
+      are real SPEC-KITTY-LEDGER.md entries carrying the identical warning text ("event journal
+      capture failed: project sync store is locked", "Explicit-context event capture failed:
+      machine layout cutover did not publish within the bounded wait") for the same command
+      shape.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >
+      plan.md now has an explicit "Blast radius to downstream workspaces" section (lines
+      181-218) that traces blocking_artifact_names to Decision.guard_failures
+      (decision.py:94) and spec-kitty next --json's _print_decision()/to_dict() output, and WP04
+      carries an explicit NFR-002 documentation deliverable (CHANGELOG.md entry and/or
+      tracer-design-decisions.md note) in both the ATDD-first table (line 483) and the Phasing
+      section (lines 530-535).
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >
+      plan.md's "Coverage-floored shards" bullet now correctly states the diff-coverage job's
+      90% floor on critical_paths DOES apply and gates 4 of 5 blast-radius files, with
+      resolver.py as the sole exemption; independently re-verified against
+      .github/workflows/ci-quality.yml — diff-coverage job (line 3283, PR-gated per line 3306),
+      enforced step "diff-coverage (critical-path, enforced)" (line 3333) with no `|| true`
+      escape, critical_paths array (lines 3345-3368) literally including 'src/runtime/next/*'
+      (line 3366) which matches all four touched runtime_bridge_*.py files, --fail-under=90
+      --include "${critical_paths[@]}" (lines 3391-3394), while resolver.py's actual path
+      (src/specify_cli/runtime/resolver.py) matches no critical_paths glob and falls to the
+      advisory full-diff step (line 3396-3406, which does carry `|| true` at line 3406) — the
+      rewritten claim is technically accurate, not merely reworded.

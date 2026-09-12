@@ -1,0 +1,18 @@
+{
+  "coordination_branch": "kitty/mission-next-latency-durable-fix-01M14RM3",
+  "created_at": "2026-08-28T18:02:59.085223+00:00",
+  "flattened": false,
+  "friendly_name": "Next-Command Latency: Durable Fix + Perf-Gate Migration",
+  "mission_id": "01M14RM34C5CYC6Q1GPV59R41W",
+  "mission_number": null,
+  "mission_slug": "next-latency-durable-fix-01M14RM3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Every 'spec-kitty next' invocation pays a ~1.8s cold-start (up from a 0.745s baseline) because the step-authority projection runs uncached on every call; meanwhile the check that guards it is a single-shot absolute wall-clock ceiling still blocking every PR, which false-reds on runner variance and has been ratcheted upward four times. This mission delivers the durable runtime fix (cache/optimize the projection) and migrates the guard onto the off-PR statistical performance pipeline, so contributors stop being blocked by noise and the product actually gets faster.",
+  "purpose_tldr": "Make 'spec-kitty next' fast again and move its latency guard off the blocking PR path onto the statistical performance pipeline.",
+  "slug": "next-latency-durable-fix-01M14RM3",
+  "target_branch": "perf/next-latency-durable-fix",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-28T18:53:22.019596+00:00"
+}

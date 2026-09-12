@@ -1,0 +1,24 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Key Entities' Tail cursor bullet quotes verbatim and does hedge ownership to 'whichever side... FR-004's design settles on', which contradicts FR-004's own caller-supplied framing ('so that I can persist and supply it on restart'), and neither C-001 (daemon/socket/network only) nor FR-010 (scoped to 'mission artifact') clearly forecloses a command-owned on-disk cursor file elsewhere, so the internal-contradiction claim holds even though C-001/FR-010 do not explicitly forbid it as the title implies."
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "docs/context/system-events.md:16-25 confirms a canonical 'Event Envelope' term (fields event_id, event_type, aggregate_id, lamport_clock, payload) that StatusEvent (src/specify_cli/status/models.py:319-359, fields event_id/mission_slug/wp_id/from_lane/to_lane/at/actor/...) does not match, spec.md:259 literally uses the phrase 'event envelope' without cross-referencing the canonical term, and none of the spec's new Key Entities (Tail cursor, Envelope, Mission log file) are flagged as glossary candidates despite the charter's 'continuous term capture/triage against the living glossary' mandate (.kittify/charter/charter.md:236-238)."
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: "Grep of this checkout confirms 'Kitty Desktop' appears nowhere else in the repo outside spec.md and its own review artifacts, and the user's own memory (kitty-desktop-product.md) independently corroborates it as a separate, still-in-planning Tauri/Rust/Svelte product, so naming it plus its internal notify-crate/debounce implementation detail in this permanently-public repo is accurately characterized."
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: "src/specify_cli/status/store.py has the os.replace call at line 392 (spec cites :390, drift of 2) and the StoreError raise for the first bad JSON line at line 554 (spec cites :549, drift of 5) — both drifts confirmed exactly as claimed, behavior described is otherwise accurate."
+  - id: SPEC-GOV-005
+    verdict: confirmed
+    reason: "packs/built-in/missions/software-dev/templates/spec-template.md:113 and spec.md:248 carry the byte-identical boilerplate heading '### Key Entities *(include if feature involves data)*', and 'feature' appears nowhere else in spec.md outside legitimate code-identifier/terminology contexts (feature status lock, feature_dir, --feature* alias discussion), confirming this is inherited template boilerplate, not mission-authored."
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "transaction.py:921-940 confirms _rollback truncates the existing inode in place (fh.truncate(self._pre_emit_size) opened in 'ab' mode) rather than replacing it, store.py:358-392 confirms _append_serialized_atomic grows via a fresh os.replace, FR-005's check (spec.md line 214) is purely 'current poll size < last-seen offset' sampled once per 100-1000ms poll (NFR-002), and a plausible sequence (grow past O, rollback-truncate below O, then a second transaction re-grows past O before the next poll) leaves the reader reading arbitrary mid-record bytes at offset O with no shrink ever observed — a real third failure mode neither US2 acceptance scenario exercises."

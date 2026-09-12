@@ -1,9 +1,12 @@
 ---
 title: 'Test Plan — PR #305 (feature/agent-profile-implementation)'
 description: 'Test plan for PR #305 (agent-profile-implementation): the test scope, approach, and coverage targets recorded in a field-table format.'
-doc_status: draft
-updated: '2026-04-08'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Per-PR review working note for PR #305 (agent-profile-implementation); the agent-profile system shipped as mission `045-agent-profile-system` (#136 / #1975). Content preserved as an audit-trail record.
+
 # Test Plan — PR #305 (feature/agent-profile-implementation)
 
 | Field | Value |

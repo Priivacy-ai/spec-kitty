@@ -1,0 +1,97 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: PLAN-FRESH-001
+    lens: structural-root-cause (debugger-debbie / directive-030 test-and-typecheck-quality-gate)
+    severity: 3
+    title: "Revised WP-A unpacking fix leaves `kind_filtered` unused (F841) in two of three call sites, contradicting §5's \"no noqa additions\" claim"
+    evidence:
+      - artifact: "plan.md §12 Work Package Breakdown, WP-A bullet (lines 626-652)"
+      - artifact: "plan.md §5 Gate set, Sonar code-shaping constraints (line 454): \"No `# noqa`/`# type: ignore` additions planned or anticipated\""
+      - code: "src/charter/cascade.py:440 (referenced_but_not_cascaded) and :533 (deactivation_plan) — both currently `for ref in _referenced_artifacts(...):` with no other use of the function's return value"
+      - artifact: "pyproject.toml:236 — ruff `select = [... \"F\" ...]` (pyflakes, includes F841 unused-variable)"
+    claim: >
+      The fix round's corrected WP-A bullet now spells out that ALL THREE call sites change to
+      `activatable, kind_filtered = _referenced_artifacts(...)` in WP-A's own commit, but only
+      `cascade_activation_targets` folds `kind_filtered` into a real dataclass field in that
+      same commit — the bullet explicitly says WP-A "does NOT populate `NoCascadeReport` or
+      `DeactivationPlan` with their new field's real value yet." That leaves the local variable
+      `kind_filtered` assigned but never read in `referenced_but_not_cascaded` and
+      `deactivation_plan` at WP-A's own final commit boundary. Ruff's pyflakes ruleset (`F`,
+      which includes F841) is selected repo-wide with no per-file exemption for
+      `src/charter/cascade.py`, and CLAUDE.md states new code "MUST pass ruff and mypy with zero
+      issues and zero warnings" and forbids new `# noqa`/`# type: ignore` suppressions absent a
+      documented rationale — which directly conflicts with this plan's own §5 claim that no noqa
+      additions are anticipated. (The full `ruff check` job is CI-advisory only, so this will not
+      block the PR, but it does violate the plan's own explicit no-suppression commitment and the
+      repo's authorship standing order, and would surface at human review.)
+    remediation: >
+      Either (a) name the second unpacked value with a leading underscore
+      (`activatable, _kind_filtered = _referenced_artifacts(...)`) in the two call sites that
+      don't populate a field yet, explicitly noting in WP-A's bullet that the name differs
+      per-site until WP-C/WP-D rename it when they start using it, or (b) have WP-A populate all
+      three dataclasses' fields with the real value in one commit (contradicting the "only
+      CascadeActivationResult gains the real value in this WP" sentence, which would then need
+      to be rewritten). Either fix should be made explicit in the WP-A bullet so the WP author
+      isn't left to discover the lint issue mid-implementation.
+
+  - id: PLAN-FRESH-002
+    lens: divergence-mapping (debugger-debbie / directive-032 conceptual-alignment)
+    severity: 4
+    title: "C-006's required test only covers the activation-side fields; WP-D's narrowed scope (per the fix round's own rewrite) never commits to the deactivation-side engine-level assertion C-006 explicitly demands"
+    evidence:
+      - artifact: "spec.md C-006 (lines 258): \"Required test: under `--cascade all` specifically, assert a kind-filtered node never appears in `activated`, `skipped_by_scope`, or `deactivate`/candidates — only in the new field.\""
+      - artifact: "plan.md §12 WP-A bullet header (line 626): \"WP-A — shared collection seam (FR-001, FR-002; the C-006 required test).\""
+      - artifact: "plan.md §12 WP-A bullet body (lines 644-646): the C-006 regression test asserts only that the asset URN is absent from `activated` or `skipped_by_scope` — both `CascadeActivationResult` fields."
+      - artifact: "plan.md §12 WP-D bullet (lines 678-686, unchanged by this fix round but newly cross-referenced by WP-A's rewrite): WP-D's ATDD test is CLI-level (asserts console text via `test_charter_deactivate_commands.py`), never an engine-level assertion that `deactivation_plan(...).deactivate` / `.skipped_shared` exclude the kind-filtered node."
+      - code: "src/charter/cascade.py:533-535 — deactivation_plan's own candidate-collection loop (`for ref in _referenced_artifacts(...): if scope.selects(ref.kind): candidates.add(ref.urn)`), the exact site C-006 requires a regression test against."
+    claim: >
+      The fix round rewrote WP-A's bullet to explicitly claim ownership of "the C-006 required
+      test" while also narrowing WP-D's own remaining scope to just "add
+      `not_cascaded_kind_filtered=kind_filtered` to their own dataclass construction plus the CLI
+      render call" — with no mention of an engine-level regression test for
+      `deactivation_plan`'s `deactivate`/candidates fields. But C-006's own required-test text
+      spans BOTH the activation-side fields (`activated`, `skipped_by_scope`) AND the
+      deactivation-side field (`deactivate`/candidates) explicitly, in one sentence, with "or"
+      joining all three. WP-A's test only exercises `cascade_activation_targets`; nowhere in the
+      plan (not WP-A, not the now-narrowed WP-D) does an ATDD test assert, at the engine level,
+      that a kind-filtered node under `--cascade all` never lands in `deactivation_plan(...)`'s
+      `deactivate` or candidate set. WP-D's CLI-level console-text check does not substitute for
+      this: it never inspects the underlying dataclass fields, so a regression where a
+      kind-filtered node silently slips into `deactivate` (a functional reversal of C-001 at
+      runtime, per C-006's own stated risk) would not be caught by any test this plan commits to.
+    remediation: >
+      Add an explicit engine-level regression assertion to WP-D's bullet (or restate WP-A's
+      header as covering only the activation-side half of C-006 and add a second, deactivation-
+      side C-006 assertion to WP-D): under `CascadeScope.all()`, assert the kind-filtered asset
+      URN appears in `deactivation_plan(...).not_cascaded_kind_filtered` and NOT in `.deactivate`
+      or in any `SharedSkip` inside `.skipped_shared`. This closes the exact gap C-006's own text
+      names and keeps the WP-A header's "the C-006 required test" claim accurate (currently it
+      only cites half of what C-006 requires).
+
+  - id: PLAN-FRESH-003
+    lens: cross-reference-consistency (debugger-debbie / directive-001 architectural-integrity)
+    severity: 1
+    title: "Plan mixes WP1/WP2/WP3/WP4 numeric naming (Project Structure, §2, §6, §10) with the WP-A/B/C/D lettered naming the fix round just polished in §12, including inside the unchanged \"Suggested WP shape\" header line immediately above the rewritten bullets"
+    evidence:
+      - artifact: "plan.md line 126 (Project Structure): \"here (WP1)\""
+      - artifact: "plan.md lines 623-624 (§12, directly above the rewritten WP-A/B/C/D bullets): \"**Suggested WP shape** (4 WPs, sequential dependency, not parallelizable — WP2/3/4 each need WP1's new field(s) and WP2's new shared helper):\""
+      - artifact: "plan.md line 568 (§10 PR shape): \"still exercised by WP1's own engine-level test\""
+      - artifact: "plan.md §12 WP-A/B/C/D bullets (lines 626-686): consistently use lettered naming"
+    claim: >
+      This is pre-existing drift (not introduced by the fix round's own diff), but the fix
+      round's careful rewrite of the WP-A bullet sits one line below a header that still says
+      "WP2/3/4 each need WP1's new field(s)" — the same document now names its own work packages
+      two different ways in adjacent text. A tasks-phase author decomposing §12 into real WP IDs
+      could be misled into thinking WP1/2/3/4 are a separate, superseded numbering scheme rather
+      than the same four packages the letters name.
+    remediation: >
+      Do a single pass replacing every "WP1"/"WP2"/"WP3"/"WP4" reference in the plan
+      (Project Structure comment at line 126, §2 lines 197/257/272-273, §6 line 465, §10 line
+      568, and the "Suggested WP shape" header at lines 623-624) with the corresponding
+      WP-A/WP-B/WP-C/WP-D label, so the whole document uses one naming scheme consistently.
+
+# If you have no findings, write: findings: []

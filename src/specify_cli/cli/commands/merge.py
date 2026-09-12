@@ -56,10 +56,7 @@ from __future__ import annotations
 
 
 from specify_cli.core.constants import KITTIFY_DIR
-from specify_cli.missions._read_path_resolver import (
-    resolve_planning_read_dir,
-)
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from typing import TYPE_CHECKING
 
@@ -69,7 +66,11 @@ from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    get_main_repo_root,
+    resolve_merge_retention,
+)
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
 )
@@ -118,6 +119,11 @@ from specify_cli.merge.git_probes import (
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
 from specify_cli.merge.forecast import run_dry_run_forecast
+from specify_cli.merge.retention import (
+    MISSION_RETENTION_CLEANUP_CONFLICT,
+    load_mission_retention,
+    retention_cleanup_conflicts,
+)
 # WP08 (#2057): done/approved transition emission, the done asserts, resume
 # reconcile, and the per-WP recording loop live in the merge seam's
 # ``done_bookkeeping`` module. _mark_wp_merged_done + the asserts are re-exported
@@ -132,13 +138,11 @@ from specify_cli.merge.done_bookkeeping import (
     _resolve_merge_actor,
 )
 # WP10 (#2057): the lane-based merge executor (the global-lock wrapper + the
-# decomposed CC-102 locked driver + the diff-summary helper) lives in the merge
-# seam's ``executor`` module. Re-imported here (and re-exported via __all__) so
-# the command body + the test/integration-imported _run_lane_based_merge[_locked]
-# / _emit_merge_diff_summary keep importing from the shim (FR-006). One-way
-# import: ``executor`` never imports this shim.
+# decomposed CC-102 locked driver) lives in the merge seam's ``executor``
+# module. Re-imported here (and re-exported via __all__) so the command body +
+# the test/integration-imported _run_lane_based_merge[_locked] keep importing
+# from the shim (FR-006). One-way import: ``executor`` never imports this shim.
 from specify_cli.merge.executor import (
-    _emit_merge_diff_summary,
     _run_lane_based_merge,
     _run_lane_based_merge_locked,
 )
@@ -147,13 +151,15 @@ from specify_cli.merge.executor import (
 # module. Re-imported here (and re-exported via __all__) so test-imported trust /
 # snapshot / projection symbols keep importing from the shim with zero edits
 # (FR-006, INV-6). One-way import: the seam never imports this shim.
+# WP09 (T048 / TAO-3): the final-bookkeeping snapshot/restore compensator and its
+# merge-side trust helper were retired from ``bookkeeping_projection`` — the merge
+# executor now enrols those bytes with the single owner compensator in
+# ``coordination.atomic_write``. Only the surviving trust + projection symbols are
+# re-exported through this shim.
 from specify_cli.merge.bookkeeping_projection import (
-    _assert_bookkeeping_snapshot_path_is_trusted,
     _assert_status_path_within_target_surface,
     _assert_status_surface_path_is_trusted,
-    _capture_bookkeeping_snapshots,
     _project_status_bookkeeping_to_target,
-    _restore_final_bookkeeping_snapshots,
     _target_bookkeeping_status_paths,
     _target_branch_still_at_baseline,
     _validate_mission_slug_path_segment,
@@ -261,11 +267,22 @@ def _teardown_coordination_for_abort(
     resolvable slug), but the actual teardown routes through the shared
     ``teardown_coordination_topology`` seam (FR-004) OUTSIDE that swallow so the
     persist-before-destroy leg (FR-005) is not masked as "best-effort cleanup".
+
+    #3131 FR-012/T009: an ``--abort`` has no ``--keep-worktree`` flag of its
+    own, so the mission's ``meta.json`` retention policy is the ONLY signal —
+    resolved with both explicit flags unset (``None``). When the policy
+    requests worktree retention, the destroy leg is skipped entirely (INV-1:
+    no silent deletion) and a notice is printed. A corrupt ``meta.json`` here
+    falls through the same best-effort slug/meta swallow as everything else in
+    this resolution block (an abort must not itself crash on unreadable meta);
+    the practical effect is fail-closed anyway — an unresolved policy means the
+    destroy leg is skipped, never that it proceeds.
     """
     from specify_cli.coordination.teardown import teardown_coordination_topology
-    from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     abort_teardown_args: tuple[Path, str, str] | None = None
+    retain_worktree = False
     try:
         main_for_abort = get_main_repo_root(repo_root)
         coord_slug = resolved
@@ -279,21 +296,36 @@ def _teardown_coordination_for_abort(
         # down — reading off the kind-blind resolver lands on the STATUS-only
         # ``-coord`` husk, whose ``meta.json`` is absent or carries a stale/sentinel
         # identity. Route by kind so the teardown anchors on the real PRIMARY meta.
-        feature_dir = resolve_planning_read_dir(
-            main_for_abort, coord_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+        feature_dir = placement_seam(main_for_abort, coord_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""
+        retention = resolve_merge_retention(
+            feature_dir,
+            explicit_delete_branch=None,
+            explicit_remove_worktree=None,
+        )
+        for warning in retention.warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+        retain_worktree = not retention.remove_worktree
         abort_teardown_args = (main_for_abort, coord_slug, mid8)
-    except Exception as exc:  # noqa: BLE001 — slug resolution is best-effort
+    except Exception as exc:  # noqa: BLE001 — slug/meta resolution is best-effort
         logger.debug(
             "Coordination teardown during --abort skipped (unresolved slug/meta): %s",
             exc,
         )
 
-    if abort_teardown_args is not None:
-        # Persist-before-destroy runs OUTSIDE the resolution swallow.
-        teardown_coordination_topology(*abort_teardown_args)
+    if abort_teardown_args is None:
+        return
+    if retain_worktree:
+        console.print(
+            "[yellow]Notice:[/yellow] retention honored for worktrees "
+            "(source: meta.json) — coordination worktree kept during abort."
+        )
+        return
+    # Persist-before-destroy runs OUTSIDE the resolution swallow.
+    teardown_coordination_topology(*abort_teardown_args)
 
 
 def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
@@ -366,17 +398,80 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     return existing_state.mission_slug if not mission_slug_raw else mission
 
 
+def _enforce_retention_cleanup(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
+    json_output: bool,
+) -> None:
+    """Require explicit cleanup choices when a mission retains its artifacts."""
+
+    retention = load_mission_retention(get_main_repo_root(repo_root), mission_slug)
+    conflicts = retention_cleanup_conflicts(
+        retention,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+    )
+    if not conflicts:
+        return
+
+    remediation = [
+        "--keep-branch and/or --keep-worktree to retain those artifacts",
+        "--delete-branch and/or --remove-worktree to separately direct cleanup",
+    ]
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "mission_slug": mission_slug,
+                    "blocked": True,
+                    "blockers": [
+                        {
+                            "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                            "retained": list(conflicts),
+                            "constraint_id": retention.constraint_id
+                            if retention
+                            else None,
+                            "remediation": remediation,
+                        }
+                    ],
+                    "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                }
+            )
+        )
+    else:
+        console.print(
+            "[red]Error:[/red] Mission retention constraint "
+            f"{retention.constraint_id if retention else '<unknown>'} requires an "
+            "explicit cleanup decision."
+        )
+        console.print(
+            "Omitted cleanup flags default to deletion; retained fields: "
+            + ", ".join(conflicts)
+            + "."
+        )
+        console.print(f"  diagnostic_code: {MISSION_RETENTION_CLEANUP_CONFLICT}")
+        for action in remediation:
+            console.print(f"  - {action}")
+    raise typer.Exit(1)
+
+
 def _run_real_merge(
     repo_root: Path,
     *,
     resolved_mission: str,
     resolved_target_branch: str,
     resolved_strategy: MergeStrategy,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
     push: bool,
     allow_sparse_checkout: bool,
     yes: bool,
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -390,6 +485,8 @@ def _run_real_merge(
             strategy=resolved_strategy,
             allow_sparse_checkout=allow_sparse_checkout,
             assume_yes=yes,
+            skip_review_artifact_check=skip_review_artifact_check,
+            skip_note=skip_note,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -424,8 +521,26 @@ def merge(
         "--strategy",
         help="Strategy for the branch-integration step (git merge of mission\u2192target): merge | squash | rebase. Default: squash.",
     ),
-    delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
-    remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
+    delete_branch: bool | None = typer.Option(
+        None,
+        "--delete-branch/--keep-branch",
+        help=(
+            "Delete lane branches after merge. Unset (the default) defers to the "
+            "mission's meta.json retention policy (#3131), falling back to "
+            "delete when no policy is recorded. Passing either flag explicitly "
+            "always wins over the mission's policy."
+        ),
+    ),
+    remove_worktree: bool | None = typer.Option(
+        None,
+        "--remove-worktree/--keep-worktree",
+        help=(
+            "Remove lane worktrees after merge. Unset (the default) defers to "
+            "the mission's meta.json retention policy (#3131), falling back to "
+            "remove when no policy is recorded. Passing either flag explicitly "
+            "always wins over the mission's policy."
+        ),
+    ),
     push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
     target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
@@ -445,9 +560,40 @@ def merge(
         ),
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Proceed after merge warnings without prompts"),
+    skip_review_artifact_check: bool = typer.Option(
+        False,
+        "--skip-review-artifact-check",
+        help=(
+            "Bypass the review-artifact consistency gate (the #2959 escape hatch). "
+            "Requires --note; the skip is recorded as durable override evidence in "
+            "the status log, never a silent bypass."
+        ),
+    ),
+    note: str | None = typer.Option(
+        None,
+        "--note",
+        help="Reason recorded as override evidence when using --skip-review-artifact-check (required with it).",
+    ),
 ) -> None:
     """Merge a lane-based mission into its target branch."""
     del context_token, keep_workspace
+
+    # #2959 escape hatch — a skip is never silent: refuse it without a reason
+    # BEFORE any merge work runs, so the evidence record always carries a note.
+    if skip_review_artifact_check and not (note and note.strip()):
+        console.print(
+            "[red]Error:[/red] --skip-review-artifact-check requires --note "
+            "\"<reason>\" so the bypass is recorded as override evidence."
+        )
+        raise typer.Exit(2)
+    # --note only carries meaning as the reason for a skip; passed alone it is
+    # inert. Warn rather than fail so a stray flag never blocks a merge (squad note).
+    if note and note.strip() and not skip_review_artifact_check:
+        console.print(
+            "[yellow]Note:[/yellow] --note has no effect without "
+            "--skip-review-artifact-check; it is only recorded when the "
+            "review-artifact gate is bypassed."
+        )
 
     if not json_output:
         show_banner()
@@ -518,10 +664,27 @@ def merge(
         )
         raise typer.Exit(1)
 
+    if resolved_mission:
+        _enforce_retention_cleanup(
+            repo_root,
+            resolved_mission,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            json_output=json_output,
+        )
+
     if dry_run:
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
         # (FR-001, FR-004); ``run_dry_run_forecast`` terminates the dry-run path.
+        #
+        # #3131 FR-008: the RAW tri-state flags are threaded through so the
+        # forecast resolves the effective cleanup decision through
+        # ``resolve_merge_retention`` (against the mission's primary meta.json)
+        # exactly as the real merge path does. An unset flag (``None``) therefore
+        # lets a mission's retention policy govern the preview — the dry-run
+        # forecast now reflects the resolved retain/delete decision, not the
+        # pre-#3131 delete/remove default.
         run_dry_run_forecast(
             repo_root=repo_root,
             resolved_feature=resolved_mission,
@@ -548,6 +711,8 @@ def merge(
         push=push,
         allow_sparse_checkout=allow_sparse_checkout,
         yes=yes,
+        skip_review_artifact_check=skip_review_artifact_check,
+        skip_note=note,
     )
 
 
@@ -567,16 +732,12 @@ __all__ = [
     "_target_bookkeeping_status_paths",
     "_assert_status_path_within_target_surface",
     "_assert_status_surface_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
     "_load_merge_state_for_mission",
     "_load_or_create_merge_state",
     "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_run_lane_based_merge_locked",
-    "_emit_merge_diff_summary",
     "_classify_porcelain_lines",
     "_lane_already_integrated",
     "_raw_porcelain_status",

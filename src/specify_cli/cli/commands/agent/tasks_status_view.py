@@ -219,8 +219,15 @@ def build_status_view(req: StatusRequest) -> StatusView:
         if isinstance(wp_id, str) and wp_id:
             lane_by_wp[wp_id] = cast(Lane, row["lane"])
 
+    # Advisory display parity (FR-009): thread per-dependency provenance so a
+    # canceled-with-operator-provenance dependency renders its dependent as
+    # ready rather than blocked. Falls back to the lane-only default when no
+    # reduced snapshot is available (parity with the pre-provenance behaviour).
+    provenance = req.snapshot.work_packages if req.snapshot is not None else None
+    # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+    # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
     dependency_readiness = {
-        wp_id: dependency_readiness_for_wp(wp_id, deps, lane_by_wp)
+        wp_id: dependency_readiness_for_wp(wp_id, deps, lane_by_wp, provenance=provenance)
         for wp_id, deps in req.wp_dependencies.items()
     }
 

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "mission_slug": "gate-artifact-merge-driver-unit-gate-01KZPG7V",
+  "mission_id": "01KZPG7VF1AYQRQMMZ3ZK7JY9P",
+  "mission_branch": "kitty/mission-gate-artifact-merge-driver-unit-gate-01KZPG7V",
+  "target_branch": "fix/gate-artifact-merge-driver-unit-gate",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/merge/test_gate_artifact_merge_drivers_2804.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/hand_authored_overlay.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/repository.py",
+        "src/doctrine/base.py",
+        "src/doctrine/drg/merge.py",
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/drg/org_pack_loader.py",
+        "src/doctrine/drg/validator.py",
+        "src/doctrine/versioning.py",
+        "tests/doctrine/**"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/artifact_kinds.py",
+        "src/doctrine/drg/org_pack_config.py",
+        "src/doctrine/missions/glossary_hook.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-10T19:31:27.800198+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "467308a66ec50d82f9af290279d6778ee901ac24"
+}

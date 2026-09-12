@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "mission_slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "mission_id": "01KYWF1REJRT6N6H1T2JSVVF7Z",
+  "mission_branch": "kitty/mission-tracker-egress-refusal-3108-01KYWF1R",
+  "target_branch": "bundle-c-tracker-refusal-3108",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/sync/tracker/test_tracker_egress_refusal_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/config.py",
+        "src/specify_cli/tracker/saas_service.py",
+        "src/specify_cli/tracker/service.py",
+        "tests/sync/tracker/test_tracker_egress_config_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/egress_verdict.py",
+        "tests/sync/tracker/test_tracker_egress_verdict_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/specify_cli/cli/commands/tracker.py",
+        "src/specify_cli/tracker/local_service.py",
+        "tests/sync/tracker/test_local_service.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/saas_client.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
+        "tests/cli/commands/test_sync_doctor_tracker_egress_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/migrations/index.md",
+        "docs/migrations/tracker-egress-*.md",
+        "tests/docs/test_tracker_egress_upgrade_note_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/architectural/test_tracker_egress_guards_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-07-31T22:37:19.096367+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4936fc7f74742a750e691e8d1dba238252014a7c"
+}

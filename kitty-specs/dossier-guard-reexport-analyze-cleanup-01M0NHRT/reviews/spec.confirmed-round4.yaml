@@ -1,0 +1,84 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round4-confirmed-final
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+confirm_note: >
+  R6 gate rule: spec-verify-3.yaml reported all 3 round-3 findings resolved; spec-fresh-3.yaml
+  reported exactly 1 new finding, severity 2. Since no severity>=3 finding survives, this
+  qualifies for R6's shortcut: "only <=3 left -> final fix round: one more R4 targeting
+  exactly those, then a single R5a (no fresh sweep, no further rounds)." This is that final
+  round. It also carries a mandatory operator-directed correction (item 2 below) that is not
+  an adversarial finding but must land in the same edit pass since both touch spec.md's
+  Clarifications section.
+findings:
+  - id: SPEC-FRESH3-001
+    severity: 2
+    title: "Grounding Correction 3 has grown to ~4x its siblings' length, with its core evidence restated near-verbatim in four places (itself, the Edge Cases bullet, FR-007's table row, and §106)"
+    source: spec-fresh-3.yaml (R5b round 3 fresh sweep)
+    evidence:
+      - artifact: "spec.md Grounding Correction 3 (~566 words vs GC1 ~136, GC2 ~164, GC4 ~300 words)"
+      - artifact: "spec.md Edge Cases bullet on the charter entry's resolved path"
+      - artifact: "spec.md FR-007 table row"
+      - artifact: "spec.md §106 change-scope reconciliation"
+    claim: >
+      The same underlying fact (five existing charter-path assertions need the identical
+      canonical_root-relative correction, for the identical #1823/worktree/
+      resolve_canonical_repo_root reason) is explained at paragraph length in two places
+      (Grounding Correction 3 and the Edge Cases bullet) and referenced/restated in two more
+      (FR-007, §106) — a real readability regression, no correctness defect (everywhere it's
+      restated remains factually consistent).
+    remediation: >
+      Keep the full per-test enumeration and rationale in Grounding Correction 3 only. Trim
+      the Edge Cases bullet to state the conclusion in one or two sentences plus a
+      "(full enumeration and rationale: Grounding Correction 3)" pointer, rather than
+      re-deriving the mechanism a second time. Shorten FR-007's table row similarly — name
+      the five sites or just "five sites, enumerated in Grounding Correction 3" — without
+      repeating the full "MUST be updated..." sentence verbatim. §106 may keep its one-line
+      cross-reference as-is if it is already just a pointer, not a restatement.
+
+  - id: OPERATOR-PRECEDENCE-CORRECTION
+    severity: 4
+    title: "Operator ruling: charter has precedence over operator standing orders over CLAUDE.md — D1 is now subordinate, not co-equal, and the original brief's §486 disposition is WITHDRAWN"
+    source: orchestrator directive (mid-mission ruling, not an adversarial-squad finding — mandatory nonetheless)
+    evidence:
+      - artifact: "spec.md Clarifications / Decision Record, '§486 Pre-existing Failure Reporting Rule vs D1' subsection"
+      - artifact: "spec.md Clarifications / Decision Record, D1"
+    claim: >
+      The original authoring brief instructed: "if grounding this spec, or later work in this
+      mission, surfaces a pre-existing failure OUTSIDE #3284's already-reported set, that is an
+      operator escalation per D1, never a new issue and never a silent skip." The operator has
+      now ruled explicitly that "the charter has precedence over my rules," making the
+      precedence order charter > operator standing orders > CLAUDE.md. Concretely:
+      (a) §486 now binds ABSOLUTELY — #3284 discharges its MUST only for failures genuinely
+      inside its reported set; anything outside that set MUST get a GitHub issue per §486
+      (command run, failure summary, reasoning for calling it pre-existing) — filing is now
+      charter-compelled, not a D1 violation. The prior "escalate to operator, never file" instruction
+      is WITHDRAWN.
+      (b) §106 legitimises deferral as a per-change judgment ("record what was folded in and
+      what was deferred, and why") — D1's blanket "no deferred work" cannot override that
+      wherever §106's own reconciliation genuinely supports deferring something.
+      (c) D1 still governs wherever the charter is silent (the charter nowhere compels filing
+      follow-up issues for ADJACENT work, so the operator's fold-in preference remains fully
+      operative there) — this ruling NARROWS D1, it does not delete it.
+      No spec content, AC, or scope boundary in the current spec.md was written on the
+      withdrawn instruction (verified: authoring and all three review rounds found zero
+      pre-existing failures outside #3284's set, so there was nothing to act on under the old
+      disposition) — but the Clarifications section's stated precedence/disposition text is
+      now stale and must be corrected to reflect the ruling, both for this mission and as the
+      artifact `sk-review` will audit later.
+    remediation: >
+      Rewrite the "§486 Pre-existing Failure Reporting Rule vs D1" subsection (and touch D1's
+      own text if it currently implies co-equal status with the charter) to state the corrected
+      precedence order explicitly: charter > operator standing orders > CLAUDE.md. Replace the
+      withdrawn "escalate to operator, never file" disposition with the corrected one: #3284
+      discharges §486's MUST only for its own covered set; anything found outside that set
+      going forward MUST be filed as a GitHub issue per §486 (with the command run, failure
+      summary, and pre-existing rationale), not escalated-and-suppressed. State explicitly that
+      D1 remains fully operative for adjacent work the charter does not address (no GitHub-issue
+      compulsion there), and that §106 legitimises recorded deferral as a per-change judgment
+      that D1's blanket language does not override. Add a one-line note that, as of this
+      correction, zero pre-existing failures outside #3284's set were found during authoring or
+      any of the three review rounds, so this correction changes the STATED disposition rule
+      going forward, not any already-written FR/AC/scope content.
+findings_count: 2

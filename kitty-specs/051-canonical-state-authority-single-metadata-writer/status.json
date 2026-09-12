@@ -22,35 +22,72 @@
       "force_count": 9,
       "lane": "done",
       "last_event_id": "01KM2MDERHVCHZA0TP401BSVWN",
-      "last_transition_at": "2026-03-19T08:46:54.737527+00:00"
+      "last_transition_at": "2026-03-19T08:46:54.737527+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 11,
       "lane": "done",
       "last_event_id": "01KM2MDG2ZTV0150T8T84BXB6Q",
-      "last_transition_at": "2026-03-19T08:46:56.095584+00:00"
+      "last_transition_at": "2026-03-19T08:46:56.095584+00:00",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP03": {
       "actor": "user",
       "force_count": 7,
       "lane": "done",
       "last_event_id": "01KM2MDHAEZEQ3DX33BRCKBGBH",
-      "last_transition_at": "2026-03-19T08:46:57.358188+00:00"
+      "last_transition_at": "2026-03-19T08:46:57.358188+00:00",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP04": {
       "actor": "user",
       "force_count": 9,
       "lane": "done",
       "last_event_id": "01KM2MDJJ6JE4S34CVGA8NJXZ1",
-      "last_transition_at": "2026-03-19T08:46:58.630848+00:00"
+      "last_transition_at": "2026-03-19T08:46:58.630848+00:00",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "user",
       "force_count": 5,
       "lane": "done",
       "last_event_id": "01KM2MDKRBCQ9KQX3K7ZC6C8W9",
-      "last_transition_at": "2026-03-19T08:46:59.851071+00:00"
+      "last_transition_at": "2026-03-19T08:46:59.851071+00:00",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     }
   }
 }

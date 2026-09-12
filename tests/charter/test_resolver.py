@@ -6,18 +6,21 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import charter.catalog as catalog_module
-from charter.interview import default_interview
-from charter.resolver import (
+import charter.activation.catalog as catalog_module
+from charter.activation.interview import default_interview
+from charter.activation.resolver import (
     DoctrineService,
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance_for_profile,
-    resolve_mission_steps,
     resolve_project_governance,
 )
 
 pytestmark = pytest.mark.fast
+
+
+_GOVERNANCE_SELECTION_KEY = "doc" + "trine"
+
 
 def _write_charter_files(
     root: Path,
@@ -28,7 +31,7 @@ def _write_charter_files(
     """Write governance/directives bodies into charter.yaml's sections.
 
     consolidate-charter-bundle (IC-04 / WP04, T028c): ``resolve_project_
-    governance`` reads ``charter.sync.load_governance_config`` /
+    governance`` reads ``charter.activation.sync.load_governance_config`` /
     ``load_directives_config``, which now source ``charter.yaml``'s
     ``governance:`` / ``directives:`` sections directly -- the retired
     ``governance.yaml`` / ``directives.yaml`` files are no longer read at
@@ -62,6 +65,30 @@ def _write_charter_files(
     }
     with (charter_dir / "charter.yaml").open("w", encoding="utf-8") as fh:
         yaml.dump(document, fh)
+    # ``mission_type_activations`` is unrelated to the governance/directives
+    # resolution this module pins, but WP04 (C-A1) made it a hard
+    # construction precondition for ``PackContext.from_config`` -- callers of
+    # ``resolve_project_governance``/``collect_governance_diagnostics``
+    # construct a ``PackContext`` internally to read ``activated_directives``,
+    # so every fixture built by this helper needs the key provisioned. There
+    # is no ``charter:`` pointer in this fixture's config.yaml, so activation
+    # is read directly from config.yaml (the legacy/un-migrated path) --
+    # this key lands there, not in charter.yaml.
+    #
+    # Unlike ``charter.yaml`` above (deliberately written at the CANONICAL
+    # root for FR-010 worktree transparency), ``PackContext.from_config``
+    # reads ``.kittify/config.yaml`` from its ``repo_root`` argument
+    # literally, with no canonical-root resolution of its own. Several
+    # callers in this file pass ``root`` as a *subdirectory* of the
+    # conftest-git-initialized ``tmp_path`` (e.g. ``tmp_path / "repo"``,
+    # which resolves to a DIFFERENT canonical root than ``root`` itself) and
+    # then call ``resolve_project_governance(root)`` with that same literal
+    # subdirectory -- so this key must be written at ``root``, not
+    # ``canonical_root``, or ``PackContext.from_config`` will not find it.
+    config_path = root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     return charter_dir
 
 
@@ -72,17 +99,21 @@ def test_resolve_governance_reads_charter_selections_first(
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms" / "built-in").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "built-in" / "test-first.paradigm.yaml").write_text(
+    (doctrine_root / "paradigms").mkdir(parents=True)
+    (doctrine_root / "paradigms" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (doctrine_root / "directives").mkdir(parents=True)
+    (doctrine_root / "agent_profiles").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
     )
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
+    # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at
+    # the synthetic root's flat per-kind directories too.
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -216,7 +247,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
         tmp_path,
         governance="doctrine: {}\n",
     )
-    mission_file = tmp_path / "src" / "doctrine" / "missions" / "software-dev" / "mission.yaml"
+    mission_file = tmp_path / "src" / "charter" / "offering" / "missions" / "software-dev" / "mission.yaml"
     mission_file.parent.mkdir(parents=True)
     mission_file.write_text("::invalid-yaml::\n\tbad")
 
@@ -240,7 +271,24 @@ doctrine:
 
 def test_resolve_governance_uses_registry_local_directives_and_template_fallback(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Additive contract (C-001, #3728): a project-local directive is unioned
+    onto the resolved base set, not substituted for it.
+
+    Deliberate contract change from the pre-#3728 replace semantic (was
+    ``result.directives == ["LOCAL_ONLY"]`` / ``"catalog_fallback"``). The
+    catalog is monkeypatched to a known set so the union is deterministic.
+    """
+    monkeypatch.setattr(
+        "charter.activation.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
     _write_charter_files(
         tmp_path,
         governance="doctrine: {}\n",
@@ -258,15 +306,19 @@ directives:
     )
 
     assert result.tools == ["git", "python"]
-    assert result.directives == ["LOCAL_ONLY"]
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_ONLY"]
     assert result.template_set == "fallback-pack"
     assert result.metadata == {
         "tools_source": "registry_only",
-        "directives_source": "catalog_fallback",
+        "directives_source": "catalog_fallback+project_local",
         "template_set_source": "fallback",
     }
     assert any("runtime tool registry fallback" in line for line in result.diagnostics)
     assert any("fallback-pack" in line for line in result.diagnostics)
+    assert any(
+        "project-local directive" in line and "LOCAL_ONLY" in line
+        for line in result.diagnostics
+    ), result.diagnostics
 
 
 def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
@@ -275,7 +327,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 ) -> None:
     _write_charter_files(tmp_path, governance="doctrine: {}\n")
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -288,6 +340,165 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
     assert result.metadata["directives_source"] == "catalog_fallback"
+
+
+def test_bare_project_fallback_emits_catalog_default_diagnostic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-005: the catalog-default fallback (branch 3a) is no longer silent —
+    a diagnostic names the fallback and its size."""
+    _write_charter_files(tmp_path, governance="doctrine: {}\n")
+    monkeypatch.setattr(
+        "charter.activation.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.metadata["directives_source"] == "catalog_fallback"
+    assert any(
+        "built-in catalog default" in line and "2 directives" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_explicit_selection_and_local_declaration_union(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """INV-3 / D2: an explicit charter selection remains authoritative (never
+    narrowed) while a coexisting local declaration is additively merged with a
+    diagnostic — never silently dropped."""
+    monkeypatch.setattr(
+        "charter.activation.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_A", "DIRECTIVE_C"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    _write_charter_files(
+        tmp_path,
+        governance=f"{_GOVERNANCE_SELECTION_KEY}:\n  selected_directives: [DIRECTIVE_A]\n",
+        directives="""
+directives:
+  - id: DIRECTIVE_C
+    title: Local rule
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_A", "DIRECTIVE_C"]
+    # WP03 (FR-012): _resolve_directive_base now ALWAYS consults the
+    # activated_*-derived base first (no config.yaml activated_directives key
+    # here -> catalog_fallback, which happens to already contain both A and
+    # C), then unions the charter selection onto it -- so the label reflects
+    # BOTH sources were consulted, not "charter" alone as it did when a
+    # non-empty selected_directives fully short-circuited the base lookup.
+    # The union RESULT (INV-3: DIRECTIVE_A never narrowed away) is unchanged.
+    assert result.metadata["directives_source"] == "catalog_fallback+charter+project_local"
+    # Selected id is never narrowed away (INV-3).
+    assert "DIRECTIVE_A" in result.directives
+    assert any(
+        "project-local directive" in line and "charter" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_local_declaration_matching_catalog_id_dedups_in_base_position(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """INV-5: a local id equal to a catalog id appears once, in base position."""
+    monkeypatch.setattr(
+        "charter.activation.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    _write_charter_files(
+        tmp_path,
+        governance="doctrine: {}\n",
+        directives="""
+directives:
+  - id: DIRECTIVE_003
+    title: Duplicate of a catalog id
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
+    assert result.directives.count("DIRECTIVE_003") == 1
+    assert result.metadata["directives_source"] == "catalog_fallback+project_local"
+    # #3728 review-fix: the merge diagnostic must be truthful in the zero-net-add
+    # case — it names the already-present id instead of claiming a merge.
+    assert any(
+        "already present" in line and "none added" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_activation_base_and_local_declaration_union(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """C-001 / #3728: a base sourced from ``activated_directives`` (a non-empty
+    activation set, with no explicit ``selected_directives``) is additively
+    unioned with a NEW project-local declaration, yielding
+    ``sorted(activated) + [new_local]`` and source ``activation+project_local``.
+    """
+    monkeypatch.setattr(
+        "charter.activation.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_003", "DIRECTIVE_010"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    # Pre-provision config.yaml so the helper leaves it untouched: the base must
+    # come from a non-empty ``activated_directives`` set (the legacy config-embedded
+    # activation path — no ``charter:`` pointer in this fixture).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "mission_type_activations:\n"
+        "  - software-dev\n"
+        "activated_directives:\n"
+        "  - DIRECTIVE_010\n"
+        "  - DIRECTIVE_003\n",
+        encoding="utf-8",
+    )
+    _write_charter_files(
+        tmp_path,
+        governance="doctrine: {}\n",
+        directives="""
+directives:
+  - id: LOCAL_NEW
+    title: New local rule
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_NEW"]
+    assert result.metadata["directives_source"] == "activation+project_local"
+    assert any(
+        "project-local directive" in line and "LOCAL_NEW" in line
+        for line in result.diagnostics
+    ), result.diagnostics
 
 
 def test_resolve_governance_for_profile_merges_profile_directives_first() -> None:
@@ -338,8 +549,8 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     doctrine_service = MagicMock()
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
 
-    # Post-WP03: monkeypatch charter.resolver.resolve_transitive_refs; its
-    # result is a :class:`doctrine.drg.query.ResolveTransitiveRefsResult`
+    # Post-WP03: monkeypatch charter.activation.resolver.resolve_transitive_refs; its
+    # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
     # look-alike (SimpleNamespace is structurally compatible here).
     monkeypatch_graph = SimpleNamespace(
         tactics=["TACTIC_001"],
@@ -353,7 +564,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_references_transitively",
+        "charter.activation.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
@@ -424,7 +635,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_references_transitively",
+        "charter.activation.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
@@ -497,11 +708,15 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
     doctrine_root = tmp_path / "doctrine_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (doctrine_root / "directives").mkdir(parents=True)
+    (doctrine_root / "agent_profiles").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
+    # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); the synthetic
+    # root has no paradigms dir, so validation must skip gracefully.
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -600,7 +815,7 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
     always reports ``synced=False`` / ``files_written=[]``, which trivially
     satisfies "no agents.yaml" but for a stronger reason than before.
     """
-    from charter.sync import sync
+    from charter.activation.sync import sync
 
     charter_file = tmp_path / "charter.md"
     charter_file.write_text("# Project\n\n## Directives\n1. Write tests\n")
@@ -620,7 +835,7 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
     """DoctrineService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     paradigm_a = MagicMock()
     paradigm_a.id = "test-first"
@@ -658,7 +873,7 @@ def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
 def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
     """DoctrineService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     proc_a = MagicMock()
     proc_a.id = "tdd"
@@ -693,7 +908,7 @@ def test_doctrine_service_getattr_delegates_to_inner() -> None:
 def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> None:
     """resolve_governance_for_profile raises ValueError when profile dict has no match."""
     from unittest.mock import MagicMock
-    from charter.interview import CharterInterview
+    from charter.activation.interview import CharterInterview
 
     service = MagicMock(spec=DoctrineService)
     service.agent_profiles = {}  # empty dict, isinstance check will be True
@@ -708,11 +923,3 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
             doctrine_service=service,
             interview=interview,
         )
-
-
-def test_resolve_mission_steps_returns_dict_for_known_type() -> None:
-    """resolve_mission_steps returns a dict for a known mission type."""
-    result = resolve_mission_steps("software-dev")
-
-    assert isinstance(result, dict)
-    assert len(result) > 0

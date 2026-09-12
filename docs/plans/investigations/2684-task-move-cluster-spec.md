@@ -1,14 +1,19 @@
 ---
 title: 'Feature spec: evict runtime-mutable WP state into the event log (#2684)'
 description: 'Consolidated feature spec for the #2684 runtime-state eviction: field-by-field authority, the InnerStateChanged event model, migration contract, and acceptance criteria.'
-doc_status: active
-updated: '2026-07-19'
+doc_status: deprecated
+updated: '2026-08-12'
 related:
 - docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
 ---
+> **RETIRED (shipped)** — this spec's #2684 runtime-state eviction was ratified in ADR
+> [`2026-07-19-1`](../../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md)
+> and shipped by mission `wp-runtime-state-eviction-01KXWN13` (impl `dfe6b2ead`). Evidence: #2684
+> (+ #2093/#2816). Retained for historical reference; do not consult for current behavior.
+
 # Feature Specification: Evict runtime-mutable WP state into the event log
 
-**Feature Branch**: `mission-prep/2684-wp-runtime-state-eviction`
+**feature branch**: `mission-prep/2684-wp-runtime-state-eviction`
 **Created**: 2026-07-19
 **Status**: Draft (spec + ADR authored; no cluster-touching work pending — the adjacent PRs are `pr:deferred` and yield to this mission)
 **Input**: #2684 (P0) — "Evict runtime-mutable WP state (shell_pid, history, subtask-checkbox, review-cycle, activity-log) from tasks/WP##.md into the event log", the execution vehicle for the #2093 authority ruling.

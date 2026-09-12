@@ -27,7 +27,7 @@ MISSION_CHOICES = {
     "research": "Deep Research Kitty",
 }
 
-DEFAULT_MISSION_KEY = "software-dev"
+DEFAULT_MISSION_KEY: str = "software-dev"
 
 AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "claude": ("claude", "https://docs.anthropic.com/en/docs/claude-code/setup"),

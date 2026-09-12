@@ -69,12 +69,12 @@ Precedent / conventions reused
 Modelled on :mod:`specify_cli.migration.backfill_identity`'s
 scan-and-report shape (a pure function returns a structured result; the CLI
 layer formats it) and reuses the core DRG models from
-:mod:`doctrine.drg.models` (``DRGGraph``, ``DRGNode``, ``DRGEdge``,
+:mod:`charter.offering.drg.models` (``DRGGraph``, ``DRGNode``, ``DRGEdge``,
 ``NodeKind``, ``Relation``) rather than inventing a parallel schema. New
 edges/nodes are written into per-kind ``<kind>.graph.yaml`` fragment files
 at the pack root (``directive.graph.yaml`` / ``tactic.graph.yaml`` /
 ``paradigm.graph.yaml``), mirroring both WP02's authoring surface (the
-built-in doctrine tree's own ``src/doctrine/<kind>.graph.yaml`` fragments)
+built-in doctrine tree's own ``packs/built-in/<kind>.graph.yaml`` fragments)
 and this repo's existing convention that an edge is filed under the graph
 fragment matching its (possibly canonicalized) ``source`` URN's kind -- e.g.
 ``paradigm.graph.yaml`` already carries ``paradigm -> directive`` ``requires``
@@ -90,11 +90,19 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
 
-from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.drg import (
+    DRGEdge,
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+    Relation,
+    graph_document_to_dict,
+    model_to_graph_dict,
+)
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
@@ -325,7 +333,7 @@ def _load_graph(pack_root: Path, artifact_type: str) -> DRGGraph:
     if not path.exists():
         return DRGGraph(
             schema_version="1.0",
-            generated_at=datetime.now(UTC).isoformat(),
+            generated_at=now_utc_iso(),
             generated_by=_GENERATED_BY,
             nodes=[],
             edges=[],
@@ -336,37 +344,50 @@ def _load_graph(pack_root: Path, artifact_type: str) -> DRGGraph:
 
 
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
-    out: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
-    if node.label is not None:
-        out["label"] = node.label
-    if node.tags:
-        out["tags"] = list(node.tags)
-    return out
+    """Serialise one ``DRGNode`` via the derived ``model_to_graph_dict``.
+
+    T005: repointed from the hand-restated key list at the canonical derived
+    writer (#2977). The old list happened to be complete for today's fields, but
+    a field a later mission adds — B1's ``impacts`` / ``is_symmetric`` — would
+    have been dropped here silently. Registered as a ``MappingWriter`` in
+    ``specify_cli.drg_writers.registry``; its existing guard tests at
+    ``test_model_strictness_roundtrip.py`` stay green (no duplicate assertion).
+    """
+    # The charter.drg facade is ``follow_imports = "skip"`` for mypy, so the
+    # helper resolves to ``Any`` here; bind to a typed local to keep the return
+    # precise without a suppression.
+    rendered: dict[str, Any] = model_to_graph_dict(node)
+    return rendered
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "source": edge.source,
-        "target": edge.target,
-        "relation": edge.relation.value,
-    }
-    if edge.reason:
-        out["reason"] = edge.reason
-    if edge.when:
-        out["when"] = edge.when
-    return out
+    """Serialise one ``DRGEdge`` via the derived ``model_to_graph_dict`` (T005)."""
+    rendered: dict[str, Any] = model_to_graph_dict(edge)
+    return rendered
+
+
+def _document_dict(graph: DRGGraph) -> dict[str, Any]:
+    """Serialise a whole ``DRGGraph`` document via the canonical derived writer.
+
+    T020/T021 (#2977): standalone/addressable wrapper around
+    ``graph_document_to_dict`` so ``specify_cli.drg_writers.registry`` can
+    name this module's document writer separately in a W-5 failure message
+    -- mirrors how ``_node_to_dict``/``_edge_to_dict`` above are already
+    separately addressable for ``MAPPING_WRITERS``. Used by
+    :func:`_write_graph`, which used to hand-restate the five document-level
+    keys itself.
+    """
+    # The charter.drg facade is ``follow_imports = "skip"`` for mypy (see
+    # _node_to_dict above), so the helper resolves to ``Any`` here; bind to a
+    # typed local to keep the return precise without a suppression.
+    rendered: dict[str, Any] = graph_document_to_dict(graph)
+    return rendered
 
 
 def _write_graph(pack_root: Path, artifact_type: str, graph: DRGGraph) -> None:
     """Write *graph* to ``<pack_root>/<artifact_type>.graph.yaml``."""
     path = pack_root / _GRAPH_FILENAMES[artifact_type]
-    payload: dict[str, Any] = {
-        "schema_version": graph.schema_version,
-        "generated_at": graph.generated_at,
-        "generated_by": graph.generated_by,
-        "nodes": [_node_to_dict(n) for n in graph.nodes],
-        "edges": [_edge_to_dict(e) for e in graph.edges],
-    }
+    payload = _document_dict(graph)
     yaml_rt = _make_yaml()
     with path.open("w", encoding="utf-8") as fh:
         yaml_rt.dump(payload, fh)

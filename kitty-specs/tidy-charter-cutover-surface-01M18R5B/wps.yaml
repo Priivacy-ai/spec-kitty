@@ -1,0 +1,75 @@
+work_packages:
+  - id: WP01
+    title: "Guardrail: arch-gate for stale moved-module path literals (#3818)"
+    dependencies: []
+    owned_files:
+      - "tests/architectural/test_no_stale_charter_path_literals.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - NFR-002
+      - C-002
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP01-guardrail-stale-path-literals.md"
+
+  - id: WP02
+    title: "Reliability: activate doctrine-daphne + randy-reducer squad lenses (#3810)"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/packs/default.yaml"
+      - "tests/doctrine/test_activation_squad_lenses.py"
+    requirement_refs:
+      - FR-003
+      - C-001
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T005
+      - T006
+      - T007
+    prompt_file: "tasks/WP02-activate-squad-lenses.md"
+
+  - id: WP03
+    title: "Simplify: one shared DRG load + fail-closed wrapper for the 3 consistency gates (#3808)"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/consistency_check.py"
+      - "tests/charter/test_consistency_check.py"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - NFR-001
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T008
+      - T009
+      - T010
+      - T011
+    prompt_file: "tasks/WP03-consistency-gate-dedup.md"
+
+  - id: WP04
+    title: "Declutter: fix charter-sync doubled-path write + safe gitignore (#3819)"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/synthesizer/manifest.py"
+      - "src/charter/bundle.py"
+      - "tests/charter/test_synthesis_provenance_paths.py"
+      - ".gitignore"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - C-001
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP04-synthesis-doubled-path.md"

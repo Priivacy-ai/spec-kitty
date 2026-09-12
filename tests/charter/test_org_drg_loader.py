@@ -11,6 +11,8 @@ shipped-invariant hard-fail; backward-compat empty-org case).
 
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -27,6 +29,8 @@ from charter.drg import (
     OrgPackMissingError,
     Relation,
     UnknownRelationError,
+)
+from charter.activation.drg_activation import (
     load_org_drg,
     merge_three_layers,
 )
@@ -348,6 +352,132 @@ class TestLoadOrgDrg:
 
 
 # ---------------------------------------------------------------------------
+# load_org_drg — unreadable-fragment per-pack degrade (#4200 defect 2)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadOrgDrgUnreadableFragmentDegrade:
+    """The per-pack degrade catch names ``OSError`` (#4200 defect 2).
+
+    Before the nit-(b) narrowing of ``_read_fragment_yaml``, an unreadable
+    optional ``drg/fragment.yaml`` surfaced as ``OrgPackParseError`` and the
+    degrade caught it; after it, the raw ``OSError`` escaped the degrade and
+    aborted the whole org-fragment layer. These tests pin the restored
+    per-pack degrade from inside the charter shard's own test dirs — the
+    shard whose coverage measures ``src/charter/**`` — mirroring the
+    executor-side twins in
+    ``tests/specify_cli/mission_step_contracts/test_executor_org_fragment.py``
+    (which live in a different shard and so cannot satisfy the diff-cover
+    gate for this seam).
+    """
+
+    _HEALTHY_PACK_NAME = "healthy-pack"
+    _UNREADABLE_PACK_NAME = "unreadable-pack"
+    _LOGGER = "charter.activation.drg_activation"
+
+    def _make_unreadable_chain(self, tmp_path: Path) -> Path:
+        """A HEALTHY fragment pack #1 and a directory-fragment pack #2.
+
+        A directory where ``fragment.yaml`` is expected makes ``read_text``
+        raise ``IsADirectoryError`` (an ``OSError``) on every platform, root
+        included — the same read-fault channel as a chmod-0 file.
+        """
+        healthy = _make_pack(tmp_path, self._HEALTHY_PACK_NAME)
+        unreadable = tmp_path / self._UNREADABLE_PACK_NAME
+        (unreadable / "drg").mkdir(parents=True)
+        (unreadable / "drg" / "fragment.yaml").mkdir()
+        _make_config(
+            tmp_path,
+            dedent(
+                f"""\
+                organisation_packs:
+                  - name: {self._HEALTHY_PACK_NAME}
+                    source: local_path
+                    path: {healthy}
+                  - name: {self._UNREADABLE_PACK_NAME}
+                    source: local_path
+                    path: {unreadable}
+                """
+            ),
+        )
+        return unreadable
+
+    def _drop_warnings(self, caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+        return [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and self._UNREADABLE_PACK_NAME in r.getMessage()
+        ]
+
+    def test_unreadable_fragment_degrades_per_pack(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """``strict=False, degrade_malformed=True`` drops ONLY the unreadable
+        pack, with the operator-visible WARNING; the healthy sibling folds."""
+        self._make_unreadable_chain(tmp_path)
+        with caplog.at_level(logging.WARNING, logger=self._LOGGER):
+            fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+        drop_warnings = self._drop_warnings(caplog)
+        assert drop_warnings, [r.getMessage() for r in caplog.records]
+        assert "malformed or unreadable drg/fragment.yaml" in drop_warnings[0].getMessage()
+        assert "IsADirectoryError" in drop_warnings[0].getMessage()
+        # The healthy pack is NOT reported as dropped.
+        assert not any(self._HEALTHY_PACK_NAME in r.getMessage() for r in drop_warnings)
+
+    def test_strict_load_raises_unmasked_on_unreadable_fragment(self, tmp_path: Path) -> None:
+        """Fail-loud invariant (#4200 defect 2): every non-degrading path
+        surfaces the read fault as the ``OSError`` it is — never translated
+        back into ``OrgPackParseError``."""
+        self._make_unreadable_chain(tmp_path)
+        with pytest.raises(OSError):
+            load_org_drg(tmp_path)
+        with pytest.raises(OSError):
+            load_org_drg(tmp_path, strict=False)
+        # The explicit opt-in degrades per-pack: only the healthy fragment returns.
+        fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+
+    @pytest.mark.skipif(
+        os.name != "posix" or os.geteuid() == 0,
+        reason="chmod-based unreadability needs POSIX and a non-root user",
+    )
+    def test_permission_denied_fragment_degrades_per_pack(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """chmod-0 variant mirroring the validator-side
+        ``test_permission_denied_fragment_is_a_finding``."""
+        healthy = _make_pack(tmp_path, self._HEALTHY_PACK_NAME)
+        unreadable = _make_pack(tmp_path, self._UNREADABLE_PACK_NAME)
+        fragment = unreadable / "drg" / "fragment.yaml"
+        fragment.chmod(0)
+        _make_config(
+            tmp_path,
+            dedent(
+                f"""\
+                organisation_packs:
+                  - name: {self._HEALTHY_PACK_NAME}
+                    source: local_path
+                    path: {healthy}
+                  - name: {self._UNREADABLE_PACK_NAME}
+                    source: local_path
+                    path: {unreadable}
+                """
+            ),
+        )
+        try:
+            with caplog.at_level(logging.WARNING, logger=self._LOGGER):
+                fragments = load_org_drg(tmp_path, strict=False, degrade_malformed=True)
+        finally:
+            fragment.chmod(0o644)
+        assert [f.pack_name for f in fragments] == [self._HEALTHY_PACK_NAME]
+        drop_warnings = self._drop_warnings(caplog)
+        assert drop_warnings, [r.getMessage() for r in caplog.records]
+        assert "malformed or unreadable drg/fragment.yaml" in drop_warnings[0].getMessage()
+        assert "PermissionError" in drop_warnings[0].getMessage()
+
+
+# ---------------------------------------------------------------------------
 # merge_three_layers
 # ---------------------------------------------------------------------------
 
@@ -458,7 +588,7 @@ class TestMergeThreeLayers:
                 "edges": [],
             }
         )
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(
                 built_in=built_in, org_fragments=[fragment], project=None
             )
@@ -532,11 +662,8 @@ class TestMergeThreeLayers:
         assert {e.relation for e in org_edges} == {Relation.REQUIRES}
         assert org_edges[0].relation == Relation.REQUIRES
 
-    def test_org_to_shipped_edge_targets_synthesized_urn(self) -> None:
-        """Edges from an org fragment may point at shipped artefacts; the
-        merge synthesises a URN for the target so the edge isn't dropped."""
-        built_in = _empty_built_in()
-        fragment = OrgDRGFragment.model_validate(
+    def _cross_pack_fragment(self, target: str) -> OrgDRGFragment:
+        return OrgDRGFragment.model_validate(
             {
                 "pack_name": "cross-pack",
                 "source_kind": "local_path",
@@ -547,25 +674,60 @@ class TestMergeThreeLayers:
                     {"id": "policy", "kind": "directives", "title": "Policy"},
                 ],
                 "edges": [
-                    # target 'caveman-comments' is not in this fragment;
-                    # bridge synthesises 'directive:caveman-comments'
-                    {
-                        "source": "policy",
-                        "target": "caveman-comments",
-                        "relation": "applies",
-                    },
+                    {"source": "policy", "target": target, "relation": "applies"},
                 ],
             }
         )
+
+    def test_org_to_shipped_edge_keeps_a_fully_qualified_target(self) -> None:
+        """Edges from an org fragment may point outside it and are not dropped.
+
+        Re-pinned by WP08 (FR-010). This test used to assert that a **bare**
+        target ``caveman-comments`` was "synthesised" into
+        ``directive:caveman-comments`` — but ``caveman-comments`` is a
+        *styleguide*, so what the bridge actually produced was a phantom node
+        of an invented kind. The intent (a cross-layer edge survives the
+        merge) is unchanged; the contract is now that the author qualifies the
+        target, and the bridge forwards it verbatim instead of guessing.
+        """
+        built_in = _empty_built_in()
+        fragment = self._cross_pack_fragment("styleguide:caveman-comments")
+
         merged = merge_three_layers(
             built_in=built_in, org_fragments=[fragment], project=None
         )
+
         cross_edges = [
-            e for e in merged.edges if e.target == "directive:caveman-comments"
+            e for e in merged.edges if e.target == "styleguide:caveman-comments"
         ]
         assert {(e.source, e.target, e.relation) for e in cross_edges} == {
-            ("directive:policy", "directive:caveman-comments", Relation.APPLIES)
+            ("directive:policy", "styleguide:caveman-comments", Relation.APPLIES)
         }
+        assert not [e for e in merged.edges if e.target.startswith("directive:caveman")], (
+            "the bridge must never invent a directive: kind for a target it "
+            "cannot resolve"
+        )
+
+    def test_org_to_shipped_edge_with_an_unresolvable_bare_target_hard_fails(
+        self,
+    ) -> None:
+        """The negative half: no guess, no silence (FR-010, SC-009).
+
+        A bare id that names nothing in any merged layer is a conflict record
+        and a hard fail — not a ``directive:<id>`` invented on the author's
+        behalf.
+        """
+        fragment = self._cross_pack_fragment("caveman-comments")
+
+        with pytest.raises(OrgDRGConflictError) as excinfo:
+            merge_three_layers(
+                built_in=_empty_built_in(), org_fragments=[fragment], project=None
+            )
+
+        assert [c.kind for c in excinfo.value.conflicts] == [
+            "unresolved_edge_endpoint"
+        ]
+        assert excinfo.value.conflicts[0].target_id == "caveman-comments"
 
     def test_edge_with_unknown_relation_raises(self) -> None:
         """FR-003 / C0.3 (mission

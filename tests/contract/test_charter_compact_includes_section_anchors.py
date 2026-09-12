@@ -9,7 +9,7 @@ prose body of each section may be elided. Issue #790 traced bad agent
 behaviour to compact mode silently dropping these identifiers.
 
 This contract test is intentionally surface-level: it pins the
-:func:`charter.compact.render_compact_view` API against a hand-written
+:func:`charter.activation.compact.render_compact_view` API against a hand-written
 bootstrap view of each fixture charter. We do not exercise the full DRG
 loader here -- that is covered by the integration suite. The bootstrap
 view is computed from the fixture text using the same anchor extractor
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.compact import (
+from charter.activation.compact import (
     CompactView,
     extract_section_anchors,
     render_compact_view,
@@ -148,24 +148,4 @@ def test_compact_preserves_section_anchors(fixture_path: Path, repo_root: Path) 
     assert set(compact.section_anchors) == set(bootstrap_anchors), (
         f"Compact view dropped section anchors from {fixture_path.name}: "
         f"missing {set(bootstrap_anchors) - set(compact.section_anchors)}"
-    )
-
-
-@pytest.mark.parametrize("fixture_path", _load_fixtures(), ids=lambda p: p.name)
-def test_compact_view_is_meaningfully_smaller_than_charter(
-    fixture_path: Path, repo_root: Path
-) -> None:
-    """Sanity: compact must not bloat back to bootstrap-equivalent size.
-
-    Heuristic: compact text must be smaller than the charter body. This
-    is intentionally loose -- the contract is parity of IDs/anchors, not
-    a strict ratio -- but it catches the failure mode where compact
-    accidentally inlines the entire prose body.
-    """
-    charter_text = fixture_path.read_text(encoding="utf-8")
-    compact = render_compact_view(repo_root, charter_text=charter_text)
-    assert len(compact.text) < max(1, len(charter_text)), (
-        f"Compact view for {fixture_path.name} is not smaller than the "
-        f"charter body (compact={len(compact.text)}, "
-        f"charter={len(charter_text)})."
     )

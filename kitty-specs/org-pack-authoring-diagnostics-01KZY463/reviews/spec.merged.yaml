@@ -1,0 +1,182 @@
+# review-findings/v1 (merged) — R2 merge/dedup, orchestrator bookkeeping only.
+# Source files: spec-gov.findings.yaml, spec-arch.findings.yaml, spec-verify.findings.yaml.
+# No duplicates found — all 7 findings cite distinct artifact sections / distinct claims.
+# Original ids preserved verbatim; nothing renumbered; nothing dropped.
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope-boundary fidelity against in-flight/proposed work (mission-derived)
+    severity: 4
+    title: >-
+      Clarification Q1/A1 misstates ADR 2026-08-13-1's status as "Proposed"/unratified —
+      the PR's actual current head shows it "Accepted"
+    evidence:
+      - artifact: "spec.md § Clarifications, Session 2026-08-13, Q1/A1 (lines 14-16)"
+      - artifact: >-
+          spec.md quote: "...but that ADR is status Proposed, unratified, carries no
+          target mission and no date, and is one of six ADRs bundled into PR #3378..."
+      - code: >-
+          docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md,
+          fetched directly from PR #3378's current head commit
+          (`gh api repos/Priivacy-ai/spec-kitty/contents/...?ref=37a38274553f868de31cf77e900a3f2418f632bf`):
+          frontmatter `status: Accepted`, body `**Status:** Accepted`, `**Date:** 2026-08-13`,
+          `**Deciders:** Operator (ATDD)`. `gh pr view 3378` confirms `state: OPEN` (unmerged),
+          consistent with the spec, but the per-ADR status claim is wrong.
+      - code: >-
+          The other five ADRs bundled in the same PR (2026-08-13-2 through -6, the *gate*
+          ADRs) genuinely are `status: Proposed` — confirmed via
+          `gh pr diff 3378 | grep '^+status:'`. ADR 2026-08-13-1 (the one this spec cites)
+          is the one ADR in the batch already marked Accepted by the operator, dated the
+          same day as this spec.
+    claim: >-
+      The spec's central justification for Constraint C-001 rests on characterizing ADR
+      2026-08-13-1 as "unratified" with "no ... date" — both false on the current PR head.
+      The ADR is status: Accepted, dated, decided by the Operator. The retirement-in-favor-
+      of-MissionStep decision IS ratified; only the code migration (unmerged, docs-only PR)
+      has not landed. The spec states a false premise ("nothing binds") as its reason.
+    remediation: >-
+      Re-verify ADR status at plan-phase start and correct A1's wording to state accurately
+      that ADR 2026-08-13-1 is Accepted (ratified as a design decision) but its retirement
+      of step_contracts.py/MissionStepContract has NOT YET BEEN IMPLEMENTED (PR #3378 is
+      docs-only and unmerged). Keep the "fix now, small sunk cost if later superseded"
+      conclusion if still judged correct under the accurate premise, but do not describe the
+      retirement decision itself as unratified or dateless.
+
+  - id: SPEC-ARCH-001
+    lens: Reflexivity
+    severity: 4
+    title: "FR-004's default-error DRG-root-graph check would break pack_assembler's own internal validate_pack call, contradicting existing passing tests"
+    evidence:
+      - artifact: "spec.md § FR-004, AC-4; § Reflexivity"
+      - code: "src/specify_cli/doctrine/pack_assembler.py:335 (validate_pack(output_dir) call, rollback on !ok)"
+      - code: "src/specify_cli/doctrine/pack_assembler.py:475-490 (_copy_drg_fragments docstring: \"Copy DRG fragments to output_dir/drg/\" — no code path anywhere in the file ever writes a pack-root *.graph.yaml)"
+      - code: "tests/specify_cli/doctrine/test_pack_assembler.py:232-262 (test_force_dedup_prunes_duplicate_edges_via_canonical_serializer — asserts result.ok is True after assemble_pack writes DRG fragments only under output/drg/, no pack-root graph, then internally calls validate_pack(output))"
+      - code: "tests/specify_cli/doctrine/test_pack_assembler.py:151-167 (test_drg_conflict — same shape)"
+    claim: >
+      pack_assembler.py:335 calls validate_pack(output_dir) after assembling a merged pack
+      and rolls the whole assembly back if validation fails. _copy_drg_fragments always
+      writes DRG content to output_dir/drg/*.graph.yaml and never creates a pack-root
+      *.graph.yaml. This is exactly the shape FR-004 targets. If FR-004's default-error
+      severity is implemented as specified, every assembled pack carrying any DRG fragment —
+      the assembler's own normal, currently-tested output shape — would fail the internal
+      validate_pack(output_dir) gate and roll back, breaking
+      test_force_dedup_prunes_duplicate_edges_via_canonical_serializer, test_drg_conflict,
+      and other currently-green tests. Neither the spec's Verified Code Surfaces table nor
+      its Reflexivity section identifies pack_assembler.py as a consumer, and
+      tests/specify_cli/doctrine/test_pack_assembler.py is absent from every FR's targeted
+      test surface and from C-004's enumerated test packages.
+    remediation: >
+      Add pack_assembler.py's internal validate_pack(output_dir) call to FR-004's scope
+      explicitly, and pick one of: (a) scope the new diagnostic to author-facing pack
+      validate invocations against a source pack, excluding assembler-produced intermediate
+      output (e.g. a check_drg_root=False parameter assemble_pack passes); (b) have
+      _copy_drg_fragments also emit a pack-root *.graph.yaml so assembled output satisfies
+      the same shape FR-004 requires of authored packs; or (c) make FR-004's default severity
+      advisory rather than error given this concrete counter-example, with plan-phase
+      justification either way. Add tests/specify_cli/doctrine/test_pack_assembler.py to
+      FR-004's targeted test surface and C-004's test-package list, and add an acceptance
+      criterion covering assemble_pack's behavior against a DRG-fragment-only merged pack.
+
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 3
+    title: "FR-002 leaves unresolved whether skipped-profile diagnostics land as a new top-level JSON key or a new category within the existing errors/advisories arrays"
+    evidence:
+      - artifact: "spec.md § FR-002 Requirement paragraph (\"...includes any skipped_profiles() entries in its ValidationResult... as ValidationIssues with a distinct category (e.g. profile_skipped)\")"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 and § FR-002 AC-1 (\"the JSON payload includes a skipped_profiles entry\" / \"causes pack validate --json to include a skipped_profiles (or equivalently-named) entry with file, profile id..., and error summary\")"
+      - code: "src/specify_cli/doctrine/pack_validator.py:137-150 (ValidationResult.to_dict() emits exactly {ok, errors, advisories} today — no fourth key)"
+    claim: >
+      FR-002's Requirement paragraph commits to representing skip diagnostics as
+      ValidationIssues carrying a new category value (e.g. profile_skipped) — reusing the
+      existing errors/advisories arrays. But User Story 2's acceptance text and FR-002's own
+      AC-1 both describe "a skipped_profiles entry" — phrasing that reads as a structurally
+      distinct object (a new top-level key), not a category value nested inside one of the
+      two existing arrays. These describe two different JSON shapes for the same feature and
+      the spec never states which one governs.
+    remediation: >
+      Pick one representation explicitly in the spec (or defer explicitly to plan phase with
+      a named decision point) and make FR-002's Requirement text and Acceptance Criteria use
+      the same vocabulary. If ValidationIssue+category is intended, reword User Story 2's
+      acceptance scenario and AC-1 to describe a profile_skipped category entry in
+      errors/advisories and state explicitly that ValidationResult.to_dict()'s top-level
+      shape is unchanged. If a new top-level skipped_profiles key is intended, say so in the
+      Requirement paragraph and acknowledge it as a new field on an existing external-facing
+      JSON contract, per this mission's own Contracts lens standard applied to FR-001.
+
+  - id: SPEC-ARCH-003
+    lens: mission-derived (FR-001 dead-code claim)
+    severity: 2
+    title: "FR-001 phrases removing genuinely-dead _ARTIFACT_BUCKETS as the parenthetical fallback rather than the primary instruction"
+    evidence:
+      - artifact: "spec.md § FR-001 Requirement paragraph (\"Extend snapshot.py's dead _ARTIFACT_BUCKETS table (or fold it away, an implementation-phase call...) to consume the same constant\")"
+      - code: "src/specify_cli/doctrine/snapshot.py:53-65 (_ARTIFACT_BUCKETS definition)"
+    claim: >
+      Independently re-derived: grep -rn "_ARTIFACT_BUCKETS" src/ tests/ returns only the
+      definition itself — confirmed dead code. Given the table is proven to have zero
+      consumers anywhere in the repo, "remove it" is strictly simpler than "wire it to the
+      shared constant" and loses nothing; the spec states removal as a parenthetical
+      alternative rather than the default.
+    remediation: >
+      Reword FR-001 to state removal of _ARTIFACT_BUCKETS as the default action, with
+      "extend it instead" as the fallback only if a concrete future consumer is identified.
+
+  - id: SPEC-VERIFY-001
+    lens: silent-success / falsifiability
+    severity: 3
+    title: "FR-002's own named edge case (agent_profiles/ absent) has no corresponding Acceptance Criterion"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullet 2) and § FR-002 Acceptance Criteria"
+      - code: "src/doctrine/agent_profiles/repository.py:392-393 (_load_layer: `if not directory.exists(): return loaded`), :324-363 (_load)"
+    claim: >
+      The Edge Cases section names the agent_profiles/-absent scenario explicitly, but none
+      of FR-002's four ACs test it. A regression where the new pack_validator.py wiring wraps
+      AgentProfileRepository construction in a broad try/except that silently swallows a real
+      construction failure would pass every existing AC while reintroducing the exact
+      "passed because the check never ran" failure mode named in the Problem statement.
+    remediation: >
+      Add an explicit AC to FR-002 (e.g. AC-5) covering a pack whose agent_profiles/
+      directory does not exist at all: pack validate exits without raising,
+      skipped_profiles is empty/absent, and a regression test asserts the check path
+      actually executed (not short-circuited before construction).
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 3
+    title: "FR-001's own named edge case (stray *.contract.yaml co-existing with a correct *.step-contract.yaml sibling) has no corresponding Acceptance Criterion"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullet 1) and § FR-001 Acceptance Criteria (AC-1 through AC-4)"
+      - code: "src/specify_cli/doctrine/pack_validator.py:181 (_artifact_schema_registry mission_step_contracts entry), :202-206 (_scan_files)"
+    claim: >
+      The Edge Cases section names the both-files-present scenario explicitly and states the
+      diagnostic must still fire for the stray file, but none of FR-001's ACs test it. A
+      plausible-looking but wrong implementation (suppress the near-miss diagnostic when a
+      correctly-suffixed sibling exists) would pass every stated AC while directly
+      contradicting the edge case's own stated intent.
+    remediation: >
+      Add an explicit AC to FR-001 (e.g. AC-5) covering both foo.contract.yaml and
+      foo.step-contract.yaml present simultaneously: the near-miss diagnostic still fires for
+      foo.contract.yaml, not suppressed by the sibling's presence. Add the corresponding
+      regression test to FR-001's targeted test surface.
+
+  - id: SPEC-VERIFY-003
+    lens: falsifiability
+    severity: 2
+    title: "FR-003's and FR-004's own named 'absent directory' / 'near-miss filename' edge cases lack a dedicated regression test in the ACs"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullets 3 and 4) and § FR-003 / FR-004 Acceptance Criteria"
+      - code: "src/specify_cli/doctrine/pack_validator.py:373 (existing directory-absent guard cited by the spec itself for FR-003), :505-506 (_validate_drg's drg_dir.glob(\"*.graph.yaml\"))"
+    claim: >
+      Both edge cases are named in prose and argued safe "by construction," but neither has a
+      matching AC in FR-003 or FR-004. Lower risk than SPEC-VERIFY-001/002 since both are
+      independently confirmed safe by reuse of existing guards/globs, but "by construction"
+      is an argument for why a bug is unlikely, not a substitute for a regression test.
+    remediation: >
+      Add one AC each: FR-003 — a pack whose assets/ directory does not exist at all passes
+      pack validate with no error and no change from today's behavior. FR-004 — a pack-root
+      file named notes.graph.yaml.bak (or another near-miss) with drg/ fragments present and
+      no genuine pack-root *.graph.yaml still fires the new diagnostic.
+# Total: 7 findings. Severity distribution: 2×high(4), 1×moderate(3)+2×moderate(3)+1×moderate(3)=4×moderate(3), 2×minor(2).
+# Recount: severities = [4,4,3,2,3,3,2] -> two severity-4, three severity-3, two severity-2.

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.frontmatter import write_frontmatter
-from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent, StatusSnapshot
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
 
@@ -214,8 +214,18 @@ def append_status_event(
     actor: str = "codex",
     execution_mode: str = "worktree",
     reason: str | None = "fixture transition",
+    review_result: ReviewResult | None = None,
 ) -> StatusEvent:
-    """Append a canonical status event using the production event store."""
+    """Append a canonical status event using the production event store.
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35,
+    additive/backward-compatible): every verdict reader now resolves the
+    event authority (``event_sourced_review_result``), never
+    ``review-cycle-N.md`` frontmatter -- callers that need a fixture WP's
+    CURRENT verdict to be visible to a repointed reader/gate must pass this,
+    not merely write the on-disk artifact. Defaults to ``None`` so every
+    pre-existing call site is unaffected.
+    """
 
     event = StatusEvent(
         event_id=event_id,
@@ -229,6 +239,7 @@ def append_status_event(
         force=False,
         execution_mode=execution_mode,
         reason=reason,
+        review_result=review_result,
     )
     append_event(mission.mission_dir, event)
     return event

@@ -1,0 +1,52 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: charter-activate-empty-action-sequence-01M0STSX
+r2_note: |
+  R2 merge/dedup performed by the orchestrator (bookkeeping only — no judgment
+  applied to any finding's substance, per the all-Claude overlay's clause that
+  R2 is the single review step the orchestrator may perform).
+  Inputs: pr.boundary.findings.yaml (0 findings, complete: true),
+          pr.contract.findings.yaml (1 finding, complete: true),
+          pr.tests.findings.yaml    (0 findings, complete: true).
+  Nothing to deduplicate: exactly one finding was raised, by one lens group.
+  Carried forward verbatim below, id unchanged.
+  Raw total: 1. Merged total: 1. Severity >=3: 0. Severity >=4 (merge-blocking): 0.
+findings:
+- id: PR-CONTRACT-001
+  lens: silent-success / test-coverage (directive-030, directive-041)
+  severity: 2
+  title: "extends-fallback-to-also-empty (or unresolvable) parent has no pinning test for either caller of _resolve_with_extends_fallback"
+  evidence:
+  - code: "src/charter/mission_type_profiles.py:1006-1026 — `_resolve_with_extends_fallback` docstring: \"A parent that is itself unresolvable or also empty leaves the result empty, deferring the \\\"empty action sequence\\\" decision to the caller rather than making it here.\""
+  - code: "src/charter/mission_type_profiles.py:1082-1089 — `validate_activatable_mission_type`: `action_sequence = _resolve_with_extends_fallback(mission, roster); if not action_sequence: ... raise MissionTypeEmptyActionSequenceError(...)`"
+  - code: "tests/charter/test_mission_type_profiles.py — new `TestValidateActivatableMissionTypeExtendsFallback` has exactly one test, `test_extends_fallback_to_non_empty_parent_does_not_raise` (the success case only); no sibling test exercises a parent that is itself empty or missing."
+  claim: |
+    The shared helper `_resolve_with_extends_fallback` (factored out in this
+    diff and now used by both `_resolve_action_slot` and the new
+    `validate_activatable_mission_type`) explicitly documents a
+    both-empty/unresolvable-parent fallback path — exactly the shape of
+    #3702's own defect class (a resolution that silently degrades to an
+    empty sequence). No test anywhere in the repository (old or new) pins
+    this branch for either caller: `tests/charter/test_action_sequence_dispatch.py`
+    (the pre-existing `_resolve_action_slot`/`_action_sequence` extends
+    tests) only covers "own empty, parent non-empty" and "own non-empty
+    wins over extends" — never "parent also empty". The new WP01 tests
+    mirror that same one-sided coverage for the activation path. I verified
+    empirically (ad hoc pytest run, not committed) that the code behaves
+    correctly today — `validate_activatable_mission_type` does raise
+    `MissionTypeEmptyActionSequenceError` when the extends parent is itself
+    empty, and also when the extends parent id doesn't resolve at all — but
+    that correctness is currently unpinned by any test, on the exact
+    defect-shape (silent-empty degradation) this mission exists to close.
+    A future edit to `_resolve_with_extends_fallback` or its caller could
+    regress this path with nothing in the suite to catch it.
+  remediation: |
+    Add one test per caller (or at minimum one for
+    `validate_activatable_mission_type`, since that's this mission's new
+    surface) with own action_sequence empty AND `extends` pointing at a
+    parent whose own action_sequence is also empty (or at a nonexistent
+    parent id), asserting `MissionTypeEmptyActionSequenceError` is still
+    raised — mirroring the existing `test_extends_fallback_to_non_empty_parent_does_not_raise`
+    but for the negative/still-empty case.

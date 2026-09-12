@@ -34,7 +34,7 @@ from pathlib import Path
 
 from specify_cli.runtime.agent_commands import get_global_command_dir
 from specify_cli.skills.manifest_errors import ManifestError
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.model import SurfacePlan
 from specify_cli.tool_surface.plan import SurfacePlanBuilder
 from specify_cli.tool_surface.service import build_providers, build_registry
@@ -149,7 +149,7 @@ def _static_roots(
     return tuple(roots)
 
 
-def _kinds_for_plan(plan: SurfacePlan) -> set[SurfaceKind]:
+def _kinds_for_plan(plan: SurfacePlan) -> set[ToolSurfaceKind]:
     """Return the surface kinds the plan expanded to a *real* instance.
 
     Sentinel ("unsupported") instances are excluded: a tool whose only
@@ -178,9 +178,9 @@ def _roots_for_plan(
     """
     kinds = _kinds_for_plan(plan)
     roots: list[Path] = []
-    if SurfaceKind.COMMAND_FILE in kinds:
+    if ToolSurfaceKind.COMMAND_FILE in kinds:
         roots.append(resolver(plan.tool_key))
-    if SurfaceKind.COMMAND_SKILL in kinds:
+    if ToolSurfaceKind.COMMAND_SKILL in kinds:
         roots.append(project_root.joinpath(*_PROJECT_SKILLS_REL))
     return tuple(roots)
 

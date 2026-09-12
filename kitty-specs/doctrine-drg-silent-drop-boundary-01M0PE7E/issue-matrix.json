@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#3410": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3410",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3412": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3412",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3427": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3427",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3461": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3461",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3511": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3511",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3514": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3514",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3525": {
+      "evidence_ref": "Closed #3530-family member (dossier index org repo_root); referenced in mission research only; already fixed upstream",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3530": {
+      "evidence_ref": "WP04 (org-fragment seam fix) + WP05 (chain delivery class-a/b + misconfig fail-loud) approved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3562": {
+      "evidence_ref": "Out of scope per spec C-007 / referenced as related family; remains its own open tracked issue #3562",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3608": {
+      "evidence_ref": "WP01 approved: enum-derived _DRG_NODE_KINDS + drift-guard (commit d060fe952b)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3629": {
+      "evidence_ref": "WP02 (context-sources consolidation p1/p3) + WP03 (governance fail-loud p2) approved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

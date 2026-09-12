@@ -14,7 +14,7 @@ WP04 additions (FR-013, FR-014, FR-050, FR-051):
 - :class:`BackfillResult` – per-mission result dataclass.
 - :func:`backfill_mission` – idempotent ULID write for a single mission.
 - :func:`backfill_repo` – walk ``kitty-specs/`` and call
-  :func:`backfill_mission` on each, then trigger dossier rehash.
+  :func:`backfill_mission` on each.
 
 All functions are *idempotent*: if an ID already exists it is never
 overwritten.
@@ -32,7 +32,7 @@ from typing import Any, Literal
 import ulid as _ulid_mod
 from ruamel.yaml import YAML
 
-from specify_cli.mission_metadata import _coerce_mission_number, load_meta
+from specify_cli.mission_metadata import _coerce_mission_number
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,6 @@ class BackfillResult:
             a string (e.g. ``"042"``) to an integer (``42``).
         reason: Human-readable explanation (populated on ``"skip"`` and
             ``"error"``).
-        dossier_warning: Non-empty string when the dossier rehash step
-            logged a recoverable warning.
     """
 
     feature_dir: Path
@@ -88,7 +86,6 @@ class BackfillResult:
     mission_id: str | None = None
     number_coerced: bool = False
     reason: str | None = None
-    dossier_warning: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -130,9 +127,11 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
         )
 
     # --- read (post-#2091 canonical reader; existence already verified above) --
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
-    except (FileNotFoundError, ValueError) as exc:
+        meta_result = load_meta_fail_closed(feature_dir)
+        meta: dict[str, Any] = meta_result or {}
+    except MissionMetaReadError as exc:
         logger.warning("Corrupt meta.json in %s: %s", slug, exc)
         return BackfillResult(
             feature_dir=feature_dir,
@@ -213,12 +212,6 @@ def backfill_repo(
 ) -> list[BackfillResult]:
     """Walk ``kitty-specs/`` and idempotently backfill every mission.
 
-    After the write pass completes, triggers a dossier rehash (via
-    :func:`~specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled`)
-    for every mission that was modified (``action="wrote"`` or
-    ``number_coerced=True``).  Individual dossier failures are captured as
-    warnings and do not abort the overall run.
-
     Args:
         repo_root: Absolute path to the repository root.
         dry_run: When ``True``, compute results without writing any files.
@@ -253,52 +246,7 @@ def backfill_repo(
         result = backfill_mission(feature_dir, dry_run=dry_run)
         results.append(result)
 
-    # --- dossier rehash (T021) -----------------------------------------------
-    if not dry_run:
-        _rehash_modified_missions(results, repo_root)
-
     return results
-
-
-def trigger_feature_dossier_sync_if_enabled(
-    feature_dir: Path,
-    mission_slug: str,
-    repo_root: Path,
-) -> None:
-    """Thin wrapper around the dossier pipeline for patching in tests."""
-    from specify_cli.sync.dossier_pipeline import (
-        trigger_feature_dossier_sync_if_enabled as _real_fn,
-    )
-    _real_fn(
-        feature_dir=feature_dir,
-        mission_slug=mission_slug,
-        repo_root=repo_root,
-    )
-
-
-def _rehash_modified_missions(results: list[BackfillResult], repo_root: Path) -> None:
-    """Trigger dossier rehash for every mission that was modified.
-
-    Failures are captured as :attr:`BackfillResult.dossier_warning` on the
-    corresponding result entry and do not propagate exceptions.
-    """
-    modified = [r for r in results if r.action == "wrote" or r.number_coerced]
-    for result in modified:
-        try:
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir=result.feature_dir,
-                mission_slug=result.slug,
-                repo_root=repo_root,
-            )
-        except Exception as exc:
-            warning = f"dossier rehash failed: {exc}"
-            logger.warning("Dossier rehash warning for %s: %s", result.slug, exc)
-            result.dossier_warning = warning
-
-
-# ---------------------------------------------------------------------------
-# Legacy entry points (preserved for backward compatibility)
-# ---------------------------------------------------------------------------
 
 
 def backfill_project_uuid(repo_root: Path) -> str:
@@ -370,7 +318,8 @@ def backfill_mission_ids(repo_root: Path) -> dict[str, str]:
             continue
 
         meta_path = feature_dir / "meta.json"
-        meta = load_meta(feature_dir)
+        from specify_cli.core.paths import load_meta_fail_closed
+        meta = load_meta_fail_closed(feature_dir)
         if meta is None:
             logger.debug("Skipping %s (no meta.json)", feature_dir.name)
             continue

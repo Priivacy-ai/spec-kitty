@@ -147,10 +147,10 @@ class TestVersionConsistency:
         """Test version accessible via package metadata."""
         try:
             pkg_version = get_venv_metadata_version()
-            assert pkg_version, "Should get version from metadata"
-            assert isinstance(pkg_version, str), "Metadata version should be string"
         except Exception as exc:
             pytest.skip(f"Package metadata not available: {exc}")
+        assert pkg_version, "Should get version from metadata"
+        assert isinstance(pkg_version, str), "Metadata version should be string"
 
     def test_version_via_cli_command(self):
         """Test version accessible via CLI --version flag."""
@@ -344,12 +344,12 @@ class TestPackageMetadataIntegrity:
             result = run_venv_python(
                 "from importlib.metadata import metadata; m = metadata('spec-kitty-cli'); print(m.get('Name'))"
             )
-            pkg_name = result.stdout.strip()
-
-            assert pkg_version, "Should have version in metadata"
-            assert pkg_name == "spec-kitty-cli", "Should have metadata"
         except Exception as exc:
             pytest.fail(f"Package metadata should be accessible: {exc}")
+        pkg_name = result.stdout.strip()
+
+        assert pkg_version, "Should have version in metadata"
+        assert pkg_name == "spec-kitty-cli", "Should have metadata"
 
     def test_package_name_is_spec_kitty_cli(self):
         """Verify package is installed as spec-kitty-cli."""

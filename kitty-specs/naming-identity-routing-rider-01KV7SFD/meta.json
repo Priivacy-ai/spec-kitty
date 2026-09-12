@@ -15,6 +15,7 @@
   "accepted_from_commit": "a1be8efe27e8f6bf94c3208bc48c090961f72b64",
   "baseline_merge_commit": "e17572a8abb70a9e84164ca0425b8a174b69c546",
   "created_at": "2026-06-16T08:41:26.439506+00:00",
+  "flattened": false,
   "friendly_name": "Naming/Identity Routing Rider",
   "mission_id": "01KV7SFD56KRZBDV977S9FMQMM",
   "mission_number": 140,
@@ -26,6 +27,7 @@
   "slug": "naming-identity-routing-rider-01KV7SFD",
   "status_phase": "1",
   "target_branch": "feat/naming-rider-3-2-1",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-16T12:19:13.494834+00:00"
 }

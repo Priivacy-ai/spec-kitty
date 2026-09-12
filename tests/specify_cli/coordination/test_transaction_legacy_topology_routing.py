@@ -331,7 +331,8 @@ def test_coordination_topology_acquire_routes_to_coord_worktree(
         coordination_branch=coord_branch,
     )
     # A real branch for CoordinationWorkspace.resolve() to attach its worktree
-    # to (mirrors tests/regression/test_issue_1602.py's coord-branch recipe).
+    # to (mirrors tests/specify_cli/cli/commands/agent/test_issue_1602.py's
+    # coord-branch recipe).
     _git(repo_root, "branch", coord_branch)
 
     # Operator cwd sits in the mission's OWN lane worktree -- must have no

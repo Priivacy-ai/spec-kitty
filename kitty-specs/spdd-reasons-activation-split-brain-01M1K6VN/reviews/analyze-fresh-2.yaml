@@ -1,0 +1,90 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: fresh
+round: 2
+complete: true
+findings:
+- id: ANALYZE-FRESH2-001
+  severity: 3
+  category: task-instruction consistency / stale cross-reference
+  summary: >-
+    WP02's T009 step 2 (tasks/WP02-action-doctrine-bundle-activated-derivation.md, "Required red-first
+    fixture for T007" block) still instructs the implementer to "add as a fifth case" an org-required
+    stem-form-directive-normalization fixture, and asserts as justification that "T007 currently
+    exercises the org-required union path NOT AT ALL." Both claims are false against the file's own
+    current content: T007 already carries this exact fixture, verbatim, as step 6 (added to close
+    TASKS-FRESH2-001), and T007's own Purpose paragraph explicitly lists it among "six red-first
+    regression tests" already committed. T007 step 6 even cross-references T009 step 2 ("The fixture
+    passes once T009 step 2's normalization instruction (below) is implemented"), so the two sections
+    are meant to describe the same fixture from two angles — but T009 step 2's framing was never updated
+    once the fixture moved into T009's sibling section T007, so it now duplicates ~25 lines of
+    fixture-construction detail wholesale and misstates T007's current coverage. This is exactly the kind
+    of stale internal cross-reference the mission's own citation-discipline rule exists to catch (the
+    mission has already HALTed twice on citation drift), and this round's own new T007 step 7 addition
+    (the direct-path stem-form fixture, analyze-phase Finding A1) makes the drift more visible without
+    prompting a fix to the adjacent stale block — a second, deeper pass over the same file did not clean
+    it up either. Concretely this risks an implementer either writing the fixture twice (wasted, confusing
+    diff churn) or trusting T009's "NOT AT ALL" framing and concluding T007's own step 6 doesn't count,
+    second-guessing already-correct task content.
+  evidence: >-
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tasks/WP02-action-doctrine-bundle-activated-derivation.md,
+    T007 step 6 (org-required stem-form fixture, present, cross-referencing "T009 step 2's normalization
+    instruction") vs. T009 step 2's block beginning "**Required red-first fixture for T007 (add as a
+    fifth case, alongside FR-007/FR-008/FR-014/the tactics-paradigms-absent sibling — T007 currently
+    exercises the org-required union path NOT AT ALL)**" — same DIRECTIVE_001/org-pack fixture described
+    twice, once as already-present (T007) and once as still-to-be-added with a false "not exercised at
+    all" framing (T009).
+  remediation: >-
+    Delete the duplicated "Required red-first fixture for T007..." block from T009 step 2 (or collapse it
+    to a one-line pointer: "see T007 step 6 for the red-first fixture this normalization must satisfy"),
+    since T007 step 6 already owns the fixture's authoritative description. If the duplication is kept
+    deliberately for redundancy, at minimum correct the false "T007 currently exercises the org-required
+    union path NOT AT ALL" claim and drop the "add as a fifth case" imperative framing so it reads as a
+    cross-reference to existing content, not a fresh instruction.
+- id: ANALYZE-FRESH2-002
+  severity: 3
+  category: acceptance-invariant vs. actual behavior gap
+  summary: >-
+    WP02's and WP03's "Union/Exclusion Boundary Audit" sections (required by the operator ruling in
+    reviews/tasks.ruling.md) both assert, per boundary, that directive identifiers "canonicalize their
+    inputs or fail loud," directly quoting the binding invariant "An identifier whose form cannot be
+    canonicalized is an error, never a silently-excluded entry." Both WPs satisfy this exclusively by
+    calling `_normalize_directive_id` (src/charter/activation/profile_resolution.py). Read in full for
+    this review, that function never raises: for any input that is neither already `DIRECTIVE_NNN` form
+    nor a recognized numeric-prefixed stem, its fallback is `raw.upper().replace("-", "_")` — it always
+    returns *some* string, including for a garbage/typo'd id that names no real directive. That
+    manufactured string then flows into `project_directives`/`GovernanceResolution.directives` and, when
+    used to seed a DRG start URN, is silently absorbed by `resolve_transitive_refs`'s documented,
+    intentional "frozen contract": "Unknown start URNs are recorded in `unresolved`... Raises: Nothing"
+    (src/charter/offering/drg/query.py). So a genuinely invalid `activated_directives`/org-required-
+    directive entry (one that cannot actually be canonicalized to a real catalog directive, as opposed to
+    merely being in stem-vs-canonical form) does not error anywhere in this pipeline — it silently
+    contributes nothing, exactly the "silent exclusion instead of a raised error" shape the operator's own
+    invariant was written to close, and exactly the mission's own named recurring defect class. WP02's
+    boundary 4 (tactics/paradigms) explicitly names and carves out an analogous gap ("this boundary does
+    not currently fail loud for a genuinely-invalid, not-in-catalog... id... this WP does not regress
+    anything by leaving it unvalidated") — but boundaries 1, 3, 5, and 6 (directives, in both WP02 and
+    WP03) make no equivalent acknowledgment; they present "canonicalizes" as if it were equivalent to
+    "validates and fails loud," which it is not for directives either, once form-canonicalization succeeds
+    but catalog-membership does not.
+  evidence: >-
+    src/charter/activation/profile_resolution.py:_normalize_directive_id (lines ~202-219): final fallback
+    `return raw.upper().replace("-", "_")`, never raises. src/charter/offering/drg/query.py:
+    resolve_transitive_refs docstring, "Raises: Nothing... Unknown start URNs are recorded in
+    `unresolved`, per the frozen contract." spec.md Decision Record 2 itself documents this same mechanism
+    ("a start URN whose node is absent... is recorded in an unresolved list and silently dropped — never
+    raised"). Contrast with kitty-specs/.../tasks/WP02-...md's Union/Exclusion Boundary Audit boundaries
+    1/3 and kitty-specs/.../tasks/WP03-...md's boundaries 1/2, all claiming the invariant is satisfied via
+    `_normalize_directive_id`, versus WP02's own boundary 4 explicitly naming the parallel gap for
+    tactics/paradigms as an acknowledged, out-of-scope, pre-existing limitation.
+  remediation: >-
+    Either (a) add the same explicit carve-out WP02's boundary 4 already gives tactics/paradigms —
+    a one- or two-sentence acknowledgment on WP02 boundaries 1/3/5/6 and WP03 boundaries 1/2 that
+    `_normalize_directive_id` only closes the stem-vs-canonical form gap, not catalog-membership
+    validity, and that a genuinely invalid activated/org-required directive id still degrades silently via
+    `resolve_transitive_refs`'s pre-existing "unresolved" contract (out of this mission's scope, not a
+    regression) — mirroring the honesty WP02 already shows for the tactics/paradigms boundary; or (b) if
+    the operator intends the invariant to cover catalog-membership too, flag this as a real residual gap
+    for a follow-up mission/ledger entry rather than letting the boundary-audit tables imply it is already
+    closed.

@@ -14,10 +14,11 @@ Follows ATDD approach with ZOMBIES ordering:
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role, TaskContext
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import AgentProfile, Role, TaskContext
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -179,7 +180,7 @@ class TestAgentProfileCollisionWarning:
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """The shipped+project fixtures define python-pedro twice; this must warn."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
             AgentProfileRepository(
@@ -197,7 +198,7 @@ class TestAgentProfileCollisionWarning:
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """custom-reviewer exists only in project — no collision, no warning for it."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
         import warnings as _w
 
         with _w.catch_warnings(record=True) as captured:
@@ -471,6 +472,40 @@ class TestAgentProfileRepositoryExceptions:
             "python-pedro",
             "generic-implementer",
         }
+
+    def test_source_path_absent_for_a_project_layer_profile_that_fails_validation(
+        self, shipped_profiles_dir: Path, tmp_path: Path
+    ):
+        """T026 twin-verification regression (WP06, D-M8, mission #3062).
+
+        The ``AssetRepository.__init__`` docstring claims its ``_source_paths``
+        bookkeeping "mirrors AgentProfileRepository" — the pre-planning ledger
+        flagged this as a second instance of the same premature-bookkeeping
+        ordering bug T025 fixed via ``_post_validate``. Reading ``_load_layer``
+        (``src/charter/offering/agent_profiles/repository.py:370-496``) shows the
+        ``self._source_paths[profile.profile_id] = yaml_file`` write (line 493)
+        sits *after* the ``try/except ValidationError`` block (lines 463-479,
+        which ``continue``s past line 493 on a validation failure) and after
+        the language-scope gate (lines 481-482) — i.e. already ordered
+        correctly, unlike pre-fix ``AssetRepository._pre_validate``. This test
+        proves that with a live red/green check rather than assuming the
+        ledger's claim: a project-layer profile missing required fields
+        (``purpose``, ``specialization``) must fail ``AgentProfile.model_
+        validate`` and leave no ``get_source_path`` entry.
+        """
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "broken.agent.yaml").write_text(
+            "profile-id: broken\nname: Broken Profile\nroles:\n  - implementer\n"
+            # 'purpose' and 'specialization' are required and deliberately omitted.
+        )
+
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=project
+        )
+
+        assert repo.get("broken") is None
+        assert repo.get_source_path("broken") is None
 
     def test_cycle_detection(self, tmp_path: Path):
         """Validate hierarchy detects cycles."""
@@ -772,10 +807,18 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         assert repo.get("nested") is not None
 
-    def test_project_glob_does_not_find_profiles_in_subdirectory(
+    def test_project_rglob_finds_profiles_in_subdirectory(
         self, shipped_profiles_dir: Path, tmp_path: Path
     ):
-        """Project loader uses glob (not rglob) and ignores nested profiles."""
+        """Project loader recurses (parity with built-in) and finds nested profiles.
+
+        Regression for #3490: org/project overlay discovery is now
+        unconditionally recursive via the single ``discovery_recursion``
+        authority, matching the built-in tier's ``rglob`` (see
+        ``test_shipped_rglob_finds_profiles_in_subdirectory`` above). A profile
+        one directory deep in the project overlay must load, not be silently
+        dropped as it was under the previous non-recursive ``glob``.
+        """
         project = tmp_path / "project"
         sub = project / "sub"
         sub.mkdir(parents=True)
@@ -786,7 +829,7 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(
             built_in_dir=shipped_profiles_dir, project_dir=project
         )
-        assert repo.get("deep") is None
+        assert repo.get("deep") is not None
 
     def test_non_agent_yaml_files_are_ignored(self, tmp_path: Path):
         """Files not matching *.agent.yaml pattern are silently ignored."""
@@ -1041,7 +1084,7 @@ class TestMultiLevelHierarchy:
 # ── Multi-role routing ─────────────────────────────────────────────────────
 
 
-from doctrine.agent_profiles.repository import _filter_candidates_by_role, _exact_id_signal  # noqa: E402
+from charter.offering.agent_profiles.repository import _filter_candidates_by_role, _exact_id_signal  # noqa: E402
 
 
 def _make_profile(profile_id: str, roles: list[str]) -> AgentProfile:
@@ -1175,3 +1218,128 @@ class TestRoleLookup:
         assert repo.get("arch-alex") is p1
         assert repo.get("arch-bob") is p2
         assert repo.get("arch-alex") is not p2
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — direct unit tests for _parse_profile_from_file, extracted from
+# _load_layer (R-011-B) to keep its cognitive complexity within the ruff C901
+# limit (15).
+# ---------------------------------------------------------------------------
+
+
+class TestParseProfileFromFileDirect:
+    def _repo(self, tmp_path: Path) -> AgentProfileRepository:
+        """A minimally-loaded repository (no built-in dir) to host direct
+        ``_parse_profile_from_file`` calls without pulling in shipped profiles."""
+        empty = tmp_path / "empty-built-in"
+        empty.mkdir()
+        return AgentProfileRepository(built_in_dir=empty, project_dir=None)
+
+    def test_returns_none_and_records_skip_for_empty_document(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        empty_file = tmp_path / "empty.agent.yaml"
+        empty_file.write_text("", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), empty_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        summaries = [s.error_summary for s in repo.skipped_profiles()]
+        assert any("Empty profile file" in s for s in summaries)
+
+    def test_returns_none_and_records_skip_for_missing_profile_id(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        no_id_file = tmp_path / "noid.agent.yaml"
+        no_id_file.write_text("name: No ID Profile\n", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), no_id_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        skips = repo.skipped_profiles()
+        assert any(s.path == str(no_id_file) for s in skips)
+
+    def test_returns_none_and_records_skip_for_unparsable_yaml(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        bad_file = tmp_path / "bad.agent.yaml"
+        bad_file.write_text("profile-id: [unterminated\n", encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), bad_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        summaries = [s.error_summary for s in repo.skipped_profiles()]
+        assert any("YAML/read error" in s for s in summaries)
+
+    def test_returns_none_and_records_skip_for_schema_validation_failure(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        broken_file = tmp_path / "broken.agent.yaml"
+        # 'purpose' and 'specialization' are required and deliberately omitted.
+        broken_file.write_text(
+            "profile-id: broken\nname: Broken\nroles:\n  - implementer\n",
+            encoding="utf-8",
+        )
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), broken_file, layer="org", built_in_profiles={}
+        )
+
+        assert result is None
+        skips = repo.skipped_profiles()
+        assert any(s.profile_id == "broken" for s in skips)
+
+    def test_returns_profile_for_valid_builtin_layer_file(
+        self, tmp_path: Path, minimal_profile_yaml: str
+    ) -> None:
+        repo = self._repo(tmp_path)
+        valid_file = tmp_path / "valid.agent.yaml"
+        valid_file.write_text(minimal_profile_yaml, encoding="utf-8")
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"), valid_file, layer="builtin", built_in_profiles={}
+        )
+
+        assert result is not None
+        assert result.profile_id == "test-profile"
+        # builtin layer never triggers the collision diagnostic.
+        assert repo.skipped_profiles() == []
+
+    def test_merges_onto_built_in_when_profile_id_already_present(
+        self, tmp_path: Path
+    ) -> None:
+        repo = self._repo(tmp_path)
+        base = AgentProfile.model_validate(
+            {
+                "profile-id": "test-profile",
+                "name": "Base Name",
+                "purpose": "Base purpose",
+                "roles": ["implementer"],
+                "specialization": {"primary-focus": "Base focus"},
+            }
+        )
+        override_file = tmp_path / "override.agent.yaml"
+        override_file.write_text(
+            "profile-id: test-profile\nname: Overridden Name\n", encoding="utf-8"
+        )
+
+        result = repo._parse_profile_from_file(
+            YAML(typ="safe"),
+            override_file,
+            layer="org",
+            built_in_profiles={"test-profile": base},
+        )
+
+        assert result is not None
+        assert result.name == "Overridden Name"
+        assert result.purpose == "Base purpose"  # inherited, field-merge

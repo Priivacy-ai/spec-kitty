@@ -30,6 +30,8 @@ import logging
 import os
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -84,17 +86,21 @@ def _get_runtime_command_templates_dir() -> Path | None:
     4. ``~/.kittify/missions/software-dev/command-templates/`` (installed runtime).
     """
     try:
-        import doctrine  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
 
-        doctrine_steps = (
-            Path(doctrine.__file__).parent
-            / "missions"
+        # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+        # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+        doctrine_steps: Path = (
+            MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
         if doctrine_steps.is_dir():
             return doctrine_steps
-    except ImportError:
+    except (ImportError, MissionsRootNotFound):
         pass
 
     from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
@@ -333,7 +339,7 @@ class RestorePromptCommandsMigration(BaseMigration):
 
                 # Write the full prompt to the correctly-named output file
                 try:
-                    output_path.write_text(rendered, encoding="utf-8")
+                    write_generated_file(output_path, rendered)
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_output}: {exc}")
                     continue

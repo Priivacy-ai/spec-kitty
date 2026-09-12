@@ -146,6 +146,41 @@ def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path: Path) -> None:
     )
 
 
+def test_upgrade_refreshes_stale_orientation_block_same_version(tmp_path: Path) -> None:
+    """``upgrade`` refreshes a stale ``.claude/CLAUDE.md`` version stamp (#2265).
+
+    Reproduces the exact repro: a project already at the current version whose
+    orientation block still carries an older init-time version. The always-on
+    surface-repair leg must rewrite the block to the installed version even on
+    the "already up to date" path — not only when a version-gated migration
+    happens to fire.
+    """
+    import re
+
+    _init_claude_project(tmp_path)
+    # Prime the up-to-date path so the wiring marker exists and no migrations pend.
+    first = run_spec_kitty("upgrade", "--yes", cwd=tmp_path)
+    assert first.returncode == 0, first.stderr
+
+    claude_md = tmp_path / ".claude" / "CLAUDE.md"
+    original = claude_md.read_text(encoding="utf-8")
+    assert "<!-- spec-kitty:orientation -->" in original, "init must stamp an orientation block"
+
+    # Degrade only the version stamp, leaving the block markers intact so the
+    # in-place section rewrite is exercised.
+    staled = re.sub(r"\*\*Spec Kitty v[^*]+\*\*", "**Spec Kitty v0.0.1-legacy**", original, count=1)
+    assert staled != original, "test setup must actually change the version stamp"
+    claude_md.write_text(staled, encoding="utf-8")
+
+    second = run_spec_kitty("upgrade", "--yes", cwd=tmp_path)
+    assert second.returncode == 0, second.stderr
+
+    refreshed = claude_md.read_text(encoding="utf-8")
+    assert "0.0.1-legacy" not in refreshed, "stale version stamp must be refreshed"
+    assert "**Spec Kitty v" in refreshed
+    assert refreshed.count("<!-- spec-kitty:orientation -->") == 1, "block must not be duplicated"
+
+
 def test_second_upgrade_is_idempotent(tmp_path: Path) -> None:
     """A second consecutive ``upgrade`` reports zero changes (FR-008/NFR-006)."""
     _init_claude_project(tmp_path)
@@ -166,3 +201,298 @@ def test_second_upgrade_is_idempotent(tmp_path: Path) -> None:
         if path.is_file()
     }
     assert after == before, "second upgrade must not change any file bytes"
+
+
+@pytest.mark.parametrize("agents", ["codex", "codex,vibe", "vibe,codex"])
+def test_init_command_bytes_agree_with_final_config(tmp_path: Path, agents: str) -> None:
+    """#3920: first init renders final activation, once per physical skill."""
+    import hashlib
+    import json
+    import os
+    import sys
+    from collections import Counter
+
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from specify_cli import __version__
+    from specify_cli.skills import command_installer, command_renderer
+    from tests.upgrade.preview_support import write_observer
+    from tests.upgrade.preview_support.process import run_process
+
+    project = tmp_path / "project"
+    project.mkdir()
+    assert not is_spdd_reasons_active(project), "absent config remains inactive"
+    log = tmp_path / "writes.jsonl"
+    result = run_process(
+        [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
+        project,
+        dict(os.environ, SPECIFY_REPO_ROOT=str(project)),
+    )
+    result.require_success()
+    assert is_spdd_reasons_active(project), "fresh final config enables built-ins"
+    manifest = json.loads((project / ".kittify/command-skills-manifest.json").read_text())
+    entries = manifest["entries"]
+    assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
+    assert len({entry["path"] for entry in entries}) == len(entries)
+    for entry in entries:
+        assert entry["agents"] == sorted(agents.split(","))
+        actual = (project / entry["path"]).read_bytes()
+        assert entry["content_hash"] == hashlib.sha256(actual).hexdigest()  # noqa: TID251 -- independent file-integrity checksum
+        command = Path(entry["path"]).parent.name.removeprefix("spec-kitty.")
+        if command in command_installer.PROMPT_BACKED_COMMANDS:
+            rendered = (
+                command_renderer.render(
+                    command_installer._resolve_template(project, command),
+                    agents.split(",")[0],
+                    __version__,
+                    repo_root=project,
+                )
+                .to_skill_md()
+                .encode()
+            )
+            assert actual == rendered, f"init/final-config render disagreement: {command}"
+    assert b"### REASONS Guidance" in (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes(), (
+        "independent content pin must not accept two inactive renders"
+    )
+
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert rows[0] == {"installed_before_cli": True}
+    replacements = Counter(row["args"][1] for row in rows[1:] if row["event"] == "os.rename")
+    writes = Counter(row["args"][0] for row in rows[1:] if row["event"] == "open")
+    for entry in entries:
+        target = str(project / entry["path"])
+        assert replacements[target] == 1, f"duplicate physical replacement: {target}"
+        assert writes[target + ".tmp"] == 1, f"duplicate physical write: {target}"
+        assert writes[target] == 0, f"unexpected direct write: {target}"
+
+
+def test_init_preserves_unknown_command_bytes_and_no_proof(tmp_path: Path) -> None:
+    """#3920: delaying installation cannot authorize an unknown canonical name."""
+    import json
+
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    victim = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+    victim.parent.mkdir(parents=True)
+    victim.write_bytes(b"# Authored plan\nNot a shipped command.\n")
+    victim.chmod(0o400)
+    before = snapshot({"custom": victim})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert "unexpected_collision" in result.stdout + result.stderr
+    assert snapshot({"custom": victim}) == before
+    manifest_path = tmp_path / ".kittify/command-skills-manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text())
+        assert all(entry["path"] != victim.relative_to(tmp_path).as_posix() for entry in manifest["entries"])
+
+
+@pytest.mark.parametrize("pointed", [False, True])
+def test_init_preserves_authored_disabled_config(tmp_path: Path, pointed: bool) -> None:
+    """#3920: authored config is still the idempotency boundary, not re-init."""
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from tests.upgrade.preview_support.snapshot import snapshot
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    disabled = "activated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n"
+    config = "# Keep authored settings\nmission_type_activations: []\ncustom: retained\n"
+    if pointed:
+        (kittify / "authored.yaml").write_text(disabled)
+        config += "charter: .kittify/authored.yaml\n"
+    else:
+        config += disabled
+    (kittify / "config.yaml").write_text(config)
+    assert not is_spdd_reasons_active(tmp_path)
+    before = snapshot({"project": tmp_path})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "Already initialized" in result.stdout
+    assert snapshot({"project": tmp_path}) == before
+    assert not is_spdd_reasons_active(tmp_path)
+
+
+@pytest.mark.parametrize("agents", ["codex", "codex,vibe"])
+@pytest.mark.parametrize("authored_after_fault", [False, True])
+def test_init_retry_recovers_real_config_save_interruption(tmp_path: Path, agents: str, authored_after_fault: bool) -> None:
+    """#3920: retry finishes new delivery, without rewriting persisted config."""
+    import hashlib
+    import json
+    import sys
+    from collections import Counter
+
+    from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+    from specify_cli.skills import command_installer
+    from tests.upgrade.preview_support import write_observer
+    from tests.upgrade.preview_support.process import child_environment, run_process
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+    from .integration._compat_support import project_root
+
+    project = tmp_path / "project"
+    project.mkdir()
+    fault = """
+import importlib, sys
+module = importlib.import_module("specify_cli.cli.commands.init")
+print("INIT_SOURCE", module.__file__, flush=True)
+original = module.save_agent_config
+def interrupted(*args, **kwargs):
+    original(*args, **kwargs)
+    print("REAL_CONFIG_SAVE_INTERRUPTED", flush=True)
+    raise KeyboardInterrupt("after real config persistence")
+module.save_agent_config = interrupted
+from specify_cli import main
+sys.argv = ["spec-kitty", "init", "--ai", sys.argv[1], "--non-interactive"]
+main()
+"""
+    env = child_environment(tmp_path / "sandbox")
+    lane = project_root()
+    env["PYTHONPATH"] = str(lane / "src") + ":" + str(lane)
+    env["SPECIFY_REPO_ROOT"] = str(project)
+    first = run_process([sys.executable, "-c", fault, agents], project, env)
+    assert first.returncode == 130, first.stdout + first.stderr
+    assert "REAL_CONFIG_SAVE_INTERRUPTED" in first.stdout
+    assert str(lane / "src/specify_cli/cli/commands/init.py") in first.stdout
+    config = project / ".kittify/config.yaml"
+    assert config.is_file()
+    if authored_after_fault:
+        # An interruption token must not authorize replacing later authored input.
+        config.write_text(
+            "# Authored after interruption\nagents:\n  available: [codex]\nactivated_paradigms: []\nactivated_tactics: []\nactivated_directives: []\n",
+            encoding="utf-8",
+        )
+    before = snapshot({"config": config})
+    log = tmp_path / "retry-writes.jsonl"
+    retry = run_process(
+        [sys.executable, str(write_observer.__file__), str(log), "record", "cli", "init", "--ai", agents, "--non-interactive"],
+        project,
+        env,
+    )
+    retry.require_success()
+    manifest = project / ".kittify/command-skills-manifest.json"
+    assert manifest.is_file(), "retry left the interrupted command delivery absent"
+    entries = json.loads(manifest.read_text())["entries"]
+    assert len(entries) == len(command_installer.CANONICAL_COMMANDS)
+    assert len(list((project / ".agents/skills").glob("spec-kitty.*/SKILL.md"))) == len(command_installer.CANONICAL_COMMANDS)
+    owners = ["codex"] if authored_after_fault else sorted(agents.split(","))
+    for entry in entries:
+        assert entry["agents"] == owners
+        assert entry["content_hash"] == hashlib.sha256((project / entry["path"]).read_bytes()).hexdigest()  # noqa: TID251 -- independent checksum
+    assert_unchanged(before, snapshot({"config": config}))
+    assert is_spdd_reasons_active(project) is not authored_after_fault
+    plan = (project / ".agents/skills/spec-kitty.plan/SKILL.md").read_bytes()
+    assert (b"### REASONS Guidance" in plan) is not authored_after_fault
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    replacements = Counter(row["args"][1] for row in rows[1:] if row["event"] == "os.rename")
+    writes = Counter(row["args"][0] for row in rows[1:] if row["event"] == "open")
+    for entry in entries:
+        target = str(project / entry["path"])
+        assert replacements[target] == 1 and writes[target + ".tmp"] == 1
+        assert writes[target] == 0
+    finished = snapshot({"project": project})
+    again = run_process([sys.executable, "-m", "specify_cli", "init", "--ai", agents, "--non-interactive"], project, env)
+    assert again.returncode == 0 and "Already initialized" in again.stdout
+    assert_unchanged(finished, snapshot({"project": project}))
+
+
+@pytest.mark.parametrize("damage", ["bytes", "schema", "boolean-schema", "agents", "duplicates", "symlink", "changed-selection"])
+def test_init_pending_command_record_preserves_unsafe_inputs(tmp_path: Path, damage: str) -> None:
+    """A reserved recovery path is not permission to replace arbitrary bytes."""
+    import importlib
+    import json
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    init = importlib.import_module("specify_cli.cli.commands.init")
+    (tmp_path / ".kittify").mkdir()
+    init._start_command_delivery(tmp_path, ["codex", "vibe"])
+    record = tmp_path / ".kittify/init-command-skills.pending.json"
+    if damage == "bytes":
+        record.write_bytes(b"authored, not a recovery record")
+    elif damage == "schema":
+        record.write_text(json.dumps({"schema_version": 2, "agents": ["codex"]}))
+    elif damage == "boolean-schema":
+        record.write_text(json.dumps({"schema_version": True, "agents": ["codex", "vibe"]}))
+    elif damage == "agents":
+        record.write_text(json.dumps({"schema_version": 1, "agents": ["foreign"]}))
+    elif damage == "duplicates":
+        record.write_text(json.dumps({"schema_version": 1, "agents": ["codex", "codex"]}))
+    elif damage == "symlink":
+        target = tmp_path / "foreign"
+        target.write_bytes(record.read_bytes())
+        record.unlink()
+        record.symlink_to(target)
+    before = snapshot({"project": tmp_path})
+    with pytest.raises(ValueError):
+        init._start_command_delivery(tmp_path, ["codex"] if damage == "changed-selection" else ["codex", "vibe"])
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+
+
+@pytest.mark.parametrize("case", ["all-removed", "unknown-skill", "runtime-guard", "unsaved-selection", "completed"])
+def test_init_pending_command_recovery_boundaries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
+    """Exercise real owners beneath the recovery boundary, not fake installers."""
+    import importlib
+    import io
+    from rich.console import Console
+    from specify_cli.core.agent_config import AgentConfig, save_agent_config
+    from specify_cli.gitignore_manager import GitignoreManager
+    from specify_cli.skills import command_installer, manifest_store
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    init = importlib.import_module("specify_cli.cli.commands.init")
+    monkeypatch.setattr(init, "_console", Console(file=io.StringIO()))
+    (tmp_path / ".kittify").mkdir()
+    initial = snapshot({"project": tmp_path})
+    init._start_command_delivery(tmp_path, [])
+    assert_unchanged(initial, snapshot({"project": tmp_path}))
+    init._start_command_delivery(tmp_path, ["codex", "vibe"])
+    pending = snapshot({"project": tmp_path})
+    init._start_command_delivery(tmp_path, ["vibe", "codex"])
+    assert_unchanged(pending, snapshot({"project": tmp_path}))
+    assert not (tmp_path / ".kittify/config.yaml").exists()
+    save_agent_config(tmp_path, AgentConfig(available=[] if case == "all-removed" else ["codex", "vibe"]))
+    record = tmp_path / ".kittify/init-command-skills.pending.json"
+    assert GitignoreManager(tmp_path).protect_all_agents().success
+    custom = tmp_path / "custom"
+    custom.write_bytes(b"foreign bytes")
+    if case == "runtime-guard":
+        ignore = tmp_path / ".gitignore"
+        ignore.unlink()
+        ignore.symlink_to(custom)
+    elif case == "unknown-skill":
+        custom = tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md"
+        custom.parent.mkdir(parents=True)
+        custom.write_bytes(b"unknown plan")
+        custom.chmod(0o400)
+    elif case == "unsaved-selection":
+        (tmp_path / ".kittify/config.yaml").write_text("project: {}\n")
+    elif case == "completed":
+        for agent in ("codex", "vibe"):
+            command_installer.install(tmp_path, agent)
+    config_before = snapshot({"config": tmp_path / ".kittify/config.yaml"})
+    custom_before = snapshot({"custom": custom})
+    if case in {"unknown-skill", "runtime-guard", "unsaved-selection"}:
+        with pytest.raises(ValueError):
+            init._resume_command_delivery(tmp_path)
+        assert record.is_file()
+        assert not manifest_store.load(tmp_path).entries
+    else:
+        commands_before = snapshot({"commands": tmp_path / ".agents"})
+        assert init._resume_command_delivery(tmp_path)
+        assert not record.exists()
+        assert_unchanged(commands_before, snapshot({"commands": tmp_path / ".agents"}))
+        assert not init._resume_command_delivery(tmp_path)
+    assert_unchanged(config_before, snapshot({"config": tmp_path / ".kittify/config.yaml"}))
+    assert_unchanged(custom_before, snapshot({"custom": custom}))
+
+
+def test_init_runtime_protection_precedes_pending_command_record(tmp_path: Path) -> None:
+    """Real fresh init refuses a foreign ignore link before publishing config."""
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    target = tmp_path / "authored-ignore"
+    target.write_bytes(b"foreign ignore content")
+    link = tmp_path / ".gitignore"
+    link.symlink_to(target)
+    before = snapshot({"link": link, "target": target})
+    result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert not (tmp_path / ".kittify/config.yaml").exists()
+    assert not (tmp_path / ".kittify/init-command-skills.pending.json").exists()
+    assert_unchanged(before, snapshot({"link": link, "target": target}))

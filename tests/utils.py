@@ -135,7 +135,6 @@ def write_wp(
     from specify_cli.task_utils.support import (
         append_activity_log,
         build_document,
-        set_scalar,
         split_frontmatter,
     )
 
@@ -170,12 +169,12 @@ def write_wp(
         body,
         f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}",
     )
-    updated_front = front
-    if legacy:
-        updated_front = set_scalar(updated_front, "lane", lane)
-    updated_front = set_scalar(set_scalar(updated_front, "agent", agent), "assignee", assignee)
-    updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
-    path.write_text(build_document(updated_front, updated_body, padding), encoding="utf-8")
+    # FR-006 (WP08): ``set_scalar`` is retired for append-on-miss and only
+    # updates existing keys. ``lane``/``agent``/``assignee``/``shell_pid`` are
+    # already composed into ``frontmatter`` above at their final values, so the
+    # former ``set_scalar`` re-writes were byte-neutral no-ops; drop them and
+    # rely solely on ``build_document`` (a supported writer).
+    path.write_text(build_document(front, updated_body, padding), encoding="utf-8")
     if seed_canonical and not legacy:
         _seed_canonical_wp_state(
             repo_root,

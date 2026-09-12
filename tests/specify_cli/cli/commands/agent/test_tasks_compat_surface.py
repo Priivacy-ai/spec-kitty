@@ -16,9 +16,9 @@ are being retired piecemeal (WP05a here; WP05b/WP06 retires the remaining 3
 heavy seams' batteries against the coverage this guard already provides).
 
 Shape mirrors ``test_mission_shim_reexports.py`` (grouped required-symbol
-tuples + a ``hasattr``/identity parametrized gate) and
-``tests/runtime/test_bridge_compat_surface.py`` (a re-derived-from-source
-completeness check rather than a hand-maintained list trusted on faith).
+tuples + a ``hasattr``/identity parametrized gate) and re-derives the required
+surface straight from source (a completeness check rather than a
+hand-maintained list trusted on faith).
 Self-contained: no import of the 6 seam test files' internal ``_MOVE_SET``
 tuples (those files are being retired around this guard) — the map below is
 this file's own literal data, and the completeness check re-derives the
@@ -79,7 +79,7 @@ _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
     "_do_finalize_tasks",
 )
 
-_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
+_TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2, +1 WP06/#3396) — 16 symbols
     "_default_map_requirements_ports",
     "_MapReqState",
     "_mr_validate_modes",
@@ -87,6 +87,9 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
     "_mr_build_new_mappings",
     "_mr_unknown_wp_gate",
     "_mr_resolve_read_dirs",
+    # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
+    # fail-loud bare-prose requirement-id detector wrapper.
+    "_mr_detect_bare_prose_requirement_ids",
     "_mr_plan",
     "_mr_gate_offenders",
     "_mr_write_frontmatter",
@@ -150,18 +153,33 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
+# WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
+# -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
+# status observer) = 76, +1 (#3590 WP01 _mt_hop_reason_source) = 77 on the
+# experimental convergence base, then +4 (#3578 rollback-signal quartet) = 81.
+_TASKS_MOVE_TASK: tuple[str, ...] = (
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
-    # #2639: +complete-deferred-readiness + pre-review-dirty-paths)
+    # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
+    # coord-commit-integrity #2861: +_binding_role_for_lane role-map dedup)
+    "_binding_role_for_lane",
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, T007): campsite
+    # extraction out of the cc=14 ``_mt_emit_runtime_state`` (78 -> 79).
+    "_build_claim_review_override",
     "_default_move_task_ports",
     "_MoveTaskState",
     "_MoveTaskArgs",
+    "_PostTransitionSideEffectFailure",
     "_mt_warn_worktree_kitty_specs",
+    "_mt_preflight_owned_request",
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
     "_mt_build_request",
     "_lane_deliverable_paths",
+    "_drop_lane_coord_residue",
+    "_mt_owned_file_patterns",
+    "_mt_matches_owned_file",
+    "_mt_require_owned_implementation",
     "_mt_commit_lane_deliverables",
     "_mt_complete_deferred_for_review_readiness",
     "_mt_gather_review_facts",
@@ -176,6 +194,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_mt_current_event_lane",
     "_mt_hop_review_result",
     "_mt_hop_actor",
+    # #3590 WP01 (operator-authored cancellation provenance): the reason_source
+    # resolver feeding the status-event hop — a native move-task seam def.
+    "_mt_hop_reason_source",
     "_mt_emit_transitions",
     # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
     # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
@@ -202,12 +223,27 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_mt_emit_runtime_state",
     "_mt_reassignment_binding_fields",
     "_mt_resolve_current_agent",
+    "_mt_owned_workspace",
+    "_mt_resolve_owned_review_base",
     "_mt_hop_policy_metadata",
+    # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
+    # hop's policy_metadata sidecar builder and the per-hop review_ref
+    # resolver (derives review_ref from the SAME hop_review_result object
+    # used as review_result, so the two can never diverge) (81 -> 83).
+    "_mt_approval_policy_metadata",
+    "_mt_hop_review_ref",
     "_mt_plan_review_result",
     "_mt_rollback_subtasks_reset",
     "_mt_shell_pid_baseline",
+    # #3578 (M4 operator-signal sweep): the rollback-to-``planned`` operator
+    # signal — summary value object + builder + JSON/human emitters.
+    "_RollbackResetSummary",
+    "_mt_build_rollback_summary",
+    "_mt_apply_rollback_signal",
+    "_mt_rollback_signal_lines",
     "_mt_execute",
     "_mt_output",
+    "_mt_post_transition_diagnostic",
     "_do_move_task",
     "_coord_status_events_path",
     "_status_event_result_fields",
@@ -215,12 +251,40 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_detect_arbiter_override",
     "_run_arbiter_override",
     "_mt_run_pre_review_gate",
+    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
+    # doctrine-resolved transition gate + its thin-orchestrator helpers. Barrel
+    # lines + tuple entries move together (P-F1); the forwarder
+    # ``_mt_run_pre_review_gate`` above stays a real symbol delegating to
+    # ``_mt_run_transition_gates``.
+    "_mt_run_transition_gates",
+    "_TransitionGateInputs",
+    "_TransitionGateEffect",
+    "_mt_warn_pre_review_test_command_deprecated",
+    "_mt_resolve_scope_source",
+    "_mt_resolve_active_gate_bindings",
+    "_mt_resolve_gate_baseline",
+    "_mt_build_transition_gate_context",
+    "_mt_cancelled_verdict",
+    "_mt_fail_open_gate",
+    "_mt_resolve_transition_gate_verdicts",
+    "_mt_dispatch_one_gate",
+    "_mt_dispatch_transition_gates",
+    "_mt_human_gate_status_observer",
+    "_mt_collect_transition_gate_verdicts",
+    "_mt_resolve_transition_gate_inputs",
+    "_mt_gate_representative",
+    "_mt_translate_gate_verdicts",
+    "_mt_emit_skipped_gate",
+    "_mt_emit_transition_gate_effect",
     "_mt_resolve_pre_review_workspace",
     "_mt_pre_review_changed_files",
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
-    "_mt_pre_review_gate_verdict",
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # new_checkout_paths byproduct-diff now enrols the gate subprocess's
+    # created paths into the tool-artifact owner compensator.
+    "_mt_enrol_gate_byproducts",
     "_mt_pre_review_gate_metadata",
     "_mt_pre_review_gate_console_warning",
     "_mt_pre_review_gate_block_message",
@@ -232,9 +296,14 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
+    # fix(review) (2026-08-05): the --reviewer resolution shared by the
+    # rejected review-cycle artifact's frontmatter and the structured
+    # ReviewResult derivation is a native move-task seam def and therefore
+    # joins the compat surface like every other one (77 -> 78).
+    "_mt_resolve_reviewer_identity",
 )
 
-_TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
+_TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
     "_MarkStatusState",
     "_default_mark_status_ports",
     "_ms_validate_inputs",
@@ -244,11 +313,19 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     "_ms_commit",
     "_ms_apply_updates",
     "_ms_emit_subtask_state",
-    "_ms_emit_history",
-    "_ms_dossier_sync",
     "_ms_output",
     "_do_mark_status",
     "_resolve_inline_subtasks",
+    # #2962 campsite fix: the authored-roster resolver and the owning-WP
+    # helper its two event-emit call sites share with it.
+    "_resolve_authored_roster",
+    "owning_wp_from_authored_roster",
+    # #3865: the owned-mode error-recovery extraction out of
+    # ``_do_mark_status``'s inline ``except`` — cause-chain walk + the
+    # ``git show`` event-id diff, now natively defined here and therefore
+    # enrolled like every other native def.
+    "_reconstruct_applied_events",
+    "_recovery_commit_sha",
 )
 
 #: seam-module-name -> imported module object, and -> that seam's required
@@ -281,10 +358,7 @@ SYMBOL_TO_MODULE: dict[str, str] = {}
 for _module_name, _symbols in _SEAM_GROUPS.items():
     for _symbol in _symbols:
         if _symbol in SYMBOL_TO_MODULE:
-            raise AssertionError(
-                f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} "
-                f"and {_module_name!r} — seam groups must be disjoint."
-            )
+            raise AssertionError(f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} and {_module_name!r} — seam groups must be disjoint.")
         SYMBOL_TO_MODULE[_symbol] = _module_name
 
 #: Non-callable natively-defined symbols per seam that the callable-based
@@ -306,11 +380,7 @@ def _native_module_defs(module_name: str) -> set[str]:
     production source rather than trusted on faith.
     """
     module = _SEAM_MODULES[module_name]
-    callable_defs = {
-        name
-        for name, obj in vars(module).items()
-        if getattr(obj, "__module__", None) == module.__name__ and callable(obj)
-    }
+    callable_defs = {name for name, obj in vars(module).items() if getattr(obj, "__module__", None) == module.__name__ and callable(obj)}
     return callable_defs | set(_EXTRA_NON_CALLABLE_NATIVE_DEFS.get(module_name, frozenset()))
 
 
@@ -329,10 +399,7 @@ def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
     ``<residual_module>.<symbol>`` — a genuine identity re-export, not a
     coincidental native redefinition on ``tasks``."""
     seam_module = _SEAM_MODULES[module_name]
-    assert hasattr(tasks, symbol), (
-        f"tasks.{symbol} no longer resolves — a re-export from {module_name} "
-        "was dropped."
-    )
+    assert hasattr(tasks, symbol), f"tasks.{symbol} no longer resolves — a re-export from {module_name} was dropped."
     assert getattr(tasks, symbol) is getattr(seam_module, symbol), (
         f"tasks.{symbol} is NOT the same object as {module_name}.{symbol} — "
         "the compat re-export is a copy, not an identity re-export (breaks "
@@ -356,8 +423,7 @@ def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: 
     attributed to the wrong seam) that a bare identity check alone would not
     reliably surface."""
     assert symbol in _native_module_defs(module_name), (
-        f"{symbol!r} is mapped to {module_name!r} in the guard but is not "
-        f"natively defined there — check SYMBOL_TO_MODULE / the seam group."
+        f"{symbol!r} is mapped to {module_name!r} in the guard but is not natively defined there — check SYMBOL_TO_MODULE / the seam group."
     )
 
 
@@ -376,10 +442,7 @@ def test_guard_keyset_is_superset_of_all_six_seams_native_defs() -> None:
 
     guard_keys = set(SYMBOL_TO_MODULE)
     missing = union_of_native_defs - guard_keys
-    assert not missing, (
-        "Symbols natively defined in a seam module but missing from the "
-        f"consolidated compat guard: {sorted(missing)}"
-    )
+    assert not missing, f"Symbols natively defined in a seam module but missing from the consolidated compat guard: {sorted(missing)}"
     assert union_of_native_defs <= guard_keys
 
 
@@ -391,7 +454,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_142_symbol_surface() -> None:
+def test_guard_covers_full_167_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -435,5 +498,84 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_legacy_unchecked_subtask_ids`` — the guard's only live caller stopped
     reading checkbox rows (tasks_shared 21 -> 20): 137 -> 136. The resolved-
     binding reassignment helper is a native move-task seam and therefore joins
-    the registration-shim compatibility surface: 136 -> 137."""
-    assert len(SYMBOL_TO_MODULE) == 137  # golden-count: cardinality-is-contract
+    the registration-shim compatibility surface: 136 -> 137. WP09
+    (doctrine-controlled-transition-gates-01KY51Z7) inverted the pre-review gate
+    into ``_mt_run_transition_gates`` and its thin-orchestrator extraction: two
+    dataclasses (``_TransitionGateInputs``/``_TransitionGateEffect``) and 13 new
+    ``_mt_*`` helpers join the tasks_move_task seam (56 -> 71): 137 -> 152. WP09
+    remediation (metadata-fidelity fix) then extracted ``_mt_resolve_gate_baseline``
+    — the shared baseline loader the restored FR-004 override tier and the handler
+    context both call — a native move-task seam def (71 -> 72): 152 -> 153. WP09
+    closeout (CI compat-surface remediation) then registered the three remaining
+    natively-defined move-task seam defs the extraction left unregistered —
+    ``_mt_cancelled_verdict``, ``_mt_fail_open_gate`` and
+    ``_mt_resolve_transition_gate_verdicts`` (72 -> 75): 153 -> 156. coord-commit-
+    integrity (#2861, FR-005) added ``_binding_role_for_lane`` — the lane->role
+    map dedup extracted from the two duplicate role maps at the move-task emit
+    seam (tasks_move_task 75 -> 76): 156 -> 157. scopesource-gate-followup-01KY6S9P
+    (WP04, #2873) then retired ``_mt_pre_review_gate_verdict`` — the census-derived
+    composition helper had no production call site (the sole live ``for_review``
+    path always injects a ``scope_source``, never omits it) — and its ``tasks.py``
+    compat re-export (tasks_move_task 76 -> 75): 157 -> 156. WP16
+    (lifecycle-gate-execution-context-01KY72GQ, IC-07f) retired
+    ``new_checkout_paths`` and added ``_mt_enrol_gate_byproducts`` — the gate
+    subprocess's created-path diff now enrols into the tool-artifact owner
+    compensator (commit-on-pass via no-op, revert-on-abort via
+    ``restore_generated_artifact_snapshots``) instead of being detected and
+    warned about (tasks_move_task 75 -> 76): 156 -> 157. The #2962 campsite
+    fix (doctrine-silence-guards-01KYFV7Q) added the fifth subtask-id
+    resolver ``_resolve_authored_roster`` — the shipped ``software-dev``
+    tasks template instructs authors to write reference rows with no
+    checkbox, a shape none of the four legacy resolvers matched — and
+    ``owning_wp_from_authored_roster``, the owning-WP helper its two
+    event-emit call sites share with it (tasks_mark_status 13 -> 15):
+    157 -> 159. fix(review) (2026-08-05, CI-remediation fold on PR #3204) added
+    ``_mt_resolve_reviewer_identity`` — the shared --reviewer/--agent/actor
+    resolution the rejected review-cycle artifact and the structured
+    ReviewResult derivation both call — a native move-task seam def
+    (tasks_move_task 77 -> 78): 159 -> 160. WP02
+    (verdict-seam-boundary-hardening-01KZG179, T007) extracted
+    ``_build_claim_review_override`` out of the cc=14
+    ``_mt_emit_runtime_state`` campsite fix — a native move-task seam def
+    (tasks_move_task 78 -> 79): 160 -> 161. write-path-integrity WP02
+    (#2549, FR-003, PR #3437 landing) added ``_drop_lane_coord_residue`` — the
+    Seam-A residue filter for the raw lane-deliverable commit, a native
+    move-task seam def (tasks_move_task 79 -> 80): 161 -> 162.
+    bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396, T032a) added
+    ``_mr_detect_bare_prose_requirement_ids`` — the fail-loud bare-prose
+    requirement-id detector wrapper ``_mr_plan`` calls — a native
+    tasks_map_requirements seam def (tasks_map_requirements 15 -> 16):
+    162 -> 163. sync-transport deletion (issue #5) retired the two
+    mark-status helpers whose only job was the deleted HistoryAdded /
+    dossier-push emissions (_ms_emit_history, _ms_dossier_sync):
+    163 -> 161.
+    #2573 then added ``_mt_human_gate_status_observer`` as the presentation-only
+    status callback for the pre-review gate (tasks_move_task 75 -> 76):
+    161 -> 162. #3590 WP01 (operator-authored cancellation provenance) added
+    ``_mt_hop_reason_source`` — the reason_source resolver feeding the
+    status-event hop, a native move-task seam def: 162 -> 163 on the
+    experimental convergence base. governance-at-the-gate WP04 (#3682,
+    FR-006, IC-04) added
+    ``_mt_approval_policy_metadata`` and ``_mt_hop_review_ref`` — the
+    APPROVED/DONE approval-gate policy_metadata sidecar builder and the
+    per-hop review_ref resolver that derives from the SAME hop_review_result
+    object used as review_result (tasks_move_task 81 -> 83): 163 -> 165.
+    #3578 (M4 operator-signal sweep) then added the four rollback-to-
+    ``planned`` signal symbols — ``_RollbackResetSummary``,
+    ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
+    ``_mt_rollback_signal_lines`` (tasks_move_task 83 -> 87): 165 -> 169.
+    #3865 then extracted the owned-mode mark-status error recovery out of
+    ``_do_mark_status``'s inline ``except`` into two focused, unit-tested
+    helpers — ``_reconstruct_applied_events`` (the ``git show`` event-id
+    diff) and ``_recovery_commit_sha`` (the cycle-safe cause-chain walk)
+    (tasks_mark_status 15 -> 17; golden count 177 -> 179 — the docstring's
+    running total above is already stale against the golden, so this entry
+    pins the actual delta)."""
+    # TODO(under-investigation, operator-flagged): the operator doubts this
+    # consolidated compat guard earns its ROI. Every seam-local symbol addition
+    # costs a three-part edit — register in the per-seam tuple, add an identity
+    # re-export in tasks.py, AND bump this hardcoded cardinality — for arguably
+    # low incremental regression-catch value over the identity-re-export guard
+    # alone. Revisit whether the golden-count ratchet should be relaxed or
+    # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
+    assert len(SYMBOL_TO_MODULE) == 179  # golden-count: cardinality-is-contract

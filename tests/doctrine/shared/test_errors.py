@@ -1,4 +1,4 @@
-"""Tests for doctrine.shared.errors — inline-reference rejection helpers.
+"""Tests for charter.offering.shared.errors — inline-reference rejection helpers.
 
 Targets mutation-prone areas:
 - reject_inline_refs: artifact_id fallback ("?"), forbidden_field assignment,
@@ -13,14 +13,16 @@ Non-Identity Inputs (distinct field names), Bi-Directional Logic
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from doctrine.shared.errors import (
+from charter.offering.shared.errors import (
     build_migration_hint,
     reject_inline_refs,
     reject_inline_refs_in_procedure_steps,
 )
-from doctrine.shared.exceptions import InlineReferenceRejectedError
+from charter.offering.shared.exceptions import InlineReferenceRejectedError
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -55,13 +57,29 @@ class TestBuildMigrationHint:
         )
         assert "relation: requires" in hint
 
-    def test_hint_contains_graph_yaml_path(self):
+    def test_hint_names_the_fragment_for_the_source_kind(self):
         hint = build_migration_hint(
             forbidden_field="applies_to",
             source_kind="tactic",
             source_id="tac-001",
         )
-        assert "src/doctrine/graph.yaml" in hint
+        assert "packs/built-in/tactic.graph.yaml" in hint
+
+    def test_hint_names_a_fragment_that_is_on_disk(self):
+        """FR-008: a hint that names a missing file is not followable."""
+        repo_root = Path(__file__).resolve().parents[3]
+        for kind in (
+            "directive",
+            "tactic",
+            "procedure",
+            "paradigm",
+            "styleguide",
+            "toolguide",
+            "agent_profile",
+        ):
+            hint = build_migration_hint(forbidden_field="applies_to", source_kind=kind, source_id="x")
+            named = hint.rsplit(" to ", 1)[1]
+            assert (repo_root / named).is_file(), f"{kind}: {named} is not on disk"
 
     def test_hint_with_target_kind_and_id(self):
         hint = build_migration_hint(

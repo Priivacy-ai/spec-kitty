@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#3283": {
+      "evidence_ref": "Environment/capacity hazard cited in plan.md:398 as a baseline risk, not a defect this mission repairs. Follow-up: #3283 remains open upstream.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3284": {
+      "evidence_ref": "Baseline context only, not this mission's to fix. Mission test scope measured 1147 passed / 0 failed pre-implementation, so none of #3284's known-red set falls in scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3407": {
+      "evidence_ref": "Closed upstream. Its family-scoping of _check_cli_guards is cited in spec.md NFR-004 as the live mechanism holding the guard-branch coverage floor; this mission preserves it and pins it with test_non_software_dev_missing_artifact_owned_by_composed_guard.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3412": {
+      "evidence_ref": "Split status per spec.md:223-225 and :460-463. Built-in tier already fails loud (pinned by live passing test_malformed_manifest_fails_loud_distinct_from_absent). Org-tier YAML-syntax silent degradation is a pre-existing asymmetry this mission explicitly does NOT reconcile. Follow-up: #3412 remains open for the org-tier half.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3542": {
+      "evidence_ref": "Closed upstream as COMPLETED 2026-08-18; outside this mission's changed surface.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3703": {
+      "evidence_ref": "Fixed by PR #3708, merged to main 2026-08-24 as a true merge; verified parent tip ae3e5ad7a is an ancestor of origin/main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3704": {
+      "evidence_ref": "This mission's own issue. Both halves (guard-table dispatch, org-tier presence/blocking) implemented across WP01-WP04.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#3708": {
+      "evidence_ref": "PR vehicle for #3703; merged 2026-08-24, verified by git ancestry. This mission was stacked on it and is now rebased-equivalent onto main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

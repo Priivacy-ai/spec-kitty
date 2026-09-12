@@ -11,7 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.resolution import NotInsideRepositoryError
-from charter.synthesizer.errors import TopicSelectorUnresolvedError
+from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.cli.commands.charter_bundle import app as bundle_app
 from specify_cli.task_utils import TaskCliError
@@ -67,7 +67,7 @@ def test_resynthesize_json_unresolved_topic_error_is_parseable(tmp_path: Path) -
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.charter._collect_evidence_result", return_value=evidence_result),
         patch("specify_cli.cli.commands.charter._build_synthesis_request", return_value=(SimpleNamespace(), SimpleNamespace())),
-        patch("charter.synthesizer.resynthesize_pipeline.run", side_effect=unresolved),
+        patch("charter.activation.synthesizer.resynthesize_pipeline.run", side_effect=unresolved),
     ):
         result = runner.invoke(charter_app, ["resynthesize", "--topic", "does-not-exist", "--json"])
 
@@ -115,7 +115,7 @@ def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
-        patch("charter.sync.sync", return_value=sync_result),
+        patch("charter.activation.sync.sync", return_value=sync_result),
     ):
         result = runner.invoke(charter_app, ["sync", "--json"])
 
@@ -159,11 +159,11 @@ def test_interview_json_keeps_org_prefill_messages_inside_payload(tmp_path: Path
             "specify_cli.doctrine.org_charter.apply_org_charter_to_interview",
             return_value=["applied org default"],
         ),
-        patch("charter.interview.write_interview_answers"),
-        patch("charter.interview.apply_answer_overrides", return_value=interview_data),
-        patch("charter.interview.MINIMAL_QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_PROMPTS", {}),
+        patch("charter.activation.interview.write_interview_answers"),
+        patch("charter.activation.interview.apply_answer_overrides", return_value=interview_data),
+        patch("charter.activation.interview.MINIMAL_QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_PROMPTS", {}),
         patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
     ):
         result = runner.invoke(charter_app, ["interview", "--defaults", "--profile", "minimal", "--json"])

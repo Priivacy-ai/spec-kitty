@@ -1,0 +1,273 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+- id: PLAN-ARCH-001
+  lens: control-flow / FR-009 error-path routing
+  severity: 4
+  title: '"Two JSON shapes" section''s dry-run ROUTER_AMBIGUOUS handling contradicts itself and, read
+    literally, breaks FR-009''s core P2 acceptance scenario'
+  evidence:
+  - artifact: 'plan.md § "Two JSON shapes on the dry-run path" (lines 153-165), and the Seam table row
+      for dispatch.py (line 99: "error-path routing for FR-009''s ROUTER_AMBIGUOUS→dry_run-payload translation
+      lives here or in the executor (see below)")'
+  - code: src/specify_cli/cli/commands/dispatch.py:178-201 (_dispatch_impl's single try/except around
+      executor.invoke(...), with one `except RouterAmbiguityError as e:` clause at line 190 that unconditionally
+      does exit 1 + structured error JSON for every RouterAmbiguityError regardless of e.error_code)
+  - code: src/specify_cli/invocation/errors.py:30-42 (RouterAmbiguityError carries error_code but ROUTER_AMBIGUOUS
+      and ROUTER_NO_MATCH are the SAME exception type — Python except clauses dispatch by type, not by
+      attribute value)
+  claim: 'The plan specifies that ProfileInvocationExecutor.dry_run() re-raises RouterAmbiguityError unchanged
+    for BOTH the "ROUTER_AMBIGUOUS" case (which FR-009 requires to become an exit-0 "status": "dry_run"
+    payload with alternatives populated) and the "ROUTER_NO_MATCH" case (which must still exit 1 with
+    the existing structured error JSON). It then says the ROUTER_AMBIGUOUS case needs "_dispatch_impl''s
+    dry-run branch" to "catch it ... specifically", while in the very next bullet it says ROUTER_NO_MATCH
+    needs "no dry-run-specific handling ... _dispatch_impl''s existing except RouterAmbiguityError ...
+    handlers already do the right thing ... unchanged" — i.e. the SAME exception type must simultaneously
+    get special dry-run-only handling (exit 0, dry_run payload) and be routed through the existing generic
+    handler unchanged (exit 1, error JSON). Since Python except clauses select on exception type only,
+    this is not achievable without an explicit `if e.error_code == "ROUTER_AMBIGUOUS": ... else: ...`
+    branch inside whatever except clause first catches dry_run()''s RouterAmbiguityError — a branch the
+    plan explicitly disclaims ("no dry-run-specific handling needed ... these are not new branches, they
+    are the absence of a dry-run branch"). If an implementer takes the plan''s "reuse the existing unchanged
+    except RouterAmbiguityError handler" instruction literally by routing both invoke() and dry_run()
+    calls through one shared try/except, dry-run''s ROUTER_AMBIGUOUS case will also exit 1 with the error-JSON
+    shape instead of the required exit-0 dry_run payload — breaking User Story 2 / Acceptance Scenario
+    3 and FR-009, one of this mission''s headline UI-probing deliverables (the issue''s own named use
+    case). The Seam table''s own hedge ("lives here or in the executor (see below)") signals this was
+    left unresolved rather than pinned down.
+
+    '
+  remediation: 'Replace the "no dry-run-specific handling needed" framing with an explicit statement that
+    _dispatch_impl''s dry-run branch requires its OWN try/except scoped to the executor.dry_run(...) call
+    (separate from the existing try/except around executor.invoke(...)), whose `except RouterAmbiguityError
+    as e:` clause explicitly branches on `e.error_code`: build and emit the dry_run ambiguous payload
+    (exit 0) when `e.error_code == "ROUTER_AMBIGUOUS"`, and otherwise reuse (via a small shared helper,
+    not literal code duplication) the exact JSON shape/exit-1 behavior the existing invoke()-path handler
+    produces. State this as the structural mechanism in the plan rather than leaving it as "lives here
+    or in the executor" — a design that requires an implementer to independently discover this branching
+    need is structurally incomplete.
+
+    '
+- id: PLAN-VERIFY-001
+  lens: revert-discipline
+  severity: 4
+  title: No WP1 ATDD test would catch a regression where dry_run() calls the SaaS propagator
+  evidence:
+  - artifact: plan.md § Blast Radius / Seam ('src/specify_cli/invocation/executor.py' row, ~line 100)
+      and § Silent-success framing (~line 434, first bullet)
+  - artifact: plan.md § ATDD-First obligations, WP1 (~line 308-335) — the 5 named tests
+  - code: 'src/specify_cli/invocation/executor.py:413-415 (invoke(): `if self._propagator is not None:
+      self._propagator.submit(record)`)'
+  - code: src/specify_cli/cli/commands/dispatch.py:46-47 (real dispatch always constructs `InvocationSaaSPropagator(repo_root)`
+      and wires it into the executor — propagator is never None on the real CLI path)
+  - code: 'src/specify_cli/invocation/propagator.py:312-314 (`submit()` hands work to a background ThreadPoolExecutor
+      and returns immediately; a no-SaaS-token run silently no-ops inside the thread, per the class docstring''s
+      ''Additive: if no SaaS token, no-op'')'
+  claim: 'The plan states three times (Summary, the executor.py Seam-table row via Blast Radius, and the
+    Silent-success framing section) that dry_run() must never call `self._propagator.submit(...)`, alongside
+    the two other suppressed writes (write_started, write_glossary_observation). WP1''s own listed ATDD
+    test suite (5 tests: kitty-ops/ snapshot, glossary-directory snapshot, payload-shape assertion, ambiguous-payload
+    assertion, no-match/unknown-profile still-raises assertion) contains no test that mocks or asserts
+    on `propagator.submit`/`InvocationSaaSPropagator` at all — `grep -n "propagator\|Propagator\|SaaS"
+    tests/specify_cli/invocation/cli/test_dispatch.py` returns nothing, and no existing test-file convention
+    covers this either. If an implementer copy-pastes `invoke()`''s tail into `dry_run()` and forgets
+    to drop the `self._propagator.submit(record)` line, none of WP1''s 5 named tests would fail: the call
+    would submit to a background thread and, in the common CI case with no SaaS token configured, silently
+    no-op with no observable file-system or process-exit-code symptom — exactly the class of defect the
+    charter''s silent-success standing order exists to prevent structurally, not just by design-intent
+    prose.
+
+    '
+  remediation: 'Add a 6th WP1 ATDD test, e.g. `test_dry_run_does_not_submit_to_saas_propagator`, that
+    constructs the executor with a mock/spy `InvocationSaaSPropagator` (patched at the call site per the
+    plan''s own `patch()`-target-validation gate) and asserts `submit` is never called across N `--dry-run`
+    invocations, mirroring the existing kitty-ops/glossary-directory assertions for the third named write
+    surface.
+
+    '
+- id: PLAN-GOV-002
+  lens: Constitution Check honesty (mission-derived)
+  severity: 3
+  title: '''Not a second competing canonical payload type'' claim understates real drift risk between
+    the two dry-run JSON shapes'
+  evidence:
+  - artifact: plan.md § Constitution Check (line 73-77, 'Single canonical authority' bullet); plan.md
+      § 'Two JSON shapes on the dry-run path' (lines 129-165)
+  - code: src/specify_cli/invocation/executor.py:284-430 (InvocationPayload construction pattern, to_dict()-style
+      shape ownership lives on the class)
+  claim: 'The plan proposes a bespoke `_build_ambiguous_dry_run_payload(request_text, err) -> dict[str,
+    object]` helper, living in `dispatch.py` next to `profile_not_found_routing` — i.e. in the CLI command
+    layer, not colocated with `InvocationPayload.to_dict()` / `to_dry_run_dict()` in executor.py, which
+    is where the plan says the "one owning shape" for dry-run responses otherwise lives. The plan''s Constitution
+    Check asserts "not a second competing canonical payload type," and the justification given is narrow:
+    avoiding an `Optional` ripple into `InvocationPayload`''s non-Optional `profile_id`/ `action` slots.
+    That justification addresses only the *typing* convenience of not reusing the dataclass — it does
+    not address the *field-set/key-name drift* risk the charter''s single-canonical-authority principle
+    actually warns about ("prefer require-canonical + migration over no-canonical-field fallback branches").
+    Concretely: the success-branch dry-run dict and the ambiguous-branch dict share several field names
+    by convention only (`status`, `alternatives`, `router_confidence`) — nothing structural ties them
+    together. A future maintainer adding or renaming a field on `InvocationPayload.to_dry_run_dict()`
+    (e.g. widening `alternatives`''s entry shape, or adding a new top-level key) has no compiler/test
+    signal that `_build_ambiguous_dry_run_payload()` in a different file needs the same edit — exactly
+    the "second, competing shape" scenario the principle exists to prevent, even though the two are technically
+    different Python types. The WP1 ATDD test list (plan.md''s ATDD section) tests each shape in isolation
+    (`test_dry_run_payload_shape`, `test_dry_run_ambiguous_returns_dry_run_payload_not_exit_1`) but includes
+    no test asserting field-name parity between the two branches for their shared concepts.
+
+    '
+  remediation: 'Either (a) colocate `_build_ambiguous_dry_run_payload` as a classmethod/static builder
+    beside `InvocationPayload.to_dry_run_dict()` in executor.py rather than as a freestanding dispatch.py
+    helper, so both dry-run shape sources are visibly authored next to each other for the next maintainer
+    touching this surface, or (b) add a narrow contract test (e.g. `test_dry_run_shapes_share_common_field_names`)
+    asserting the ambiguous-branch dict''s keys that overlap conceptually with the success-branch dict
+    (`status`, `alternatives`, `router_confidence`) use identical key names, so a future rename on one
+    side fails CI on the other instead of silently diverging. Either change keeps the plan''s stated "not
+    a competing canonical type" claim honest by giving it a structural backstop, not just a prose assertion.
+
+    '
+- id: PLAN-ARCH-002
+  lens: reflexivity
+  severity: 3
+  title: 'Plan silently drops spec.md''s explicitly "accepted" mid-mission routing-consistency risk from
+    Clarifications #5'
+  evidence:
+  - artifact: 'spec.md § "Clarifications / Decision Records", item 5 (lines 292-300): "In-mission auto-routed
+      (no --profile) dispatch calls are exposed to a routing-consistency risk when WP3 lands mid-mission,
+      and this is accepted."'
+  - artifact: plan.md — no occurrence of "mid-mission", "routing-consistency", or equivalent language
+      anywhere in the document (grep over the full file returns nothing); the closest plan.md gets is
+      the WP3 sequencing rationale in the Summary (lines 20-25) and Dependency Graph (lines 550-557),
+      both scoped to WP-ordering-within-this-mission, not to the accepted in-flight-consumer risk spec.md
+      records
+  claim: 'spec.md''s operator-settled Clarifications are meant to be carried forward as binding context
+    for implementers and reviewers, not re-derived from spec.md alone. Decision #5 is a deliberate, named
+    risk acceptance ("this is accepted") specific to WP3''s mid-flight landing behavior — exactly the
+    kind of settled decision a plan should restate at the point it becomes operationally relevant (the
+    WP3 section, or the Dependency Graph / sequencing discussion). The plan''s WP3 sequencing sections
+    discuss ordering and write-scope overlap with WP2 in detail but never mention this accepted risk,
+    so a reader of plan.md alone (the artifact this review squad and future implementers are pointed at)
+    would not learn that in-flight auto-routed dispatch calls elsewhere may resolve inconsistently once
+    WP3 merges, or that this was already adjudicated rather than an open question to raise during implementation.
+
+    '
+  remediation: 'Add one sentence to the WP3 section (plan.md ~line 360-393) or the Dependency Graph discussion
+    (~line 550-558) restating spec.md Clarifications #5 verbatim or by direct cross-reference, so the
+    accepted risk is visible without requiring a reader to cross-check spec.md''s Clarifications section
+    independently.
+
+    '
+- id: PLAN-ARCH-003
+  lens: blast radius
+  severity: 3
+  title: Plan never addresses downstream/external consumers of a spec-kitty release carrying WP3's rerank
+  evidence:
+  - artifact: plan.md — no occurrence of "team-kitty", "muster-missions", "downstream", or any discussion
+      of other repositories/consumers anywhere in the document
+  - artifact: 'CLAUDE.md § "Skill Routing" (bottom of file): every spec-kitty-managed project''s own CLAUDE.md
+      instructs agents to run `spec-kitty dispatch "<request verbatim>"` for ad-hoc requests without `--profile`
+      — i.e. auto-routed, no-hint dispatch calls are the DEFAULT pattern any spec-kitty consumer (including
+      team-kitty-missions, muster-missions, and any other project bootstrapped with this CLI) relies on'
+  claim: 'WP3 (FR-006/FR-007) changes what `dispatch` (no `--profile`) auto-selects or rejects for requests
+    that previously auto-selected a lone/weak domain-keyword candidate or let routing_priority decide
+    across tiers. Every downstream project that has run `spec-kitty init` / `spec-kitty upgrade` and picks
+    up the release containing this mission''s changes will see some previously-succeeding auto-routed
+    dispatch calls start raising ROUTER_AMBIGUOUS (exit 1) instead of silently opening an Op under a possibly-wrong
+    profile — a behavior change to the CLI''s most commonly invoked ad-hoc entry point (per CLAUDE.md''s
+    own "Lightweight dispatch" convention, used unconditionally for any "hey spec kitty, ..." request).
+    This is a real, externally-visible behavior change with a plausibly large blast radius (every spec-kitty
+    consumer repo, not just this one), yet the plan''s PR-shape / gate-set / campsite sections never mention
+    a CHANGELOG entry, a release note, or any acknowledgment that this ships as a breaking behavioral
+    change for automation that assumed today''s auto-select-on-lone-keyword behavior.
+
+    '
+  remediation: 'Add a short subsection (or extend "Silent-success framing") naming this as an intentional,
+    user-visible behavior change on the auto-route path, and require a CHANGELOG.md entry (per AGENTS.md''s
+    own versioning/CHANGELOG convention) calling out that some previously-successful no-`--profile` dispatch
+    calls will now exit 1 with ROUTER_AMBIGUOUS instead of auto-selecting — so downstream consumers upgrading
+    their spec-kitty CLI pin are not surprised.
+
+    '
+- id: PLAN-GOV-001
+  lens: Directive
+  severity: 2
+  title: Plan's core architectural justification miscounts invoke()'s length by ~2.5x
+  evidence:
+  - artifact: plan.md § Summary (line 33), also restated in tracer-approach.md § Planning-phase entry
+  - code: src/specify_cli/invocation/executor.py:284-430
+  claim: 'The plan''s rationale for choosing a sibling `dry_run()` method over a boolean flag threaded
+    through `invoke()` states invoke() is "a single 57-line method already at meaningful branching complexity."
+    Measured directly against the checkout, `invoke()` spans lines 284-430 of executor.py — 147 total
+    lines, 103 lines excluding blank/ comment-only lines. The 57-line figure understates the method''s
+    actual size and complexity by roughly 2.5-2.8x. This is a claim about existing code stated as fact
+    (not "approximately" or "roughly") and is repeated verbatim in tracer-approach.md, so the inaccuracy
+    propagates into a second artifact.
+
+    '
+  remediation: 'Correct the line count in plan.md''s Summary section and tracer-approach.md to the actual
+    measured length (~103-147 lines depending on counting convention), or drop the specific number and
+    describe the method qualitatively ("a long, branchy method"). Note this does not change the plan''s
+    conclusion — the sibling-method choice is, if anything, better justified once the real complexity
+    is stated correctly — but an implementer or future reader citing the wrong number as grounds for a
+    similar decision elsewhere would be citing bad evidence.
+
+    '
+- id: PLAN-ARCH-004
+  lens: migrations
+  severity: 2
+  title: Plan doesn't explicitly confirm that `alternatives` stays out of the persisted `OpStartedEvent`/`kitty-ops/*.jsonl`
+    schema
+  evidence:
+  - artifact: plan.md — no mention of `OpStartedEvent`, `record.py`, or the persisted kitty-ops schema
+      anywhere; the Seam table (lines 97-106) and Blast Radius equivalent list every touched file but
+      never states this reasoning
+  - code: src/specify_cli/invocation/record.py:45-69 (OpStartedEvent, a frozen pydantic BaseModel with
+      an explicit, closed field list — no alternatives field, and not in this mission's touched-file list)
+  - code: 'src/specify_cli/invocation/executor.py:386-405 (the OpStartedEvent(...) construction inside
+      invoke()''s write half, which WP2 does not touch — confirmed by inspection: the plan''s own Seam
+      table says invoke()''s body is "unchanged except adding alternatives=result.alternatives ... to
+      its final InvocationPayload(...) construction")'
+  claim: 'Verified correct in the actual codebase: `alternatives` is added only to `RouterDecision` and
+    `InvocationPayload` (both ephemeral, non-persisted types), and `OpStartedEvent` — the type actually
+    serialized to `kitty-ops/*.jsonl` — is untouched and has no `alternatives` slot, so there is no schema/migration
+    concern here. However, the plan never states this reasoning explicitly anywhere, despite this being
+    exactly the kind of "new field on a response payload" change that could plausibly leak into a durable
+    schema if an implementer added `alternatives=result.alternatives` to the nearby `OpStartedEvent(...)`
+    construction by analogy with the `InvocationPayload(...)` change three lines away. The omission is
+    a documentation-completeness gap, not a functional defect (record.py is correctly excluded from every
+    touched-file list in the plan), so this is low-risk but a one-sentence confirmation would close the
+    loop for a future reader who asks the same "does this leak into a durable record?" question this mission''s
+    own Silent-success framing section poses for every other new field.
+
+    '
+  remediation: 'Add one sentence to the "Contracts" section (or the `alternatives` bullet in "Silent-success
+    framing", plan.md ~line 446) stating explicitly that `OpStartedEvent`/`kitty-ops/*.jsonl` is untouched
+    and `alternatives` is not added to the persisted Op-record schema — closing the "could this leak into
+    a durable schema" question the mission-derived review lens raised, rather than leaving it to be re-derived
+    by inspection.
+
+    '
+- id: PLAN-GOV-003
+  lens: Directive
+  severity: 1
+  title: Internal line-number inconsistency for the empty_charter.py RouterDecision call site
+  evidence:
+  - artifact: plan.md § Seam table (line 103, cites 'L120'); plan.md § '4 call sites' (line 122, cites
+      'L123')
+  - artifact: 'duplicate finding, same claim: PLAN-ARCH-005, PLAN-VERIFY-002 (deduped here per R2 mechanical
+      merge — union of evidence, id of first-encountered kept)'
+  - code: src/specify_cli/invocation/empty_charter.py:123
+  claim: 'The plan cites two different line numbers for the same `RouterDecision(...)` construction inside
+    `resolve_generic_fallback()` — "L120" in the Seam table and "L123" in the "4 call sites" section.
+    The actual construction (`return RouterDecision(`) is at line 123, so the "4 call sites" citation
+    is correct and the Seam table''s "L120" is off by 3 lines. No functional impact — an implementer will
+    find the right site either way — but it is a small self-inconsistency in a plan that otherwise cites
+    line numbers as precise, verified facts. Reported independently by all three R1 lens groups (gov,
+    arch, verify), confirming it is a genuine, easily-verified inconsistency rather than a lens-specific
+    misreading.
+
+    '
+  remediation: Update the Seam table's 'L120' to 'L123' to match the '4 call sites' section and both other
+    lens groups' independent confirmation.

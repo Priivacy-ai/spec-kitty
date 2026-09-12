@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      WP07-contract-version-bump.md's own frontmatter owned_files now lists both
+      envelope.py and tests/specify_cli/orchestrator_api/test_contract_version.py,
+      tasks.md's WP07 "Owned Files" line and lanes.json's lane-b.write_scope were
+      both updated to match (verified against wps.yaml which already had both),
+      and the T033 body text now correctly cites this WP's own frontmatter as the
+      field the commit-guard reads, confirmed independently against
+      commit_guard.py's docstring and context.py's resolve_active_wp_for_branch,
+      which reads owned_files via read_authored_wp_frontmatter(wp_path) and never
+      consults wps.yaml.

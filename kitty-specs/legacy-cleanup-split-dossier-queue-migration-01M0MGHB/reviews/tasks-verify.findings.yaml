@@ -1,0 +1,100 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: TASKS-VERIFY-001
+    lens: per-AC test strategy concrete / red-first fidelity (FR-001 spot-check)
+    severity: 4
+    title: "WP04 T020 offers an escape hatch that lets FR-001's binding isinstance/identity requirement be satisfied by a shape-only jsonschema check — reopening the exact vacuous-test trap the mission explicitly closed for FR-004"
+    evidence:
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-001 row (line 977)"
+      - artifact: "plan.md § \"Why the local mirror survived the existing boundary gate\" (~line 330-338)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020 (lines ~207-233)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Test Strategy (lines 287-296) and Review Guidance (lines 309-318)"
+      - code: "tests/dossier/test_events.py:381-392 (TestWirePayloadModelsRejectExtras / test_extras_rejected — the parity/shape assertion T020 points to as an acceptable substitute)"
+    claim: >
+      plan.md's FR-001 Red-First row requires "isinstance checks ... asserting the
+      emitted payload's runtime type is the spec_kitty_events-owned class," with the
+      explicit fails-when-reverted reasoning: "Reverting FR-001 restores the local
+      mirror classes; the imported-from-spec_kitty_events identity check fails
+      because the payload would be an instance of the local mirror class, not the
+      canonical one." plan.md's own "Why the local mirror survived" analysis
+      establishes that the local mirror classes duplicate the canonical shape by
+      field name — i.e. a shape/schema check (jsonschema.validate) cannot
+      distinguish "canonical class" from "local mirror class," because both satisfy
+      the same schema. WP04's T020 (lines ~217-233) explicitly permits satisfying
+      this AC by falling back to "assert instead via jsonschema.validate against the
+      canonical schema" when a pre-serialization object isn't readily available, and
+      even licenses skipping any new assertion entirely: "a minimal addition (or
+      none beyond a clarifying comment) is acceptable" if the implementer judges the
+      file's existing schema-based assertions "already constitute sufficient proof."
+      T020's own step 2 rationalizes this by noting "since the local mirror class no
+      longer exists after WP01, this proof is really 'does this still
+      construct/validate against the canonical schema'" — but that conflates
+      "nothing left in the current tree to compare against" with "therefore a shape
+      check suffices," which misses the actual ATDD purpose: the test must fail if
+      FR-001 is later reverted, and per plan.md's own reasoning a shape check would
+      NOT go red on that revert. This is corroborated structurally: every other
+      binding-test subtask in this mission (T006/WP01, T011+T012/WP02 via the WP02
+      Test Strategy line "Confirm T011's and T012's tests both go red against a
+      temporary local revert...", T016/WP03) requires an explicit
+      revert-and-confirm-red step before the subtask is done — T020 has no such
+      step, and WP04's own Test Strategy/Review Guidance sections (lines 287-296,
+      309-318) never mention T020, SC-001, or its isinstance claim at all, unlike
+      T019's dedicated byte-diff verification. The specific, non-negotiable test
+      shape plan.md prescribed for FR-001 is not made checkable or binding in the
+      owning WP — it is left as an implementer's judgment call with an explicit
+      "skip is fine" clause.
+    remediation: >
+      Rewrite WP04 T020 to state the isinstance/identity requirement as binding, not
+      optional: require capturing the pre-serialization payload object (adding the
+      small capture seam T020 already contemplates, e.g. exposing the constructed
+      object via the existing captured_emissions fixture or a new one) and asserting
+      isinstance(payload, <canonical_class>) directly on at least one emitted payload
+      per emitter under test — remove the "a minimal addition (or none beyond a
+      clarifying comment) is acceptable" escape hatch. Add a mandatory
+      revert-and-confirm-red step matching T006/T011/T012/T016's pattern: temporarily
+      re-introduce (or stub) a mirror-shaped class in place of the canonical import
+      and confirm the new isinstance assertion goes red, while the existing
+      jsonschema-based assertions do not (proving the isinstance check is the only
+      one of the two that is load-bearing for FR-001). Add "confirm SC-001's
+      isinstance claim is proven directly, not only via schema validation" to WP04's
+      Review Guidance section, alongside the existing T019 check.
+  - id: TASKS-VERIFY-002
+    lens: red-first / ATDD test mapping fidelity (FR-001 spot-check, SC-003 named test)
+    severity: 3
+    title: "WP04 never names or tracks tests/dossier/test_events.py::TestWirePayloadModelsRejectExtras::test_extras_rejected, a test both plan.md's FR-001 row and spec.md's SC-003 explicitly require to keep passing post-import-re-point"
+    evidence:
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-001 row (line 977): \"tests/dossier/test_events.py::TestWirePayloadModelsRejectExtras::test_extras_rejected (post-FR-009 import re-point) + isinstance checks...\""
+      - artifact: "spec.md § Success Criteria, SC-003 (line ~452-456): \"tests/dossier/test_events.py ... all pass unmodified in behaviour ... including test_preserves_legacy_positional_order and test_extras_rejected.\""
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md — no occurrence of 'test_extras_rejected' or 'TestWirePayloadModelsRejectExtras' anywhere in the file (grep confirmed)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T019 (lines 176-206) — the parallel, dedicated verification subtask given to the sibling named test test_preserves_legacy_positional_order, with a byte-diff requirement and Review Guidance line 'Confirm test_preserves_legacy_positional_order has zero body diff'"
+      - code: "tests/dossier/test_events.py:381-392 (TestWirePayloadModelsRejectExtras::test_extras_rejected — parametrized over the 4 MissionDossier*Payload classes whose import source T018 changes)"
+    claim: >
+      plan.md's own binding Red-First/ATDD table names test_extras_rejected as part
+      of FR-001's proof, and spec.md's SC-003 independently names it as one of only
+      two tests (alongside test_preserves_legacy_positional_order) that must "pass
+      unmodified in behaviour" after WP04's import-source edit. WP01/WP02/WP03 do
+      not touch test_events.py (it is WP04's exclusive owned_files entry), so WP04
+      is the only place this requirement could be carried forward. T019 gives
+      test_preserves_legacy_positional_order a dedicated subtask with an explicit
+      byte-for-byte diff check and its own Review Guidance line. No equivalent
+      treatment exists anywhere in WP04 for test_extras_rejected — it is not named
+      in T018 (the import-swap subtask that changes exactly the 4 payload classes
+      this test is parametrized over), not in T019, not in T020, not in T021, not in
+      Test Strategy, and not in Review Guidance. An implementer following this WP
+      prompt literally has no explicit instruction to verify this specific named
+      test continues to pass, even though it is the one existing test most directly
+      coupled to T018's import-source change (it constructs each of the 4 payload
+      classes directly and asserts pydantic ValidationError on an extra field).
+    remediation: >
+      Add an explicit check to WP04 T018 (or a new T018a) requiring the implementer
+      to run
+      `PWHEADLESS=1 .venv/bin/python -m pytest tests/dossier/test_events.py::TestWirePayloadModelsRejectExtras::test_extras_rejected -v`
+      after the import swap and confirm it still passes with the canonical
+      (spec_kitty_events-owned) classes' model_config, mirroring T019's treatment.
+      Add a corresponding line to WP04's Review Guidance: "Confirm
+      test_extras_rejected passes against the canonical spec_kitty_events classes,
+      per SC-003 / plan.md's FR-001 row."

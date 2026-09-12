@@ -1,8 +1,8 @@
 """CLI test: `spec-kitty doctor doctrine` wires the FR-013 cross-grain scan (#2666).
 
-``charter.action_grain.scan_builtin_cross_grain_duplicates`` (WP02/WP04) already
+``charter.activation.action_grain.scan_builtin_cross_grain_duplicates`` (WP02/WP04) already
 enumerates every shipped mission type and raises
-``charter.mission_type_profiles.CrossGrainDoubleDeclarationError`` the moment one
+``charter.activation.mission_type_profiles.CrossGrainDoubleDeclarationError`` the moment one
 artifact URN is declared in both a mission type's *type grain*
 (``governance-profile.yaml``) and its *action grain* (``actions/*/index.yaml``).
 Before this WP that scan had **no ``src`` caller** — it was only exercised by
@@ -19,10 +19,10 @@ mirrors the ``TestNonVacuityTwin`` fixture in
 (``MissionTypeProfileRepository`` -> the type grain / action grain union),
 just driven through the real CLI instead of calling the union function
 directly, and pointed at the scan's root via a monkeypatch of the
-module-level ``charter.mission_type_profile_repository.builtin_missions_root``
+module-level ``charter.activation.mission_type_profile_repository.builtin_missions_root``
 accessor rather than an explicit ``built_in_dir=`` argument (the CLI path
 calls ``scan_builtin_cross_grain_duplicates()`` with no arguments, which
-resolves its root via ``charter.action_grain``'s direct call to
+resolves its root via ``charter.activation.action_grain``'s direct call to
 ``builtin_missions_root()`` — WP06 (#2668) promoted that accessor to a
 public module-level function and demoted
 ``MissionTypeProfileRepository._default_built_in_dir`` to a thin delegate
@@ -117,7 +117,7 @@ def kittify_project(tmp_path: Path) -> Path:
 def _invoke_doctrine_json(project_root: Path, built_in_root: Path) -> tuple[int, dict[str, object]]:
     with (
         patch(
-            "charter.mission_type_profile_repository.builtin_missions_root",
+            "charter.activation.mission_type_profile_repository.builtin_missions_root",
             return_value=built_in_root,
         ),
         patch(
@@ -169,7 +169,7 @@ def test_doctor_doctrine_human_renders_loud_collision_line(
 
     with (
         patch(
-            "charter.mission_type_profile_repository.builtin_missions_root",
+            "charter.activation.mission_type_profile_repository.builtin_missions_root",
             return_value=built_in_root,
         ),
         patch(

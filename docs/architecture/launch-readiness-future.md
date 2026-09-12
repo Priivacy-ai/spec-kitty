@@ -8,13 +8,15 @@ audience: launch coordinators
 ---
 # Launch-Readiness Behavior (Coming Soon)
 
-> **Status: pre-launch.** This page describes the behavior the Spec
-> Kitty CLI will adopt at the public Teamspace launch milestone.
-> **None of this is in effect today.** For today's local-first
-> experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
-> hosted-readiness preview that lets contributors dogfood the hidden
-> mode now, see
-> [Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md).
+> **Status: the default flip has landed (issue #3980, Team Kitty launch
+> defaults).** The opt-out-only `SPEC_KITTY_ENABLE_SAAS_SYNC` and the
+> packaged default `https://team.spec-kitty.ai` described below as "at
+> launch" are now the behavior on `main`. This page is kept as the launch
+> playbook and design record; see
+> [environment variables](../api/environment-variables.md) for the current
+> reference, and
+> [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
+> for the pre-launch opt-in era this replaced.
 
 ## Why this doc exists
 
@@ -51,7 +53,7 @@ the launch flip. They remain internal developer tools — they are not
 user behavior either before or after launch. Internal contributors
 who need to point a session at a dev or staging hosted environment
 continue to use the workflow documented in
-[Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md).
+[Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md).
 
 In other words: **the dev/staging override path is the same forever;
 only the user-facing defaults change at launch.**
@@ -114,10 +116,10 @@ parse stdout.
 Operator overrides:
 
 ```bash
-SPEC_KITTY_UPGRADE_DISABLED=1 spec-kitty status
-SPEC_KITTY_UPGRADE_AUTO=1 spec-kitty status
-SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty status
-SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty status
+SPEC_KITTY_UPGRADE_DISABLED=1 spec-kitty upgrade --cli
+SPEC_KITTY_UPGRADE_AUTO=1 spec-kitty upgrade --cli
+SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty upgrade --cli
+SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty upgrade --cli
 ```
 
 See [Environment Variables Reference](../api/environment-variables.md)
@@ -166,12 +168,12 @@ editorial rule. It is what keeps the launch honest.
 
 ## Related
 
-- [Internal Hosted-Readiness Mode (Pre-Launch)](../development/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness Mode (Pre-Launch)](../operations/internal-hosted-readiness.md)
   — the active dogfooding doc for today.
 - [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
   — the recovery contract that ships at launch unchanged.
 - [Environment variables reference](../api/environment-variables.md)
   — the canonical entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.
-- [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md)
+- [Upgrade the Spec Kitty CLI](../guides/how-to/installation/upgrade-cli.md)
   — backs the `spec-kitty upgrade --cli` remediation snippet.

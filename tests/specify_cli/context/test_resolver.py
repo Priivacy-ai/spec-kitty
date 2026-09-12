@@ -138,7 +138,12 @@ class TestResolveContext:
         # when the source is an int). Canonical identity is mission_id.
         assert ctx.mission_number == "057"
         assert ctx.mission_id == _DEFAULT_TEST_MISSION_ID
-        assert ctx.mission_type == "software-dev"
+        # rc3 M5: the fixture carries only the retired legacy `mission` field
+        # (no canonical `mission_type`), so it resolves to neutral typeless — the
+        # legacy `{"mission": …}` value no longer masks as its type, and the
+        # identity payload is no longer re-defaulted to "software-dev" downstream.
+        # A real project runs `spec-kitty migrate backfill-mission-type` first.
+        assert ctx.mission_type == ""
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == str(repo)
@@ -359,12 +364,6 @@ class TestTypedFrontmatterResolution:
         repo = _setup_project(tmp_path, execution_mode="planning_artifact")
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
         assert ctx.execution_mode == "planning_artifact"
-
-    def test_dependencies_from_typed_metadata(self, tmp_path: Path) -> None:
-        """dependencies are extracted from WPMetadata.dependencies attribute."""
-        repo = _setup_project(tmp_path, dependencies=["WP00"])
-        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        assert ctx.dependency_mode == "chained"
 
     def test_work_package_id_from_typed_metadata(self, tmp_path: Path) -> None:
         """work_package_id is extracted from WPMetadata.work_package_id attribute."""

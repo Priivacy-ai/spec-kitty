@@ -11,7 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 
 import pytest
 
@@ -51,7 +51,7 @@ def test_pkce_state_is_expired_when_past_expiry() -> None:
     verifier, challenge = generate_pkce_pair()
     state = PKCEState.create(verifier, challenge)
     # Force expiry by rewriting expires_at into the past.
-    state.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    state.expires_at = now_utc() - timedelta(seconds=1)
     assert state.is_expired() is True
 
 
@@ -84,7 +84,7 @@ def test_state_manager_validate_not_expired_passes_for_fresh_state() -> None:
 def test_state_manager_validate_not_expired_raises_on_expired() -> None:
     manager = StateManager()
     state = manager.generate()
-    state.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    state.expires_at = now_utc() - timedelta(seconds=1)
 
     with pytest.raises(StateExpiredError) as exc_info:
         manager.validate_not_expired(state)

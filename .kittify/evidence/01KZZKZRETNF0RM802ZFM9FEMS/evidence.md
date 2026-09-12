@@ -1,0 +1,1 @@
+Closed #2702 (record-analysis write-side confirmed closed+guarded; evidence comment posted). #3372 required no action — already closed COMPLETED by mission #3383 (upgrade-wedge cluster) during this session; our mission drops #3372 accordingly.

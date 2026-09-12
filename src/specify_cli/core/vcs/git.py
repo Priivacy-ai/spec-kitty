@@ -16,18 +16,16 @@ layer.
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime, UTC
 from pathlib import Path
 
-from .exceptions import VCSSyncError
+from kernel.clock import from_epoch, now_utc, parse_iso
+
 from .types import (
     ChangeInfo,
     ConflictInfo,
     ConflictType,
     GIT_CAPABILITIES,
     OperationInfo,
-    SyncResult,
-    SyncStatus,
     VCSBackend,
     VCSCapabilities,
     WorkspaceCreateResult,
@@ -354,179 +352,6 @@ class GitVCS:
 
         except (subprocess.TimeoutExpired, OSError):
             return []
-
-    # =========================================================================
-    # Sync Operations
-    # =========================================================================
-
-    def sync_workspace(self, workspace_path: Path) -> SyncResult:
-        """
-        Synchronize workspace with upstream changes.
-
-        For git, this fetches and attempts to rebase. Conflicts will
-        block the operation (unlike jj where conflicts are stored).
-
-        Args:
-            workspace_path: Path to the workspace to sync
-
-        Returns:
-            SyncResult with status, conflicts, and changes integrated
-        """
-        try:
-            # 1. Fetch latest
-            fetch_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "fetch", "--all"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=120,
-            )
-
-            if fetch_result.returncode != 0:
-                return SyncResult(
-                    status=SyncStatus.FAILED,
-                    conflicts=[],
-                    files_updated=0,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message=f"Fetch failed: {fetch_result.stderr.strip()}",
-                )
-
-            # 2. Get the base branch to rebase onto
-            base_branch = self._get_tracking_branch(workspace_path)
-            if not base_branch:
-                # Try to find upstream
-                base_branch = self._get_upstream_branch(workspace_path)
-
-            if not base_branch:
-                return SyncResult(
-                    status=SyncStatus.UP_TO_DATE,
-                    conflicts=[],
-                    files_updated=0,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message="No upstream branch configured",
-                )
-
-            # 3. Check if already up to date
-            merge_base_result = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(workspace_path),
-                    "merge-base",
-                    "HEAD",
-                    base_branch,
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-            )
-
-            head_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "rev-parse", base_branch],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=10,
-            )
-
-            if (
-                merge_base_result.returncode == 0
-                and head_result.returncode == 0
-                and merge_base_result.stdout.strip() == head_result.stdout.strip()
-            ):
-                return SyncResult(
-                    status=SyncStatus.UP_TO_DATE,
-                    conflicts=[],
-                    files_updated=0,
-                    files_added=0,
-                    files_deleted=0,
-                    changes_integrated=[],
-                    message="Already up to date",
-                )
-
-            # 4. Get commits that will be integrated
-            changes_to_integrate = self._get_commits_between(workspace_path, "HEAD", base_branch)
-
-            # 4b. Capture HEAD before rebase for stats calculation
-            pre_rebase_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=10,
-            )
-            pre_rebase_head = pre_rebase_result.stdout.strip() if pre_rebase_result.returncode == 0 else None
-
-            # 5. Try rebase
-            rebase_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "rebase", base_branch],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=300,
-            )
-
-            if rebase_result.returncode != 0:
-                # Check for conflicts
-                conflicts = self.detect_conflicts(workspace_path)
-                if conflicts:
-                    return SyncResult(
-                        status=SyncStatus.CONFLICTS,
-                        conflicts=conflicts,
-                        files_updated=0,
-                        files_added=0,
-                        files_deleted=0,
-                        changes_integrated=changes_to_integrate,
-                        message="Rebase has conflicts that must be resolved",
-                    )
-                else:
-                    # Abort the failed rebase
-                    subprocess.run(
-                        ["git", "-C", str(workspace_path), "rebase", "--abort"],
-                        capture_output=True,
-                        timeout=30,
-                    )
-                    return SyncResult(
-                        status=SyncStatus.FAILED,
-                        conflicts=[],
-                        files_updated=0,
-                        files_added=0,
-                        files_deleted=0,
-                        changes_integrated=[],
-                        message=f"Rebase failed: {rebase_result.stderr.strip()}",
-                    )
-
-            # 6. Count changed files by comparing pre/post rebase commits
-            files_updated, files_added, files_deleted = (0, 0, 0)
-            if pre_rebase_head:
-                files_updated, files_added, files_deleted = self._parse_rebase_stats(
-                    workspace_path, pre_rebase_head, "HEAD"
-                )
-
-            return SyncResult(
-                status=SyncStatus.SYNCED,
-                conflicts=[],
-                files_updated=files_updated,
-                files_added=files_added,
-                files_deleted=files_deleted,
-                changes_integrated=changes_to_integrate,
-                message="Successfully rebased onto upstream",
-            )
-
-        except subprocess.TimeoutExpired:
-            raise VCSSyncError("Sync operation timed out") from None
-        except OSError as e:
-            raise VCSSyncError(f"OS error during sync: {e}") from e
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
         """
@@ -961,101 +786,6 @@ class GitVCS:
         except (subprocess.TimeoutExpired, OSError):
             return None
 
-    def _get_upstream_branch(self, workspace_path: Path) -> str | None:
-        """Try to find the upstream branch (origin/main or origin/master)."""
-        for branch in ["origin/main", "origin/master", "main", "master"]:
-            try:
-                result = subprocess.run(
-                    [
-                        "git",
-                        "-C",
-                        str(workspace_path),
-                        "rev-parse",
-                        "--verify",
-                        branch,
-                    ],
-                    capture_output=True,
-                    timeout=10,
-                )
-                if result.returncode == 0:
-                    return branch
-            except (subprocess.TimeoutExpired, OSError):
-                continue
-        return None
-
-    def _get_commits_between(self, workspace_path: Path, from_ref: str, to_ref: str) -> list[ChangeInfo]:
-        """Get commits between two refs."""
-        return self.get_changes(workspace_path, f"{from_ref}..{to_ref}")
-
-    def _parse_rebase_stats(
-        self,
-        workspace_path: Path,
-        before_commit: str,
-        after_commit: str,
-    ) -> tuple[int, int, int]:
-        """
-        Calculate file statistics from a rebase by diffing before/after commits.
-
-        Git rebase doesn't give detailed stats in machine-readable format during
-        the rebase itself, so we compute the diff between the commit before and
-        after the rebase to determine files updated/added/deleted.
-
-        Args:
-            workspace_path: Path to the workspace
-            before_commit: Commit SHA before rebase
-            after_commit: Commit SHA after rebase (typically HEAD)
-
-        Returns:
-            Tuple of (files_updated, files_added, files_deleted)
-        """
-        try:
-            # Use git diff --name-status to get file changes
-            result = subprocess.run(
-                [
-                    "git",
-                    "-C",
-                    str(workspace_path),
-                    "diff",
-                    "--name-status",
-                    before_commit,
-                    after_commit,
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-            )
-
-            if result.returncode != 0:
-                return (0, 0, 0)
-
-            files_updated = 0
-            files_added = 0
-            files_deleted = 0
-
-            for line in result.stdout.strip().split("\n"):
-                if not line:
-                    continue
-                # Format: "M\tfilename" or "A\tfilename" or "D\tfilename"
-                # Also handles "R100\told\tnew" for renames
-                status = line[0]
-                if status == "M":
-                    files_updated += 1
-                elif status == "A":
-                    files_added += 1
-                elif status == "D":
-                    files_deleted += 1
-                elif status == "R":
-                    # Rename counts as delete + add
-                    files_deleted += 1
-                    files_added += 1
-
-            return (files_updated, files_added, files_deleted)
-
-        except (subprocess.TimeoutExpired, OSError):
-            return (0, 0, 0)
-
     def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
         """Find line ranges with conflict markers."""
         ranges = []
@@ -1096,7 +826,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
+            timestamp = from_epoch(int(parts[3]))
             message = parts[4]
             parents = parts[5].split() if parts[5] else []
             message_full = parts[6] if len(parts) > 6 else message
@@ -1127,7 +857,7 @@ class GitVCS:
             commit_id = parts[0]
             author = parts[1]
             author_email = parts[2]
-            timestamp = datetime.fromtimestamp(int(parts[3]), tz=UTC)
+            timestamp = from_epoch(int(parts[3]))
             message = parts[4]
             parents = parts[5].split() if len(parts) > 5 and parts[5] else []
 
@@ -1202,9 +932,9 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
 
                 # Parse timestamp
                 try:
-                    timestamp = datetime.fromisoformat(timestamp_str.replace(" ", "T").replace(" ", ""))
+                    timestamp = parse_iso(timestamp_str.replace(" ", "T").replace(" ", ""))
                 except ValueError:
-                    timestamp = datetime.now(UTC)
+                    timestamp = now_utc()
 
                 operations.append(
                     OperationInfo(
@@ -1352,9 +1082,7 @@ def git_diff_names(
         Tuple of stripped, non-empty repo-relative paths; empty tuple on
         non-zero exit.
     """
-    result = git_diff_names_checked(
-        repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout
-    )
+    result = git_diff_names_checked(repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout)
     return () if result is None else result
 
 
@@ -1400,6 +1128,50 @@ def git_diff_names_checked(
 
     result = subprocess.run(
         cmd,
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        return None
+    return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def git_ls_tree_names_checked(
+    repo: Path,
+    rev: str,
+    path: str,
+    *,
+    timeout: float | None = None,
+) -> tuple[str, ...] | None:
+    """Fail-distinguishing ``git ls-tree -r --name-only <rev> <path>``.
+
+    Lists every blob recorded at *rev* under *path*, recursively (a
+    directory path with a trailing ``/`` lists all files below it; a file
+    path names the entry itself). The failure mode is *distinguishable*:
+    returns ``None`` when ``git ls-tree`` exits non-zero (unknown *rev*,
+    not a repository), versus an empty tuple when *rev* simply records
+    nothing at *path*. Use it from fail-closed callers that must not read an
+    unreadable base tree as "nothing there".
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        rev: Tree-ish to inspect (commit-ish or tree SHA).
+        path: Repo-relative path to list. Passed verbatim; callers own the
+            safety of the segments they compose into it.
+        timeout: Optional subprocess timeout (seconds); ``TimeoutExpired``
+            propagates (not swallowed).
+
+    Returns:
+        Tuple of stripped, non-empty repo-relative entry names on success
+        (possibly empty); ``None`` on non-zero exit.
+    """
+    result = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", rev, path],
         cwd=str(repo),
         capture_output=True,
         text=True,

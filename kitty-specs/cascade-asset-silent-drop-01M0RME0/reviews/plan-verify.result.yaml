@@ -1,0 +1,56 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: cascade-asset-silent-drop-01M0RME0
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    notes: >
+      Checked plan.md §8 (lines 508-536) against the live source lines cited in the finding
+      (activate.py:297, activate.py:395, deactivate.py:153). §8's second bullet now states
+      each of the three render functions "carr[ies] exactly one pre-existing lint suppression:
+      a `# noqa: PLC0415` on a deferred `from charter._drg_helpers import load_validated_graph`
+      local import," names the repo-wide lazy-import convention, and explains why it is
+      non-domain-matched debt (nowhere near the kind-filtered-node reporting change). This
+      replaces the prior false "no suppressed warnings" claim with the accurate one. The
+      "Decision: no campsite-clean commit" line (530-535) still stands and is explicitly
+      re-grounded on "the corrected, accurate record above" rather than silently reversed into
+      an unnecessary campsite commit, and rather than left unaddressed. This is a substantive
+      correction of the factual claim, not a cosmetic reword — the record §8 makes is now true
+      and the governance decision it supports is preserved with its rationale intact.
+
+  - id: PLAN-ARCH-001
+    status: resolved
+    notes: >
+      Re-derived the crash scenario against current text. Before this mission,
+      `_referenced_artifacts` returns a flat `list[ReferencedArtifact]` and all three consumers
+      do `for ref in _referenced_artifacts(...): ...ref.kind...`. If WP-A changed the return
+      type to a 2-tuple `(activatable, kind_filtered)` but left `referenced_but_not_cascaded`
+      and `deactivation_plan`'s call sites unmigrated, iterating the tuple directly would yield
+      the two list objects themselves (not ReferencedArtifact instances), so `ref.kind` would
+      raise AttributeError immediately — this is the crash the finding identified.
+      Plan.md §12's WP-A bullet (lines 626-652) now explicitly closes this: "this WP adjusts
+      ALL THREE call sites' unpacking in the same commit: cascade_activation_targets,
+      referenced_but_not_cascaded, and deactivation_plan each change to `activatable,
+      kind_filtered = _referenced_artifacts(...)` and continue iterating `activatable` exactly
+      as before — a mechanical, behavior-preserving change for the latter two, which do NOT
+      populate their new dataclass field yet." Under this text, all three call sites correctly
+      unpack the tuple and continue iterating `activatable` (still a list of ReferencedArtifact),
+      so `ref.kind` keeps working — the AttributeError cannot occur, and only the *field
+      population* (not the unpacking) is deferred to WP-C/WP-D, which is a benign, additive,
+      default-valued field change, not a call-shape break.
+      Checked §2 and §12 together for internal consistency: §2 (lines 216-234) describes the
+      END-STATE architecture — all three call sites unpack both partitions and each folds
+      kind_filtered into its own dataclass field — while §12's "Sequencing rationale"
+      (601-621) and WP-A bullet describe the WP-level PHASING to reach that end state: the
+      shared function SIGNATURE is migrated atomically, in full, at all three call sites in
+      WP-A ("it is never left partially applied"), while only the per-consumer field
+      POPULATION is legitimately staggered across WP-A/C/D, since each dataclass's field is
+      independently owned and additive. These are not contradictory; §12 explicitly frames why
+      the phased population is safe precisely because the shared part (the signature) is not
+      phased. The old, incorrect "no shared mutable state or partially-applied migration" claim
+      is gone from the current text (grep for "shared mutable state" found no matches); it is
+      not merely deleted and left silent either — it is replaced by the corrected, load-bearing
+      distinction above (shared signature migrated atomically vs. independent field values
+      phased), which directly explains why the crash the finding identified cannot occur under
+      the current plan. This is a real architectural correction, not a reworded restatement.

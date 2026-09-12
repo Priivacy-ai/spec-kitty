@@ -152,7 +152,7 @@ class UnifiedBundleMigration(BaseMigration):
         # Lazy imports keep registry-discovery fast (C-001 / C-008).
         from charter.bundle import CANONICAL_MANIFEST
         from charter.resolution import resolve_canonical_repo_root
-        from charter.sync import ensure_charter_bundle_fresh
+        from charter.activation.sync import ensure_charter_bundle_fresh
 
         canonical_root = resolve_canonical_repo_root(project_path)
         charter_dir = canonical_root / ".kittify" / "charter"

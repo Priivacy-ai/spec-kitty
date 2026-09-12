@@ -1,0 +1,70 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Verified all cited lines in the current checkout — drg.py:376 calls resolve_artifact_urn
+      with org_roots=org_roots and no layer_roots kwarg, activate.py's _source_urn (lines 87-116,
+      called at line 466 with layer_roots from resolve_layer_roots at line 433) calls
+      resolve_artifact_urn with layer_roots only and no org_roots, kind_vocabulary.py:219-228
+      is indeed a third distinct <root>/doctrine/<plural>/org shape, and pack_manager.py:238-253's
+      _resolve_org_layer_dir docstring matches the FR-013 quote verbatim — the three-mechanism
+      claim holds against live code.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      kind_vocabulary.py:158-160's _scan_roots docstring reads almost verbatim as quoted
+      ("org_roots preserves the legacy package-shaped root contract where each root contributes
+      <root>/<plural>/built-in -- this nested layout is still live for org packs"), and this
+      sentence will indeed become inaccurate once FR-001 adds the flat-layout entry to org_roots's
+      contribution, in the same function The Seam cites as unchanged.
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: >
+      Read plan.md's Nothing Generated and No Contract Movement sections directly — both restate,
+      in different words, The Seam's "no CLI/schema/kernel/contract surface touched" conclusion
+      (No Contract Movement even cross-references "The Seam" explicitly); the redundancy claim is
+      accurate even though each sentence is individually true, matching the low severity assigned.
+  - id: PLAN-GOV-004
+    verdict: confirmed
+    reason: >
+      SPEC-KITTY-LEDGER.md does contain SK-09 and SK-11, tracer-tooling-friction.md's own
+      "Commit blocked" entry for this mission cites both by number, and plan.md's Tracer Files
+      section (verified) makes no reference back to either — the cross-link gap is real, exactly
+      as described.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      compiler.py:112-149 (_resolve_config_activated_ids) calls resolve_artifact_urn at line 146
+      with org_roots=org_roots inside a bare set-comprehension with no try/except, and its
+      docstring literally states the stem "raises UnknownArtifactIdError ... rather than being
+      silently dropped"; line 187 threads real org_roots from pack_context.pack_roots[1:] into
+      every activated-kind call; consistency_check.py:744 and :815 both pass real org_roots into
+      resolve_artifact_urn inside narrow except UnknownArtifactIdError blocks that report rather
+      than swallow; and no broader except (Exception/ValueError/UnknownArtifactIdError) exists
+      anywhere between _resolve_config_activated_roots and the charter-synthesize CLI entry point,
+      so the "crashes today" claim is accurate — this is a real, currently-uncovered consumer the
+      plan's Seam/Contract-Movement framing omits.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      ci-quality.yml:673-675 shows the commitlint step with continue-on-error: true; the
+      "[ENFORCED] Fail job if security checks failed" step at :976-985 checks only
+      steps.bandit.outcome and steps.pip_audit.outcome, never commitlint; and lint-feedback
+      (:987-990) consumes commitlint_has_failures only for a PR comment — commitlint is
+      advisory-only exactly as claimed, and plan.md's Gate Set row omits that caveat while the
+      ruff/mypy rows two lines below state it.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      spec.md's FR-002 row and Acceptance Scenario 1 explicitly constrain the test to the full
+      activate()->filter_graph_by_activation() round trip, "not a direct resolve_artifact_urn()
+      call"; drg.py:371-380's _resolve_activated_urns_for_kind wraps resolve_artifact_urn in
+      try/except UnknownArtifactIdError: continue, swallowing the exception before it can reach a
+      round-trip caller; and pack_manager.activate() (line ~597) validates via
+      self.list_available(...), a separate flat-preferred _resolve_org_layer_dir path that already
+      succeeds pre-fix — so the plan's "either/or" red-failure-mode hedge in step 2 offers a branch
+      that cannot occur for FR-002's own specified test shape.

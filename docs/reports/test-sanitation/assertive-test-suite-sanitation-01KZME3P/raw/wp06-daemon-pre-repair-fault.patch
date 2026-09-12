@@ -1,0 +1,17 @@
+diff --git a/tests/sync/test_daemon_self_retirement.py b/tests/sync/test_daemon_self_retirement.py
+index 9e6d0eba4..257cfcb85 100644
+--- a/tests/sync/test_daemon_self_retirement.py
++++ b/tests/sync/test_daemon_self_retirement.py
+@@ -349,6 +349,12 @@ class TestRunSyncDaemonWiring:
+     def test_sigterm_exits_without_deadlocking_server_shutdown(self, tmp_path: Path) -> None:
+         """SIGTERM must stop the daemon instead of deadlocking serve_forever()."""
+         port = _unused_local_port()
++        # Controlled replay of the pre-repair TOCTOU: another owner claims the
++        # released port before the daemon subprocess can bind it.
++        replay_claimant = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        replay_claimant.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
++        replay_claimant.bind(("127.0.0.1", port))
++        replay_claimant.listen()
+         env = os.environ.copy()
+         env["HOME"] = str(tmp_path)
+         env["LOCALAPPDATA"] = str(tmp_path / "AppData")

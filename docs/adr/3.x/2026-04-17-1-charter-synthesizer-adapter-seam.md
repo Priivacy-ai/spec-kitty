@@ -1,5 +1,6 @@
 ---
 title: Charter Synthesizer — Adapter Seam and Provenance Identity
+description: 'Defines the synthesizer adapter as a runtime-checkable protocol with optional batch generation, isolating non-deterministic prose behind a deterministic pipeline.'
 status: Accepted
 date: '2026-04-17'
 ---

@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#3036": {
+      "evidence_ref": "NFR-003 gate lands via WP04 (cdcc9144a): positive coverage through resolve_pack_root(); approved+merged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3039": {
+      "evidence_ref": "NFR-002 ratchet in its own file test_built_in_location_authority.py (WP04 cdcc9144a); approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3090": {
+      "evidence_ref": "Relocation completed: residual readers finished (WP07 ae4f52d9f), graph identity preserved; lands via this PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP07"
+    },
+    "#3091": {
+      "evidence_ref": "Out of scope (C-001/C-002): step-contract/template relocation is missions Phase-1b, tracked in #3091. The seam refuses these kinds with the #3091 marker (WP01/WP04).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3092": {
+      "evidence_ref": "Out of scope (C-002): pre-existing unrelated CI red, tracked in #3092. Not touched by this mission's diff.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3101": {
+      "evidence_ref": "Out of scope (C-002): wheel-split, tracked in #3101. NFR-003 positive gate asserts through resolve_pack_root() so it survives the future split.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3102": {
+      "evidence_ref": "Out of scope (C-002): doctrine/charter path-filtered CI, tracked in #3102. Not touched by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3106": {
+      "evidence_ref": "Activation vocab unified onto YAML_KEY_MAP + live glossary-pack drift fixed (WP05 788d99d8e); approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#3116": {
+      "evidence_ref": "context.py re-export shim retired; test imports repointed to leaf modules (WP06 1dc9243fb); approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#3117": {
+      "evidence_ref": "Relocation content from #3117's branch preserved+verified (NFR-001 graph identity, WP01); PR closed unmerged, work rides this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3119": {
+      "evidence_ref": "Built-in location consolidated onto single fail-closed seam; DoctrineService._built_in_dir removed (WP01-04); approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3120": {
+      "evidence_ref": "Provenance strings swept in 18 packs/built-in YAMLs (WP08 91c3e1e19); graph identity fresh before/after (NFR-001); approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP08"
+    }
+  },
+  "schema_version": 1
+}

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 from specify_cli.tool_surface.profiles.augment_renderer import (
     FORMAT_AUGMENT_AGENT,
     AugmentProfileRenderer,

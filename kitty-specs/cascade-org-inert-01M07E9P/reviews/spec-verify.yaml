@@ -1,0 +1,55 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+note: >
+  Anchored verification performed directly by the phase agent (deviation recorded in
+  spec-refute-1.yaml's note) against the CURRENT kitty-specs/cascade-org-inert-01M07E9P/spec.md,
+  re-reading the full file end to end after all fixes landed, checking each confirmed finding's
+  actual remediation target for whether the substance changed (not merely restated).
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >
+      Base-Branch Drift section now cites src/doctrine/drg/org_pack_config.py as the file where
+      resolve_existing_org_roots is verified absent on main, with an explicit note that
+      _drg_helpers.py (the consumer) also changes substantially -- matches the remediation exactly.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      User Story 3 now names list_cmd.py:165 as a third consumer with full evidence, states an
+      explicit scoping decision (back-compat-preserving additive field, list_cmd.py display itself
+      out of scope with a follow-up-issue note), and FR-001 gained AC7 plus a new Acceptance
+      Scenario 4 regression check. This is option (b) from the finding's own remediation menu,
+      chosen and stated explicitly rather than silently defaulted.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: >
+      User Story 4's "Why this priority" no longer claims the plain-text path is unaffected -- it
+      now states the opposite with the full mechanism (context.py:84-85's premature truncation
+      feeding both build_charter_context and build_charter_context_json). FR-002 AC2 now spells
+      out BOTH required changes (stop truncating in context.py AND swap
+      _load_action_doctrine_bundle for _resolve_action_bundle inside build_charter_context_json)
+      and states explicitly that neither alone is sufficient, with a test requirement asserting
+      pack-2 content in BOTH outputs as the correctness proof -- directly addresses the "plausible
+      fix that does nothing" failure mode the finding named.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >
+      FR-002's former AC5 (recommendation) and FR-003's former AC3/AC4 (recommendation, open
+      question) are now in dedicated "Design Notes / Recommendations" subsections under each FR,
+      out of the numbered Acceptance Criteria lists. User Story 5's Acceptance Scenario 4 (the
+      worktree open question, same class of issue though not explicitly named by this finding) was
+      swept into the same treatment as an unnumbered Note, per the fix-the-class instruction.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >
+      FR-003 AC3 (renumbered) now explicitly states the "inherited for free" reasoning, citing
+      ManifestRegistry.load_manifest's existing _resolve_existing_org_roots call, and requires the
+      plan phase to add a two-pack regression test to confirm the inheritance actually holds --
+      matches the remediation.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      SC-004 now carries an explicit "Baseline-red disclosure" paragraph naming issue #3284
+      (verified OPEN), citing CLAUDE.md's baseline-red-gotcha policy, and defining "green post-fix"
+      relative to the branch's base commit rather than an unqualified clean-suite claim.

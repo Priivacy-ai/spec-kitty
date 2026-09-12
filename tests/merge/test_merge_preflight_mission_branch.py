@@ -105,6 +105,8 @@ def _invoke_merge_dry_run(*, json_output: bool) -> None:
         keep_workspace=False,
         allow_sparse_checkout=False,
         yes=False,
+        skip_review_artifact_check=False,
+        note=None,
     )
 
 
@@ -247,6 +249,8 @@ class TestMergeDryRunMissingBranch:
                 keep_workspace=False,
                 allow_sparse_checkout=False,
                 yes=False,
+                skip_review_artifact_check=False,
+                note=None,
             )
 
         output = _compact_output(capsys.readouterr().out)
@@ -314,6 +318,8 @@ class TestMergeDryRunMissingBranch:
                 keep_workspace=False,
                 allow_sparse_checkout=False,
                 yes=False,
+                skip_review_artifact_check=False,
+                note=None,
             )
 
         output = _compact_output(capsys.readouterr().out)
@@ -364,6 +370,8 @@ class TestMergeDryRunMissingBranch:
             keep_workspace=False,
             allow_sparse_checkout=False,
             yes=False,
+            skip_review_artifact_check=False,
+            note=None,
         )
 
         run_merge.assert_called_once()
@@ -427,6 +435,8 @@ class TestMergeDryRunMissingBranch:
             keep_workspace=False,
             allow_sparse_checkout=False,
             yes=False,
+            skip_review_artifact_check=False,
+            note=None,
         )
 
         assert load_state(tmp_path, mission_slug) is None
@@ -477,6 +487,8 @@ class TestMergeDryRunMissingBranch:
             keep_workspace=False,
             allow_sparse_checkout=False,
             yes=False,
+            skip_review_artifact_check=False,
+            note=None,
         )
 
         assert load_state(tmp_path, mission_id) is None
@@ -538,6 +550,8 @@ class TestMergeDryRunMissingBranch:
             keep_workspace=False,
             allow_sparse_checkout=False,
             yes=False,
+            skip_review_artifact_check=False,
+            note=None,
         )
 
         assert load_state(tmp_path, mission_id) is None

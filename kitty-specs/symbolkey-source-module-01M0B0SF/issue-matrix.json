@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#1931": {
+      "evidence_ref": "EPIC (Test suite friction). Not closed by this mission; #3552 is one sub-issue. Follow-up #3562 (same-hash re-adds) filed under it. Epic continues.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2546": {
+      "evidence_ref": "CLOSED precursor to the relocation-hardened SymbolKey design this mission extends; superseded, nothing to fix. Cited in research.md related-work only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2853": {
+      "evidence_ref": "Parent mission (frozen-baseline-toll-reduction), already landed via #3558/PR merged to main. Lineage reference only; nothing to fix here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2913": {
+      "evidence_ref": "Independent open issue (test_no_dead_modules scope); no code overlap with source_module, explicitly out of this mission's scope. Not folded. Follow-up: #2913 remains the standing tracking issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3552": {
+      "evidence_ref": "This mission closes #3552: adds the non-hashing source_module field (WP01), backfills it + retires comment-parsing (WP02). Resolves to terminal at merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#3558": {
+      "evidence_ref": "PR #3558 merged to main (rebase-merge, tip 5662774daa). Lineage reference; the fail-closed helper it shipped is what this mission's source_module field root-causes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3560": {
+      "evidence_ref": "Closed as folded into #3558 (the three fail-closed usability folds). Its Finding-1 collision is a correct NEEDS_MODULE_PATH escalation, out of scope here (Option A).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

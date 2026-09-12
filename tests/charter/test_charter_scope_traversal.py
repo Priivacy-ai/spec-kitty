@@ -28,7 +28,7 @@ class TestCharterScopeEntryRootValidator:
     """_CharterScopeEntry.root must reject absolute paths and ``..`` segments."""
 
     def test_relative_safe_path_is_accepted(self) -> None:
-        from charter.scope import CharterScopeConfig  # noqa: PLC0415
+        from charter.activation.scope import CharterScopeConfig  # noqa: PLC0415
 
         config = CharterScopeConfig.model_validate(
             {"charter_scopes": [{"root": "packages/auth", "name": "auth"}]}
@@ -50,7 +50,7 @@ class TestCharterScopeEntryRootValidator:
         """Absolute paths and ``..`` segments must raise ValidationError at parse time."""
         from pydantic import ValidationError  # noqa: PLC0415
 
-        from charter.scope import CharterScopeConfig  # noqa: PLC0415
+        from charter.activation.scope import CharterScopeConfig  # noqa: PLC0415
 
         with pytest.raises(ValidationError, match="(?i)absolute|\\.\\."):
             CharterScopeConfig.model_validate(
@@ -61,7 +61,7 @@ class TestCharterScopeEntryRootValidator:
         """The original non-empty check must still fire."""
         from pydantic import ValidationError  # noqa: PLC0415
 
-        from charter.scope import CharterScopeConfig  # noqa: PLC0415
+        from charter.activation.scope import CharterScopeConfig  # noqa: PLC0415
 
         with pytest.raises(ValidationError):
             CharterScopeConfig.model_validate({"charter_scopes": [{"root": ""}]})
@@ -78,7 +78,7 @@ class TestCharterScopeResolveDefenceInDepth:
 
     def test_resolve_rejects_root_outside_repo(self, tmp_path: Path) -> None:
         """If a config entry resolves outside repo_root, resolve() must raise."""
-        from charter.scope import CharterScope, CharterScopeConflict  # noqa: PLC0415
+        from charter.activation.scope import CharterScope, CharterScopeConflict  # noqa: PLC0415
 
         repo_root = tmp_path / "myrepo"
         repo_root.mkdir()
@@ -88,7 +88,7 @@ class TestCharterScopeResolveDefenceInDepth:
         # Write a config with a symlinked root that would escape repo_root
         # if not caught by the validator.  We bypass the Pydantic validator
         # directly to test the runtime guard.
-        from charter.scope import CharterScopeConfig  # noqa: PLC0415
+        from charter.activation.scope import CharterScopeConfig  # noqa: PLC0415
 
         # Force-construct a config entry with a safe-looking root that after
         # resolution escapes repo_root via a real symlink on the filesystem.
@@ -107,6 +107,6 @@ class TestCharterScopeResolveDefenceInDepth:
         from unittest.mock import patch  # noqa: PLC0415
 
         with patch(
-            "charter.scope._load_charter_scope_config", return_value=config
+            "charter.activation.scope._load_charter_scope_config", return_value=config
         ), pytest.raises(CharterScopeConflict, match="(?i)outside|traversal"):
             CharterScope.resolve(repo_root, feature_dir)

@@ -1,0 +1,35 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+    "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_enabled_by_default",
+    "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_matching_language_returns_true",
+    "tests/git_ops/test_git_ops_unit.py::test_run_command_captures_stdout",
+    "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_importlib_discovery",
+    "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+  ],
+  "configured_timeout_seconds": 240.0,
+  "cwd": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d",
+  "elapsed_seconds": 46.732,
+  "ended_at": "2026-08-10T11:41:13.628370+00:00",
+  "environment": {
+    "PWHEADLESS": null,
+    "PYTHONHASHSEED": null,
+    "PYTHONPATH": null,
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "exit_code": 0,
+  "schema_version": "wp04-command-receipt/v1",
+  "started_at": "2026-08-10T11:40:26.895307+00:00",
+  "stderr": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout": "......                                                                   [100%]\n6 passed in 44.73s\n",
+  "stdout_sha256": "c3310537c7bfe1257eccbf5cc222ab61e24966c256514e185be0922b39b97709",
+  "timed_out": false
+}

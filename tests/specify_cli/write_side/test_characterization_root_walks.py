@@ -252,8 +252,13 @@ def test_store_slug_resolver_non_kitty_specs_falls_back_to_parent(
 def test_lanes_dir_under_coord_resolves_to_coord_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """T005 / FR-008 oracle: ``resolve_lanes_dir(<coord feature dir>)`` lands on
-    the coord authority (C-LANES-1/#1991) — never the primary checkout.
+    """T005 / FR-008 oracle: ``resolve_lanes_dir`` is pure path composition —
+    given a coord feature dir it returns a path under that coord dir (GIGO).
+
+    It does NOT decide the partition: ``lanes.json`` (LANE_STATE) is a PRIMARY
+    artifact (INV-5 symmetry), and the partition decision lives in the
+    kind-aware placement seam (``implement._resolve_lanes_dir``), not in this
+    join helper. This characterizes the composition only.
     """
     coord = build_coord(tmp_path)
     monkeypatch.chdir(coord.coord_worktree)

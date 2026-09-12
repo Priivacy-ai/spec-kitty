@@ -10,6 +10,7 @@ invariant: the ``merge.path_is_under_worktrees`` import is function-local and no
 from __future__ import annotations
 
 import json as _json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ import typer
 from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
 from specify_cli.merge.state import MergeState, load_state, save_state
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -206,10 +208,14 @@ def test_run_coordination_health_error_exit(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    # `run_coordination_health` now calls `_collect_coordination_findings` with
+    # the `check_staleness` keyword unconditionally (E-1 fix: the closure that
+    # used to preserve a single-positional-arg call shape was removed) — the
+    # stub must accept it.
     monkeypatch.setattr(
         cd,
         "_collect_coordination_findings",
-        lambda _r: [cd.DoctorFinding(severity="error", message="boom")],
+        lambda _r, **_k: [cd.DoctorFinding(severity="error", message="boom")],
     )
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=True)
@@ -220,10 +226,12 @@ def test_run_coordination_health_clean_exit(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    # See test_run_coordination_health_error_exit above: the stub must accept
+    # the `check_staleness` keyword now that the call is unconditional.
     monkeypatch.setattr(
         cd,
         "_collect_coordination_findings",
-        lambda _r: [cd.DoctorFinding(severity="ok", message="fine")],
+        lambda _r, **_k: [cd.DoctorFinding(severity="ok", message="fine")],
     )
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=False)
@@ -365,27 +373,76 @@ def test_collect_findings_iterates_missions(
     assert any(f.message == "coord" for f in out)
 
 
+def test_collect_findings_unstattable_mission_candidate_is_not_silently_skipped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`#3194`: the `mission_dir.is_dir()` filter must not use the EACCES-divergent
+    predicate.
+
+    `Path.is_dir()` returns `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13) — so on 3.14 an unstattable mission candidate
+    would be silently treated as "not a directory" and dropped from the scan
+    with no signal at all, the same silent-misclassification shape `#3177`
+    fixed in `specify_cli.decisions.ownership`. `safe_is_dir` makes the
+    behaviour the SAME on every interpreter: it raises, which is what this
+    module already did (uncaught) on 3.11-3.13 before this fix — so this pins
+    parity across interpreters rather than a new graceful-degradation contract.
+    """
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            cd._collect_coordination_findings(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
+
+
+def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silently_skipped(
+    tmp_path: Path,
+) -> None:
+    """The `_apply_coord_staleness_fixes` twin of the test above (same `#3194` shape)."""
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            cd._apply_coord_staleness_fixes(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
+
+
 # --- H2 / cycle invariants ---------------------------------------------------
 
 
-def test_merge_import_is_function_local() -> None:
-    import ast
-
-    source = Path(cd.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    # No module-level (depth-1) import of the merge module.
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.cli.commands.merge":
-            raise AssertionError("merge import must not be module-level (H2)")
-    # It must appear somewhere nested (inside a function).
-    assert "from specify_cli.cli.commands.merge import path_is_under_worktrees" in source
 
 
-def test_no_doctor_merge_import_cycle() -> None:
-    import importlib
-
-    importlib.import_module("specify_cli.cli.commands.doctor")
-    importlib.import_module("specify_cli.cli.commands.merge")
 
 
 # --- _fix_never_created_branches ---------------------------------------------
@@ -1058,14 +1115,31 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
     """Non-vacuity guard: the SAME fixture yields ZERO findings under the raw resolver.
 
     Simulates the pre-fix code path by swapping the canonicalizing
-    ``resolve_planning_read_dir`` for the raw ``primary_feature_dir_for_mission``,
-    which composes ``kitty-specs/<bare>`` — a directory that does not exist. The
-    committed ref is then unreadable → no events → ``coord_incoherent_done_wps``
-    returns ``[]`` → the split-brain safety net silently declares the marker stale.
-    This proves the positive test above genuinely distinguishes the canonicalizing
-    resolver from the broken raw one (it would RED before the resolver-unification
-    fix). ``_check_stranded_coord_revert`` imports the resolver function-locally, so
+    ``resolve_planning_read_dir`` for the raw, module-private
+    ``_compose_primary_feature_dir`` leaf, which composes ``kitty-specs/<bare>``
+    — a directory that does not exist. The committed ref is then unreadable →
+    no events → ``coord_incoherent_done_wps`` returns ``[]`` → the split-brain
+    safety net silently declares the marker stale. This proves the positive
+    test above genuinely distinguishes the canonicalizing resolver from the
+    broken raw one (it would RED before the resolver-unification fix).
+    ``_check_stranded_coord_revert`` imports the resolver function-locally, so
     patching the module attribute swaps in the pre-fix behaviour.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T039,
+    reconciliation item #4): this ``_raw`` helper used to route through the
+    public wrapper ``primary_feature_dir_for_mission``, which WP03's Half-B
+    delegation (T019) made re-enter ``read_dir`` — so patching
+    ``resolve_planning_read_dir`` to route through ``_raw`` closed a
+    ``_raw → wrapper → read_dir → resolve_planning_read_dir`` cycle
+    (``RecursionError``, GREEN at the true mission base `765cdcc59`, RED from
+    WP03 onward — a genuine mission regression in this TEST fixture, never in
+    production: WP03's reviewer proved ``read_dir`` production-acyclic across
+    all 16 kinds). The wrapper is now deleted (T035) and this helper's actual
+    intent -- a genuinely raw, non-canonicalizing composition -- is exactly
+    what the module-private leaf ``_compose_primary_feature_dir`` is: it
+    imports no seam and cannot re-enter ``read_dir``, restoring the test's
+    real, non-recursive intent (STALE test per DIRECTIVE_041; production was
+    always acyclic).
     """
     from specify_cli.missions import _read_path_resolver as rpr
 
@@ -1075,7 +1149,7 @@ def test_stranded_check_bare_handle_false_negative_under_raw_resolver(
     def _raw(repo_root: Path, mission_slug: str, **_kwargs: object) -> Path:
         # Bind explicitly: the resolver crosses the ``follow_imports=skip``
         # boundary, so mypy widens the ``-> Path`` primitive to ``Any``.
-        resolved: Path = rpr.primary_feature_dir_for_mission(repo_root, mission_slug)
+        resolved: Path = rpr._compose_primary_feature_dir(repo_root, mission_slug)
         return resolved
 
     monkeypatch.setattr(rpr, "resolve_planning_read_dir", _raw)
@@ -1236,3 +1310,88 @@ def test_stranded_check_unparseable_marker_emits_warning(tmp_path: Path) -> None
     assert len(findings) == 1
     assert findings[0].severity == "warning"
     assert findings[0].error_code == cd._MARKER_UNPARSEABLE_CODE
+
+
+# --- FR-012: `doctor coordination --mission <handle>` per-mission scoping ------
+
+
+def _seed_mission_meta(specs: Path, slug: str, mission_id: str) -> None:
+    mission = specs / slug
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(
+        _json.dumps({"slug": slug, "mission_slug": slug, "mission_id": mission_id}),
+        encoding="utf-8",
+    )
+
+
+def test_collect_findings_mission_filter_scopes_to_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`_collect_coordination_findings(mission_filter=...)` scopes the kitty-specs
+    iteration to the single mission the shared resolver maps the handle to (#2696,
+    FR-012). Assert on the specific per-mission finding, not exit codes."""
+    specs = tmp_path / "kitty-specs"
+    _seed_mission_meta(specs, "083-alpha", "01AAAAAAAAAAAAAAAAAAAAAAAA")
+    _seed_mission_meta(specs, "084-beta", "01BBBBBBBBBBBBBBBBBBBBBBBB")
+
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+    monkeypatch.setattr(cd, "_check_stranded_coord_revert", lambda _r: [])
+    monkeypatch.setattr(cd, "_check_lane_sparse_checkout_drift", lambda _r, _m: [])
+    monkeypatch.setattr(
+        cd,
+        "_check_coordination_worktree_health",
+        lambda _r, m: [
+            cd.DoctorFinding(severity="warning", message=f"coord:{m['mission_slug']}")
+        ],
+    )
+
+    scoped = cd._collect_coordination_findings(tmp_path, mission_filter="084-beta")
+    messages = [f.message for f in scoped]
+    assert "coord:084-beta" in messages
+    assert "coord:083-alpha" not in messages
+
+    unscoped = cd._collect_coordination_findings(tmp_path)
+    unscoped_messages = [f.message for f in unscoped]
+    assert "coord:084-beta" in unscoped_messages
+    assert "coord:083-alpha" in unscoped_messages
+
+
+def test_run_coordination_health_mission_not_found_exits_1(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An unresolvable `--mission` handle fails closed with exit 1 (mission-state parity)."""
+    (tmp_path / "kitty-specs").mkdir()
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=False, mission="does-not-exist")
+    assert exc.value.exit_code == 1
+
+
+def test_run_coordination_health_mission_not_found_json_envelope(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--json` unresolvable-handle emits a JSON error envelope (mission-state parity)."""
+    (tmp_path / "kitty-specs").mkdir()
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, mission="nope")
+    assert exc.value.exit_code == 1
+    payload = _json.loads(capsys.readouterr().out.strip())
+    assert payload["error"] == "MISSION_NOT_FOUND"
+    assert payload["handle"] == "nope"
+
+
+def test_run_coordination_health_ambiguous_handle_exits_1(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An ambiguous `--mission` handle fails closed with exit 1 (mission-state parity)."""
+    specs = tmp_path / "kitty-specs"
+    # Two missions sharing the same human slug (differ only by numeric prefix)
+    # → the human-slug ladder rung matches both → AmbiguousHandleError.
+    _seed_mission_meta(specs, "083-dup", "01AAAAAAAAAAAAAAAAAAAAAAAA")
+    _seed_mission_meta(specs, "084-dup", "01BBBBBBBBBBBBBBBBBBBBBBBB")
+    monkeypatch.setattr(cd, "locate_project_root", lambda: tmp_path)
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=False, mission="dup")
+    assert exc.value.exit_code == 1

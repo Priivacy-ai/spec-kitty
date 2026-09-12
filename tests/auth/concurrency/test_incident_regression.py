@@ -26,7 +26,7 @@ import sys
 import textwrap
 import threading
 import time
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from http.server import HTTPServer
 from pathlib import Path
 
@@ -179,7 +179,7 @@ def _seed_disk_session(home_dir: Path) -> StoredSession:
     """Persist an expired starter session under ``home_dir/.spec-kitty/auth``."""
     auth_dir = home_dir / ".spec-kitty" / "auth"
     auth_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -277,7 +277,7 @@ def test_incident_regression_two_subprocess_workers(
         env["SPEC_KITTY_SAAS_URL"] = server_url
         env["BARRIER_DIR"] = str(barrier_dir)
         # Suppress accidental SaaS sync; tests must not touch real SaaS.
-        env.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+        env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
         # Make sure subprocesses can find ``specify_cli`` even when this
         # test runs from a non-editable checkout. Inheriting sys.path
         # via PYTHONPATH is the standard contract.

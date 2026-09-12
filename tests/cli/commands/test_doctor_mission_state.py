@@ -19,6 +19,7 @@ import pytest
 from typer.testing import CliRunner
 
 import specify_cli.cli.commands._mission_state_doctor as mission_state_mod
+import specify_cli.cli.commands.doctor as doctor_mod
 from specify_cli.cli.commands.doctor import app
 
 pytestmark = [pytest.mark.integration]
@@ -280,7 +281,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix --json.
         Assert: exit_code == 0, JSON output is parseable.
         """
-        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_repair_report()
 
         with patch(
@@ -306,7 +307,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix.
         Assert: exit_code == 0, 'repair' or 'updated' in output.
         """
-        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_repair_report()
 
         with patch(
@@ -331,7 +332,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix --json.
         Assert: exit_code == 1, error info in output.
         """
-        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
 
         from specify_cli.migration.mission_state import MissionStateRepairError
 

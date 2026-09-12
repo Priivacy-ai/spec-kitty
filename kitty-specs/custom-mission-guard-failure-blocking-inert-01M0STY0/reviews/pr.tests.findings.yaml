@@ -1,0 +1,56 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: pr-tests-001
+    lens: "Error paths exercised, not just happy paths / would this test catch it"
+    severity: 4
+    title: >-
+      No test in this mission's suite drives gather_artifact_presence() with a
+      schema-invalid manifest, so FR-010's ManifestSchemaError contract is
+      untested on the only path spec-kitty next actually calls -- and a bare
+      pydantic.ValidationError there is empirically confirmed uncaught
+      (independently reproduced; corroborates pr-contract-001, filed by the
+      contract lens against the same defect from the implementation-fidelity
+      angle)
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_io.py:904 (_presence_filenames_for org branch: ExpectedArtifactManifest.model_validate(org_parsed) with no try/except)"
+      - code: "src/runtime/next/runtime_bridge_io.py:909 (built-in branch, same unguarded pattern)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1051 (gather_artifact_presence calls _presence_filenames_for before required_artifacts_for -- the unguarded branch is hit first)"
+      - code: "tests/specify_cli/runtime/test_configured_artifact_name.py:524-593 (TestManifestSchemaErrorPerTier -- calls required_artifacts_for(...) directly, never gather_artifact_presence)"
+      - code: "tests/runtime/next/test_pertype_presence_gate.py (TestGatherArtifactPresenceOrgTier -- exercises gather_artifact_presence's org-tier AC-4/AC-5/AC-6 happy/fallback paths, no schema-invalid-manifest case)"
+    claim: >-
+      Independently reproduced (not merely trusting pr-contract-001's report): calling
+      gather_artifact_presence(feature_dir, mission_family="software-dev",
+      step_id="specify", repo_root=<project with an org-tier expected-artifacts.yaml
+      missing the required mission_type field and carrying an extra-forbidden field>)
+      raises pydantic_core._pydantic_core.ValidationError uncaught -- NOT
+      specify_cli.dossier.manifest.ManifestSchemaError, which is what FR-010
+      (spec.md:455-478) and the WP02 implementation claim to guarantee.
+      This is a pure test-coverage gap: TestManifestSchemaErrorPerTier
+      (test_configured_artifact_name.py) is the ONLY test suite covering the
+      ManifestSchemaError contract, and it calls required_artifacts_for(...)
+      directly -- a function whose own internal model_validate() call IS wrapped
+      correctly. It never calls gather_artifact_presence(...), the function every
+      real call site (CLI pre-check, WP-iteration pre-check, composed-action guard)
+      actually uses, and whose _presence_filenames_for helper performs an
+      independent, unwrapped model_validate() first. Per this lens's "would these
+      tests catch it" standard: no, the suite as written would pass green forever
+      while a malformed org-tier manifest crashes a live `spec-kitty next`
+      invocation with a raw pydantic stack trace instead of the intended
+      descriptive error.
+    remediation: >-
+      Add a test that calls gather_artifact_presence(...) (not
+      required_artifacts_for(...) in isolation) with a schema-invalid manifest at
+      each tier and asserts ManifestSchemaError is raised -- e.g. extend
+      TestGatherArtifactPresenceOrgTier (test_pertype_presence_gate.py) with a
+      schema-invalid-manifest case, or extend
+      TestManifestSchemaErrorPerTier (test_configured_artifact_name.py) with a
+      gather_artifact_presence-driven variant alongside its existing
+      required_artifacts_for-driven one. This test should be red until the
+      _presence_filenames_for fix pr-contract-001 requests lands, then green --
+      making it the regression guard for that fix rather than a second
+      independent gap.

@@ -1,0 +1,32 @@
+{
+  "accept_commit": "46619f6081cbf26274ac004ec75f874eb2b208fd",
+  "acceptance_history": [
+    {
+      "accept_commit": "46619f6081cbf26274ac004ec75f874eb2b208fd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-18T15:18:37.565659+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "0ff6446f0365944b46145f402d88057eb7476bb0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-18T15:18:37.565659+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "0ff6446f0365944b46145f402d88057eb7476bb0",
+  "baseline_merge_commit": "daa0aed4b3cc9bf736a972dc54be3bd5e1c78c50",
+  "created_at": "2026-08-18T12:51:52.172297+00:00",
+  "flattened": true,
+  "friendly_name": "Planning-artifact WPs Own kitty-specs Paths",
+  "mission_id": "01M0AEV7QB3CV8P1XNHF3VJA83",
+  "mission_number": null,
+  "mission_slug": "planning-artifact-kitty-specs-ownership-01M0AEV7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A planning_artifact WP whose deliverable lives under kitty-specs/ (a decision checkpoint, a freeze/measurement, or a bulk-edit occurrence map) currently has no legal ownership declaration: the ownership model blesses kitty-specs/ ownership for planning artifacts, but finalize-tasks rejects it outright. This mission narrows that ban to code_change WPs so planning checkpoints become first-class in the finalized dependency graph, without weakening the fail-closed protection that keeps planning artifacts off worktree lane branches.",
+  "purpose_tldr": "Let planning_artifact work packages declare their kitty-specs/ deliverables so finalize-tasks stops rejecting a legitimate, first-class work-package shape.",
+  "slug": "planning-artifact-kitty-specs-ownership-01M0AEV7",
+  "status_phase": "1",
+  "target_branch": "feat/3222-2643-kitty-specs-ownership",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-18T14:39:19.529601+00:00"
+}

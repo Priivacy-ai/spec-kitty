@@ -70,6 +70,14 @@
       "target_shard": "misc"
     },
     {
+      "dir": "distribution",
+      "cone_roots": [
+        "tests/specify_cli/distribution"
+      ],
+      "target_group": "lifecycle",
+      "target_shard": "specify-cli-heavy"
+    },
+    {
       "dir": "doc_analysis",
       "cone_roots": [],
       "target_group": "closeout",
@@ -109,6 +117,14 @@
       ],
       "target_group": "auth_audit_git",
       "target_shard": "auth-audit-git"
+    },
+    {
+      "dir": "identity",
+      "cone_roots": [
+        "tests/specify_cli/identity"
+      ],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
     },
     {
       "dir": "intake",
@@ -232,6 +248,14 @@
       "target_shard": "specify-cli-rest"
     },
     {
+      "dir": "tasks",
+      "cone_roots": [
+        "tests/tasks"
+      ],
+      "target_group": "closeout",
+      "target_shard": "misc"
+    },
+    {
       "dir": "template",
       "cone_roots": [
         "tests/test_template"
@@ -287,6 +311,7 @@
     "dashboard",
     "decisions",
     "delivery",
+    "distribution",
     "doc_analysis",
     "doctrine",
     "doctrine_synthesizer",
@@ -294,6 +319,7 @@
     "event_journal",
     "events",
     "git",
+    "identity",
     "intake",
     "invocation",
     "lanes",
@@ -320,6 +346,7 @@
     "status",
     "sync",
     "task_utils",
+    "tasks",
     "template",
     "tool_surface",
     "tracker",

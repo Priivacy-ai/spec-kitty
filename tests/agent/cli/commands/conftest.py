@@ -31,21 +31,19 @@ import pytest
 def _stub_teamspace_gate(monkeypatch):
     """Bypass enforce_teamspace_mission_state_ready at every call-site.
 
-    The gate is imported by name into sync.py and tracker.py — each
-    import creates an independent attribute that must be patched
-    separately for monkeypatch to take effect.
+    The gate is imported by name into tracker.py; patch that attribute.
+    (The former sync.py arm of this fixture died with the sync command
+    group, issue #5.)
     """
-    import specify_cli.cli.commands.sync as sync_mod
     import specify_cli.cli.commands.tracker as tracker_mod
 
     stub = lambda **kwargs: None  # noqa: E731 — fixture-local lambda
 
-    for module in (sync_mod, tracker_mod):
-        monkeypatch.setattr(
-            module,
-            "enforce_teamspace_mission_state_ready",
-            stub,
-        )
+    monkeypatch.setattr(
+        tracker_mod,
+        "enforce_teamspace_mission_state_ready",
+        stub,
+    )
 
 
 # Note: the sync-boundary preflight + FR-011 auth-gate stubs that this

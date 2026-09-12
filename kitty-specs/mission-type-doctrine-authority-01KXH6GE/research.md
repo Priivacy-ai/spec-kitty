@@ -5,7 +5,7 @@ squad, an architect design pass, and an adversarial four-lens second-opinion squ
 then ratified in [ADR 2026-07-14-2](../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 There are **no open `[NEEDS CLARIFICATION]` items**. This file records the decisions
 in Decision / Rationale / Alternatives form; the full evidence (with file:line) is in
-the [research dossier](../../docs/architecture/883-research-synthesis.md).
+the [research dossier](../../docs/plans/engineering-notes/883-research-synthesis.md).
 
 ## D1 — Resolution seam
 

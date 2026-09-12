@@ -21,42 +21,42 @@ contract (T019 / FR-009).
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
-    is_coordination_artifact_residue_path,
     resolve_action_context,
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
-from specify_cli.status import COORD_OWNED_STATUS_FILES
+from specify_cli.status import is_dossier_snapshot
 from specify_cli.task_utils.support import split_frontmatter
 
-# vcs-lock fields written by ``mission_metadata.set_vcs_lock`` (the canonical
-# writer). #2222 / C-003: this lock is one-time VCS-TYPE state, NOT the
-# concurrency mutex, so a dependency-free back-to-back claim must not be
-# blocked by the prior claim's own uncommitted lock self-write.
-_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
 _META_JSON_FILENAME = "meta.json"
 _MISSING_META_VALUE = object()
 
 # tasks/WP##[-slug].md filenames (#2570.1) -- e.g. "WP01.md" or the canonical
 # "WP01-allocator-runtime-frontmatter.md" shape ``find_wp_file`` resolves
-# (see its ``wp_name_re``). The runtime-frontmatter exclusion below is scoped
-# to exactly this shape, never a generic "*.md" match.
-_WP_FILENAME_PATTERN = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNORECASE)
+# (see its ``wp_name_re``). The runtime-frontmatter self-write exclusion in
+# :func:`_is_self_write_only_diff` is scoped to exactly this shape, never a
+# generic "*.md" match. WP14 (IC-07d) renamed this from the retired
+# ``_drop_runtime_frontmatter_only_wp``'s module-level ``_WP_FILENAME_PATTERN``
+# and registered it as the justified-survivor row's literal (see
+# ``tests/architectural/tool_artifact_enrolment/registry/_is_self_write_only_diff.md``).
+_WP_SELF_WRITE_FILENAME_RE = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -169,8 +169,33 @@ def _parse_porcelain_entries(raw_stdout: str) -> list[_PorcelainEntry]:
 
 
 def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT) -> list[_PorcelainEntry]:
+    """``git status`` entries under *feature_dir*, minus dossier-snapshot churn.
+
+    FIX-M2-08: drops any entry matching
+    :func:`~specify_cli.status.is_dossier_snapshot` before either consumer
+    (:func:`_structural_entries` / :func:`detect_structural_planning_changes`,
+    and :func:`_status_paths_for_commit` via :func:`resolve_planning_artifact_staging`)
+    sees it. ``contracts/dossier-snapshot-ownership.md`` (D1/D2) ratifies the
+    dossier snapshot as EXCLUDE: "No staging, no committing... The file is
+    just a file" -- a live re-save between the last commit and this claim is
+    expected, not a real dirty-state block. FIX-M2-05 already taught
+    :func:`~specify_cli.coordination.coherence.is_self_bookkeeping_churn` this
+    exemption for ``git/ref_advance.py`` / ``bulk_edit/diff_check.py`` /
+    ``review/dirty_classifier.py`` and taught ``agent tasks move-task``'s own
+    preflight the same glob directly (``tasks_shared.py`` /
+    ``tasks_parsing_validation.py``) -- but this implement-claim planning-
+    artifact precheck was never updated, so a dossier-sync write racing this
+    claim (e.g. one triggered by the immediately-preceding ``finalize-tasks``)
+    tripped ``resolve_planning_artifact_staging``'s "Planning artifacts not
+    committed" fail-closed refusal, dragging already-committed spec.md /
+    plan.md / tasks.md / lanes.json into the same printed refusal (confirmed
+    via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``) --
+    exactly the "invisible to one gate, fatal at another" split FIX-M2-05's
+    own C7 precedent exists to close, just for this one remaining gate.
+    """
     raw = git.status_porcelain(repo_root, feature_dir)
-    return _parse_porcelain_entries(raw)
+    entries = _parse_porcelain_entries(raw)
+    return [e for e in entries if not is_dossier_snapshot(e.path)]
 
 
 def _structural_entries(entries: list[_PorcelainEntry]) -> list[_PorcelainEntry]:
@@ -191,54 +216,67 @@ def detect_structural_planning_changes(repo_root: Path, artifact_source_dir: Pat
     return _structural_entries(_feature_dir_status_entries(repo_root, artifact_source_dir, git=git))
 
 
-def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
-    """Drop the canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) from
-    *paths* on coordination-topology missions only.
+def _drop_if(paths: Iterable[str], predicate: Callable[[str], bool]) -> list[str]:
+    """Keep every path in *paths* for which *predicate* is ``False`` (WP14 / IC-07d).
 
-    On a coordination mission those files are owned by the transactional emitter on
-    the coord branch, and the primary checkout's copies are stale -- committing them
-    would clobber the seeded lane state (#1589). On a non-coordination (flat/legacy)
-    mission there is no coord authority, so the primary checkout's status files ARE
-    canonical and must be committed; excluding them there silently drops a status
-    edit (review M3). Single predicate for both commit-path sources (review F-03).
+    The ONE generic claim-time exclusion filter. Each of the three retired
+    siblings -- ``_drop_vcs_lock_only_meta``, ``_drop_runtime_frontmatter_only_wp``
+    (+ its ``_is_wp_filename``/``_WP_FILENAME_PATTERN`` structural twin), and
+    ``_exclude_coord_owned`` -- applied this exact "keep unless the predicate
+    says drop" shape at the same two call lines in
+    :func:`resolve_planning_artifact_staging`; only the predicate differed. A
+    NEW claim-time exclusion is now "write a predicate", never "write a new
+    loop" (extends C9's anti-ninth intent to non-registry callers too).
     """
-    if coord_branch_for_filter:
-        return [p for p in paths if Path(p).name not in COORD_OWNED_STATUS_FILES]
-    return list(paths)
+    return [p for p in paths if not predicate(p)]
 
 
 def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_filter: str | None) -> list[str]:
-    """The feature-dir paths to commit from ``git status`` entries -- see
-    :func:`_exclude_coord_owned`."""
-    return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
+    """The feature-dir paths to commit from ``git status`` entries.
 
+    Drops the canonical status log/snapshot (``MissionArtifactKind.STATUS_STATE``)
+    on coordination-topology missions only (retired ``_exclude_coord_owned``,
+    WP14 / IC-07d). On a coordination mission those files are owned by the
+    transactional emitter on the coord branch, and the primary checkout's
+    copies are stale -- committing them would clobber the seeded lane state
+    (#1589). On a non-coordination (flat/legacy) mission there is no coord
+    authority, so the primary checkout's status files ARE canonical and must
+    be committed; excluding them there silently drops a status edit
+    (review M3).
 
-def _is_vcs_lock_only_meta_diff(committed: Mapping[str, Any] | None, working: Mapping[str, Any]) -> bool:
-    """Pure decision: is the meta.json change ONLY the one-time vcs-lock fields?
-
-    Returns ``True`` iff every key whose value differs between the *committed*
-    baseline and the *working*-tree meta.json is a member of
-    :data:`_VCS_LOCK_META_FIELDS` (#2222 / C-003). The comparison is on parsed
-    JSON, so it is robust to byte-level reformatting by ``write_meta``.
-
-    An empty diff returns ``False`` (nothing to exclude); any non-lock key in
-    the diff returns ``False`` so a genuinely dirty meta.json still blocks the
-    claim (the required negative guard -- the exclusion is lock-field-only,
-    never a blanket meta.json bypass).
+    Routes fully onto the canonical owner family via
+    :func:`~specify_cli.coordination.coherence.is_status_state_path` (WP13's
+    IC-07c leg) -- narrow ON PURPOSE (STATUS_STATE only, not the broader
+    ``is_coord_residue_churn``/``is_toolchain_generated_churn`` union):
+    *entries* may legitimately carry OTHER planning artifacts
+    (``tasks.md``, ``acceptance-matrix.json``, ...) that must still be
+    committed here -- only the status log/snapshot are authored directly on
+    the coord branch. See :func:`resolve_planning_artifact_staging` for the
+    analogous ``extra_file_paths`` exclusion.
     """
-    base: Mapping[str, Any] = committed or {}
-    changed_keys = {key for key in set(base) | set(working) if base.get(key, _MISSING_META_VALUE) != working.get(key, _MISSING_META_VALUE)}
-    return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
+    paths = [e.path for e in entries]
+    if not coord_branch_for_filter:
+        return paths
+    return _drop_if(paths, is_status_state_path)
 
 
-def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
-    """Parse meta.json *raw* bytes to a dict, or ``None`` when it is not a JSON
-    object (defensive: a non-object/corrupt meta is never treated as lock-only)."""
+def _decode_meta_fail_closed(raw: bytes, *, source_id: str) -> dict[str, Any]:
+    """Decode *raw* ``meta.json`` bytes via the kernel L1 authority, fail-closed.
+
+    Routes onto :func:`kernel.meta_decode.decode_meta` (the single malformed
+    definition, WP01) with ``on_malformed="raise"``: a present-but-corrupt
+    ``meta.json`` now surfaces the shared :class:`MetaDecodeError` instead of the
+    former silent ``None`` (FR-003/FR-007). The kernel message names only the
+    JSON fault, so this thin wrapper re-raises with a message that also names
+    ``meta.json`` + *source_id* (the filesystem path for the worktree read, the
+    ``ref:path`` blob spec for the committed read) -- the diagnosable identifier
+    FR-007 requires. Empty/whitespace-only content is a benign short-circuit the
+    caller owns (C-010) and never reaches here.
+    """
     try:
-        parsed = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
+        return decode_meta(raw, on_malformed="raise") or {}
+    except MetaDecodeError as exc:
+        raise MetaDecodeError(f"malformed meta.json ({source_id}): {exc}") from exc
 
 
 def _commit_target_ref_for(planning_branch: str | None) -> str:
@@ -282,8 +320,9 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
     against the primary/target branch -- ``HEAD`` in the local checkout) from
     a COORD ``status.events.jsonl`` (compares against the coordination ref).
 
-    Uses :func:`~mission_runtime.is_coordination_artifact_residue_path`
-    (None-safe over an unrecognized kind) -- NOT
+    Uses :func:`~specify_cli.coordination.coherence.is_coord_residue_churn`
+    (None-safe over an unrecognized kind; WP12 retired the former
+    ``mission_runtime`` predicate onto this owner leg) -- NOT
     ``is_primary_artifact_kind(kind_for_mission_file(path))``:
     ``kind_for_mission_file("meta.json")`` returns ``None``, so that form is
     both a ``mypy --strict`` error and would misroute ``meta.json`` to coord,
@@ -296,7 +335,7 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
     never compared against the coordination branch. Pure: no filesystem/git
     side effects.
     """
-    if coord_branch_for_filter and is_coordination_artifact_residue_path(repo_rel_path):
+    if coord_branch_for_filter and is_coord_residue_churn(repo_rel_path):
         return coord_branch_for_filter
     return _commit_target_ref_for(None)
 
@@ -304,60 +343,18 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
 def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
     """The committed meta.json mapping at the path-resolved precondition ref
     (:func:`resolve_precondition_ref` -- ``HEAD`` for meta.json, which is
-    always a PRIMARY kind), or ``None`` when the path is absent there or
-    unparseable."""
-    blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
-    if blob is None:
+    always a PRIMARY kind), or ``None`` when the blob is absent/empty there.
+
+    Site D (data-model): the ``show_blob`` bytes route onto the kernel L1
+    decode fail-closed -- a present-but-corrupt committed blob now raises
+    :class:`MetaDecodeError` (naming the ``ref:path`` blob spec) rather than the
+    former silent ``None`` (FR-007). An absent blob (``None``) or an
+    empty/whitespace-only blob stays benign (``None``; C-010 / FR-005)."""
+    resolved_ref = resolve_precondition_ref(repo_rel, ref)
+    blob = git.show_blob(repo_root, resolved_ref, repo_rel)
+    if blob is None or not blob.strip():
         return None
-    return _parse_meta_mapping(blob)
-
-
-def _drop_vcs_lock_only_meta(
-    repo_root: Path,
-    paths: list[str],
-    ref: str | None,
-    *,
-    auto_commit: bool,
-    git: GitPort = DEFAULT_GIT_PORT,
-) -> list[str]:
-    """Drop a vcs-lock-only meta.json change from the dirty-tree claim guard.
-
-    #2222 / C-003: ``mission_metadata.set_vcs_lock`` writes a one-time VCS-TYPE
-    lock to meta.json -- never the concurrency mutex. Under ``auto_commit=False``
-    the prior dependency-free claim leaves that self-write uncommitted; without
-    this exclusion the next claim's dirty-tree guard wrongly aborts. Excluding a
-    lock-only diff is stop-gating (the lock stays uncommitted), NOT
-    auto-committing it, and opens no race.
-
-    Byte-identical no-op on the default ``auto_commit=True`` path (NFR-001): the
-    exclusion is gated here so the guard's commit set is untouched when
-    auto-commit is on. The exclusion is scoped strictly to the lock-field-only
-    diff (see :func:`_is_vcs_lock_only_meta_diff`); any non-lock meta.json edit
-    is kept and still blocks the claim.
-    """
-    if auto_commit:
-        return paths
-    kept: list[str] = []
-    for repo_rel in paths:
-        if Path(repo_rel).name != _META_JSON_FILENAME:
-            kept.append(repo_rel)
-            continue
-        source = (repo_root / Path(repo_rel)).resolve()
-        if not source.exists():
-            kept.append(repo_rel)
-            continue
-        working = _parse_meta_mapping(source.read_bytes())
-        committed = _committed_meta_mapping(repo_root, repo_rel, ref, git=git)
-        if working is not None and _is_vcs_lock_only_meta_diff(committed, working):
-            continue
-        kept.append(repo_rel)
-    return kept
-
-
-def _is_wp_filename(repo_rel: str) -> bool:
-    """Is *repo_rel* a ``tasks/WP##.md``-shaped path (the runtime-frontmatter
-    exclusion is scoped strictly to this filename shape, never any markdown)?"""
-    return bool(_WP_FILENAME_PATTERN.match(Path(repo_rel).name))
+    return _decode_meta_fail_closed(blob, source_id=f"{resolved_ref}:{repo_rel}")
 
 
 def _parse_wp_frontmatter(text: str) -> tuple[Mapping[str, Any] | None, str, str]:
@@ -386,8 +383,8 @@ def _is_runtime_frontmatter_only_wp_diff(
     """Pure decision: is the WP##.md change ONLY runtime claim/workspace
     frontmatter (T001's :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS`)?
 
-    Structural analogue of :func:`_is_vcs_lock_only_meta_diff` for WP markdown
-    files. Returns ``True`` iff (1) both the committed and working frontmatter
+    Structural analogue of :func:`kernel.vcs_lock.is_vcs_lock_only_change` for WP
+    markdown files. Returns ``True`` iff (1) both the committed and working frontmatter
     parsed to a mapping, (2) the markdown body -- everything after the
     frontmatter block, byte-compared as ``padding + body`` -- is unchanged,
     AND (3) every frontmatter key whose value differs is a member of
@@ -407,60 +404,73 @@ def _is_runtime_frontmatter_only_wp_diff(
     return bool(changed_keys) and changed_keys <= WP_RUNTIME_FIELDS
 
 
-def _drop_runtime_frontmatter_only_wp(
+def _is_self_write_only_diff(
     repo_root: Path,
-    paths: list[str],
+    repo_rel: str,
     ref: str | None,
     *,
-    auto_commit: bool,
     git: GitPort = DEFAULT_GIT_PORT,
-) -> list[str]:
-    """Drop a WP##.md change from the dirty-tree claim guard when its only
-    diff vs the placement ref is runtime claim/workspace frontmatter (#2570.1).
+) -> bool:
+    """True iff *repo_rel*'s only diff vs *ref* is the runtime's OWN claim-time
+    self-write -- a vcs-lock-only ``meta.json`` change (#2222 / C-003) or a
+    runtime-frontmatter-only ``tasks/WP##.md`` change (#2570.1).
 
-    ``spec-kitty implement`` writes ``shell_pid``/``shell_pid_created_at`` at
-    claim time and ``base_branch``/``base_commit``/``planning_base_branch`` at
-    workspace-creation time into ``tasks/WP##.md``. Under
-    ``auto_commit=False`` that self-write is left uncommitted, so the NEXT
-    lane's dependency-free claim wrongly sees it as a dirty planning artifact
-    and refuses. Structural analogue of :func:`_drop_vcs_lock_only_meta`,
-    scoped to WP##.md paths and gated by
-    :func:`_is_runtime_frontmatter_only_wp_diff` (body byte-identical AND
-    every differing key in
-    :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS`, the T001 canonical
-    source both this helper and WP07's ``move-task`` guard reuse).
+    WP14 (IC-07d) structural merge of the retired ``_drop_vcs_lock_only_meta``
+    / ``_drop_runtime_frontmatter_only_wp`` twins: identical shape (a single
+    filename-scoped, diff-scoped predicate), different filename gate and
+    differing-fields comparison. Consumed as the predicate for :func:`_drop_if`
+    at both call sites in :func:`resolve_planning_artifact_staging` -- ONE
+    per-path decision replaces the two near-identical loops.
 
-    Byte-identical no-op on the default ``auto_commit=True`` path (NFR-001,
-    mirrors :func:`_drop_vcs_lock_only_meta`).
+    Deliberately NOT delegated to
+    :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`:
+    the owner classifies by declared artifact *kind* (a whole-file verdict --
+    ``meta.json`` is unconditionally self-bookkeeping regardless of its diff),
+    while this predicate must stay diff-scoped -- a ``meta.json`` carrying a
+    genuine NON-lock edit, or a ``WP##.md`` carrying a genuine NON-runtime
+    frontmatter/body edit, must still be KEPT (block the claim), which a
+    kind-based "this file is always self-bookkeeping" verdict cannot express
+    without regressing ``test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim``
+    / ``test_runtime_frontmatter_non_runtime_key_change_still_blocks_claim`` (C6).
+    A genuine, justified local survivor (C-010) -- registered (not silent) at
+    ``tests/architectural/tool_artifact_enrolment/registry/_is_self_write_only_diff.md``.
+
+    Byte-identical no-op semantics are the caller's responsibility: apply this
+    predicate via :func:`_drop_if` only under ``auto_commit=False`` (NFR-001).
     """
-    if auto_commit:
-        return paths
-    kept: list[str] = []
-    for repo_rel in paths:
-        if not _is_wp_filename(repo_rel):
-            kept.append(repo_rel)
-            continue
-        source = (repo_root / Path(repo_rel)).resolve()
-        if not source.exists():
-            kept.append(repo_rel)
-            continue
-        committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
-        if committed_blob is None:
-            kept.append(repo_rel)
-            continue
-        working_front, working_body, working_padding = _parse_wp_frontmatter(source.read_text(encoding="utf-8-sig"))
-        committed_front, committed_body, committed_padding = _parse_wp_frontmatter(
-            committed_blob.decode("utf-8", errors="replace")
-        )
-        if _is_runtime_frontmatter_only_wp_diff(
-            committed_front,
-            working_front,
-            committed_padding + committed_body,
-            working_padding + working_body,
-        ):
-            continue
-        kept.append(repo_rel)
-    return kept
+    name = Path(repo_rel).name
+    source = (repo_root / Path(repo_rel)).resolve()
+    if not source.exists():
+        return False
+    if name == _META_JSON_FILENAME:
+        # Site C (data-model): the working-tree read stays INLINE here (the trio
+        # gate pins the ``source.read_bytes()`` token to this exact site); the
+        # bytes route onto the kernel L1 decode fail-closed. Empty/whitespace-only
+        # meta.json is a benign short-circuit the caller owns (C-010 / FR-005) --
+        # not self-write, so keep the file (block the claim); a present-but-corrupt
+        # meta.json now raises :class:`MetaDecodeError` instead of the former
+        # silent ``None``->``return False`` (FR-007).
+        raw = source.read_bytes()
+        if not raw.strip():
+            return False
+        working = _decode_meta_fail_closed(raw, source_id=str(source))
+        committed = _committed_meta_mapping(repo_root, repo_rel, ref, git=git)
+        return is_vcs_lock_only_change(committed, working)
+    if not _WP_SELF_WRITE_FILENAME_RE.match(name):
+        return False
+    committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
+    if committed_blob is None:
+        return False
+    working_front, working_body, working_padding = _parse_wp_frontmatter(source.read_text(encoding="utf-8-sig"))
+    committed_front, committed_body, committed_padding = _parse_wp_frontmatter(
+        committed_blob.decode("utf-8", errors="replace")
+    )
+    return _is_runtime_frontmatter_only_wp_diff(
+        committed_front,
+        working_front,
+        committed_padding + committed_body,
+        working_padding + working_body,
+    )
 
 
 def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> list[str]:
@@ -594,15 +604,29 @@ def resolve_planning_artifact_staging(
     if structural:
         return PlanningArtifactStagingPlan(structural=structural, files_to_commit=[], status_paths_to_commit=[])
 
+    def _self_write(repo_rel: str) -> bool:
+        return _is_self_write_only_diff(repo_root, repo_rel, coord_branch_for_filter, git=git)
+
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
-    status_paths = _drop_vcs_lock_only_meta(repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git)
-    status_paths = _drop_runtime_frontmatter_only_wp(repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git)
+    if not auto_commit:
+        status_paths = _drop_if(status_paths, _self_write)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
-        files_to_commit.extend(_exclude_coord_owned(extra_file_paths, coord_branch_for_filter))
+        # FIX-M2-08: ``extra_file_paths`` is an UNCONDITIONAL feature-dir walk
+        # (not git-status-gated), so it can surface the dossier snapshot even
+        # when ``_feature_dir_status_entries`` already dropped it above. Union
+        # the narrow STATUS_STATE leg with :func:`is_dossier_snapshot` so this
+        # candidate-gathering leg honours the SAME D1 EXCLUDE policy -- never
+        # a commit candidate, whether or not it is currently git-dirty
+        # (mirrors ``_collect_finalize_artifacts``'s own FIX-M2-05 exclusion;
+        # without this leg the file would slip back into ``files_to_commit``
+        # and ``_commit_planning_artifacts_transaction`` would commit it,
+        # reopening the exact violation FIX-M2-05 closed in
+        # ``mission_finalize.py``, just via this sibling producer instead).
+        files_to_commit.extend(_drop_if(extra_file_paths, lambda p: is_status_state_path(p) or is_dossier_snapshot(p)))
     files_to_commit = list(dict.fromkeys(files_to_commit))
-    files_to_commit = _drop_vcs_lock_only_meta(repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git)
-    files_to_commit = _drop_runtime_frontmatter_only_wp(repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git)
+    if not auto_commit:
+        files_to_commit = _drop_if(files_to_commit, _self_write)
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
@@ -646,6 +670,13 @@ def _resolve_placement_ref(repo_root: Path, *, mission_slug: str, wp_id: str) ->
             wp_id=wp_id,
         )
     except ActionContextError:
+        # WP03 / T017 (#3128): this handler is deliberately NARROW — only the
+        # legacy-fallback ``ActionContextError`` degrades to ``None`` here. A
+        # Seam-B ``CheckoutIdentityError`` is an ``Exception``-direct refusal
+        # (NOT an ``ActionContextError``), so it can never be caught/degraded by
+        # this arm. (This is a read-shaped placement resolve — it passes no
+        # write-intent — so a refusal does not arise here regardless; the narrow
+        # catch is the structural guarantee that it could not be swallowed.)
         return None
     placement = context.artifact_placement
     return placement.placement_ref if placement is not None else None

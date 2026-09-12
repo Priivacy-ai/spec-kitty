@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: "spec.md:428's Key Entities pseudocode now reads `if is_dossier_delegate(rules):`, matching the public predicate name plan.md defines and uses consistently throughout (lines 384, 426, 432, 511, 532, 919-931)."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: "spec.md:272-275 adds a 4th Acceptance Scenario to User Story 1 covering FR-011's diagnose.py behavior verbatim: dossier event through diagnose_events() with valid and invalid payload, no crash, violation surfaces in DiagnoseResult.errors."
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: "spec.md:466-469 adds SC-006 with the exact measurable outcome requested: no AttributeError crash on a dossier-typed queued event, and a hand-constructed invalid payload reports a real ConformanceResult-sourced violation in DiagnoseResult.errors."
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: "spec.md:387 scopes NFR-002 explicitly to emitter.py::_validate_payload's printed-Warning/drop-not-queue contract and states diagnose.py::_validate_payload's parallel DiagnoseResult.errors contract; plan.md:71-78 (Technical Context/Constraints) mirrors this same scoping rather than restating the old unscoped language."

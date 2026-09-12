@@ -22,56 +22,153 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JT00JPNCGNRNVWXV12",
-      "last_transition_at": "2026-02-23T18:10:00.410438+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.410438+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP02": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JXYWPQNPD87XWP7ZSE",
-      "last_transition_at": "2026-02-23T18:10:00.413612+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.413612+00:00",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP03": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38JZ4DXFJ18Q6CW6VS2C",
-      "last_transition_at": "2026-02-23T18:10:00.415865+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.415865+00:00",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     },
     "WP04": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38K2FJR1MV4J37AFBRG9",
-      "last_transition_at": "2026-02-23T18:10:00.418442+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.418442+00:00",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
     },
     "WP05": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38K54EE35YS7R5TV6Z8B",
-      "last_transition_at": "2026-02-23T18:10:00.421633+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.421633+00:00",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done"
+      }
     },
     "WP06": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38K8WZD0PY3J8TK6TZMT",
-      "last_transition_at": "2026-02-23T18:10:00.424063+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.424063+00:00",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done",
+        "T059": "done"
+      }
     },
     "WP07": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38KAFT6F0G4GVAR4HD8A",
-      "last_transition_at": "2026-02-23T18:10:00.426476+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.426476+00:00",
+      "subtasks": {
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done",
+        "T065": "done",
+        "T066": "done",
+        "T067": "done",
+        "T068": "done",
+        "T069": "done"
+      }
     },
     "WP08": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38KCJYBFSFFR9MVSXMK4",
-      "last_transition_at": "2026-02-23T18:10:00.428011+00:00"
+      "last_transition_at": "2026-02-23T18:10:00.428011+00:00",
+      "subtasks": {
+        "T070": "done",
+        "T071": "done",
+        "T072": "done",
+        "T073": "done",
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done"
+      }
     }
   }
 }

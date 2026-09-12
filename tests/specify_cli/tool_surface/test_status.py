@@ -10,7 +10,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.findings import (
     GENERATED_SURFACE_MISSING,
@@ -39,7 +39,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DEF = SurfaceDefinition(
-    kind=SurfaceKind.COMMAND_SKILL,
+    kind=ToolSurfaceKind.COMMAND_SKILL,
     source_kind=SourceKind.GENERATED,
     install_scope=InstallScope.PROJECT,
     path_pattern=".agents/skills/spec-kitty.{command}/SKILL.md",
@@ -67,7 +67,7 @@ class _StubProvider:
         self._mapping = mapping
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return bool(definition.kind == SurfaceKind.COMMAND_SKILL)
+        return bool(definition.kind == ToolSurfaceKind.COMMAND_SKILL)
 
     def expand(
         self, definition: SurfaceDefinition, tool_key: str, project_root: Path

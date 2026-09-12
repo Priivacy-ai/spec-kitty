@@ -22,42 +22,82 @@
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KMZJSMDYRCKDTP0WWZQTD0PK",
-      "last_transition_at": "2026-03-30T14:36:35.134128+00:00"
+      "last_transition_at": "2026-03-30T14:36:35.134128+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KMZJE767CDPDQSQ1V43CDPC6",
-      "last_transition_at": "2026-03-30T14:30:21.127260+00:00"
+      "last_transition_at": "2026-03-30T14:30:21.127260+00:00",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KMZKDF6XX9NAT0JWCC0P6F1X",
-      "last_transition_at": "2026-03-30T14:47:25.149222+00:00"
+      "last_transition_at": "2026-03-30T14:47:25.149222+00:00",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KMZM0CGR7KF65WEPDGT9MFH8",
-      "last_transition_at": "2026-03-30T14:57:44.984786+00:00"
+      "last_transition_at": "2026-03-30T14:57:44.984786+00:00",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMZNKTJ3DAYHBCBJA2Q9C8ZV",
-      "last_transition_at": "2026-03-30T15:25:50.531561+00:00"
+      "last_transition_at": "2026-03-30T15:25:50.531561+00:00",
+      "subtasks": {
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
+      }
     },
     "WP06": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KMZNHBPBAVEHVZ2NZM88A9KM",
-      "last_transition_at": "2026-03-30T15:24:29.772083+00:00"
+      "last_transition_at": "2026-03-30T15:24:29.772083+00:00",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     }
   }
 }

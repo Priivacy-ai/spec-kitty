@@ -1,0 +1,3696 @@
+{
+  "causal_probe_contract": {
+    "all_faults_reached_act_and_failed_intended_oracle": true,
+    "disposable_plugin_committed": false
+  },
+  "causal_probes": [
+    {
+      "act_reached": true,
+      "authority_violated": "mission creation records current/explicit target branch in meta.json",
+      "command": [
+        "{runner}",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--tb=short",
+        "-p",
+        "wp03_probe_plugin",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag"
+      ],
+      "duration_seconds": 113.052968,
+      "environment": {
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONPATH": "{probe}:{probe}/src",
+        "WP03_CAUSAL_PROBE": "target_branch"
+      },
+      "exit_code": 1,
+      "expected_failed_nodes": 6,
+      "failed_nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag"
+      ],
+      "fault": "Force create_mission_core target_branch to __wp03_fault__ after CLI branch discovery.",
+      "id": "create-target-branch-wrong-metadata",
+      "intended_oracle": "meta['target_branch'] equals the real current or explicit target branch",
+      "intended_oracle_failed": true,
+      "mode": "target_branch",
+      "nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag"
+      ],
+      "output_bytes": 19830,
+      "output_sha256": "80280fcece2fe30293ddd86f5344e656eac6397e272436e9c66a32804bb17e37",
+      "output_tail": [
+        "E     + __wp03_fault__",
+        "----------------------------- Captured stdout call -----------------------------",
+        "Initialized empty Git repository in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1126/test_create_feature_on_custom_0/repo/.git/",
+        "[v3-next (root-commit) b312578] Initial",
+        " 1 file changed, 1 insertion(+)",
+        " create mode 100644 README.md",
+        "------------------------------ Captured log call -------------------------------",
+        "WARNING  specify_cli.sync.dossier_pipeline:dossier_pipeline.py:246 No project UUID; skipping dossier sync",
+        "_____________ test_create_feature_with_explicit_target_branch_flag _____________",
+        "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-wp03-probes.XXXXXX.Mqh0qRXrLG/head/tests/agent/test_create_feature_branch.py:205: in test_create_feature_with_explicit_target_branch_flag",
+        "    assert meta[\"target_branch\"] == \"2.x\"",
+        "E   AssertionError: assert '__wp03_fault__' == '2.x'",
+        "E     ",
+        "E     - 2.x",
+        "E     + __wp03_fault__",
+        "----------------------------- Captured stdout call -----------------------------",
+        "Initialized empty Git repository in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1126/test_create_feature_with_expli0/repo/.git/",
+        "[main (root-commit) b312578] Initial",
+        " 1 file changed, 1 insertion(+)",
+        " create mode 100644 README.md",
+        "------------------------------ Captured log call -------------------------------",
+        "WARNING  specify_cli.sync.dossier_pipeline:dossier_pipeline.py:246 No project UUID; skipping dossier sync",
+        "=========================== short test summary info ============================",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag",
+        "6 failed in 91.55s (0:01:31)"
+      ]
+    },
+    {
+      "act_reached": true,
+      "authority_violated": "mission create refuses detached HEAD",
+      "command": [
+        "{runner}",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--tb=short",
+        "-p",
+        "wp03_probe_plugin",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head"
+      ],
+      "duration_seconds": 3.173626,
+      "environment": {
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONPATH": "{probe}:{probe}/src",
+        "WP03_CAUSAL_PROBE": "detached_head"
+      },
+      "exit_code": 1,
+      "expected_failed_nodes": 1,
+      "failed_nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head"
+      ],
+      "fault": "Conceal detached HEAD by returning main from both CLI and core branch discovery.",
+      "id": "create-detached-head-guard-removed",
+      "intended_oracle": "real-git detached HEAD invocation exits nonzero",
+      "intended_oracle_failed": true,
+      "mode": "detached_head",
+      "nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head"
+      ],
+      "output_bytes": 1365,
+      "output_sha256": "b3195d0bdb77713f2e6138f8c5f8a7b8da4ef26a9bf480b83a8b311b30ee7a74",
+      "output_tail": [
+        "F                                                                        [100%]",
+        "=================================== FAILURES ===================================",
+        "__________________ test_create_feature_rejects_detached_head ___________________",
+        "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-wp03-probes.XXXXXX.Mqh0qRXrLG/head/tests/agent/test_create_feature_branch.py:223: in test_create_feature_rejects_detached_head",
+        "    assert result.exit_code != 0",
+        "E   assert 0 != 0",
+        "E    +  where 0 = <Result okay>.exit_code",
+        "----------------------------- Captured stdout call -----------------------------",
+        "Initialized empty Git repository in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1127/test_create_feature_rejects_de0/repo/.git/",
+        "[main (root-commit) 924b3c1] Initial",
+        " 1 file changed, 1 insertion(+)",
+        " create mode 100644 README.md",
+        "----------------------------- Captured stderr call -----------------------------",
+        "HEAD is now at 924b3c1 Initial",
+        "------------------------------ Captured log call -------------------------------",
+        "WARNING  specify_cli.sync.dossier_pipeline:dossier_pipeline.py:246 No project UUID; skipping dossier sync",
+        "=========================== short test summary info ============================",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head",
+        "1 failed in 0.82s"
+      ]
+    },
+    {
+      "act_reached": true,
+      "authority_violated": "mission create refuses lane-worktree context",
+      "command": [
+        "{runner}",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--tb=short",
+        "-p",
+        "wp03_probe_plugin",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree"
+      ],
+      "duration_seconds": 2.864803,
+      "environment": {
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONPATH": "{probe}:{probe}/src",
+        "WP03_CAUSAL_PROBE": "worktree"
+      },
+      "exit_code": 1,
+      "expected_failed_nodes": 1,
+      "failed_nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree"
+      ],
+      "fault": "Force core is_worktree_context to False for a real .worktrees path.",
+      "id": "create-worktree-guard-removed",
+      "intended_oracle": "real-path worktree invocation exits nonzero",
+      "intended_oracle_failed": true,
+      "mode": "worktree",
+      "nodes": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree"
+      ],
+      "output_bytes": 1243,
+      "output_sha256": "a7d5845e29db20647bc324bb521f13162ade557ba545b397df19564bf1978334",
+      "output_tail": [
+        "F                                                                        [100%]",
+        "=================================== FAILURES ===================================",
+        "_____________________ test_create_feature_rejects_worktree _____________________",
+        "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-wp03-probes.XXXXXX.Mqh0qRXrLG/head/tests/agent/test_create_feature_branch.py:242: in test_create_feature_rejects_worktree",
+        "    assert result.exit_code != 0",
+        "E   assert 0 != 0",
+        "E    +  where 0 = <Result okay>.exit_code",
+        "----------------------------- Captured stdout call -----------------------------",
+        "Initialized empty Git repository in /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1128/test_create_feature_rejects_wo0/repo/.git/",
+        "[main (root-commit) 072901b] Initial",
+        " 1 file changed, 1 insertion(+)",
+        " create mode 100644 README.md",
+        "------------------------------ Captured log call -------------------------------",
+        "WARNING  specify_cli.sync.dossier_pipeline:dossier_pipeline.py:246 No project UUID; skipping dossier sync",
+        "=========================== short test summary info ============================",
+        "FAILED tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree",
+        "1 failed in 1.82s"
+      ]
+    },
+    {
+      "act_reached": true,
+      "authority_violated": "NFR-003 and issue #2342 retain the 5.0-second 200-mission budget",
+      "command": [
+        "{runner}",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--tb=short",
+        "-p",
+        "wp03_probe_plugin",
+        "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+      ],
+      "duration_seconds": 8.523782,
+      "environment": {
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONPATH": "{probe}:{probe}/src",
+        "WP03_CAUSAL_PROBE": "summary_delay"
+      },
+      "exit_code": 1,
+      "expected_failed_nodes": 1,
+      "failed_nodes": [
+        "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+      ],
+      "fault": "Inject a 5.1-second delay at the live build_summary action.",
+      "id": "summary-current-path-delay",
+      "intended_oracle": "measured build_summary action stays below 5.0 seconds",
+      "intended_oracle_failed": true,
+      "mode": "summary_delay",
+      "nodes": [
+        "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+      ],
+      "output_bytes": 681,
+      "output_sha256": "4e9297d00b6280e63b1048090640181f1f2ff350facf12ef603d4f9089dbf628",
+      "output_tail": [
+        "F                                                                        [100%]",
+        "=================================== FAILURES ===================================",
+        "__________________________ test_200_missions_under_5s __________________________",
+        "tests/retrospective/test_summary_tolerance.py:702: in test_200_missions_under_5s",
+        "    assert elapsed < 5.0, f\"200-mission summary took {elapsed:.2f}s (limit: 5s)\"",
+        "E   AssertionError: 200-mission summary took 6.34s (limit: 5s)",
+        "E   assert 6.33692729100585 < 5.0",
+        "=========================== short test summary info ============================",
+        "FAILED tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+        "1 failed in 6.75s"
+      ]
+    },
+    {
+      "act_reached": true,
+      "authority_violated": "single-half seed deletion must remain fail-closed while the documented two-half ambiguity remains exact",
+      "command": [
+        "{runner}",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--tb=short",
+        "-p",
+        "wp03_probe_plugin",
+        "tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green"
+      ],
+      "duration_seconds": 2.393595,
+      "environment": {
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONPATH": "{probe}:{probe}/src",
+        "WP03_CAUSAL_PROBE": "verify_always_green"
+      },
+      "exit_code": 1,
+      "expected_failed_nodes": 1,
+      "failed_nodes": [
+        "tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green"
+      ],
+      "fault": "Replace verify_backfill with an unconditional successful VerifyResult.",
+      "id": "scenario-e-verifier-always-green",
+      "intended_oracle": "non-vacuity assertion requires seed-only deletion to produce ok=False",
+      "intended_oracle_failed": true,
+      "mode": "verify_always_green",
+      "nodes": [
+        "tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green"
+      ],
+      "output_bytes": 1140,
+      "output_sha256": "698c9917563544df0ba23f8d9c88a6c6c309f6b08ec22c141141748abb4a7a40",
+      "output_tail": [
+        "F                                                                        [100%]",
+        "=================================== FAILURES ===================================",
+        "_________ test_scenario_e_currently_returns_a_documented_silent_green __________",
+        "tests/unit/migration/test_backfill_runtime_state.py:1265: in test_scenario_e_currently_returns_a_documented_silent_green",
+        "    assert b.verify_backfill(intact).ok is False",
+        "E   AssertionError: assert True is False",
+        "E    +  where True = VerifyResult(ok=True, wp_count=0, mismatches=()).ok",
+        "E    +    where VerifyResult(ok=True, wp_count=0, mismatches=()) = <function pytest_configure.<locals>.always_green at 0x107d2b060>(PosixPath('/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pytest-of-robert/pytest-1130/test_scenario_e_currently_retu0/intact/kitty-specs/042-demo'))",
+        "E    +      where <function pytest_configure.<locals>.always_green at 0x107d2b060> = b.verify_backfill",
+        "=========================== short test summary info ============================",
+        "FAILED tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green",
+        "1 failed in 0.49s"
+      ]
+    }
+  ],
+  "causal_probes_generated_at": "2026-08-10T12:48:38.491125+00:00",
+  "final_collection_validation": {
+    "collected_nodes": 181,
+    "command": [
+      "{runner}",
+      "-m",
+      "pytest",
+      "--collect-only",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/sync/test_daemon_singleton_reaper_consolidation.py",
+      "tests/sync/test_client_integration.py",
+      "tests/readiness/test_upgrade_ux.py",
+      "tests/retrospective/test_summary_tolerance.py",
+      "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py",
+      "tests/agent/test_create_feature_branch.py",
+      "tests/unit/migration/test_backfill_runtime_state.py"
+    ],
+    "deleted_files_absent": true,
+    "duration_seconds": 45.256075,
+    "exit_code": 0,
+    "forbidden_nonblocking_source_tokens": [],
+    "immutable_base_nodes_same_paths_including_deleted_files": 205,
+    "node_delta": -24,
+    "output_bytes": 21772,
+    "output_sha256": "904854c15e834434a90a4aee6df02d4289201bbf930eb256dad3376f6a97cd41",
+    "output_tail": [
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_holds_its_lexical_postcondition[after-2025-11-02T16:58:36+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_holds_its_lexical_postcondition[after-2025-11-02T16:58:36.123456+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[before-2025-11-02T16:58:36Z-Z]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[before-2025-11-02T16:58:36.123456Z-Z]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[before-2025-11-02T16:58:36+00:00-+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[before-2025-11-02T16:58:36.123456+00:00-+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[after-2025-11-02T16:58:36Z-Z]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[after-2025-11-02T16:58:36.123456Z-Z]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[after-2025-11-02T16:58:36+00:00-+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_shift_ordering_timestamp_preserves_the_input_designator[after-2025-11-02T16:58:36.123456+00:00-+00:00]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_seed_floor_precedes_history_under_either_at_encoding[offset]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_seed_floor_precedes_history_under_either_at_encoding[zulu]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_compatibility_repair_lands_after_history_under_either_at_encoding[offset]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_compatibility_repair_lands_after_history_under_either_at_encoding[zulu]",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_claim_carrier_still_archives_a_slot_whose_authentic_value_diverges",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_snapshot_claim_slots_reports_authentic_values_not_bare_presence",
+      "tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green",
+      "",
+      "-------------------------- FR-007 leak guard coverage --------------------------",
+      "[FR-007 leak guard] inspected 0 test(s) under tests/sync/.",
+      "[FR-007 leak guard] watched 19 process-global symbol(s) (17 module attributes + 1 os.environ key(s) + CWD), plus the live-thread set.",
+      "[FR-007 leak guard] 5 inventory row-group(s) were NOT watched:",
+      "  - E15, E16: not reachable -- frozen str constants (E15) / function-local variables that structurally cannot be promoted to a module global (E16); nothing to snapshot",
+      "  - E17, E18, E19: module-singleton CliRunner() instances reused by design across their own file's tests; there is no 'clean' baseline to diff against, and the inventory records 'does not depend' for all three",
+      "  - E20, E21, E22: conftest.py's own autouse reset-seam providers (monkeypatch.setattr / monkeypatch.delenv); pytest's own monkeypatch teardown already guarantees their restoration every test -- they ARE the reset mechanism, not the state this guard protects",
+      "  - E42-E50: not reachable -- import-time-bound Path/str values resolved once at import time (Path(__file__).resolve() and friends) and never reassigned; a leak here is structurally impossible, only a rename/move is representable, which the rot control below would catch if these were added to the watch list",
+      "  - carry-forward:machine-global-consent-index: written 94 times across 15 tests/sync/ files via set_project_consent() (consent.py:447-451), but its lifetime is the MACHINE (a SPEC_KITTY_HOME-scoped file on disk), not the worker process -- outside FR-006's own process-global definition and outside what an in-process snapshot guard can observe at all. WP04's carry-forward note names this as a scope question, not a defect; the deliberate decision here is NOT to extend this in-process guard to disk-resident, machine-lifetime state -- that would need a different mechanism (e.g. a SPEC_KITTY_HOME-scoped fixture-level assertion), not a bigger snapshot dict",
+      "[FR-007 leak guard] 1 node(s) are pinned to a known, filed leak (#3130) -- a TEMPORARY pin on a verified defect, not a permanent exemption; removing an entry in tests/sync/conftest.py is how a fix gets proven:",
+      "  (none of the 1 pinned node-ids ran in this process this session)",
+      "181 tests collected in 43.29s"
+    ],
+    "paths": [
+      "tests/sync/test_daemon_singleton_reaper_consolidation.py",
+      "tests/sync/test_client_integration.py",
+      "tests/readiness/test_upgrade_ux.py",
+      "tests/retrospective/test_summary_tolerance.py",
+      "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py",
+      "tests/agent/test_create_feature_branch.py",
+      "tests/unit/migration/test_backfill_runtime_state.py"
+    ],
+    "recorded_at": "2026-08-10T12:59:38.170949+00:00",
+    "regression_owner_count": 1,
+    "regression_test_files": [
+      "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py"
+    ]
+  },
+  "focused_retained_validation": {
+    "command": [
+      "{runner}",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--tb=short",
+      "-n",
+      "auto",
+      "--dist",
+      "loadfile",
+      "tests/sync/test_daemon_singleton_reaper_consolidation.py",
+      "tests/sync/test_client_integration.py",
+      "tests/readiness/test_upgrade_ux.py",
+      "tests/retrospective/test_summary_tolerance.py",
+      "tests/agent/test_create_feature_branch.py",
+      "tests/unit/migration/test_backfill_runtime_state.py"
+    ],
+    "duration_seconds": 69.792264,
+    "environment": {
+      "NO_COLOR": "1",
+      "PWHEADLESS": "1",
+      "PYTEST_ADDOPTS": "",
+      "PYTHONPATH": "{head}/src"
+    },
+    "exit_code": 0,
+    "output_bytes": 3152,
+    "output_sha256": "1721276ff37a76f3c45e54781ee00f03212f9ce43c87370c63ec72d777ed5ea6",
+    "output_tail": [
+      "bringing up nodes...",
+      "bringing up nodes...",
+      "",
+      "........................................................................ [ 40%]",
+      "........................................................................ [ 80%]",
+      "....................................                                     [100%]",
+      "-------------------------- FR-007 leak guard coverage --------------------------",
+      "[FR-007 leak guard] inspected 0 test(s) IN THIS PROCESS under tests/sync/ -- xdist is active (-n 10). Every test actually ran in a separate worker process, each with its OWN counter; this controller process never runs a test itself, so this number is NOT the session total. 'inspected 0' here does NOT mean the guard never armed -- it means xdist is on. For an accurate total, re-run with '-n0' / '-p no:xdist', or read a worker's own captured output.",
+      "[FR-007 leak guard] watched 19 process-global symbol(s) (17 module attributes + 1 os.environ key(s) + CWD), plus the live-thread set.",
+      "[FR-007 leak guard] 5 inventory row-group(s) were NOT watched:",
+      "  - E15, E16: not reachable -- frozen str constants (E15) / function-local variables that structurally cannot be promoted to a module global (E16); nothing to snapshot",
+      "  - E17, E18, E19: module-singleton CliRunner() instances reused by design across their own file's tests; there is no 'clean' baseline to diff against, and the inventory records 'does not depend' for all three",
+      "  - E20, E21, E22: conftest.py's own autouse reset-seam providers (monkeypatch.setattr / monkeypatch.delenv); pytest's own monkeypatch teardown already guarantees their restoration every test -- they ARE the reset mechanism, not the state this guard protects",
+      "  - E42-E50: not reachable -- import-time-bound Path/str values resolved once at import time (Path(__file__).resolve() and friends) and never reassigned; a leak here is structurally impossible, only a rename/move is representable, which the rot control below would catch if these were added to the watch list",
+      "  - carry-forward:machine-global-consent-index: written 94 times across 15 tests/sync/ files via set_project_consent() (consent.py:447-451), but its lifetime is the MACHINE (a SPEC_KITTY_HOME-scoped file on disk), not the worker process -- outside FR-006's own process-global definition and outside what an in-process snapshot guard can observe at all. WP04's carry-forward note names this as a scope question, not a defect; the deliberate decision here is NOT to extend this in-process guard to disk-resident, machine-lifetime state -- that would need a different mechanism (e.g. a SPEC_KITTY_HOME-scoped fixture-level assertion), not a bigger snapshot dict",
+      "[FR-007 leak guard] 1 node(s) are pinned to a known, filed leak (#3130) -- a TEMPORARY pin on a verified defect, not a permanent exemption; removing an entry in tests/sync/conftest.py is how a fix gets proven:",
+      "  (this controller process ran no tests itself, and pytest_terminal_summary is never invoked in an xdist worker either -- per-node ACCEPTED lines are not printed anywhere in this mode. For an accurate per-node accounting, re-run with '-n0' / '-p no:xdist' -- same remedy as 'inspected' above)",
+      "180 passed in 67.60s (0:01:07)"
+    ],
+    "paths": [
+      "tests/sync/test_daemon_singleton_reaper_consolidation.py",
+      "tests/sync/test_client_integration.py",
+      "tests/readiness/test_upgrade_ux.py",
+      "tests/retrospective/test_summary_tolerance.py",
+      "tests/agent/test_create_feature_branch.py",
+      "tests/unit/migration/test_backfill_runtime_state.py"
+    ],
+    "recorded_at": "2026-08-10T12:58:02.463976+00:00"
+  },
+  "generated_at": "2026-08-10T12:44:44.561040+00:00",
+  "head_parent_commit": "69ac086f21c53c722cdbcba10e655db0ce015a0d",
+  "immutable_base_commit": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "issue_3184_terminal_state": {
+    "marked_2782_owner_count": 1,
+    "tests_regression_python_files": [
+      "test_issue_2782_sync_strict_json_ingress_skip.py"
+    ],
+    "tracker_state": "OPEN tidy-up; current repository state already terminal for this WP",
+    "verdict": "KEEP_CURRENT_LAYOUT_NO_MOVE"
+  },
+  "known_red_2782": {
+    "command": [
+      "{runner}",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "--tb=short",
+      "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress"
+    ],
+    "duration_seconds": 121.481574,
+    "environment": {
+      "NO_COLOR": "1",
+      "PWHEADLESS": "1",
+      "PYTEST_ADDOPTS": "",
+      "PYTHONPATH": "{head}/src"
+    },
+    "exit_code": 1,
+    "expected_signature_present": true,
+    "no_nonblocking_marker_source_proof": true,
+    "nodeid": "tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress",
+    "outcome": "failed",
+    "output_bytes": 14552,
+    "output_sha256": "83bbbbfbc5c0cecea39f4e52a5d0fc49ab04fed79f30e32238f18c8a9559bdfa",
+    "output_tail": [
+      "Downloading readchar-4.2.2-py3-none-any.whl (9.4 kB)",
+      "Downloading referencing-0.37.0-py3-none-any.whl (26 kB)",
+      "Downloading requests-2.34.2-py3-none-any.whl (73 kB)",
+      "Downloading idna-3.18-py3-none-any.whl (65 kB)",
+      "Downloading urllib3-2.7.0-py3-none-any.whl (131 kB)",
+      "Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)",
+      "Downloading rich-15.0.0-py3-none-any.whl (310 kB)",
+      "Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)",
+      "Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)",
+      "Downloading rpds_py-2026.6.3-cp311-cp311-macosx_11_0_arm64.whl (345 kB)",
+      "Downloading ruamel_yaml-0.19.1-py3-none-any.whl (118 kB)",
+      "Downloading toml-0.10.2-py2.py3-none-any.whl (16 kB)",
+      "Downloading tomli_w-1.2.0-py3-none-any.whl (6.7 kB)",
+      "Downloading transitions-0.9.3-py2.py3-none-any.whl (112 kB)",
+      "Downloading truststore-0.10.4-py3-none-any.whl (18 kB)",
+      "Downloading typer-0.27.1-py3-none-any.whl (122 kB)",
+      "Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)",
+      "Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)",
+      "Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)",
+      "Downloading typing_inspection-0.4.3-py3-none-any.whl (14 kB)",
+      "Downloading websockets-17.0.1-cp311-cp311-macosx_11_0_arm64.whl (210 kB)",
+      "Downloading anyio-4.14.2-py3-none-any.whl (125 kB)",
+      "Downloading pycparser-3.0-py3-none-any.whl (48 kB)",
+      "Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)",
+      "Building wheels for collected packages: spec-kitty-cli",
+      "  Building editable for spec-kitty-cli (pyproject.toml): started",
+      "  Building editable for spec-kitty-cli (pyproject.toml): finished with status 'done'",
+      "  Created wheel for spec-kitty-cli: filename=spec_kitty_cli-3.2.6-py3-none-any.whl size=903463 sha256=af0f7b7f595b8ed1e2237f482e6e17db12794aff3de69de4f04d5aaed897c480",
+      "  Stored in directory: /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/pip-ephem-wheel-cache-iz0w45xv/wheels/97/60/5e/0dd9c3c8f4ea68ec72c54877dca68649a73d97b3285bd8b412",
+      "Successfully built spec-kitty-cli",
+      "Installing collected packages: websockets, urllib3, typing-extensions, truststore, tomli-w, toml, socksio, six, shellingham, ruamel-yaml, rpds-py, readchar, pyyaml, python-ulid, pygments, pycparser, psutil, platformdirs, packaging, mdurl, idna, h11, google-re2, filelock, click, charset-normalizer, certifi, attrs, annotated-types, annotated-doc, typing-inspection, transitions, requests, referencing, pydantic-core, markdown-it-py, httpcore, cffi, anyio, rich, pydantic, jsonschema-specifications, httpx, cryptography, typer, spec-kitty-tracker, spec-kitty-events, jsonschema, spec-kitty-cli",
+      "",
+      "Successfully installed annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.14.2 attrs-26.1.0 certifi-2026.7.22 cffi-2.1.1 charset-normalizer-3.4.9 click-8.4.2 cryptography-50.0.0 filelock-3.32.2 google-re2-1.1.20251105 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.18 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 packaging-26.3 platformdirs-4.11.1 psutil-7.2.2 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pygments-2.20.0 python-ulid-4.0.1 pyyaml-6.0.3 readchar-4.2.2 referencing-0.37.0 requests-2.34.2 rich-15.0.0 rpds-py-2026.6.3 ruamel-yaml-0.19.1 shellingham-1.5.4 six-1.17.0 socksio-1.0.0 spec-kitty-cli-3.2.6 spec-kitty-events-6.1.0 spec-kitty-tracker-0.4.3 toml-0.10.2 tomli-w-1.2.0 transitions-0.9.3 truststore-0.10.4 typer-0.27.1 typing-extensions-4.16.0 typing-inspection-0.4.3 urllib3-2.7.0 websockets-17.0.1",
+      "---------------------------- Captured stderr setup -----------------------------",
+      "",
+      "[notice] A new release of pip is available: 26.1 -> 26.2.1",
+      "[notice] To update, run: /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-c/.pytest_cache/spec-kitty-test-venv/bin/python3.11 -m pip install --upgrade pip",
+      "=========================== short test summary info ============================",
+      "FAILED tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress",
+      "1 failed in 120.96s (0:02:00)"
+    ],
+    "recorded_at": "2026-08-10T12:51:35.897577+00:00"
+  },
+  "matrix_contract": {
+    "base_head_invocations_identical_after_normalizing_worktree_path": true,
+    "cache_policy": "-p no:cacheprovider",
+    "ci_parallel_repetitions_per_seed": 2,
+    "isolated_repetitions_per_seed": 4,
+    "normalized_templates": {
+      "create_feature_branch:ci_parallel:seed=0": {
+        "sha256": "b2c42e6647993c6022062c23f0f3d997404d1a8f6b6b485b1139228dd50a5617",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "0",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:ci_parallel:seed=1": {
+        "sha256": "e10402fe59ba408f1fb19e615d1b77a22d4e98e6c6c0f13b54ccb5898d2bf5e4",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "1",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:ci_parallel:seed=2": {
+        "sha256": "528cf21e4b38ef1143a36f80c3544bedcce1e2482efeefb6d8572d6e80d14378",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "2",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:ci_parallel:seed=3": {
+        "sha256": "8ec5b3ccf734e36b30552665ad2f3c6ee42fb8492711d74d2ab56b716ffcbb32",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "3",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:ci_parallel:seed=4": {
+        "sha256": "85374ffb2d201513a31d34853853f4656e057066b8d78d2735402bbc4772a07a",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "4",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:isolated:seed=0": {
+        "sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "0",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:isolated:seed=1": {
+        "sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "1",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:isolated:seed=2": {
+        "sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "2",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:isolated:seed=3": {
+        "sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "3",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "create_feature_branch:isolated:seed=4": {
+        "sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/agent/test_create_feature_branch.py"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "4",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:ci_parallel:seed=0": {
+        "sha256": "f24706c7825375fc82a8df75ddf42570704a9bb7bd12e727cbb3229185874097",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "0",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:ci_parallel:seed=1": {
+        "sha256": "3261ee1a8ca19b89444be685c1dae3193df879e1806350aa8a68c7ff8cb1ea06",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "1",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:ci_parallel:seed=2": {
+        "sha256": "6982175877f3678e0f6f6787e9fc6aece0b2545ff68dae7b6ad738e4d4b6df93",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "2",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:ci_parallel:seed=3": {
+        "sha256": "ff6977ec9023d7bc0f0e0792f156e6f5266a68e9e75d3a477e3e4c9d813e565e",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "3",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:ci_parallel:seed=4": {
+        "sha256": "72dd540eeb3a10c9399e387b1a00cf36904ab932a8d5d4e6f6cfa559e2bfb75f",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "auto",
+            "--dist",
+            "loadfile",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "4",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:isolated:seed=0": {
+        "sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "0",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:isolated:seed=1": {
+        "sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "1",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:isolated:seed=2": {
+        "sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "2",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:isolated:seed=3": {
+        "sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "3",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      },
+      "summary_threshold:isolated:seed=4": {
+        "sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+        "spec": {
+          "argv": [
+            "{runner}",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-n",
+            "0",
+            "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s"
+          ],
+          "cwd": "{worktree}",
+          "env": {
+            "HOME": "{matrix_home}",
+            "NO_COLOR": "1",
+            "PWHEADLESS": "1",
+            "PYTEST_ADDOPTS": "",
+            "PYTHONHASHSEED": "4",
+            "PYTHONPATH": "{worktree}/src",
+            "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+            "SPEC_KITTY_RUN_QUARANTINE": "1",
+            "USERPROFILE": "{matrix_home}",
+            "XDG_CONFIG_HOME": "{matrix_home}/.config"
+          }
+        }
+      }
+    },
+    "seeds": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "totals_per_target_per_revision": {
+      "all": 30,
+      "ci_parallel": 10,
+      "isolated": 20
+    },
+    "worker_topology": {
+      "ci_parallel": "-n auto --dist loadfile",
+      "isolated": "-n 0"
+    }
+  },
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "repaired_comparison": {
+    "bootstrap_patch": {
+      "path": "raw/wp02-bootstrap-replay.patch",
+      "sha256": "bbf8f7c93121fd12bb37a1bfbd87f57e6a11dfb929ea69da1b4d51b7f1cf3c89"
+    },
+    "same_patch_bytes_on_base_and_head": true,
+    "scanner_patch": {
+      "path": "raw/wp02-scanner-replay.patch",
+      "sha256": "6159cdbd4b9f6eea7ae73e814d9bca2aeb740461f918fc1ace251dd25b9e2c56"
+    },
+    "wp03_candidate_diff_sha256_at_matrix_start": "2b14f002b10cb15d011e597daaacf0ddc7c57fd0c3a8efbf2ba11c83e3442958"
+  },
+  "runner": {
+    "cpu_count": 10,
+    "executable": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-c/.venv/bin/python",
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "pytest": "pytest 9.0.3",
+    "python": "3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 17.0.0 (clang-1700.6.4.2)]"
+  },
+  "runs": [
+    {
+      "duration_seconds": 67.608553,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 109,
+      "output_sha256": "d59c7c5ace4d16553bd07cb54ddd08fe44eead2369447b3f07d22788dfdd384f",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 66.80s (0:01:06)"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 66.80s (0:01:06)",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.288633,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.607882,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "49f3e29a212c09e239d566d800ad1a453c57eadb7df75ad1ac7db810d0140caa",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.55s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 2.55s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.311844,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.333708,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.32775,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.313493,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.317177,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.32605,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.330192,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.328836,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.419272,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "13bca62673148710b531a24ec87c2103ff741d3bd74fed53ae70dac529468609",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.66s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 2.66s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.350596,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.332025,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.323073,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.348301,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.328756,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.313973,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.346126,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.352578,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "f0f6b60bd0564c33d85f0a4824a8470857ccf43076cfc041966e4d7460786c00",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.59s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 2.59s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 6.878895,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f24706c7825375fc82a8df75ddf42570704a9bb7bd12e727cbb3229185874097",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7afe49693dc04821d78e962bf965ce8c8181e1fef7f2a0cffcb6266eb962040d",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.83s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 4.83s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.633232,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f24706c7825375fc82a8df75ddf42570704a9bb7bd12e727cbb3229185874097",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7692f5340ddb07e9feb9d22bc1141d3df0651697550a7c8e06026b6bce89c061",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.14s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "0",
+      "summary": "1 passed in 5.14s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.124178,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "3261ee1a8ca19b89444be685c1dae3193df879e1806350aa8a68c7ff8cb1ea06",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "caa02a86a446c5b664bb6f2ddecb6b8f5ff75dad0e9777be8e43a3d4b0ff0ecb",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.63s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 4.63s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.425463,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "3261ee1a8ca19b89444be685c1dae3193df879e1806350aa8a68c7ff8cb1ea06",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "17fc587c26017ce26558020d41a4909bac3c5e8bdd03b7ac925d68950fb401be",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.93s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "1",
+      "summary": "1 passed in 4.93s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.832111,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "6982175877f3678e0f6f6787e9fc6aece0b2545ff68dae7b6ad738e4d4b6df93",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "2cc21d334848af87c0a68146d37a6fe94b8eccc9436da05dce6e4a3b05e433e0",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.33s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 5.33s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.328653,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "6982175877f3678e0f6f6787e9fc6aece0b2545ff68dae7b6ad738e4d4b6df93",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7afe49693dc04821d78e962bf965ce8c8181e1fef7f2a0cffcb6266eb962040d",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.83s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "2",
+      "summary": "1 passed in 4.83s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.286414,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "ff6977ec9023d7bc0f0e0792f156e6f5266a68e9e75d3a477e3e4c9d813e565e",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "b4795cee27d2f8e6bc05b3e3e9e5da2aa8eeec6f013744eac42621a9e923dd0f",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.79s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 4.79s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.335454,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "ff6977ec9023d7bc0f0e0792f156e6f5266a68e9e75d3a477e3e4c9d813e565e",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7afe49693dc04821d78e962bf965ce8c8181e1fef7f2a0cffcb6266eb962040d",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.83s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "3",
+      "summary": "1 passed in 4.83s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.455213,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "72dd540eeb3a10c9399e387b1a00cf36904ab932a8d5d4e6f6cfa559e2bfb75f",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "28dc544f583f4fd14d7690ddb378bd542e55afc0e64fddefbf4630aad6d017d1",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.84s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 4.84s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.483133,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "72dd540eeb3a10c9399e387b1a00cf36904ab932a8d5d4e6f6cfa559e2bfb75f",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "b4795cee27d2f8e6bc05b3e3e9e5da2aa8eeec6f013744eac42621a9e923dd0f",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.79s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "4",
+      "summary": "1 passed in 4.79s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 4.993828,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "f2952331c679f0cfbf04f41c3431ab12c2a1571e2f4cdbc9415089b32771f9e9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 4.16s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 4.16s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.553372,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.515829,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.50038,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.508497,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.507673,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.560847,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.844935,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "71045c58417c1612ab70393e23a4311b8fd91b81c633e5f5ed43edd4145f0b31",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.99s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 3.99s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.611407,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "efde41ea6376acbe6cfc303f8877169eb88138e8a8d52ba4f0ba989a5c169e80",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.80s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 3.80s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.513618,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.442849,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "92b8e485d5f0dae2f9da9a0102177c4d391b5774bfd6599ea30b79ac4c7614d4",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.65s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 3.65s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.556812,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "8f729f9868de01b7e6f2859d8d629ed76df16c646eb320ff43c45a77c68798a7",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.75s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 3.75s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.697695,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "b20b7efdf204b59503f734c41ff4eafd36be61d0dedf1f4e14c90273fd60d235",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.86s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 3.86s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 5.109198,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "e2303cc181b83d298d3a765aee2114f3518cec6a6c3d4cf5af10e6c41131fd0b",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 4.20s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 4.20s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.949026,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "e85aed104c506a92f0ffc4b8cd25a51d17902b6411af749112bdc979c352f9d0",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 4.08s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 4.08s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 5.015496,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d12f5d193d91122882ccbada370bb9a15e644ba1c716c31632aa5c58368a3042",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 4.11s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 4.11s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.707856,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "e6adcc21953ee7ebaec26251f573292cd612e69b3664b0e13fa0db1ed072e016",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.89s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 3.89s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.53663,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "9fada4e31d220038d5536b124f8745a06e7bdce20283fa3d15619f4e53c366ce",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.73s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 3.73s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.51752,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 3,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.488199,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d9b2d0c24adc5e849f8c576d3924386b2bb047ada7eda03f3f82e60e319496dd",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.69s"
+      ],
+      "repetition": 4,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 3.69s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 6.017826,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2c42e6647993c6022062c23f0f3d997404d1a8f6b6b485b1139228dd50a5617",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "c033077e2bcd875fe1f0443056caa5adb3ae7d31bdb9d76e688b2dddced49b58",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.50s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 5.50s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.19179,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2c42e6647993c6022062c23f0f3d997404d1a8f6b6b485b1139228dd50a5617",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "b6700b28d3fda50f908c9d883e17bec8a044f8eb2bcfb5a7360bd2aff8507b32",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.68s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "0",
+      "summary": "8 passed in 5.68s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.118911,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e10402fe59ba408f1fb19e615d1b77a22d4e98e6c6c0f13b54ccb5898d2bf5e4",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "1810fd2aee0b7c050944d081aa57a0a04afa96a2472d8e58ebf1acd62a6ee383",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.61s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 5.61s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.001457,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e10402fe59ba408f1fb19e615d1b77a22d4e98e6c6c0f13b54ccb5898d2bf5e4",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "c033077e2bcd875fe1f0443056caa5adb3ae7d31bdb9d76e688b2dddced49b58",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.50s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "1",
+      "summary": "8 passed in 5.50s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.061434,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "528cf21e4b38ef1143a36f80c3544bedcce1e2482efeefb6d8572d6e80d14378",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7818812b9eee5da0cabf41ec22abf6aefa34f0b86f4c289f7f73ff2cb3941542",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.53s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 5.53s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.105079,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "528cf21e4b38ef1143a36f80c3544bedcce1e2482efeefb6d8572d6e80d14378",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "658e474f0e82a6b52f93eafed0c466dabc1ee5eaec8f22b12934c779b40fb632",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.60s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "2",
+      "summary": "8 passed in 5.60s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.0656,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "8ec5b3ccf734e36b30552665ad2f3c6ee42fb8492711d74d2ab56b716ffcbb32",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "bba675be9e5639afcd0d3e872c6010eb43042b79c30ab7ecac26cb86db11fa60",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.57s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 5.57s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.046319,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "8ec5b3ccf734e36b30552665ad2f3c6ee42fb8492711d74d2ab56b716ffcbb32",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "d0d31f9ad2eec71ab748c9ae2555ed57d0786f215c563210356983f82a32c4f4",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.54s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "3",
+      "summary": "8 passed in 5.54s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.053596,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "85374ffb2d201513a31d34853853f4656e057066b8d78d2735402bbc4772a07a",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "42c3027f39f5e56f37ecad2ca676e933b500b00dce0a993acfcc552f1ad99e8a",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.55s"
+      ],
+      "repetition": 1,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 5.55s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.983518,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "85374ffb2d201513a31d34853853f4656e057066b8d78d2735402bbc4772a07a",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "bcf4e9fb240e3baa33c770a9cbfaa919f9cd6c6bf203aa444dca6f63a633f956",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.49s"
+      ],
+      "repetition": 2,
+      "revision": "base",
+      "seed": "4",
+      "summary": "8 passed in 5.49s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 72.683876,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 109,
+      "output_sha256": "20123dbcce2f8e7df7e3d0d1aae726ee35e100594cccf5cd623a18f267d51951",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 71.86s (0:01:11)"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 71.86s (0:01:11)",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.359145,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "f0f6b60bd0564c33d85f0a4824a8470857ccf43076cfc041966e4d7460786c00",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.59s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 2.59s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.33923,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "062a9752765b4af694c69bf9f3921792847a7bc763f4614c57251b44f1709f20",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.60s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 2.60s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.395528,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f0f3cd5e751edabfb5314008de88023846e7da8c4e57a2780dea20393ce063b9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "e7f5ddf39882fca9bfd30eace7c79941312057b3e98c822faa22cd56dd293527",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.62s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 2.62s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.388746,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "dee7a466b788f8e44f5b65a9d6abe65c53357f71ce411610af3f7b152309f52f",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.64s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 2.64s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.388822,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "0eb0a32ccd4cf69fdfb8d3db99d594b9b081ac7036b5a1ffa1dc3e958019384f",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.61s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 2.61s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.338124,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "ec233c76e08c5015262f9720e11a0b2f5fe19b95a1b43269b246858aeb44f090",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.56s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 2.56s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.301886,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f78c621ceb9c0cb00768a5db85d4a9e07f003a6d19bfde8e133f87e109c1d0f5",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "ec233c76e08c5015262f9720e11a0b2f5fe19b95a1b43269b246858aeb44f090",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.56s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 2.56s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.314517,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "ec233c76e08c5015262f9720e11a0b2f5fe19b95a1b43269b246858aeb44f090",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.56s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 2.56s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.362726,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "062a9752765b4af694c69bf9f3921792847a7bc763f4614c57251b44f1709f20",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.60s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 2.60s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.354969,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.475204,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "43802cb8ea1da0d38b74aa6b9f61d8f0e3445c9381ff202a0267eb54a67dfb45",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "bdf13768476c4a88c7556633496f64add4441d13c803693105cab47224aeacc7",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.71s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 2.71s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.321881,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "169c83f66e94c449c3c1a0d5644666a236a88e470e173e22044316b935935eaf",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.57s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 2.57s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.416023,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "0eb0a32ccd4cf69fdfb8d3db99d594b9b081ac7036b5a1ffa1dc3e958019384f",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.61s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 2.61s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.349825,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.287323,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "1f631a27eba3c58f2bc8f3621e7177b5afbe5ffbdcf64189d13b45c64edaa4e6",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "89db0113529b5f4d4ace124f0cf24f08f43567753d5d23ce06b07b9bb4b9eabb",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.54s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 2.54s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.329556,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "f0f6b60bd0564c33d85f0a4824a8470857ccf43076cfc041966e4d7460786c00",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.59s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 2.59s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.368007,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "83233045b29d7e361ffc4826f9d8bccce43519f1b85f8d1deec84241634c1b2a",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.58s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 2.58s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.432042,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "e7f5ddf39882fca9bfd30eace7c79941312057b3e98c822faa22cd56dd293527",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.62s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 2.62s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 3.43664,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "d7caefcc1678c5dc9c05bb1e223baf79e678d311c6bd0bc9fc742a5ce1feec87",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "13bca62673148710b531a24ec87c2103ff741d3bd74fed53ae70dac529468609",
+      "output_tail": [
+        ".                                                                        [100%]",
+        "1 passed in 2.66s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 2.66s",
+      "target": "summary_threshold",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 6.248671,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f24706c7825375fc82a8df75ddf42570704a9bb7bd12e727cbb3229185874097",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "f9d6d26d91f6d67f61fa1388a4825147309995021f081f901e15857bebff5827",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.75s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 5.75s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.5893,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "f24706c7825375fc82a8df75ddf42570704a9bb7bd12e727cbb3229185874097",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "5536c258302f22734059086060f4c4438c37928e397d908a5c38a11e841b911c",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.11s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "0",
+      "summary": "1 passed in 5.11s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.753278,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "3261ee1a8ca19b89444be685c1dae3193df879e1806350aa8a68c7ff8cb1ea06",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "f4e2009e42a419282203d8a9fc17dd174bf208ef0e979cc618498dcea4ca85cb",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.27s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 5.27s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.733677,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "3261ee1a8ca19b89444be685c1dae3193df879e1806350aa8a68c7ff8cb1ea06",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7605d4928022ef2b0a48bf606104a9b21c5aaf93a0d28140cd94c16b22170c15",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.24s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "1",
+      "summary": "1 passed in 5.24s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.667039,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "6982175877f3678e0f6f6787e9fc6aece0b2545ff68dae7b6ad738e4d4b6df93",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "f2f6c8930db40b6c6c654d50b2e618eeb8ba4f4765a79184b36126830e455c48",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.16s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 5.16s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.623042,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "6982175877f3678e0f6f6787e9fc6aece0b2545ff68dae7b6ad738e4d4b6df93",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "0f3cc561a1c3c9fd5b149aeeda9921db00ce5946fae696e9a15c9631c6f1f3f2",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.13s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "2",
+      "summary": "1 passed in 5.13s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.481354,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "ff6977ec9023d7bc0f0e0792f156e6f5266a68e9e75d3a477e3e4c9d813e565e",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "fee611e05ff17e776c787cd440f4436a17be31d2f8664d3a6260b20c91738af9",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 4.98s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 4.98s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.980587,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "ff6977ec9023d7bc0f0e0792f156e6f5266a68e9e75d3a477e3e4c9d813e565e",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "a3e33db594716acdd446345a0db51ae4121cb666acb46c31a01a4894889114fd",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.46s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "3",
+      "summary": "1 passed in 5.46s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.742216,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "72dd540eeb3a10c9399e387b1a00cf36904ab932a8d5d4e6f6cfa559e2bfb75f",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "f0f50b6203958cd44bd1c2d420ae918318f4758367c603f64ab846f5cd36fcc9",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.23s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 5.23s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.750447,
+      "exit_code": 0,
+      "node_or_path": "tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s",
+      "normalized_invocation_sha256": "72dd540eeb3a10c9399e387b1a00cf36904ab932a8d5d4e6f6cfa559e2bfb75f",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7605d4928022ef2b0a48bf606104a9b21c5aaf93a0d28140cd94c16b22170c15",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        ".                                                                        [100%]",
+        "1 passed in 5.24s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "4",
+      "summary": "1 passed in 5.24s",
+      "target": "summary_threshold",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 5.043,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "24e59e376447701f3ad74e91c29a91076e30458990fea1d0278344dcb3624716",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 4.22s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 4.22s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.586489,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "acb13ce3456a976307cbd22c0731efcc003b33263b539464adfea709572d5f2c",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.76s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 3.76s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.494116,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d9b2d0c24adc5e849f8c576d3924386b2bb047ada7eda03f3f82e60e319496dd",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.69s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 3.69s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.545053,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "3aec6c94be21140f79e76f40e5783b28cf10ef28d6c74ce567300f558820957b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "8f729f9868de01b7e6f2859d8d629ed76df16c646eb320ff43c45a77c68798a7",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.75s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 3.75s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.506365,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.625402,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "efde41ea6376acbe6cfc303f8877169eb88138e8a8d52ba4f0ba989a5c169e80",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.80s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 3.80s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.491505,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d9b2d0c24adc5e849f8c576d3924386b2bb047ada7eda03f3f82e60e319496dd",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.69s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 3.69s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.533673,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2d0a447d56657d0e66b7fbe4fb377d8d6f840f51d095b4e856f1a6112a23cfa",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d32be64c0edc1a148b4721c026c08dfbbe2e16ceefa33a2f6df3e9cda65412c0",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.72s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 3.72s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.511374,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.506474,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "4183d18b25d55a59e61ec590e3c4480e31872e493902af755e10d51bb3d3623d",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.68s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 3.68s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.482299,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "00c50bb4f631e3f087f0ff2e9e32d5814339d6c3266235b99456dc995cd77a6e",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.67s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 3.67s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.486416,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e7360930e0d6972c6beb2ea999188bc9c68237edaae92d96a04e510393656b10",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d9b2d0c24adc5e849f8c576d3924386b2bb047ada7eda03f3f82e60e319496dd",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.69s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 3.69s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.532164,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d32be64c0edc1a148b4721c026c08dfbbe2e16ceefa33a2f6df3e9cda65412c0",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.72s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 3.72s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.52872,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.614477,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d32be64c0edc1a148b4721c026c08dfbbe2e16ceefa33a2f6df3e9cda65412c0",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.72s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 3.72s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.509242,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "64ee632fd68bf1b25168047957e265921c65b77b72b24361d010f2802b9fe5e9",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "55d6fd855452dfee5b548b2c07da9112df37b0cea28634c31cb2f80f7ba798c9",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.70s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 3.70s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.530776,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d32be64c0edc1a148b4721c026c08dfbbe2e16ceefa33a2f6df3e9cda65412c0",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.72s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 3.72s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.504258,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "d9b2d0c24adc5e849f8c576d3924386b2bb047ada7eda03f3f82e60e319496dd",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.69s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 3.69s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.527957,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "a90469950cc20bfa9b3376c7a5f6530c87800a4eebba806e9dc3d192d47c1450",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.71s"
+      ],
+      "repetition": 3,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 3.71s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 4.468987,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "44e7365bc1afb6d81523092376cfc5a9da210434e8b2f9ff85a6e9cf23f3729b",
+      "outcome": "PASS",
+      "output_bytes": 98,
+      "output_sha256": "00c50bb4f631e3f087f0ff2e9e32d5814339d6c3266235b99456dc995cd77a6e",
+      "output_tail": [
+        "........                                                                 [100%]",
+        "8 passed in 3.67s"
+      ],
+      "repetition": 4,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 3.67s",
+      "target": "create_feature_branch",
+      "topology": "isolated"
+    },
+    {
+      "duration_seconds": 6.030827,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2c42e6647993c6022062c23f0f3d997404d1a8f6b6b485b1139228dd50a5617",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7818812b9eee5da0cabf41ec22abf6aefa34f0b86f4c289f7f73ff2cb3941542",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.53s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 5.53s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.028368,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "b2c42e6647993c6022062c23f0f3d997404d1a8f6b6b485b1139228dd50a5617",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "cfb4a42b913b0cf7c8f40db03e3cf761fc6b7610dd2c721c31e43cecf15573dd",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.52s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "0",
+      "summary": "8 passed in 5.52s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.088906,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e10402fe59ba408f1fb19e615d1b77a22d4e98e6c6c0f13b54ccb5898d2bf5e4",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "2d0960b3d26903353cbc1663cfcc70fa78abead6a78429a31d5a947ca4742136",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.59s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 5.59s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.037447,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "e10402fe59ba408f1fb19e615d1b77a22d4e98e6c6c0f13b54ccb5898d2bf5e4",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "0a59ea1fa8eaf0fbc96b2af6e0c4246efa19874c402170ee0f7644e77f2bed74",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.51s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "1",
+      "summary": "8 passed in 5.51s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.050367,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "528cf21e4b38ef1143a36f80c3544bedcce1e2482efeefb6d8572d6e80d14378",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "7818812b9eee5da0cabf41ec22abf6aefa34f0b86f4c289f7f73ff2cb3941542",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.53s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 5.53s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.201074,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "528cf21e4b38ef1143a36f80c3544bedcce1e2482efeefb6d8572d6e80d14378",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "c3d33e151b4fd6d083fe317100f51a08b33545a59d3842f6855c73e6003ad1ad",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.65s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "2",
+      "summary": "8 passed in 5.65s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.142016,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "8ec5b3ccf734e36b30552665ad2f3c6ee42fb8492711d74d2ab56b716ffcbb32",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "556baa32f58ef0945f5f93e56ca16db1796140ffbe51332df0186fc8a4a37ec8",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.62s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 5.62s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.140204,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "8ec5b3ccf734e36b30552665ad2f3c6ee42fb8492711d74d2ab56b716ffcbb32",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "2d0960b3d26903353cbc1663cfcc70fa78abead6a78429a31d5a947ca4742136",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.59s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "3",
+      "summary": "8 passed in 5.59s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.101881,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "85374ffb2d201513a31d34853853f4656e057066b8d78d2735402bbc4772a07a",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "0405615c67d11307f21b7d617be160f8d31cd293a0792f514ece2d27e90fffb7",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.63s"
+      ],
+      "repetition": 1,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 5.63s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    },
+    {
+      "duration_seconds": 6.207625,
+      "exit_code": 0,
+      "node_or_path": "tests/agent/test_create_feature_branch.py",
+      "normalized_invocation_sha256": "85374ffb2d201513a31d34853853f4656e057066b8d78d2735402bbc4772a07a",
+      "outcome": "PASS",
+      "output_bytes": 141,
+      "output_sha256": "cbeb8d697055eb0ca845272fd74c52a1584635f3ff3928a859630997fca0ae6b",
+      "output_tail": [
+        "bringing up nodes...",
+        "bringing up nodes...",
+        "",
+        "........                                                                 [100%]",
+        "8 passed in 5.70s"
+      ],
+      "repetition": 2,
+      "revision": "head",
+      "seed": "4",
+      "summary": "8 passed in 5.70s",
+      "target": "create_feature_branch",
+      "topology": "ci_parallel"
+    }
+  ],
+  "schema_version": "test-sanitation-wp03-results/v1",
+  "summary": {
+    "base:create_feature_branch": {
+      "classification": "NOT_REPRODUCED",
+      "failed": 0,
+      "max_duration_seconds": 6.19179,
+      "median_duration_seconds": 4.844935,
+      "min_duration_seconds": 4.442849,
+      "passed": 30,
+      "runs": 30
+    },
+    "base:summary_threshold": {
+      "classification": "NOT_REPRODUCED",
+      "failed": 0,
+      "max_duration_seconds": 67.608553,
+      "median_duration_seconds": 3.350596,
+      "min_duration_seconds": 3.288633,
+      "passed": 30,
+      "runs": 30
+    },
+    "head:create_feature_branch": {
+      "classification": "NOT_REPRODUCED",
+      "failed": 0,
+      "max_duration_seconds": 6.207625,
+      "median_duration_seconds": 4.545053,
+      "min_duration_seconds": 4.468987,
+      "passed": 30,
+      "runs": 30
+    },
+    "head:summary_threshold": {
+      "classification": "NOT_REPRODUCED",
+      "failed": 0,
+      "max_duration_seconds": 72.683876,
+      "median_duration_seconds": 3.416023,
+      "min_duration_seconds": 3.287323,
+      "passed": 30,
+      "runs": 30
+    }
+  },
+  "warmups": [
+    {
+      "duration_seconds": 46.644837,
+      "exit_code": 0,
+      "kind": "collection_warmup_not_counted",
+      "normalized_environment": {
+        "HOME": "{matrix_home}",
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONHASHSEED": "0",
+        "PYTHONPATH": "{worktree}/src",
+        "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+        "SPEC_KITTY_RUN_QUARANTINE": "1",
+        "USERPROFILE": "{matrix_home}",
+        "XDG_CONFIG_HOME": "{matrix_home}/.config"
+      },
+      "output_sha256": "21cbb356d955fac2ae19b586d08449cfcd784db1e518834a21726675f624bb7c",
+      "output_tail": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree",
+        "",
+        "9 tests collected in 26.71s"
+      ],
+      "revision": "base"
+    },
+    {
+      "duration_seconds": 46.243286,
+      "exit_code": 0,
+      "kind": "collection_warmup_not_counted",
+      "normalized_environment": {
+        "HOME": "{matrix_home}",
+        "NO_COLOR": "1",
+        "PWHEADLESS": "1",
+        "PYTEST_ADDOPTS": "",
+        "PYTHONHASHSEED": "0",
+        "PYTHONPATH": "{worktree}/src",
+        "SPEC_KITTY_HOME": "{matrix_home}/.spec-kitty",
+        "SPEC_KITTY_RUN_QUARANTINE": "1",
+        "USERPROFILE": "{matrix_home}",
+        "XDG_CONFIG_HOME": "{matrix_home}/.config"
+      },
+      "output_sha256": "acfe44abdf9fb202e86ff830e4dfc97c280df4c9308a2fcb8280f8ee4e0c5530",
+      "output_tail": [
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head",
+        "tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree",
+        "",
+        "9 tests collected in 26.52s"
+      ],
+      "revision": "head"
+    }
+  ],
+  "work_package": "WP03"
+}

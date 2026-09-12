@@ -1,0 +1,89 @@
+{
+  "mission_slug": "mission-a-p0-consistency-01KZWHY1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect_update_persisted.py (WP01, approved)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:45.205346+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect_update_persisted.py::test_emit_captured_spy_matches_persisted_record_on_disk (WP01)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:47.147275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/test_overall_verdict_scaffold.py (WP02, approved)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:49.151046+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/test_overall_verdict_scaffold.py::test_partial_authoring_nine_of_ten_seeded_rows_still_pending (WP02)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:51.155743+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_failed_upgrade_recoverable.py (WP03, approved)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:53.190751+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_failed_upgrade_recoverable.py::test_genuine_pre_3x_project_stays_legacy_blocked (WP03)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:55.189945+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py (WP04, approved)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:57.214481+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py::test_pre_execution_amendment_actually_regenerates (WP04)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-13T05:33:59.245465+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

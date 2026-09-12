@@ -18,8 +18,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.paths import locate_project_root
-from specify_cli.mission_metadata import load_meta, set_origin_ticket
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed, locate_project_root
+from specify_cli.mission_metadata import set_origin_ticket
 from specify_cli.tracker.config import TrackerProjectConfig, load_tracker_config
 from specify_cli.tracker.origin_models import (
     MissionFromTicketResult,
@@ -161,8 +161,8 @@ def search_origin_candidates(
     if provider not in _ORIGIN_PROVIDERS:
         raise OriginBindingError(f"Only Jira and Linear providers support origin binding. Current provider: {provider}")
 
-    # 3. Call SaaS
-    actual_client = client or SaaSTrackerClient()
+    # 3. Call SaaS — gated on the consent of the project being searched (FR-029).
+    actual_client = client or SaaSTrackerClient(project_root=repo_root)
     try:
         response = actual_client.search_issues(
             provider,
@@ -245,7 +245,10 @@ def bind_mission_origin(
         On SaaS failure, missing metadata, or write failure.
     """
     # 1. Load meta.json to get mission identity (needed for SaaS call)
-    meta = load_meta(feature_dir)
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
+        raise OriginBindingError(f"Failed to load meta.json from {feature_dir}: {exc}") from exc
     if meta is None:
         raise OriginBindingError(f"No meta.json found in {feature_dir}")
     mission_id = str(meta.get("mission_id") or "").strip()
@@ -258,7 +261,11 @@ def bind_mission_origin(
     # 2. Resolve routing + local resource context from tracker config
     #    Walk up from feature_dir to find .kittify/config.yaml
     repo_root = _resolve_repo_root(feature_dir)
-    actual_client = client or SaaSTrackerClient()
+    # #3030 FR-029: the client is told which project owns this mission, resolved
+    # from the mission's own ``feature_dir`` — never from the process's cwd. This
+    # is the non-interactive reach (mission creation → consume_pending_origin →
+    # here), so nothing downstream would have prompted an operator to notice.
+    actual_client = client or SaaSTrackerClient(project_root=repo_root)
     tracker_config = _resolve_tracker_config_for_origin(
         repo_root=repo_root,
         provider=provider,
@@ -304,27 +311,9 @@ def bind_mission_origin(
     # 5. Write to meta.json (local-second)
     updated_meta = set_origin_ticket(feature_dir, origin_ticket)
 
-    # 6. Emit MissionOriginBound event (fire-and-forget, lazy import)
-    event_emitted = False
-    try:
-        from specify_cli.sync.events import get_emitter
-
-        emitter = get_emitter()
-        emitter.emit_mission_origin_bound(
-            mission_slug=mission_slug,
-            provider=provider,
-            external_issue_id=candidate.external_issue_id,
-            external_issue_key=candidate.external_issue_key,
-            external_issue_url=candidate.url,
-            title=candidate.title,
-            mission_id=meta.get("mission_id"),
-        )
-        event_emitted = True
-    except Exception:
-        logger.debug("MissionOriginBound event emission failed", exc_info=True)
-
-    # 7. Return updated meta dict and event status
-    return updated_meta, event_emitted
+    # 6. Return the updated meta dict (the MissionOriginBound SaaS emission
+    # was removed with the sync transport, issue #5).
+    return updated_meta, False
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +386,7 @@ def start_mission_from_ticket(
 
     # 3. Bind origin (SaaS-first, local-second)
     try:
-        updated_meta, event_emitted = bind_mission_origin(
+        updated_meta, _ = bind_mission_origin(
             creation_result.feature_dir,
             candidate,
             provider,
@@ -415,7 +404,6 @@ def start_mission_from_ticket(
         feature_dir=creation_result.feature_dir,
         mission_slug=creation_result.mission_slug,
         origin_ticket=origin_ticket,
-        event_emitted=event_emitted,
     )
 
 

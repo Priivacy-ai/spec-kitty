@@ -6,7 +6,7 @@ Surface area:
   all configured org doctrine packs into their local snapshot directories.
 * ``spec-kitty doctrine regenerate-graph [--check] [--json]`` — deterministically
   regenerate the shipped DRG from the built-in doctrine tree as per-kind
-  ``src/doctrine/*.graph.yaml`` fragments (FR-009 / WP09; sharded per mission
+  ``packs/built-in/*.graph.yaml`` fragments (FR-009 / WP09; sharded per mission
   #2680 WP05). ``--check`` compares without writing and exits non-zero when the
   committed graph source is stale.
 * ``spec-kitty doctrine pack validate <pack-path> [--json]`` — validate a
@@ -45,6 +45,8 @@ from pathlib import Path
 
 import typer
 from charter.drg import ArtifactKind
+from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
+from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
 
@@ -52,11 +54,43 @@ __all__ = ["app"]
 
 _JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
 
+#: CR-02 (mission ``charter-code-topology-01M152G1`` S4): the deprecation
+#: notice printed once per invocation of the ``spec-kitty doctrine`` group
+#: (any subcommand). Unlike the CR-01/CR-03/CR-04/CR-07 config/URN-reader
+#: shims -- which warn-once *per process* because a hot read path may call
+#: the same function many times in one invocation -- a CLI group's own
+#: ``@app.callback()`` fires at most once per process by construction (typer
+#: invokes it a single time before dispatching to exactly one subcommand),
+#: so no additional de-dup gate is needed here.
+_DEPRECATION_NOTICE = (
+    "`spec-kitty doctrine` is deprecated; use `spec-kitty charter` instead "
+    "(mission charter-code-topology-01M152G1, CR-02). This command still "
+    "works and delegates to the same implementation. "
+    "The following commands remain under `spec-kitty doctrine`: "
+    "regenerate-graph, pack validate, pack assemble, asset, and mission-type list "
+    "(all visible types; charter mission-type list shows activated types)."
+)
+
+
 app = typer.Typer(
     name="doctrine",
-    help="Manage org-layer doctrine packs (fetch, validate, assemble).",
+    help="[DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs (fetch, validate, assemble).",
     no_args_is_help=True,
 )
+
+
+@app.callback()
+def _deprecation_warning() -> None:
+    """CR-02: emit a one-shot stderr deprecation notice, then delegate.
+
+    Typer/Click always runs a Typer app's own ``@app.callback()`` before
+    dispatching to whichever subcommand the operator invoked, so this fires
+    for every ``spec-kitty doctrine <anything>`` invocation -- the "callback
+    that emits a one-shot stderr deprecation then delegates" CR-02 asks for.
+    Prints (not raises): the legacy group must keep working exactly as
+    before, it only gains a warning banner.
+    """
+    typer.secho(_DEPRECATION_NOTICE, fg=typer.colors.YELLOW, err=True)
 
 pack_app = typer.Typer(
     name="pack",
@@ -79,6 +113,11 @@ mission_type_app = typer.Typer(
 )
 app.add_typer(mission_type_app, name="mission-type")
 
+# WP05 — asset operator surface. Read-only ``asset list`` / ``asset path``
+# commands resolve shipped and overlay doctrine assets through
+# ``DoctrineService.assets`` (no install — C-002). ``asset_app`` is imported at
+# the top of the module; registered here at the WP03 anchor.
+app.add_typer(asset_app, name="asset")
 
 
 # ----------------------------------------------------------------------
@@ -98,8 +137,8 @@ def fetch(
     ),
 ) -> None:
     """Fetch org doctrine pack(s) from their configured remote sources."""
+    from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.doctrine.config import load_pack_registry
     from specify_cli.doctrine.snapshot import fetch_pack
 
     repo_root = locate_project_root()
@@ -132,7 +171,7 @@ def fetch(
             raise typer.Exit(1)
 
     if dry_run:
-        from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError
+        from charter.drg import OrgPackEnvVarUnsetError
 
         for pack in target_packs:
             origin = pack.url or str(pack.local_path)
@@ -154,9 +193,10 @@ def fetch(
     for pack in target_packs:
         result = fetch_pack(pack, repo_root)
         if result.ok:
+            suffix = " (unchanged)" if result.unchanged else ""
             console.print(
                 f"[green]Pack '{pack.name}': {result.artifacts_written} "
-                "artifacts[/green]"
+                f"artifacts{suffix}[/green]"
             )
             if result.pack_version:
                 console.print(f"  Version: {result.pack_version}")
@@ -174,29 +214,32 @@ def fetch(
 # regenerate-graph — deterministic DRG regeneration (FR-009 / WP09 T026)
 # ----------------------------------------------------------------------
 def _doctrine_root() -> Path:
-    """Return the built-in doctrine root that owns the shipped DRG graph source.
+    """Return the built-in pack root that owns the shipped DRG graph source.
 
-    The extractor walks ``<doctrine_root>/directives/built-in`` etc. and writes
-    the sharded ``<doctrine_root>/*.graph.yaml`` fragments (mission #2680 WP05).
-    Regeneration must target the *working-tree* source (``src/doctrine``) when
-    invoked from inside a spec-kitty checkout — that is the directory the
-    freshness gate reads and that a developer commits.
+    Post-flatten (relocate-builtin-doctrine-packs, WP03) the built-in artifact
+    content and the sharded ``*.graph.yaml`` fragments live in
+    ``packs/built-in/`` — no longer under ``src/charter/offering/<kind>/built-in``. This
+    root is both the extractor's artifact input *and* the fragment write-target /
+    freshness read source; the extractor resolves ``missions/`` (which did NOT
+    move) internally.
 
-    Resolution order:
-      1. Walk up from CWD for a ``src/doctrine`` dir carrying built-in
-         artifacts (``directives/built-in``).
-      2. Fall back to the installed :mod:`doctrine` package directory (e.g. a
-         consumer project running the CLI from a non-editable install).
+    Routes through :func:`charter.offering.pack_paths.built_in_root` (C1.6), the single
+    root-resolution authority every root-needing reader must use instead of
+    scattering bare ``resolve_pack_root("built-in")`` calls or a hand-rolled
+    walk. This retires the CWD ancestor-walk this function previously
+    reimplemented (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``
+    WP03 — an INTENTIONAL, called-out NFR-001 behaviour delta, not a
+    regression): an operator standing in a checkout different from the
+    installed/editable module now resolves through the packaged seam (env
+    override → editable-checkout ancestor walk from the *module's* location →
+    installed wheel sibling → fail-closed) rather than a CWD-rooted walk. The
+    normal in-checkout case (operator invoking from inside the repo whose
+    ``src/doctrine`` this module loads from) resolves identically either way.
     """
-    cwd = Path.cwd().resolve()
-    for candidate in [cwd, *cwd.parents]:
-        src_doctrine = candidate / "src" / "doctrine"
-        if (src_doctrine / "directives" / "built-in").is_dir():
-            return src_doctrine
+    from charter.pack_paths import built_in_root
 
-    import doctrine
-
-    return Path(doctrine.__file__).resolve().parent
+    root: Path = built_in_root()
+    return root
 
 
 @app.command(name="regenerate-graph")
@@ -206,7 +249,7 @@ def regenerate_graph(
         "--check",
         help=(
             "Do not write; regenerate into a temp directory and compare the "
-            "per-kind graph fragments against the committed src/doctrine source. "
+            "per-kind graph fragments against the committed packs/built-in source. "
             "Exit 1 when stale (operator-runnable freshness gate). Exit 0 when "
             "fresh."
         ),
@@ -220,7 +263,8 @@ def regenerate_graph(
     """Regenerate the shipped DRG graph source deterministically (FR-009).
 
     Composes the DRG extractor + calibrator into per-populated-node-kind
-    ``src/doctrine/*.graph.yaml`` fragments (sharded per mission #2680 WP05),
+    ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
+    relocated from ``src/charter/offering/`` by the pack flatten),
     retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
     on unchanged inputs yields byte-identical fragments. With ``--check`` the
     command never writes: it regenerates into a temp directory and compares the
@@ -228,7 +272,7 @@ def regenerate_graph(
     operator-facing twin of the freshness gate.
 
     Both the write path and ``--check`` merge in the enumerable hand-authored
-    overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+    overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
     ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
     ``anti_pattern`` nodes hand-authored directly in the graph fragments
     (mission doctrine-tension-edges-01KY1WPC). The extractor has no
@@ -237,10 +281,14 @@ def regenerate_graph(
     write, and (b) always report "stale" under ``--check`` even when nothing
     is actually stale.
     """
-    from doctrine.drg.migration.hand_authored_overlay import (
+    from charter.offering.drg.migration.hand_authored_overlay import (
         write_reference_graph_with_overlay,
     )
-    from doctrine.drg.validator import DRGValidationError
+    from charter.drg import DRGValidationError
+    from specify_cli.doctrine.builtin_manifest import (
+        builtin_manifest_is_fresh,
+        generate_builtin_manifest,
+    )
 
     doctrine_root = _doctrine_root()
 
@@ -259,9 +307,11 @@ def regenerate_graph(
                     detail="; ".join(exc.errors),
                 )
                 raise typer.Exit(1) from exc
+            # Freshness covers BOTH the DRG fragments and the generated
+            # pack-manifest.yaml — either drifting registers as stale.
             fresh = _read_graph_source(generated_dir) == _read_graph_source(
                 doctrine_root
-            )
+            ) and builtin_manifest_is_fresh(doctrine_root)
         _emit_regen_result(
             status="fresh" if fresh else "stale",
             path=doctrine_root,
@@ -279,6 +329,10 @@ def regenerate_graph(
             detail="; ".join(exc.errors),
         )
         raise typer.Exit(1) from exc
+
+    # Regenerate the built-in pack manifest in the same deterministic pass so
+    # the shipped DRG fragments and the constituent inventory never drift apart.
+    generate_builtin_manifest(doctrine_root)
 
     _emit_regen_result(status="written", path=doctrine_root, json_output=json_output)
     raise typer.Exit(0)
@@ -423,134 +477,142 @@ def pack_assemble(
 # new — scaffold a stub artifact (FR-016 / WP09 T048)
 # ----------------------------------------------------------------------
 
-#: Canonical artifact kinds the scaffolder supports. The plural form names the
-#: pack-mode directory (``directives/``, ``styleguides/``, …); project mode uses
-#: the singular project overlay directories for the runtime-managed kinds. The
-#: singular form becomes the YAML filename suffix
-#: (``foo.directive.yaml``).  Order is the canonical listing order from
-#: the pack contract; consumed by ``--help`` rendering.
-_CANONICAL_KIND_SINGULAR_TO_PLURAL: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_step_contracts",
+#: Per-kind stub bodies (T016).  Each value is a ``str.format``-ready YAML
+#: template whose ``{artifact_id}`` placeholder the scaffolder substitutes; the
+#: rendered stub is the *minimum* payload that passes the corresponding Pydantic
+#: schema in ``src/charter/offering/*/models.py`` (or ``AssetManifest``).  The scaffolder
+#: validates the rendered stub against the schema before writing — a future
+#: schema tightening surfaces at the next ``doctrine new`` rather than silently
+#: scaffolding an invalid file.
+#:
+#: This is a ``dict[ArtifactKind, str]`` (not an eight-arm ``if``-chain) so the
+#: kind projection is a table the kind-mapping totality guard can see. It is a
+#: deliberately **partial** table — ``template`` (empty glob, unscaffoldable),
+#: ``glossary_pack`` and ``anti_pattern`` (hand-authored) carry no stub — read
+#: only through the membership gate in :func:`new`, so it is carried as an
+#: allow-listed ``.get``/membership partial in the guard's
+#: ``_EXEMPT_GET_PARTIALS`` with that reason. The set of keys is exactly the
+#: kinds ``doctrine new`` supports.
+_STUB_TEMPLATES: dict[ArtifactKind, str] = {
+    # Directive: id must match [A-Z][A-Z0-9_-]*; intent + title required.
+    ArtifactKind.DIRECTIVE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "title: TODO short title\n"
+        "intent: TODO why this directive exists\n"
+        "enforcement: advisory\n"
+    ),
+    # Tactic: needs at least one step.
+    ArtifactKind.TACTIC: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "purpose: TODO when to apply this tactic\n"
+        "steps:\n"
+        "  - title: TODO first step\n"
+        "    description: TODO what the step does\n"
+    ),
+    # Styleguide: needs at least one principle (min_length=1).
+    ArtifactKind.STYLEGUIDE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "title: TODO short title\n"
+        "scope: code\n"
+        "principles:\n"
+        "  - TODO first principle\n"
+        "applies_to_languages: []\n"
+    ),
+    # Toolguide: guide_path must match ^src/charter/offering/.+\.md$.
+    ArtifactKind.TOOLGUIDE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "tool: TODO tool name\n"
+        "title: TODO short title\n"
+        "guide_path: src/charter/offering/toolguides/{artifact_id}.md\n"
+        "summary: TODO one-line summary\n"
+    ),
+    ArtifactKind.PARADIGM: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "summary: TODO one-line summary of the paradigm\n"
+    ),
+    # Procedure: name + purpose + entry/exit + min 1 step.
+    ArtifactKind.PROCEDURE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "purpose: TODO why this procedure exists\n"
+        "entry_condition: TODO when to enter\n"
+        "exit_condition: TODO when complete\n"
+        "steps:\n"
+        "  - title: TODO first step\n"
+    ),
+    # AgentProfile uses hyphenated YAML aliases (profile-id, schema-version,
+    # specialization → {primary-focus, ...}). The model requires roles
+    # (min_length=1), purpose, and a Specialization with primary-focus.
+    ArtifactKind.AGENT_PROFILE: (
+        'schema-version: "1.0"\n'
+        "profile-id: {artifact_id}\n"
+        "name: TODO agent display name\n"
+        "roles: [implementer]\n"
+        "purpose: TODO one-line purpose statement\n"
+        "specialization:\n"
+        "  primary-focus: TODO primary focus area\n"
+    ),
+    ArtifactKind.MISSION_STEP_CONTRACT: (
+        "id: {artifact_id}\n"
+        'schema_version: "1.0"\n'
+        "action: TODO action verb\n"
+        "mission: TODO mission slug\n"
+        "steps:\n"
+        "  - id: step-1\n"
+        "    description: TODO step description\n"
+    ),
+    # Asset: loose-contract sidecar manifest (AssetManifest, extra=forbid) —
+    # required id/mime/path, optional title, and NO schema_version field.
+    ArtifactKind.ASSET: (
+        "id: {artifact_id}\n"
+        "mime: text/plain\n"
+        "path: TODO-relative-path-under-assets.txt\n"
+        "title: TODO asset display name\n"
+    ),
 }
 
-_PROJECT_KIND_DIRS: dict[str, str] = {
-    "directive": "directive",
-    "tactic": "tactic",
-    "styleguide": "styleguide",
-    "procedure": "procedure",
-}
 
-#: Per-kind stub bodies.  Each stub is the *minimum* YAML payload that
-#: passes the corresponding Pydantic schema in ``src/doctrine/*/models.py``
-#: when ``<ID>`` is substituted in.  The scaffolder validates the rendered
-#: stub against the schema before writing — if a future schema change
-#: tightens a required field, the next ``doctrine new`` invocation will
-#: surface the mismatch immediately rather than silently scaffolding an
-#: invalid file.
-def _artifact_filename(kind_singular: str, artifact_id: str) -> str:
+def _artifact_filename(kind: ArtifactKind, artifact_id: str) -> str:
     """Return the canonical filename for a doctrine artifact."""
-    glob_pattern = ArtifactKind(kind_singular).glob_pattern
+    glob_pattern = kind.glob_pattern
     if not glob_pattern.startswith("*"):
-        raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+        raise ValueError(f"Unsupported artifact kind: {kind.value}")
     return f"{artifact_id}{glob_pattern.removeprefix('*')}"
 
 
-def _stub_template(kind_singular: str, artifact_id: str) -> str:
-    """Return the canonical YAML stub for ``kind_singular`` populated with ``artifact_id``."""
-    if kind_singular == "directive":
-        # Directive: id must match [A-Z][A-Z0-9_-]*; intent + title required.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"title: TODO short title\n"
-            f"intent: TODO why this directive exists\n"
-            f"enforcement: advisory\n"
+def _stub_template(kind: ArtifactKind, artifact_id: str) -> str:
+    """Return the canonical YAML stub for ``kind`` populated with ``artifact_id``."""
+    return _STUB_TEMPLATES[kind].format(artifact_id=artifact_id)
+
+
+def _resolve_scaffoldable_kind(raw_kind: str) -> ArtifactKind:
+    """Resolve an operator kind token to a scaffoldable :class:`ArtifactKind`.
+
+    The set of scaffoldable kinds is exactly ``_STUB_TEMPLATES``' keys —
+    ``template``/``glossary_pack``/``anti_pattern`` are not hand-scaffolded.
+    Exits 2 (with the valid-kinds list) for an unknown or unscaffoldable token.
+    """
+    normalized = raw_kind.strip().lower()
+    try:
+        kind: ArtifactKind | None = ArtifactKind(normalized)
+    except ValueError:
+        kind = None
+    if kind is None or kind not in _STUB_TEMPLATES:
+        valid = ", ".join(sorted(member.value for member in _STUB_TEMPLATES))
+        console.print(
+            f"[red]Unknown artifact kind '{raw_kind}'.[/red] "
+            f"Expected one of: {valid}."
         )
-    if kind_singular == "tactic":
-        # Tactic: needs at least one step.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"purpose: TODO when to apply this tactic\n"
-            f"steps:\n"
-            f"  - title: TODO first step\n"
-            f"    description: TODO what the step does\n"
-        )
-    if kind_singular == "styleguide":
-        # Styleguide: needs at least one principle (min_length=1).
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"title: TODO short title\n"
-            f"scope: code\n"
-            f"principles:\n"
-            f"  - TODO first principle\n"
-            f"applies_to_languages: []\n"
-        )
-    if kind_singular == "toolguide":
-        # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"tool: TODO tool name\n"
-            f"title: TODO short title\n"
-            f"guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
-            f"summary: TODO one-line summary\n"
-        )
-    if kind_singular == "paradigm":
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"summary: TODO one-line summary of the paradigm\n"
-        )
-    if kind_singular == "procedure":
-        # Procedure: name + purpose + entry/exit + min 1 step.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"purpose: TODO why this procedure exists\n"
-            f"entry_condition: TODO when to enter\n"
-            f"exit_condition: TODO when complete\n"
-            f"steps:\n"
-            f"  - title: TODO first step\n"
-        )
-    if kind_singular == "agent_profile":
-        # AgentProfile uses hyphenated YAML aliases (profile-id, schema-version,
-        # specialization → {primary-focus, ...}). The model requires roles
-        # (min_length=1), purpose, and a Specialization with primary-focus.
-        # Reviewers will fill in the full 6-section structure; this stub
-        # carries only the schema's hard-required fields.
-        return (
-            f'schema-version: "1.0"\n'
-            f"profile-id: {artifact_id}\n"
-            f"name: TODO agent display name\n"
-            f"roles: [implementer]\n"
-            f"purpose: TODO one-line purpose statement\n"
-            f"specialization:\n"
-            f"  primary-focus: TODO primary focus area\n"
-        )
-    if kind_singular == "mission_step_contract":
-        return (
-            f"id: {artifact_id}\n"
-            f'schema_version: "1.0"\n'
-            f"action: TODO action verb\n"
-            f"mission: TODO mission slug\n"
-            f"steps:\n"
-            f"  - id: step-1\n"
-            f"    description: TODO step description\n"
-        )
-    # Unreachable — caller validated kind first.
-    raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+        raise typer.Exit(2)
+    return kind
 
 
 def _resolve_scaffold_root(
@@ -579,7 +641,7 @@ def new(
         ...,
         help=(
             "Artifact kind (singular): one of "
-            + ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
+            + ", ".join(sorted(member.value for member in _STUB_TEMPLATES))
             + "."
         ),
     ),
@@ -603,16 +665,8 @@ def new(
     ``TODO …`` placeholders so the file passes ``doctrine validate`` on
     first emit.  Refuses to overwrite an existing file.
     """
-    kind_singular = kind.strip().lower()
-    if kind_singular not in _CANONICAL_KIND_SINGULAR_TO_PLURAL:
-        valid = ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
-        console.print(
-            f"[red]Unknown artifact kind '{kind}'.[/red] "
-            f"Expected one of: {valid}."
-        )
-        raise typer.Exit(2)
-
-    plural = _CANONICAL_KIND_SINGULAR_TO_PLURAL[kind_singular]
+    artifact_kind = _resolve_scaffoldable_kind(kind)
+    plural = artifact_kind.plural
 
     from specify_cli.core.paths import locate_project_root
 
@@ -623,12 +677,18 @@ def new(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
+    # Pack mode uses the plural pack-layout directory; project mode uses the
+    # single canonical project-tier authority — the same map DoctrineService's
+    # resolver reads (charter.offering.artifact_kinds.PROJECT_KIND_DIRS, re-exported
+    # here via the charter.activation.kind_vocabulary facade per the runtime -> charter
+    # -> doctrine boundary), so the stub lands exactly where the loader will
+    # look for it.
     target_dir_name = (
-        plural if pack is not None else _PROJECT_KIND_DIRS.get(kind_singular, plural)
+        plural if pack is not None else PROJECT_KIND_DIRS[artifact_kind]
     )
     target_dir = doctrine_root / target_dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / _artifact_filename(kind_singular, artifact_id)
+    target_path = target_dir / _artifact_filename(artifact_kind, artifact_id)
 
     if target_path.exists():
         console.print(
@@ -636,7 +696,7 @@ def new(
         )
         raise typer.Exit(1)
 
-    stub_text = _stub_template(kind_singular, artifact_id)
+    stub_text = _stub_template(artifact_kind, artifact_id)
 
     # Sanity-check the stub against the schema before writing so a future
     # schema tightening can't silently regress the scaffolder.  The
@@ -651,7 +711,7 @@ def new(
         schema_cls.model_validate(parsed)
     except Exception as exc:  # noqa: BLE001 — surface to operator verbatim
         console.print(
-            f"[red]Internal error:[/red] stub for kind '{kind_singular}' failed "
+            f"[red]Internal error:[/red] stub for kind '{artifact_kind.value}' failed "
             f"schema validation: {exc}"
         )
         raise typer.Exit(1) from exc
@@ -1027,53 +1087,22 @@ def org_validate(
     Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
+
+    Org fragments use id and plural kind (for example, directives) for nodes.
+    Validation uses the runtime loader, which supplies pack provenance fields.
     """
     from specify_cli.doctrine.pack_validator import (
         render_validation_result,
         validate_pack,
     )
 
-    result = validate_pack(pack_path)
-
-    # Additionally validate drg/fragment.yaml against OrgDRGFragment schema
-    # (pack_validator covers DRG edge/node cross-refs; this catches
-    # kind-constraint violations that pack_validator defers to advisory).
-    fragment_path = pack_path / "drg" / "fragment.yaml"
-    if fragment_path.exists():
-        from ruamel.yaml import YAML
-        from ruamel.yaml.error import YAMLError
-
-        try:
-            raw = fragment_path.read_text(encoding="utf-8")
-            # Strip pydantic_model / expect frontmatter comment lines.
-            payload_lines = [
-                line for line in raw.splitlines()
-                if not line.strip().startswith("#")
-            ]
-            frag_data = YAML(typ="safe").load("\n".join(payload_lines))
-            if frag_data is not None and isinstance(frag_data, dict):
-                from charter.drg import OrgDRGFragment
-                from pydantic import ValidationError as PydanticValidationError
-
-                try:
-                    OrgDRGFragment.model_validate(frag_data)
-                except PydanticValidationError as exc:
-                    from specify_cli.doctrine.pack_validator import ValidationIssue, ValidationResult
-
-                    extra_error = ValidationIssue(
-                        severity="error",
-                        artifact_type="drg",
-                        artifact_id=frag_data.get("pack_name"),
-                        file=str(fragment_path),
-                        message=f"OrgDRGFragment schema validation failed: {exc.errors()[0].get('msg', exc)}",
-                    )
-                    result = ValidationResult(
-                        ok=False,
-                        errors=[*result.errors, extra_error],
-                        advisories=result.advisories,
-                    )
-        except (YAMLError, OSError):
-            pass  # pack_validator already reported YAML parse errors
+    # Written explicitly (not relying on validate_pack's own default) so a
+    # future default change cannot silently alter org_validate's behaviour
+    # without a visible diff here. No carve-out: org_init's scaffold never
+    # produces the drg-root-graph-missing shape, so this call was never
+    # protected by a carve-out in the first place (operator ruling #2,
+    # reviews/plan.ruling.md).
+    result = validate_pack(pack_path, check_drg_root=True)
 
     render_validation_result(result, json_output=False)
     raise typer.Exit(0 if result.ok else 1)
@@ -1095,26 +1124,6 @@ class _MissionTypeRow:
         self.display_name = display_name
 
 
-def _collect_built_in_mission_types() -> list[_MissionTypeRow]:
-    """Return mission types from the built-in doctrine layer.
-
-    Uses :class:`doctrine.missions.mission_type_repository.MissionTypeRepository`
-    to load all built-in mission types.  The display name is taken directly
-    from :attr:`~doctrine.missions.models.MissionType.display_name`.
-    """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
-
-    repo = MissionTypeRepository.default()
-    return [
-        _MissionTypeRow(
-            id=mt.id,
-            source_layer="built-in",
-            display_name=mt.display_name,
-        )
-        for mt in repo.load_all()
-    ]
-
-
 @mission_type_app.command("list")
 def mission_type_list(
     json_output: bool = typer.Option(
@@ -1133,8 +1142,41 @@ def mission_type_list(
     Use ``spec-kitty charter mission-type list`` to see only types that
     are currently activated for this project.
     """
-    # Collect built-in types.
-    rows: list[_MissionTypeRow] = _collect_built_in_mission_types()
+    # FR-008 (WP07/T018): the full layered roster (built-in -> org ->
+    # project, full per-id replacement) IS the built-in -> org -> project
+    # shadow chain this docstring already promises -- reach it directly
+    # instead of the built-in-only collector, so an id merely *registered*
+    # (not activated) in an org/project layer still appears here with its
+    # real layer, matching this command's own contract (activation-scoped
+    # listing is `charter mission-type list`'s job, not this one's).
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+        resolve_mission_type_source_layer,
+    )
+
+    repo_root = Path.cwd()
+
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
+    # ``charter mission-type list`` -- ``resolve_layered_roster`` loud-fails
+    # BY DESIGN (WP03, PR-CONTRACT-002) on a malformed/unreadable YAML file
+    # anywhere in the built-in/org/project ``mission_types/`` layers. A bare
+    # ``except ValueError`` also catches ``pydantic.ValidationError`` (this
+    # resolver's other documented ``Raises`` type) since it subclasses
+    # ``ValueError`` in the pinned pydantic version.
+    try:
+        roster = resolve_layered_roster(repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    rows: list[_MissionTypeRow] = [
+        _MissionTypeRow(
+            id=mt_id,
+            source_layer=resolve_mission_type_source_layer(mt_id, repo_root),
+            display_name=mission_type.display_name,
+        )
+        for mt_id, mission_type in roster.items()
+    ]
 
     # Sort: built-in first (already the case), then by id within each layer.
     rows.sort(key=lambda r: (r.source_layer != "built-in", r.id))

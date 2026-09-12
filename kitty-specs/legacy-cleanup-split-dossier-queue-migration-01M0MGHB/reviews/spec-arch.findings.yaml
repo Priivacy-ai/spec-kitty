@@ -1,0 +1,127 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: SPEC-ARCH-001
+    lens: Type-compatibility trap (FR-005) / Reflexivity
+    severity: 3
+    title: FR-005 drops the dormant last_known content-hash parameters without naming the mechanism that keeps a future re-introduction loud rather than silent
+    evidence:
+      - artifact: "spec.md § Clarifications (\"Q: Can the canonical MissionDossierArtifactMissingPayload.last_known_ref...\") and § FR-005"
+      - code: "src/specify_cli/dossier/events.py:424-481 (current last_known_content_hash_sha256/last_known_size_bytes branch being dropped)"
+      - code: "src/specify_cli/sync/dossier_pipeline.py:126-140 (the emit_artifact_missing call site is wrapped in `except Exception as e: logger.warning(...)`, confirmed at line 140)"
+    claim: >
+      The spec correctly verifies that MissionDossierArtifactMissingPayload.last_known_ref is
+      Optional[ProvenanceRef] (fields source_event_ids/git_sha/git_ref/actor_id/actor_kind/revised_at,
+      frozen=True, extra="forbid" — reproduced directly against the installed 6.1.0 package, which
+      raises pydantic.ValidationError with 3 extra_forbidden violations when constructed with a
+      ContentHashRef-shaped dict) and correctly notes zero live callers pass
+      last_known_content_hash_sha256 today. FR-005's resolution — drop the parameters entirely,
+      with no replacement, no deprecated shim (per C-002) — is architecturally sound for the
+      current call graph. But neither FR-005 nor its Clarification states what happens if a
+      *future* in-repo caller adds `last_known_content_hash_sha256=...` back to an
+      `emit_artifact_missing(...)` call. Because FR-003 also removes emit_artifact_missing's
+      `**kwargs: Any` (the whole legacy bridge), such a call would raise `TypeError: unexpected
+      keyword argument`. If it landed in `sync/dossier_pipeline.py`'s existing artifact-missing
+      call site, that TypeError is caught by the broad `except Exception as e: logger.warning(...)`
+      already documented elsewhere in this same spec (Clarifications, "Q: Deleting
+      _consume_legacy_values...") as this repo's dominant "silent success" failure mode — the
+      exact class of bug FR-004 exists to close for the *other* dropped-bridge parameters. FR-005
+      does not make the equivalent argument for why this specific removal is safe against the same
+      failure mode; it relies implicitly on the repo's mypy zero-issues gate (CLAUDE.md "New code
+      MUST pass mypy with zero issues") catching an unexpected-keyword call statically before it
+      ships, but never says so. Per the architect profile's DIRECTIVE_043 ("Close Defect Classes by
+      Construction" — a design that requires discipline reminders to enforce a constraint is
+      structurally incomplete), the spec should name the actual structural guarantee rather than
+      leave it to inference from "no live caller today."
+    remediation: >
+      Add one sentence to FR-005 (or a new NFR) naming the structural mechanism that keeps a future
+      re-introduction of last_known_content_hash_sha256/last_known_size_bytes loud, not silent: e.g.
+      "Any future caller passing these removed parameter names is rejected at mypy/type-check time
+      (TypeError: unexpected keyword argument) before it can reach dossier_pipeline.py's broad
+      except-Exception wrapping" — and note explicitly that if this data need resurfaces, it must be
+      threaded through as an explicit, typed, keyword-only parameter (never through a re-added
+      **kwargs), consistent with FR-004's own promotion pattern.
+
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 3
+    title: FR-006 and FR-007 leave the post-change data shape of the four dossier _PAYLOAD_RULES entries unspecified, and it is not a shape the current generic validator code can consume unchanged
+    evidence:
+      - artifact: "spec.md § FR-006 and § FR-007"
+      - code: "src/specify_cli/sync/emitter.py:2549-2572 (_validate_payload: `rules = _PAYLOAD_RULES.get(event_type)`, then unconditionally `rules[\"required\"] - set(payload.keys())` and `rules[\"validators\"].items()`)"
+      - code: "src/specify_cli/sync/emitter.py:827-897 (the four dossier entries as `{\"required\": {...}, \"validators\": {...}}` dicts) and emitter.py:897 (`VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())`)"
+    claim: >
+      FR-006 says the four hand-maintained dossier entries in _PAYLOAD_RULES are "replaced" with a
+      code path that calls spec_kitty_events.conformance.validate_event(...) "from inside
+      _validate_payload". FR-007 separately requires the four dossier event-type strings to remain
+      *keys in _PAYLOAD_RULES* (not merely in VALID_EVENT_TYPES) so the unknown-event-type rejection
+      path is unaffected. But `_validate_payload`'s single, generic code path (verified at
+      emitter.py:2549-2572) treats every `_PAYLOAD_RULES[event_type]` value uniformly as
+      `{"required": set[str], "validators": dict[str, Callable]}` — there is no existing per-event-
+      type branch. FR-006+FR-007 together therefore require either (a) the dossier keys' values
+      change shape (no longer a rules dict) while `_validate_payload` gains a new early-return branch
+      for dossier event types before the generic `rules["required"]`/`rules["validators"]` access, or
+      (b) some other reconciliation — but the spec never states which, nor documents the new branch
+      as a Key Entity or FR sub-bullet. An implementer following FR-006 literally (delete the four
+      rule-dicts) while also satisfying FR-007 literally (keep the four keys in _PAYLOAD_RULES) without
+      independently inventing this branch will hit a `KeyError`/type-shape mismatch in the existing
+      generic loop the first time a dossier event is validated.
+    remediation: >
+      Add a sentence to FR-006 (or a Key Entities bullet) stating the concrete post-change shape,
+      e.g.: "`_PAYLOAD_RULES[event_type]` for the four dossier types becomes a sentinel value (or is
+      removed and validated via a `DOSSIER_EVENT_TYPES` frozenset unioned into `VALID_EVENT_TYPES`
+      instead — pick one), and `_validate_payload` gains an explicit `if event_type in
+      DOSSIER_EVENT_TYPES: return self._validate_dossier_payload(event_type, payload)` branch ahead of
+      the generic `rules["required"]`/`rules["validators"]` access, so the two code paths never both
+      try to interpret the same dict value."
+
+  - id: SPEC-ARCH-003
+    lens: Contracts
+    severity: 2
+    title: FR-006's call target `spec_kitty_events.conformance.validate_event(...)` is not reachable via bare attribute access after the package's existing top-level import style
+    evidence:
+      - artifact: "spec.md § FR-006 (\"calls spec_kitty_events.conformance.validate_event(payload, event_type, strict=True)\")"
+      - code: "src/specify_cli/sync/emitter.py (existing style: `from spec_kitty_events import Event as EventModel`, inside `_validate_event`)"
+    claim: >
+      Verified directly against the installed 6.1.0 package: `import spec_kitty_events; 'conformance'
+      in dir(spec_kitty_events)` returns `False` — the `conformance` submodule is not auto-exposed as
+      an attribute of the top-level `spec_kitty_events` package by a bare `import spec_kitty_events`.
+      `spec_kitty_events.conformance.validate_event(...)` only resolves once the `conformance`
+      submodule has itself been explicitly imported somewhere in the process (`from
+      spec_kitty_events.conformance import validate_event` or `import spec_kitty_events.conformance`).
+      FR-006's phrasing, read as written, could lead an implementer to write
+      `spec_kitty_events.conformance.validate_event(...)` as a bare attribute chain after only the
+      existing `from spec_kitty_events import Event as EventModel`-style import, which raises
+      `AttributeError: module 'spec_kitty_events' has no attribute 'conformance'` on first call. This
+      would fail loudly on the very first test run (not a silent-failure risk), so it is a minor
+      correctness/precision gap rather than a defect class, but it is worth pinning given how
+      precisely everything else in this spec cites exact import/attribute shapes.
+    remediation: >
+      State the exact import in FR-006: "`from spec_kitty_events.conformance import validate_event`
+      (imported at module scope in emitter.py, alongside the existing `from spec_kitty_events import
+      Event` import)."
+
+  - id: SPEC-ARCH-004
+    lens: Contracts (citation accuracy)
+    severity: 1
+    title: FR-007's line citation for the unknown-event-type rejection path is off by a few lines
+    evidence:
+      - artifact: "spec.md § FR-007 (\"the unknown-event-type rejection path (emitter.py:2510-2512)\")"
+      - code: "src/specify_cli/sync/emitter.py:2513-2516 (the actual `event_type = event[\"event_type\"]` / `if event_type not in VALID_EVENT_TYPES: ... return False` block); lines 2510-2512 are the tail of the preceding aggregate_type check plus a comment line"
+    claim: >
+      Verified by reading emitter.py directly: lines 2510-2512 are `return False` (closing the
+      preceding `aggregate_type not in VALID_AGGREGATE_TYPES` check), a blank line, and the comment
+      `# 3. Validate event_type is one of the 8 known types` — not the `VALID_EVENT_TYPES` rejection
+      itself, which is at lines 2513-2516. The underlying claim (VALID_EVENT_TYPES gates unknown
+      event types, unaffected by this mission) is correct; only the pinpoint citation drifted,
+      which stands out given the otherwise exact line-precision of every other citation in this
+      document (independently re-verified: FR-001's 70-213, the _consume_legacy_values 288-306,
+      both emitter signatures, the 476-481 last_known branch, the 455-457 blocking short-circuit,
+      the 827-897 _PAYLOAD_RULES block, and _validate_payload at 2549 all matched exactly).
+    remediation: >
+      Correct the citation to `emitter.py:2513-2516`, or drop the specific line range and cite the
+      function name only, since implementation-time edits above this point will shift it again
+      regardless.

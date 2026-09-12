@@ -1,0 +1,58 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: pr-fresh-001
+    lens: architectural-integrity (directives 043/044 — close defect classes by construction; canonical sources)
+    severity: 3
+    title: The manifest-schema-error validate-and-wrap dance is now hand-duplicated in three independent places, and the third copy already drifted from the other two on first write
+    evidence:
+      - code: "src/specify_cli/dossier/manifest.py:277"
+      - code: "src/specify_cli/dossier/manifest.py:328"
+      - code: "src/specify_cli/runtime/resolver.py:635"
+      - code: "src/specify_cli/runtime/resolver.py:654"
+      - code: "src/runtime/next/runtime_bridge_io.py:917-940"
+    claim: >
+      Three separate functions in three separate modules
+      (ManifestRegistry.load_manifest, resolver._load_expected_artifact_manifest,
+      and now runtime_bridge_io._presence_filenames_for, added by a4ec387eb)
+      each independently reimplement the identical eight-ish-line pattern:
+      try ExpectedArtifactManifest.model_validate(parsed), except
+      pydantic.ValidationError, build an origin string (a real ConfigResult.origin
+      at the built-in tier, a synthesized "org-tier expected-artifacts.yaml for
+      mission type ... (no single source file path available)" string at the org
+      tier), then raise the domain ManifestSchemaError(mission_type, origin) from
+      exc. This is not incidental similarity — the fix commit's own docstrings say
+      "mirroring resolver.py::_load_expected_artifact_manifest's own org-tier
+      ManifestSchemaError construction" and resolver.py's docstring says
+      "mirroring ManifestRegistry.load_manifest's own two origin expressions" —
+      each copy is deliberately hand-mirrored from the previous one rather than
+      calling a shared helper. The three copies are already not byte-identical:
+      resolver.py's org-tier origin string additionally lists the checked org
+      roots ("...checked org roots: {roots}"), while runtime_bridge_io.py's
+      version omits that detail. This is exactly the defect-class this mission
+      exists to close: this precise wrap was already missing once from
+      _presence_filenames_for (the whole reason a4ec387eb/fb2c2142f exist), and
+      nothing structural stops a fourth call site — or the org-tier resolution
+      logic growing a third code path — from reintroducing the same gap again.
+      The guard against recurrence today is a docstring comment ("mirrors X"),
+      which directive 043 explicitly calls out as an incomplete structural
+      remedy ("a design that requires discipline reminders to enforce a
+      constraint is structurally incomplete").
+    remediation: >
+      Extract the validate-and-wrap logic into one shared helper (e.g.
+      `_validate_expected_artifact_manifest(parsed: Mapping, mission_type: str,
+      origin: str) -> ExpectedArtifactManifest`, living wherever ManifestSchemaError
+      itself is defined, or in the doctrine layer alongside ExpectedArtifactManifest)
+      that all three call sites invoke, each only supplying its own origin string.
+      That converts "structurally identical, hand-copied three times" into
+      "structurally identical because it's one function", closing the defect
+      class the way #3704/pr-merged-001 exists to close it for this specific bug,
+      rather than leaving the fix as a third hand-synchronized copy.
+findings_summary:
+  total: 1
+  by_severity:
+    "3": 1

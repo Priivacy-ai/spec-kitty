@@ -8,19 +8,20 @@ imported by other modules and by tests) and are re-exported from the package
 """
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import contextlib
 import threading
 from pathlib import Path
 from typing import Any
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from rich.console import Console
 from rich.panel import Panel
 
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.service import DecisionError as _DecisionError
 from specify_cli.mission_metadata import load_meta_or_empty
+
 
 #: Sentinel PrereqState used when widen prereqs are unavailable.
 #: Defined lazily as a module-level constant after first import of PrereqState.
@@ -49,10 +50,27 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
 
     Returns ``None`` if the file is absent or malformed.
     """
-    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
-    # malformed meta.json to {}, matching the prior contextlib.suppress absorption.
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    data = load_meta_or_empty(feature_dir)
+    # #3140: a malformed meta.json doesn't only trip load_meta_or_empty's own
+    # (silent, non-raising) read below -- placement_seam(...).read_dir(...)
+    # resolves the mission's lifecycle phase along the way
+    # (mission_runtime.lifecycle_phase.resolve_lifecycle_phase ->
+    # _read_baseline_merge_commit), which reads meta.json under the raise-on-
+    # malformed contract (mission_metadata.load_meta's default). That
+    # ValueError previously propagated out of this function, contradicting
+    # its own docstring's "malformed -> None" promise. Absorb it locally
+    # rather than relaxing the shared load_meta contract, which other
+    # callers (e.g. the fail-closed corrupt-meta test) deliberately rely on
+    # raising.
+    try:
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
+        # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+        # malformed meta.json to {}, matching the prior contextlib.suppress
+        # absorption.
+        data = load_meta_or_empty(feature_dir)
+    except ValueError:
+        return None
     return data.get("mission_id") or None
 
 
@@ -350,8 +368,6 @@ def _dispatch_widen_input(  # noqa: C901
           - user_answer: None → continue inner loop (re-prompt); else the value to use.
           - should_break: True if the outer question loop should advance to next question.
     """
-    from datetime import UTC, datetime
-
     from specify_cli.widen.models import WidenAction, WidenPendingEntry
 
     result = widen_flow.run_widen_mode(
@@ -386,12 +402,14 @@ def _dispatch_widen_input(  # noqa: C901
         # Write WidenPendingEntry (T024 pattern — caller does persistence)
         if widen_store is not None:
             try:
+                from kernel.clock import now_utc
+
                 widen_store.add_pending(WidenPendingEntry(
                     decision_id=result.decision_id or current_decision_id,
                     mission_slug=mission_slug,
                     question_id=f"charter.{question_id}",
                     question_text=prompt_text,
-                    entered_pending_at=datetime.now(tz=UTC),
+                    entered_pending_at=now_utc(),
                     widen_endpoint_response={},
                 ))
             except Exception as exc:  # noqa: BLE001

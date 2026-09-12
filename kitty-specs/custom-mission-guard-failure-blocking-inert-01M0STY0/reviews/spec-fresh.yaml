@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: SPEC-FRESH-001
+    lens: Conceptual alignment (FR-002 three-outcome taxonomy vs. FR-006 snapshot-field design)
+    severity: 4
+    title: FR-006's new `blocking_artifact_names` snapshot field cannot by itself distinguish "no manifest
+      declared anywhere" (must raise/degrade, per FR-002 outcome 1 / AC-3 / C-001) from "manifest declared,
+      nothing blocking at this step" (must return guard_failures=[] as a genuine pass, per FR-002 outcome
+      2), so evaluate_guards_strict has no data to pick the right branch
+    evidence:
+      - artifact: "spec.md § FR-006 (revised): \"the resulting blocking-filtered artifact-name set MUST
+          be threaded into ArtifactPresenceSnapshot ... as a new field, blocking_artifact_names.
+          runtime_bridge_cores.py's evaluator ... then compares snapshot.present_artifacts against
+          snapshot.blocking_artifact_names — it stays a pure function of snapshot data it is merely
+          handed, and is never itself a caller of required_artifacts_for\""
+      - artifact: "spec.md § FR-002 (unchanged by this fix): outcome 1 is \"No manifest declared at any
+          tier — the extension-point-preserving neutral case: strict-raise / tolerant-degrade-to-[],
+          unchanged from today\"; outcome 2 is \"Manifest declared, step's blocking artifacts all present
+          — a genuine pass: guard_failures is [] because evaluation ran and found nothing missing\""
+      - artifact: "spec.md § AC-3 and § C-001: a family with no manifest at any tier MUST still raise
+          UnregisteredMissionFamilyError / degrade to [] — pinned by TestTypelessMissionFamily and
+          TestIssue3627WpIterationUnregisteredFamilyDegrades"
+      - code: "src/specify_cli/runtime/resolver.py:634-654 — required_artifacts_for's own docstring:
+          \"Returns: Blocking filenames for *step*, or an empty list when *mission_type* has no
+          expected-artifacts manifest (unregistered/custom type).\" — the function already collapses
+          \"no manifest\" and \"manifest, nothing blocking at this step\" into the same empty-list result"
+      - code: "src/runtime/next/runtime_bridge_cores.py:684-696 — evaluate_guards_strict's current control
+          flow (`guard_table_entry = _GUARD_TABLES.get(...); if guard_table_entry is None: raise ...`)
+          shows the raise/no-raise decision is a single boolean branch; FR-006 gives it only one new
+          input (an artifact-name frozenset) to make that decision with"
+    claim: >
+      FR-006, as strengthened by this fix, resolves the import-boundary problem the previous review
+      caught (SPEC-ARCH-002: evaluate_guards_strict/evaluate_guards cannot import required_artifacts_for
+      directly because runtime_bridge_cores.py is bound by the AST-walk stdlib-only gate). Its remedy —
+      compute the blocking-filtered name set in the I/O layer and thread it into ArtifactPresenceSnapshot
+      as a new `blocking_artifact_names` field — is architecturally sound for the "pass vs. fail" decision
+      (compare present_artifacts against blocking_artifact_names). But FR-002's unchanged three-outcome
+      taxonomy requires evaluate_guards_strict to ALSO decide, for a family absent from _GUARD_TABLES,
+      whether to (a) raise/degrade because no manifest exists anywhere (outcome 1 / AC-3 / C-001), or
+      (b) evaluate genuinely and return `[]` because a manifest exists but declares nothing blocking at
+      this particular step (outcome 2). `required_artifacts_for` — the function FR-006 says populates
+      the new field — already collapses both of those cases to the same empty result (its own docstring
+      says so), and FR-006 specifies no second field or sentinel (e.g. an Optional wrapper, or a
+      companion `manifest_declared: bool`) to carry the distinction through the snapshot. A literal
+      implementation of FR-006 as written leaves evaluate_guards_strict with only
+      `snapshot.blocking_artifact_names` (empty in both cases) and `snapshot.present_artifacts` (which,
+      per FR-005's family-scoping, can also be empty for a real manifested family whose files simply
+      don't exist on disk yet) — no reliable signal exists in the snapshot to route between raising
+      UnregisteredMissionFamilyError (protecting C-001/AC-3's typeless-family contract) and returning a
+      genuine `[]` pass (FR-002 outcome 2). Either the raise path stops firing for a real manifested
+      family with an empty step (silently converting AC-3/C-001's currently-green tests into a
+      pass-through, or vice versa), or the "no manifest" case stops raising and TestTypelessMissionFamily
+      / TestIssue3627WpIterationUnregisteredFamilyDegrades regress — a genuine architectural-integrity
+      break in either direction, not merely a documentation gap.
+    remediation: >
+      Add to FR-006 (or a new FR) the missing signal explicitly: either type
+      `blocking_artifact_names` as `frozenset[str] | None` with `None` meaning "no
+      expected-artifacts.yaml reachable at any tier for this family" (distinct from `frozenset()`
+      meaning "manifest reachable, nothing blocking at this step"), and require the I/O layer to
+      populate it that way; or add a companion boolean field (e.g. `manifest_declared: bool`) to
+      ArtifactPresenceSnapshot that evaluate_guards_strict consults before the present/blocking-names
+      comparison. Either way, state explicitly in FR-006 (and reflect in the Key Entities'
+      ArtifactPresenceSnapshot bullet) how evaluate_guards_strict's raise-vs-evaluate branch reads that
+      signal, and add an acceptance scenario (or strengthen AC-3) asserting that a family with a
+      manifest declaring zero blocking requirements at the tested step returns `guard_failures == []`
+      without raising, while a family with no manifest anywhere still raises — proving the two cases
+      are actually distinguishable end to end, not just "both empty."

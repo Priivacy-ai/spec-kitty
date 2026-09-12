@@ -13,7 +13,7 @@ import io
 import json
 import re
 import shutil
-from datetime import datetime, UTC
+from kernel.clock import now_utc_compact_stamp
 from pathlib import Path
 from typing import Any
 
@@ -332,7 +332,7 @@ def _cleanup_orphan_status_snapshot(feature_dir: Path, dry_run: bool) -> tuple[s
             return None, "status.json has no matching event log and could not be auto-repaired"
         return None, None
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = now_utc_compact_stamp()
     backup_name = f"{SNAPSHOT_FILENAME}.orphan.bak.{timestamp}"
     if not dry_run:
         status_path.rename(feature_dir / backup_name)
@@ -352,7 +352,7 @@ def _cleanup_unreadable_events_log(feature_dir: Path, dry_run: bool) -> tuple[st
         read_events(feature_dir)
         return None, None
     except StoreError as exc:
-        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = now_utc_compact_stamp()
         backup_name = f"{EVENTS_FILENAME}.unreadable.bak.{timestamp}"
         if not dry_run:
             events_path.rename(feature_dir / backup_name)

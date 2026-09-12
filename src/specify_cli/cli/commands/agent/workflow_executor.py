@@ -39,11 +39,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
     has_prior_rejection,
@@ -58,10 +58,6 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
 from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
@@ -137,6 +133,78 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True, slots=True)
+class _CommitFailureContext:
+    """The status-artifact rollback inputs threaded to :func:`_handle_commit_failure`.
+
+    coord-commit-integrity (campsite, Sonar S107): bundles the four rollback
+    coordinates — the event-log path + its pre-emit size and the status-snapshot
+    path + its pre-emit bytes — that ``_restore_status_artifacts`` needs to
+    truncate/restore the artifacts to their pre-emit state. Both ``except`` arms
+    in :func:`commit_workflow_change` share one identical instance, so the
+    failure handler takes this frozen bundle plus only the arm-specific fields.
+    """
+
+    events_path: Path
+    pre_emit_event_size: int
+    status_path: Path
+    pre_emit_status_bytes: bytes | None
+
+
+def _handle_commit_failure(
+    *,
+    exc: Exception,
+    receipt_ref: str,
+    message: str,
+    wp_id: str,
+    rollback: _CommitFailureContext,
+    error_prefix: str,
+    include_recovery_note: bool,
+) -> NoReturn:
+    """Roll back status artifacts, record a ``refused`` receipt, surface, exit.
+
+    coord-commit-integrity WP01/T002 (campsite): the shared body of the two
+    copy-paste ``except`` arms in :func:`commit_workflow_change` (the
+    BookkeepingTransaction arm and the legacy ``safe_commit`` arm). Extracted
+    verbatim so adding the T003 misroute guard does not push
+    ``commit_workflow_change`` over the complexity ceiling.
+
+    When a chained ``safe_commit`` recovery already created a commit
+    (``_safe_commit_recovery_commit_sha`` returns a SHA) the status artifacts
+    are NOT rolled back (the commit is real); otherwise the event log / status
+    snapshot are restored to their pre-emit bytes (from ``rollback``).
+    ``error_prefix`` is the arm-specific message head (``": {exc}"`` is always
+    appended); the legacy arm additionally appends a recovery note
+    (``include_recovery_note``).
+    """
+    w = _wf()
+    recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
+    if recovery_commit_sha is None:
+        w._restore_status_artifacts(
+            events_path=rollback.events_path,
+            pre_emit_event_size=rollback.pre_emit_event_size,
+            status_path=rollback.status_path,
+            pre_emit_status_bytes=rollback.pre_emit_status_bytes,
+        )
+    w._record_receipt(
+        receipt_ref,
+        message,
+        "refused",
+        sha=recovery_commit_sha,
+        wp_id=wp_id,
+    )
+    error_text = f"{error_prefix}: {exc}"
+    if include_recovery_note:
+        recovery_note = (
+            "Commit was created before staging recovery failed; status artifacts were not rolled back."
+            if recovery_commit_sha is not None
+            else "Event log rolled back to pre-emit state."
+        )
+        error_text = f"{error_text}. {recovery_note}"
+    print(error_text)
+    raise typer.Exit(1) from exc
+
+
 def commit_workflow_change(
     *,
     repo_root: Path,
@@ -189,6 +257,12 @@ def commit_workflow_change(
     coord_branch, mission_id, mid8 = w._load_coord_branch_meta(primary_meta_dir)
     events_path = feature_dir / w._STATUS_EVENTS_FILENAME
     status_path = feature_dir / w._STATUS_FILENAME
+    rollback_ctx = _CommitFailureContext(
+        events_path=events_path,
+        pre_emit_event_size=pre_emit_event_size,
+        status_path=status_path,
+        pre_emit_status_bytes=pre_emit_status_bytes,
+    )
     # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
     # below (BookkeepingTransaction vs. the legacy safe_commit fallback) still
     # keys off ``_load_coord_branch_meta`` — it needs the concrete
@@ -236,25 +310,15 @@ def commit_workflow_change(
             )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
-            recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
-            if recovery_commit_sha is None:
-                w._restore_status_artifacts(
-                    events_path=events_path,
-                    pre_emit_event_size=pre_emit_event_size,
-                    status_path=status_path,
-                    pre_emit_status_bytes=pre_emit_status_bytes,
-                )
-            w._record_receipt(
-                str(coord_branch),
-                message,
-                "refused",
-                sha=recovery_commit_sha,
+            _handle_commit_failure(
+                exc=exc,
+                receipt_ref=str(coord_branch),
+                message=message,
                 wp_id=wp_id,
+                rollback=rollback_ctx,
+                error_prefix=f"Error: Failed to record {operation} via BookkeepingTransaction",
+                include_recovery_note=False,
             )
-            print(
-                f"Error: Failed to record {operation} via BookkeepingTransaction: {exc}"
-            )
-            raise typer.Exit(1) from exc
         if auto_rebase_lane_after_commit:
             try:
                 w._sync_lane_after_coordination_commit(
@@ -279,7 +343,30 @@ def commit_workflow_change(
                 raise typer.Exit(1) from exc
         return
 
-    # Legacy fallback (TODO(WP08): replace with the legacy bridge).
+    # FR-002(a) misroute-to-legacy guard (WP01/T003, #2861). We only reach here
+    # when the modern branch above was NOT taken, i.e. the identity triple is
+    # incomplete (``mission_id``/``mid8`` unresolved). If ``coord_branch`` is
+    # nonetheless present, this is a COORD-routed topology with a corrupt/partial
+    # identity: falling through to ``_commit_via_legacy_safe_commit`` would commit
+    # coordination artifacts from ``repo_root`` (whose HEAD is the caller's target
+    # branch, not the coord branch) — the silent-misroute class behind #2861
+    # (either a ``SafeCommitHeadMismatch`` or, worse, a phantom "already
+    # committed" no-op over gitignored ``.worktrees/`` paths). Fail loud instead;
+    # never route coord paths through the legacy repo_root leaf.
+    if coord_branch:
+        print(
+            f"Error: coord-commit misroute prevented for {wp_id}: mission "
+            f"{mission_slug!r} declares coordination_branch {str(coord_branch)!r} but "
+            f"its identity triple is incomplete (mission_id/mid8 unresolved). Refusing "
+            f"to commit coordination artifacts from the repository root. Repair "
+            f"meta.json (mission_id/mid8) and retry."
+        )
+        raise typer.Exit(1)
+
+    # Legacy fallback (TODO(WP08): replace with the legacy bridge). Genuinely
+    # coord-less (no coordination_branch) — the mission's paths live in
+    # ``repo_root``; ``_commit_via_legacy_safe_commit`` resolves the porcelain
+    # pre-check root from (mission_slug, mid8) for FR-002(b) robustness.
     try:
         w._commit_via_legacy_safe_commit(
             repo_root=repo_root,
@@ -287,39 +374,26 @@ def commit_workflow_change(
             paths=paths,
             message=message,
             wp_id=wp_id,
+            mission_slug=mission_slug,
+            mid8=mid8,
         )
     except Exception as exc:  # noqa: BLE001 — surface + truncate + exit
-        recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
-        if recovery_commit_sha is None:
-            w._restore_status_artifacts(
-                events_path=events_path,
-                pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
-                pre_emit_status_bytes=pre_emit_status_bytes,
-            )
-        w._record_receipt(
-            placement.ref,
-            message,
-            "refused",
-            sha=recovery_commit_sha,
+        _handle_commit_failure(
+            exc=exc,
+            receipt_ref=placement.ref,
+            message=message,
             wp_id=wp_id,
+            rollback=rollback_ctx,
+            error_prefix=f"Error: Failed to commit workflow status update for {wp_id}",
+            include_recovery_note=True,
         )
-        recovery_note = (
-            "Commit was created before staging recovery failed; status artifacts were not rolled back."
-            if recovery_commit_sha is not None
-            else "Event log rolled back to pre-emit state."
-        )
-        print(
-            f"Error: Failed to commit workflow status update for {wp_id}: {exc}. "
-            f"{recovery_note}"
-        )
-        raise typer.Exit(1) from exc
 
 
 def ensure_workspace_materialized(
     workspace: ResolvedWorkspace,
     wp_id: str,
     create_workspace: Callable[[], None],
+    reenter_self_heal: Callable[[], None],
 ) -> None:
     """Ensure the already-resolved *workspace* is materialized on disk.
 
@@ -334,19 +408,39 @@ def ensure_workspace_materialized(
     workspace could be resolved" on a verified read-path — is exactly what this
     function eliminates.
 
+    FR-005/#3281 (C-006): when the workspace already exists, *reenter_self_heal*
+    is invoked instead of a bare early return — a retry over a leftover lane
+    worktree (missing the recorded planning SHA, or an approved dependency-lane
+    tip merged after this worktree was created) must re-enter the allocator's
+    idempotent reuse-path self-heal, not silently short-circuit. This does NOT
+    break the #1832/#1833 single-resolution invariant: *create_workspace* (a
+    SECOND resolution authority / full ``top_level_implement``) still never
+    runs when the workspace exists — only the dedicated, already-idempotent
+    self-heal callable does, and it is a true no-op resume when the workspace's
+    ancestry is already correct (the merge helpers' own
+    ``git merge-base --is-ancestor`` short-circuit makes "ancestry-correct" and
+    "stale" converge on the same call with different observable effect).
+
     A pure side-effect seam: it mutates disk (and re-stats the resolved context
     in place) but returns nothing — the caller already holds the canonical
     ``ResolvedWorkspace`` and must not rebind it to a second value.
 
     Raises:
-        typer.Exit: husk detected, creation attempted from a worktree, or the
-            path was not materialized after creation.
+        typer.Exit: husk detected, creation attempted from a worktree, the
+            path was not materialized after creation, or self-heal raised.
     """
     if workspace.is_husk:
         print(f"Error: {husk_resolution_error(workspace.worktree_path)}")
         raise typer.Exit(1)
 
     if workspace.exists:
+        try:
+            reenter_self_heal()
+        except typer.Exit:
+            raise
+        except Exception as e:
+            print(f"Error self-healing workspace for {wp_id}: {e}")
+            raise typer.Exit(1) from e
         return
 
     cwd = Path.cwd().resolve()
@@ -376,10 +470,20 @@ def ensure_workspace_materialized(
         raise typer.Exit(1)
 
 
-def render_charter_context_text(repo_root: Path, action: str) -> str:
-    """Render charter context for workflow prompts."""
+def render_charter_context_text(
+    repo_root: Path, action: str, *, mission_type: str | None = None
+) -> str:
+    """Render charter context for workflow prompts.
+
+    WP11 (T062/B-8/FR-012): ``mission_type`` is forwarded to
+    ``build_charter_context`` so the action doctrine bundle resolves for the
+    mission's grain. Without it the grain is typeless and degrades to an empty
+    bundle (FR-003a) — governance declared but not delivered.
+    """
     try:
-        context = _wf().build_charter_context(repo_root, action=action, mark_loaded=True)
+        context = _wf().build_charter_context(
+            repo_root, action=action, mark_loaded=True, mission_type=mission_type
+        )
         text: str = context.text
         return text
     except Exception as exc:
@@ -437,13 +541,15 @@ def implement_sparse_checkout_preflight(
     mission_id_for_preflight: str | None = None
     try:
         # FR-005 (#2186): anchor the preflight ``mission_id`` on the PRIMARY
-        # checkout. The coord-aware resolver lands on the STATUS-only husk (no
-        # meta.json) — a wrong/empty id for the sparse-checkout override log.
+        # checkout. The kind-blind coord-aware resolvers
+        # (``candidate_feature_dir_for_mission`` / ``resolve_feature_dir_for_mission``)
+        # land on the STATUS-only husk (no meta.json) — a wrong/empty id for the
+        # sparse-checkout override log. read-side-seam-primary-primitive-closure-01KYKMMT
+        # WP05/FR-004: routed through the kind-aware seam instead — PRIMARY_METADATA
+        # is a PRIMARY-partition kind, so it short-circuits to PRIMARY before any
+        # coord probe and never lands on that husk.
         identity = resolve_mission_identity(
-            primary_feature_dir_for_mission(
-                repo_root,
-                _canonicalize_primary_read_handle(repo_root, mission_slug),
-            )
+            placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         )
         mission_id_for_preflight = identity.mission_id
     except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
@@ -485,8 +591,8 @@ def implement_check_wp_charter_precondition(main_repo_root: Path, wp: WorkPackag
     if not wp_profile:
         return
 
-    from charter.exceptions import CharterActivationError
-    from charter.invocation_context import ProjectContext
+    from charter.activation.exceptions import CharterActivationError
+    from charter.activation.invocation_context import ProjectContext
 
     pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
     activated = pack_ctx.activated_agent_profiles
@@ -540,7 +646,18 @@ def implement_check_dependency_gate(
     if self_lane not in (Lane.PLANNED, Lane.CLAIMED):
         return
 
-    readiness = dependency_readiness_for_wp(normalized_wp_id, wp_meta.dependencies, dependency_lanes)
+    # Thread per-dependency provenance (the reduced snapshot state dicts) into
+    # the gate so a canceled-with-operator-provenance dependency counts as
+    # resolved (FR-009). Collapsing to the lane-only map here would make the
+    # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    # Pre-flight UX only (FR-014, fsm-write-path-integrity WP04). The authoritative
+    # dependency gate is `GuardContext.dependency_ready`, resolved in-lock by the emit shells.
+    readiness = dependency_readiness_for_wp(
+        normalized_wp_id,
+        wp_meta.dependencies,
+        dependency_lanes,
+        provenance=dependency_snapshot.work_packages,
+    )
     if not readiness.satisfied:
         blocked = ", ".join(readiness.unsatisfied)
         print(
@@ -598,11 +715,14 @@ def implement_resolve_mission_type(repo_root: Path, mission_slug: str) -> tuple[
 
     FR-005 (#2186): the mission TYPE is a meta.json read and meta.json lives
     ONLY on PRIMARY — always resolved off its OWN PRIMARY-anchored dir, not
-    the STATUS-leg ``feature_dir`` the surrounding flow otherwise threads.
+    the STATUS-leg ``feature_dir`` the surrounding flow otherwise threads. The
+    kind-blind coord-aware resolvers would land on the STATUS-only husk for a
+    coord-topology mission (no meta.json there). read-side-seam-primary-
+    primitive-closure-01KYKMMT WP05/FR-004: routed through the kind-aware seam
+    instead — PRIMARY_METADATA is a PRIMARY-partition kind, so it resolves
+    PRIMARY for every topology without ever consulting that husk.
     """
-    mission_type_dir = primary_feature_dir_for_mission(
-        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
-    )
+    mission_type_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     mission_type = get_mission_type(mission_type_dir)
     deliverables_path = None
     if mission_type == MISSION_TYPE_RESEARCH:
@@ -641,13 +761,19 @@ def _implement_start_claim(
     import os
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
-    from specify_cli.status import build_resolved_actor, start_implementation_status
+    from specify_cli.status import start_implementation_status
+    from specify_cli.status import build_self_asserting_actor
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
-    transition_actor = build_resolved_actor(
+    # FR-005: route the compact ``--agent`` value through the single self-
+    # asserting actor seam — only the parsed BARE tool reaches actor.tool, an
+    # absent segment stays None (no synthetic default), and the dispatch
+    # binding wins over the self-asserted parse.
+    transition_actor = build_self_asserting_actor(
         role=_IMPLEMENT_CLAIM_ROLE,
-        tool=agent or wp_agent_assignment.tool,
+        agent=agent,
+        fallback_tool=wp_agent_assignment.tool,
         binding=resolved_binding,
     )
 
@@ -763,30 +889,6 @@ def _implement_write_claim_and_commit(
         pre_emit_status_bytes=pre_emit_status_bytes,
         auto_rebase_lane_after_commit=True,
     )
-
-
-def _implement_trigger_dossier_sync(repo_root: Path, mission_slug: str) -> None:
-    """Fire-and-forget dossier sync after a claim commit."""
-    w = _wf()
-    try:
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        # IC-04/T017: dossier-sync READ. The indexer walks the whole
-        # mission tree (spec.md/plan.md/tasks.md/tasks/*.md) — the
-        # same whole-planning-surface READ the dashboard scanner uses
-        # TASKS_INDEX for (mirrors the "tasks" action this call used
-        # to resolve via the kind-blind husk) — routed via the
-        # kind-aware seam (NFR-001 / Directive-041).
-        impl_feature_dir = w._resolve_workflow_read_dir(
-            repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.TASKS_INDEX
-        )
-        trigger_feature_dossier_sync_if_enabled(impl_feature_dir, mission_slug, repo_root)
-    except Exception as dossier_sync_exc:  # noqa: BLE001 — best-effort fire-and-forget
-        logger.debug(
-            "Dossier sync trigger failed for %s (non-fatal, fire-and-forget): %s",
-            mission_slug,
-            dossier_sync_exc,
-        )
 
 
 def _implement_emit_resume_refresh(
@@ -946,8 +1048,6 @@ def implement_claim_transition(
 
         print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
-        _implement_trigger_dossier_sync(repo_root, mission_slug)
-
         # Reload to get updated content
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     else:
@@ -1000,16 +1100,33 @@ def implement_try_render_fix_mode_prompt(
     review-cycle artifacts. The fix-prompt completely replaces the full WP
     prompt (not appended). Returns the written prompt path, or ``None`` when
     fix-mode does not apply (caller should render the full prompt instead).
+
+    ``feature_dir`` is retained for the stable public signature (this WP's
+    only caller, ``workflow.py``, passes it by keyword) but is no longer
+    read: WP05 (verdict-seam-write-unification-01KZ9Q35, T024) repointed the
+    artifact-directory resolution onto ``repo_root``/``mission_slug`` via
+    :func:`~specify_cli.review.cycle._review_cycle_wp_dir` (the T058 owner
+    function) instead of a raw ``feature_dir``-anchored join.
     """
+    del feature_dir  # WP05/T024: directory resolution now routes through repo_root + mission_slug
     if not fix_mode_active:
         return None
 
     try:
         from specify_cli.cli.console import console
         from specify_cli.review.artifacts import ReviewCycleArtifact
+        from specify_cli.review.cycle import _review_cycle_wp_dir
         from specify_cli.review.fix_prompt import generate_fix_prompt
 
-        sub_artifact_dir = feature_dir / "tasks" / wp_slug
+        # WP05 (verdict-seam-write-unification-01KZ9Q35, T024): routed through
+        # the T058 owner function instead of a raw ``feature_dir / "tasks" /
+        # wp_slug`` join -- one of the three sites WP04's review flagged as
+        # unrouted (alongside
+        # ``workflow_cores.py::has_prior_rejection`` and ``workflow.py::
+        # review``). This function's own ``.from_file``/``.latest`` calls
+        # below remain content/cycle-number loaders (squad #1 — KEPT, not
+        # verdict readers), unaffected by this directory-resolution fix.
+        sub_artifact_dir = _review_cycle_wp_dir(repo_root, mission_slug, wp_slug)
         # Declared up front (#2675 T054): ``.from_file(...)`` returns a
         # non-Optional ``ReviewCycleArtifact`` while ``.latest(...)`` returns
         # ``ReviewCycleArtifact | None`` -- without this explicit annotation
@@ -1049,6 +1166,34 @@ def implement_try_render_fix_mode_prompt(
         return None
 
 
+def _baseline_artifact_needs_commit(repo_root: Path, artifact: Path) -> bool:
+    """True if ``artifact`` has something to commit (untracked or modified) in ``repo_root``.
+
+    A resume of an already-captured WP re-loads the cached, already-committed
+    artifact; re-committing it would run ``git commit`` with nothing staged and
+    raise "nothing to commit" — a misleading best-effort warning on every
+    resume (#2895). Gating the commit on a non-empty ``git status --porcelain``
+    for the artifact skips that no-op. Degrades to ``True`` (attempt the commit,
+    preserving prior behaviour) if git is unusable here.
+    """
+    from specify_cli.core import git_ops
+
+    try:
+        rc, out, _err = git_ops.run_command(
+            ["git", "status", "--porcelain", "--", str(artifact)],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+    except Exception:  # noqa: BLE001 — git absent/unusable: fall back to attempting the commit
+        return True
+    if rc != 0:
+        # git couldn't report status (e.g. not a repo): don't suppress a
+        # possibly-needed commit — preserve the prior "always attempt" behaviour.
+        return True
+    return bool(out.strip())
+
+
 def implement_capture_baseline(
     *,
     workspace_path: Path,
@@ -1066,7 +1211,16 @@ def implement_capture_baseline(
     w = _wf()
     try:
         from specify_cli.review.baseline import capture_baseline
+        from specify_cli.review.scope_source import resolve_scope_source
 
+        # T015 (mission scopesource-gate-followup-01KY6S9P, FR-011/FR-014):
+        # inject the shared factory so implement-time capture activates
+        # ``_capture_baseline_via_scope_source`` -- the SAME
+        # test_command()/parse_results() authority the pre-review head run
+        # uses. The factory resolves only ``DeclaredCommandScopeSource`` after
+        # the workflow-derived source was retired. Resolved
+        # against the SAME ``main_repo_root`` the baseline artifact placement
+        # below already uses -- not a freshly reconstructed root.
         baseline = capture_baseline(
             worktree_path=workspace_path,
             base_branch=target_branch,
@@ -1074,39 +1228,68 @@ def implement_capture_baseline(
             mission_slug=mission_slug,
             feature_dir=feature_dir,
             wp_slug=wp_slug,
+            scope_source=resolve_scope_source(main_repo_root),
         )
         if baseline is not None and baseline.failed > 0:
             print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
-            # Commit the baseline artifact to the feature branch
-            baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
-            if baseline_artifact.exists():
-                # Mechanical WP06 pre-step migration.
-                try:
-                    # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
-                    # WORK_PACKAGE_TASK-kind artifact — a PRIMARY-partition
-                    # kind (T017): it lands on the mission/lane
-                    # ``target_branch`` for EVERY topology, resolved via the
-                    # seam rather than constructed inline. STANDARD asserts
-                    # no protected-branch flow, so a protected target is
-                    # refused — the best-effort handler below logs the
-                    # refusal (FR-008).
-                    baseline_placement = w._resolve_workflow_placement(
-                        repo_root=main_repo_root,
-                        mission_slug=mission_slug,
-                        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-                    )
-                    w.safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        target=baseline_placement,
-                        message=f"chore: Capture baseline tests for {normalized_wp_id}",
-                        paths=(baseline_artifact,),
-                        capability=GuardCapability.STANDARD,
-                    )
-                except Exception as bl_commit_exc:  # noqa: BLE001 — best-effort
-                    logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
         elif baseline is not None and baseline.failed == -1:
             print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+
+        # Commit the baseline artifact whenever capture actually wrote one
+        # (any non-sentinel result, clean OR dirty) — NOT only when
+        # ``failed > 0``. Landing fold (mission scopesource-gate-followup): the
+        # unified ScopeSource capture path (T015) calls ``result.save(...)``
+        # unconditionally, and the head-side gate LOADS this artifact to diff
+        # against (``tasks_move_task.py`` ``_load_baseline``). So a clean
+        # (``failed == 0``) baseline MUST be committed too — both to feed the
+        # baseline↔head diff this mission unifies, and to keep the
+        # ``for_review`` uncommitted-owned-file guard from blocking on an
+        # otherwise-orphaned WP-owned artifact. The prior ``failed > 0`` gate
+        # left every clean baseline uncommitted, which regressed
+        # ``test_issue_2684`` once implement-time capture began emitting one.
+        # (The ``failed == -1`` sentinel is never persisted, so it never
+        # reaches this commit.)
+        baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
+        if (
+            baseline is not None
+            and baseline.failed != -1
+            and baseline_artifact.exists()
+            and _baseline_artifact_needs_commit(main_repo_root, baseline_artifact)
+        ):
+            # Mechanical WP06 pre-step migration.
+            try:
+                # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
+                # WORK_PACKAGE_TASK-kind artifact — a PRIMARY-partition
+                # kind (T017): it lands on the mission/lane
+                # ``target_branch`` for EVERY topology, resolved via the
+                # seam rather than constructed inline. STANDARD asserts
+                # no protected-branch flow, so a protected target is
+                # refused — the best-effort handler below logs the
+                # refusal (FR-008).
+                baseline_placement = w._resolve_workflow_placement(
+                    repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                    kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                )
+                w.safe_commit(
+                    repo_root=main_repo_root,
+                    worktree_root=main_repo_root,
+                    target=baseline_placement,
+                    message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                    paths=(baseline_artifact,),
+                    capability=GuardCapability.STANDARD,
+                )
+            except Exception as bl_commit_exc:  # noqa: BLE001 — best-effort
+                # #2896: surface the real refusal reason visibly, not only to
+                # the logger — otherwise a later `for_review` block on the
+                # still-uncommitted artifact reads as a mysterious "uncommitted
+                # owned file" with no trace of WHY the commit was refused (e.g.
+                # a protected target / SafeCommitHeadMismatch).
+                logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
+                print(
+                    f"[yellow]Warning: baseline artifact was not committed "
+                    f"({bl_commit_exc}); a later move to for_review may block on it.[/yellow]"
+                )
     except Exception as bl_err:
         logger.warning("Baseline capture error: %s", bl_err)
 
@@ -1143,7 +1326,7 @@ def build_implement_prompt_lines(
     # role flow into the rendered prompt instead of being silently discarded.
     lines.extend(render_resolved_agent_identity(wp_agent_assignment))
     lines.append("")
-    lines.append(render_charter_context_text(repo_root, "implement"))
+    lines.append(render_charter_context_text(repo_root, "implement", mission_type=mission_type))
     lines.append("")
 
     # CRITICAL: WP isolation rules
@@ -1357,7 +1540,14 @@ def review_resolve_wp_and_lane_gate(
     if not rv_has_canonical:
         raise RuntimeError(missing_canonical_status_message(normalized_wp_id, mission_slug, feature_dir))
     current_lane = rv_get_wp_lane(feature_dir, normalized_wp_id)
-    review_workspace = _wf().resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+    # Seam-B (WP03, #3128 / FR-005): the review WP-execution write chokepoint,
+    # reached before the review-claim transition. Refuse a review invoked from a
+    # checkout the mission does not own (canonically another mission's lane
+    # worktree). write_intent gates the checkout-identity refusal; the pure read
+    # vehicles leave it False so reads are never falsely refused.
+    review_workspace = _wf().resolve_workspace_for_wp(
+        main_repo_root, mission_slug, normalized_wp_id, write_intent=True
+    )
     status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
     latest_event = None
     for event in reversed(rv_events):
@@ -1387,7 +1577,12 @@ def review_resolve_wp_and_lane_gate(
 
 
 def review_enforce_bulk_edit_gate(
-    *, feature_dir: Path, main_repo_root: Path, target_branch: str, review_workspace: ResolvedWorkspace
+    *,
+    feature_dir: Path,
+    main_repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    review_workspace: ResolvedWorkspace,
 ) -> None:
     """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
     from specify_cli.bulk_edit.gate import (
@@ -1407,6 +1602,7 @@ def review_enforce_bulk_edit_gate(
         _wf()._enforce_bulk_edit_diff_compliance(
             feature_dir=feature_dir,
             main_repo_root=main_repo_root,
+            mission_slug=mission_slug,
             target_branch=target_branch,
             review_workspace=review_workspace,
             check_review_diff_compliance=check_review_diff_compliance,
@@ -1430,9 +1626,10 @@ def review_claim_transition(
     resolved_binding: ResolvedBinding | None = None,
 ) -> WorkPackage:
     """Claim a WP for review (``for_review`` -> ``in_review``) if applicable."""
-    from specify_cli.status import build_resolved_actor, start_review_status
+    from specify_cli.status import start_review_status
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import WPInnerStateDelta
+    from specify_cli.status import build_self_asserting_actor
 
     w = _wf()
 
@@ -1462,13 +1659,20 @@ def review_claim_transition(
     if resolved_binding is not None:
         claim_delta_values.update(resolved_binding.to_delta(role=_REVIEW_CLAIM_ROLE).to_dict())
     claim_delta = WPInnerStateDelta.from_dict(claim_delta_values)
-    transition_actor = build_resolved_actor(
+    # FR-005: route the compact ``--agent`` value through the single self-
+    # asserting actor seam — only the parsed BARE tool reaches actor.tool, an
+    # absent segment stays None, and the dispatch binding wins over the self-
+    # asserted parse (``agent`` is guaranteed truthy here — the ``--agent``
+    # required guard above already raised otherwise, so ``fallback_tool`` is
+    # unreachable).
+    transition_actor = build_self_asserting_actor(
         role=_REVIEW_CLAIM_ROLE,
-        tool=agent,
+        agent=agent,
+        fallback_tool=None,
         binding=resolved_binding,
     )
 
-    with w.feature_status_lock(main_repo_root, mission_slug):
+    with w.feature_status_lock(main_repo_root, feature_dir.name):
         # WP06 T027: capture pre-emit event-log size for
         # surgical rollback on commit failure.
         events_path_pre_rev = feature_dir / w._STATUS_EVENTS_FILENAME
@@ -1547,13 +1751,14 @@ def review_claim_transition(
 def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> list[str]:
     """Warn when other planned/in-flight WPs depend on the one under review."""
     from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission, resolve_planning_read_dir
 
     dependents_warning: list[str] = []
     # WP04 / T018 / FR-002: build_dependency_graph reads tasks/ (PRIMARY-partition)
     # → route through the planning seam.  Status-event reads stay on the coord-aware
     # resolver (C-001) so dependents' lane comes from the authoritative event log.
-    review_planning_dir = resolve_planning_read_dir(repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+    review_planning_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
     graph = build_dependency_graph(review_planning_dir)
     dependents = get_dependents(normalized_wp_id, graph)
     if not dependents:
@@ -1561,11 +1766,21 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
 
     # Load lanes from event log (lane is event-log-only).
     # Status reads stay coord-aware (C-001).
-    review_status_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    #
+    # The STATUS_STATE resolution lives INSIDE the best-effort guard on purpose.
+    # Under the DELETED coord-branch shape the kind-aware seam fails loud with
+    # ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass, hence
+    # an ``Exception`` subclass that the handler below catches) where the old
+    # kind-blind resolver could never raise. This helper only computes an
+    # advisory warning, so an unreadable status surface must degrade to "no
+    # dependents' lanes known" — it must never abort ``agent workflow review``.
     try:
         from specify_cli.status import read_events as rw_read_events
         from specify_cli.status import reduce as rw_reduce
 
+        review_status_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.STATUS_STATE
+        )
         rw_events = rw_read_events(review_status_dir)
         rw_snapshot = rw_reduce(rw_events) if rw_events else None
         rw_lanes: dict[str, Lane] = {}
@@ -1694,7 +1909,17 @@ def build_review_prompt_lines(
     if review_agent_assignment is not None:
         lines.extend(render_resolved_agent_identity(review_agent_assignment))
         lines.append("")
-    lines.append(render_charter_context_text(repo_root, "review"))
+    # WP11 (T062/B-8): resolve the mission-type grain from the mission scope so
+    # review context delivers the action doctrine bundle rather than degrading
+    # to typeless. A resolution failure degrades to ``None`` (typeless), the
+    # pre-WP11 behaviour, rather than aborting the prompt.
+    try:
+        review_mission_type, _ = implement_resolve_mission_type(repo_root, mission_slug)
+    except Exception:
+        review_mission_type = None
+    lines.append(
+        render_charter_context_text(repo_root, "review", mission_type=review_mission_type)
+    )
     lines.append("")
 
     if dependents_warning:
@@ -1813,12 +2038,13 @@ def review_finalize_and_print(
     full_content = "\n".join(prompt_lines)
     # FR-005 (#2186): the review-prompt metadata ``mission_id`` is a meta.json
     # read → PRIMARY only. Anchor on the topology-blind PRIMARY dir, not the
-    # coord-aware resolver (which selects the meta-less husk).
+    # kind-blind coord-aware resolver (which selects the meta-less husk).
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP05/FR-004: routed
+    # through the kind-aware seam — PRIMARY_METADATA is a PRIMARY-partition
+    # kind, so it short-circuits to PRIMARY before any coord probe and never
+    # lands on that husk.
     mission_identity = resolve_mission_identity(
-        primary_feature_dir_for_mission(
-            main_repo_root,
-            _canonicalize_primary_read_handle(main_repo_root, mission_slug),
-        )
+        placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     )
     review_metadata = build_review_prompt_metadata(
         repo_root=main_repo_root,

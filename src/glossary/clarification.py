@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
+
+from kernel.clock import now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +237,7 @@ class ClarificationMiddleware:
                 actor_id = getattr(context, "actor_id", "unknown")
                 provenance = Provenance(
                     actor_id=str(actor_id),
-                    timestamp=datetime.now(UTC),
+                    timestamp=now_utc(),
                     source="user_clarification",
                 )
                 term_sense = TermSense(

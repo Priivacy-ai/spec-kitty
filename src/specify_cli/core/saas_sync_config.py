@@ -1,67 +1,77 @@
 """Canonical rollout gate for hosted SaaS sync.
 
-Stability contract: ``contracts/saas_rollout.md``.
+Stability contract: ``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/
+contracts/saas_rollout.md`` (version 3, self-contained; the frozen version-2
+record stays at ``kitty-specs/082-stealth-gated-saas-sync-hardening/contracts/
+saas_rollout.md`` — the archive freeze forbids editing it in place).
 
 This CORE module is the single source of truth for the
-``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check.  The INTEGRATION-set
-``saas.rollout`` module is a thin re-export shim that delegates here, as are the
-``tracker.feature_flags`` and ``sync.feature_flags`` shims.
+``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check. The former
+re-export shims (``saas.rollout``, ``sync.feature_flags``) died with their
+packages when the sync transport was deleted (issue #5);
+``tracker.feature_flags`` re-exports from here.
 
 Imports are stdlib-only (``os``) so this module introduces no import cycle and
 is safe for CORE-set consumers (C-001).
+
+#3980 (Team Kitty launch defaults) flipped the default: hosted sync is ON
+unless explicitly opted out — ``SPEC_KITTY_ENABLE_SAAS_SYNC=0`` is the
+opt-out; an unset or empty variable means enabled.
 """
 
 from __future__ import annotations
 
 import os
 
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import is_truthy, sync_kill_switch_active
 
 SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 
 _DISABLED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
+    "Hosted SaaS sync is disabled on this machine. "
+    "Unset `SPEC_KITTY_ENABLE_SAAS_SYNC` (or set it to `1`) to re-enable it."
 )
-
-_OPT_IN_RECORDED_BASE = "Local sync preference recorded for this checkout"
 
 __all__ = [
     "SAAS_SYNC_ENV_VAR",
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
-    "saas_sync_opt_in_recorded_message",
+    "sync_active",
 ]
 
 
 def is_saas_sync_enabled() -> bool:
-    """Return True iff SaaS sync is explicitly enabled via the environment.
+    """Return True unless SaaS sync is explicitly opted out via the environment.
 
-    Truthy values (case-insensitive, after strip): ``1``, ``true``, ``yes``,
-    ``y``, ``on`` (the canonical grammar in :mod:`specify_cli.core.env`).
-    Everything else — including an unset or empty variable — returns ``False``.
+    Launch default (#3980): the variable is **opt-out-only**. Unset or empty
+    means enabled. A truthy value (case-insensitive, after strip: ``1``,
+    ``true``, ``yes``, ``y``, ``on`` — the canonical grammar in
+    :mod:`specify_cli.core.env`) redundantly confirms enabled. Any other
+    non-empty value — ``0``, ``false``, ``off``, ... — opts out.
     """
-    return is_truthy(os.environ.get(SAAS_SYNC_ENV_VAR))
+    value = os.environ.get(SAAS_SYNC_ENV_VAR)
+    if value is None or not value.strip():
+        return True
+    return is_truthy(value)
+
+
+def sync_active() -> bool:
+    """Return whether hosted sync is armed after the global disable override.
+
+    The kill switch is ``SPEC_KITTY_SYNC_DISABLE`` alone (#3980 launch
+    table): ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` no longer disarms sync — it is
+    a deprecated alias of the moment-handler import gate
+    (:func:`specify_cli.core.env.moment_handlers_disabled_reason`).
+    """
+    return is_saas_sync_enabled() and not sync_kill_switch_active()
 
 
 def saas_sync_disabled_message() -> str:
     """Return the stable, byte-wise-frozen message shown when SaaS sync is off.
 
     Wording is asserted byte-for-byte by tests; do not change without updating
-    ``contracts/saas_rollout.md`` and bumping the contract version.
+    the live stability contract
+    (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/contracts/saas_rollout.md``)
+    and bumping the contract version.
     """
     return _DISABLED_MESSAGE
-
-
-def saas_sync_opt_in_recorded_message(scope_label: str | None = None) -> str:
-    """Return the honest confirmation for ``spec-kitty sync opt-in`` (#2264).
-
-    ``opt-in`` writes LOCAL routing flags only — no auth, no remote round-trip,
-    no history import. This message must therefore NOT imply remote
-    materialization or history: it states only that a local preference was
-    recorded. The prior wording ("Enabled SaaS sync for this checkout") was the
-    false-green that escalated #2264 to P1. Wording is asserted by tests.
-    """
-    if scope_label:
-        return f"{_OPT_IN_RECORDED_BASE} ({scope_label})."
-    return f"{_OPT_IN_RECORDED_BASE}."

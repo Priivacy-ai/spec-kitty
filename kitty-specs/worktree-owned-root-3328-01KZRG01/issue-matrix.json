@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#1907": {
+      "evidence_ref": "Existing packaging/editable-install hazard remains tracked by #1907; WP05 must prove immutable installed artifact.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#3128": {
+      "evidence_ref": "Related runtime authority remains tracked by #3128; #3328 supplies narrow explicit ownership integration/proof only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#3129": {
+      "evidence_ref": "Parent authority; narrow child #3328 implements explicit checkout-owned mission create/next boundary.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#3328": {
+      "evidence_ref": "Core child mission worktree-owned-root-3328-01KZRG01; WP01 commits 2d1721c24 and 549bb2af8; remaining WPs WP02-WP06.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#3343": {
+      "evidence_ref": "Open core #3343 owns governed CI selection for the immutable distribution/e2e acceptance test; WP06 ADR records trigger/evidence contract. Local immutable 25P and independent Prime reproduction establish WP05 correctness. Issue remains unassigned until implementation begins.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3345": {
+      "evidence_ref": "WP06 commit fd2f24065; Prime Kimi cycle3 APPROVE; raw SHA256 96600a411ad16c282ee8ad8b491ccf83418402df5b1429bd2e9729aa16fd888e; final 16P + real-tree/docs/static/freshness gates green. Keep tracker issue open until mission merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP06"
+    },
+    "#836": {
+      "evidence_ref": "SaaS #836 remains open pending immutable core evidence and a new latest-develop real installed-CLI proof mission/PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#864": {
+      "evidence_ref": "SaaS PR #864 merged as 3222a7 after narrowing claims; it does not prove real mission creation. New latest-develop SaaS follow-up PR required after immutable core evidence.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}

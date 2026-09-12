@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Shared Package Boundary Cutover'
+description: 'Retires the standalone runtime package by internalizing the surface the CLI needs, with an import-graph test forbidding production imports of the retired package.'
 status: Accepted
 date: '2026-04-25'
 ---
@@ -72,7 +73,7 @@ in 10 work packages. Concretely:
 7. `[tool.uv.sources]` does not contain editable / path entries for any
    shared package on the committed configuration path. Developer
    overrides live in dev-only configuration documented in
-   [`docs/development/local-overrides.md`](../../../docs/development/local-overrides.md).
+   [`docs/development/local-overrides.md`](../../development/how-to/local-overrides.md).
    (WP08)
 8. `constraints.txt` is removed; its only purpose (papering over the
    `spec-kitty-runtime` transitive `spec-kitty-events<4.0` pin
@@ -125,7 +126,7 @@ in 10 work packages. Concretely:
 
 - Mission spec: `kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md`
 - Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](../../migrations/shared-package-boundary-cutover.md)
-- Local-overrides dev doc: [`docs/development/local-overrides.md`](../../../docs/development/local-overrides.md)
+- Local-overrides dev doc: [`docs/development/local-overrides.md`](../../development/how-to/local-overrides.md)
 - Architectural enforcement:
   - [`tests/architectural/test_shared_package_boundary.py`](../../../tests/architectural/test_shared_package_boundary.py)
   - [`tests/architectural/test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py)
@@ -135,6 +136,6 @@ in 10 work packages. Concretely:
 - Packaging assertions:
   - [`tests/contract/test_packaging_no_vendored_events.py`](../../../tests/contract/test_packaging_no_vendored_events.py)
 - Clean-install verification:
-  - [`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml) (`clean-install-verification` job)
+  - `.github/workflows/ci-quality.yml`'s `clean-install-verification` job (deleted per PROGRAM.md §2 / planning#57 — this repo runs no GitHub Actions)
   - [`tests/integration/test_clean_install_next.py`](../../../tests/integration/test_clean_install_next.py)
 - PR #779 (rejected, superseded): <https://github.com/Priivacy-ai/spec-kitty/pull/779>

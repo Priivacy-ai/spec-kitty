@@ -189,10 +189,10 @@ class TestGetStatusReadRoot:
         # so we just verify no exception is raised.
         try:
             result = get_status_read_root(plain_dir)
-            # Result is a Path — may be the fallback cwd
-            assert isinstance(result, Path)
         except Exception as exc:  # noqa: BLE001
             pytest.fail(f"get_status_read_root() raised unexpectedly: {exc}")
+        # Result is a Path — may be the fallback cwd
+        assert isinstance(result, Path)
 
 
 # ---------------------------------------------------------------------------

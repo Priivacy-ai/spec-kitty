@@ -1,0 +1,1 @@
+architectural_dead_symbols=1 passed

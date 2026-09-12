@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      AC-9(a)'s Given clause (spec.md:201-204) now reads "whose required_always
+      and required_by_step for that step are each either empty or contain only
+      blocking: false entries, so required_artifacts_for returns []" — this
+      matches live resolver.py:653-654, which unions required_always with
+      required_by_step[step] before filtering on spec.blocking, so a WP author
+      can no longer build a fixture from only the required_by_step half and get
+      a non-empty result.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      FR-006 (spec.md:379) now cites runtime_bridge_io.py:891-892, which is
+      exact against live source — line 891 holds the
+      `config = MissionTemplateRepository.default().get_expected_artifacts(...)`
+      assignment and line 892 holds `if config is None:`, the assignment+check
+      pair the prose describes.

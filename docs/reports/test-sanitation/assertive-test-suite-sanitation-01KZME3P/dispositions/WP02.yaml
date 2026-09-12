@@ -1,0 +1,136 @@
+schema_version: test-sanitation/v1
+dispositions:
+  - candidate:
+      id: wp02-shared-test-venv-concurrency-survivor
+      members:
+        - tests/integration/test_pytest_venv_concurrency.py::test_concurrent_contract_and_architectural_complete
+      granularity: function
+      source_paths:
+        - tests/integration/test_pytest_venv_concurrency.py
+      production_paths:
+        - tests/conftest.py::_ensure_test_venv
+      oracle: two independent pytest processes receive one validated published environment without observing a partial final path
+      contract_claim: shared test-venv bootstrap is live-owner-safe, crash-recoverable, and atomically published
+      authority:
+        - issue:#3283
+        - spec.md:FR-013
+        - research.md:R4
+        - data-model.md:BootstrapLease
+      duplicate_group: null
+      route_memberships:
+        - route_id: full-parallel
+          role: owner
+          required: true
+          events: [local]
+          selector:
+            paths: [tests/]
+            markers: []
+            ignores: [tests/sync/test_orphan_sweep.py]
+            environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      platforms: [linux, macos, windows]
+      observations:
+        - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+          nodeid: tests/integration/test_pytest_venv_concurrency.py::test_concurrent_contract_and_architectural_complete
+          collection_state: collected
+          outcome: passed
+          skip_reason: null
+          markers: [slow]
+          duration: {collection: 0.0, setup: 0.0, call: 84.02, cost_class: slow}
+          artifact_hash: bbf8f7c93121fd12bb37a1bfbd87f57e6a11dfb929ea69da1b4d51b7f1cf3c89
+    evidence:
+      profile: contract
+      caller_evidence:
+        - command: .venv/bin/pytest tests/integration/test_pytest_venv_concurrency.py -q --tb=short
+          result: 1 passed in 84.02s after two real concurrent subprocess collections
+      authority_evidence:
+        - reference: issue:#3283
+          result: assigned to robertDouglass and linked to this Mission; controlled immutable-base fixed-lock topology fault reached the live-owner timeout and partial-publication oracle
+        - reference: research.md:R4
+          result: lease/temp-build/validate/atomic-publish state machine implemented exactly
+      causal_probe:
+        kind: controlled immutable-base spawned-process fixed-lock fault
+        fault: preserve the immutable-base fixed lock around direct-to-final installation and compress 60s/>90s to 0.25s/1.0s with no heartbeat
+        authority_violated: FR-013 and BootstrapLease live-owner/publication contract
+        act_reached: true
+        intended_oracle: the live owner completes while its waiter never errors and no incomplete final cache path is visible
+        intended_oracle_failed: true
+        command: .venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py
+        environment: macOS 15.7.7 arm64, CPython 3.11.15, two spawned OS processes, isolated temporary cache
+        result: partial_final_observed=true; outcomes contain one published and one timeout; oracle_failed=true
+        raw_artifact_hash: 236a30ed498f08aa7694f0ac80fc5c7688880ef1e4343cf8f6b8026abd52c57c
+    verdict: KEEP
+    state: terminal
+    action: FIX_TEST completed; retain executable spawned-process regression coverage
+    survivor: null
+    issue: "#3283"
+    owner: robertDouglass
+    expires: null
+    hic_approval: null
+    review:
+      implementer: codex/python-pedro
+      independent_reviewer: unassigned-at-implementation-handoff
+      verdict: pending-independent-review
+      timestamp: "2026-08-10T10:23:57Z"
+  - candidate:
+      id: wp02-wall-clock-scanner-causal-survivor
+      members:
+        - tests/_support/test_wall_clock_assertions.py::test_find_wall_clock_assertion_violations_resolves_cross_file_clock_aliases
+      granularity: function
+      source_paths:
+        - tests/_support/test_wall_clock_assertions.py
+      production_paths:
+        - tests/_support/wall_clock_assertions.py::find_wall_clock_assertion_violations_cached
+      oracle: indirect cross-file aliases to forbidden wall-clock calls remain detected while propagation work is bounded
+      contract_claim: collection-time wall-clock enforcement fails closed with approximately-linear alias propagation and content-addressed cross-process reuse
+      authority:
+        - issue:#2645
+        - tasks/WP02-test-venv-bootstrap.md:T050
+      duplicate_group: null
+      route_memberships:
+        - route_id: full-collection
+          role: owner
+          required: true
+          events: [local]
+          selector:
+            paths: [tests/]
+            markers: []
+            ignores: [tests/sync/test_orphan_sweep.py]
+            environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      platforms: [linux, macos, windows]
+      observations:
+        - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+          nodeid: tests/_support/test_wall_clock_assertions.py::test_find_wall_clock_assertion_violations_resolves_cross_file_clock_aliases
+          collection_state: collected
+          outcome: passed
+          skip_reason: null
+          markers: [fast, unit]
+          duration: {collection: 44.66, setup: 0.0, call: 0.01, cost_class: slow_collection}
+          artifact_hash: 6159cdbd4b9f6eea7ae73e814d9bca2aeb740461f918fc1ace251dd25b9e2c56
+    evidence:
+      profile: slow
+      cost_evidence:
+        identity: matched three-run cold focused scanner comparison
+        result: median 54.42s bootstrap-only base to 44.66s HEAD (17.93% reduction); identical cached rerun 1.80s wall
+      causal_probe:
+        kind: deterministic operation-count and indirect-alias fault
+        fault: restore repeated full-module fixed-point rescans and remove the content-addressed process-safe result cache
+        authority_violated: issue #2645 bounded approximately-linear scanner requirement
+        act_reached: true
+        intended_oracle: 20-to-40-module common-result alias chain remains detected with no more than 3N module visits
+        intended_oracle_failed: true
+        command: .venv/bin/pytest tests/_support/test_wall_clock_assertions.py -k 'worklist or cached_scan' -q --tb=short
+        environment: macOS 15.7.7 arm64, CPython 3.11.15, cold scanner cache
+        raw_artifact_hash: 6159cdbd4b9f6eea7ae73e814d9bca2aeb740461f918fc1ace251dd25b9e2c56
+    verdict: KEEP
+    state: terminal
+    action: FIX_TEST completed; retain causal cross-file oracle and new deterministic complexity ratchet
+    survivor: null
+    issue: "#2645"
+    owner: robertDouglass
+    expires: null
+    hic_approval: null
+    review:
+      implementer: codex/python-pedro
+      independent_reviewer: unassigned-at-implementation-handoff
+      verdict: pending-independent-review
+      timestamp: "2026-08-10T10:23:57Z"

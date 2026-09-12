@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-07-31T11:27:56.884763+00:00",
+  "flattened": false,
+  "friendly_name": "verification trust 3115",
+  "mission_id": "01KYVYWMEMY8HB2PW08C34VKWQ",
+  "mission_number": null,
+  "mission_slug": "verification-trust-3115-01KYVYWM",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances verification trust 3115 on feat/verification-trust-3115 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "verification trust 3115",
+  "slug": "verification-trust-3115-01KYVYWM",
+  "status_phase": "1",
+  "target_branch": "feat/verification-trust-3115",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-31T14:38:29.971675+00:00"
+}

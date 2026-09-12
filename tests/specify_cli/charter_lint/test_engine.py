@@ -6,9 +6,11 @@ not required.  All scenarios run without any LLM client.
 
 from __future__ import annotations
 
-import datetime
 import json
+import subprocess
 from pathlib import Path
+
+from kernel.clock import now_utc, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +18,7 @@ import pytest
 
 from specify_cli.charter_runtime.lint.engine import LintEngine
 from specify_cli.charter_runtime.lint.findings import DecayReport, GraphState
+from specify_cli.gitignore_manager import GitignoreManager
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +47,7 @@ def _make_drg(nodes: list, edges: list | None = None) -> SimpleNamespace:
 
 def _make_stale_ts() -> str:
     """Return an ISO timestamp 91 days in the past (beyond the 90-day threshold)."""
-    stale = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=91)
+    stale = now_utc() - timedelta(days=91)
     return stale.isoformat()
 
 
@@ -116,6 +119,7 @@ class TestLintEngineAllChecks:
         assert "staleness" in categories
         assert "reference_integrity" in categories
 
+    @pytest.mark.performance
     def test_duration_within_limit(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
@@ -372,3 +376,72 @@ class TestPerformance:
             report = LintEngine(tmp_path).run()
         assert report.duration_seconds < 5.0
         assert report.drg_node_count == 500
+
+
+class TestLintReportDoesNotDirtyTree:
+    """#3435 — ``charter lint`` is a read-only diagnostic and must leave a
+    freshly-inited working tree clean.
+
+    ``charter lint`` writes ``.kittify/lint-report.json`` (a load-bearing
+    artifact the dashboard + SaaS dossier read from disk), so the honesty
+    contract is met by SHIPPING the gitignore entry, not by suppressing the
+    write. This guard exercises the REAL engine write through the REAL
+    gitignore authoring ``spec-kitty init`` uses (``GitignoreManager.
+    protect_all_agents``) and asserts the tree stays clean — so a future
+    regression that either stops writing the report OR drops the ignore entry
+    is caught close-by-construction (directive 043).
+    """
+
+    @staticmethod
+    def _init_repo_with_gitignore(repo: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "t@example.com"], cwd=repo, check=True
+        )
+        subprocess.run(["git", "config", "user.name", "T"], cwd=repo, check=True)
+        GitignoreManager(repo).protect_all_agents()
+        subprocess.run(["git", "add", ".gitignore"], cwd=repo, check=True)
+        subprocess.run(
+            ["git", "commit", "-qm", "init gitignore"], cwd=repo, check=True
+        )
+
+    @staticmethod
+    def _porcelain(repo: Path) -> str:
+        # ``-uall`` enumerates untracked files individually rather than
+        # collapsing a wholly-untracked directory to ``?? .kittify/`` — so the
+        # control test can see the file, and the honesty assertion is exact.
+        return subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=repo, check=True, capture_output=True, text=True,
+        ).stdout
+
+    def test_lint_write_leaves_inited_tree_clean(self, tmp_path: Path) -> None:
+        self._init_repo_with_gitignore(tmp_path)
+        drg = _build_four_decay_drg()
+        with patch(
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
+            LintEngine(tmp_path).run()
+
+        # Non-vacuity: the diagnostic really DID write into the tree ...
+        assert (tmp_path / ".kittify" / "lint-report.json").exists()
+        # ... yet the working tree the operator sees is clean — the shipped
+        # ignore entry covers it, so no dirty-tree guard downstream trips.
+        assert "lint-report.json" not in self._porcelain(tmp_path)
+
+    def test_report_would_show_dirty_without_the_ignore_entry(
+        self, tmp_path: Path
+    ) -> None:
+        # Control proving the guard above is meaningful: with NO gitignore, the
+        # very same write surfaces as an untracked file — i.e. the clean-tree
+        # assertion is earned by the ignore entry, not by the file being absent.
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        drg = _build_four_decay_drg()
+        with patch(
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
+            return_value=(drg, GraphState.MERGED),
+        ):
+            LintEngine(tmp_path).run()
+
+        assert "lint-report.json" in self._porcelain(tmp_path)

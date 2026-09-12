@@ -2,7 +2,7 @@
 
 Handles tool-specific config *glue* -- the entries that wire a harness up to
 discover Spec Kitty's shared skills, distinct from the orientation/context files
-owned by :mod:`session_presence`. These are :data:`SurfaceKind.NATIVE_CONFIG`
+owned by :mod:`session_presence`. These are :data:`ToolSurfaceKind.NATIVE_CONFIG`
 surfaces.
 
 Currently the only verified native-config glue is Mistral Vibe's ``skill_paths``
@@ -19,17 +19,40 @@ Harnesses with no known native-config glue yield a single
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextlib import contextmanager
+from dataclasses import replace
+from collections.abc import Iterator
+from hashlib import sha256  # noqa: TID251 -- exact physical bytes, not doctrine hashing.
 from pathlib import Path
 import tomllib
 
-from specify_cli.skills.vibe_config import VIBE_SKILL_PATH, ensure_project_skill_path
+from specify_cli.skills.vibe_config import (
+    VIBE_SKILL_PATH,
+    PreparedVibeConfig,
+    ensure_project_skill_path,
+    prepare_project_skill_path,
+)
+from specify_cli.session_presence.writers.markdown_rules import observe_presence_path, presence_state
+from specify_cli.core.agent_config import load_agent_config, AgentConfigError
+from ..operations import (
+    AssessmentInputs,
+    ApplyConsent,
+    Diagnostic,
+    Disposition,
+    FileState,
+    OperationRoot,
+    OwnerAssessment,
+    OwnerApplyResult,
+    OwnershipProof,
+    PhysicalEffect,
+)
 
 from ..enums import (
     ActivationMode,
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from ..findings import (
     NATIVE_CONFIG_MISSING,
@@ -38,7 +61,7 @@ from ..findings import (
     SEVERITY_INFO,
     make_finding,
 )
-from ..model import SurfaceDefinition, SurfaceInstance
+from ..model import SurfaceDefinition, SurfaceInstance, SurfaceSelection
 from ..repair import RepairResult
 from ..status import (
     STATE_MISSING,
@@ -62,7 +85,7 @@ _VIBE_TOOL_KEY = "vibe"
 def native_config_definition() -> SurfaceDefinition:
     """Return the built-in ``native_config`` :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=SurfaceKind.NATIVE_CONFIG,
+        kind=ToolSurfaceKind.NATIVE_CONFIG,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_VIBE_CONFIG_REL,
@@ -78,8 +101,141 @@ class NativeConfigProvider:
 
     provider_key = PROVIDER_KEY
 
+    def assess(
+        self,
+        inputs: AssessmentInputs,
+        statuses: Sequence[SurfaceStatus],
+        *,
+        selections: tuple[SurfaceSelection, ...],
+    ) -> OwnerAssessment:
+        """Prepare the selected native owner, including empty expansion."""
+        selected = any(
+            s.tool_key == _VIBE_TOOL_KEY
+            and s.definition.activation_mode != ActivationMode.DISABLED
+            and s.definition.required_policy == RequiredPolicy.REPAIRABLE_REQUIRED
+            for s in selections
+        )
+        if not selected:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "No selected verified native glue"),),
+                consent=inputs.consent,
+            )
+        try:
+            config = observe_presence_path(inputs.root.path, ".kittify/config.yaml")
+            if presence_state(config[-1]).kind not in ("file", "absent"):
+                raise ValueError("Agent config is not a regular file")
+            if presence_state(config[-1]).kind == "file" and "vibe" not in load_agent_config(inputs.root.path).available:
+                return OwnerAssessment(
+                    PROVIDER_KEY,
+                    inputs.root,
+                    dispositions=(Disposition(PROVIDER_KEY, inputs.root.root_id, None, "not_applicable", "Vibe is disabled"),),
+                    consent=inputs.consent,
+                )
+            prepared = prepare_project_skill_path(inputs.root.path)
+            effects = self._effects(inputs.root, prepared, tuple(_surface_id(s.instance) for s in statuses))
+            prepared = replace(prepared, observations=prepared.observations + config)
+        except (OSError, ValueError, TypeError, AttributeError, AgentConfigError) as exc:
+            return OwnerAssessment(
+                PROVIDER_KEY,
+                inputs.root,
+                complete=False,
+                diagnostics=(Diagnostic("native_config_unreadable", PROVIDER_KEY, "error", str(exc)),),
+                consent=inputs.consent,
+            )
+        dispositions = () if effects else (Disposition(PROVIDER_KEY, inputs.root.root_id, _VIBE_CONFIG_REL, "unchanged", "Native discovery is current"),)
+        return OwnerAssessment(
+            PROVIDER_KEY,
+            inputs.root,
+            effects=effects,
+            dispositions=dispositions,
+            inputs_fingerprint=prepared.observations,
+            prepared=prepared,
+            consent=inputs.consent,
+        )
+
+    @staticmethod
+    def _effects(root: OperationRoot, prepared: PreparedVibeConfig, ids: tuple[str, ...]) -> tuple[PhysicalEffect, ...]:
+        if not prepared.file.changed:
+            return ()
+        effects = []
+        for observation in prepared.observations[1:-1]:
+            before = presence_state(observation)
+            if before.kind == "absent":
+                effects.append(
+                    PhysicalEffect(
+                        PROVIDER_KEY,
+                        "surface_repair",
+                        root,
+                        observation.name,
+                        "create",
+                        before,
+                        FileState("directory", mode=0o755),
+                        "Native config parent",
+                        (OwnershipProof("managed_path", _VIBE_CONFIG_REL + "#skill_paths"),),
+                        ("vibe",),
+                        ids,
+                    )
+                )
+        before = prepared.file.before
+        effects.append(
+            PhysicalEffect(
+                PROVIDER_KEY,
+                "surface_repair",
+                root,
+                prepared.file.path,
+                "create" if before.kind == "absent" else "update",
+                before,
+                FileState("file", sha256=sha256(prepared.file.content).hexdigest(), mode=before.mode if before.mode is not None else 0o644),
+                "Add shared skill discovery",
+                (OwnershipProof("managed_path", _VIBE_CONFIG_REL + "#skill_paths"),),
+                ("vibe",),
+                ids,
+            )
+        )
+        return tuple(effects)
+
+    @contextmanager
+    def recheck(self, assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
+        """Refuse every write if any native input or parent changed."""
+        prepared = assessment.prepared
+        try:
+            valid = isinstance(prepared, PreparedVibeConfig) and (
+                all(observe_presence_path(assessment.root.path, old.name)[-1] == old for old in prepared.observations)
+            )
+        except (OSError, ValueError):
+            valid = False
+        yield () if valid else (Diagnostic("precondition_changed", PROVIDER_KEY, "error", "Native config inputs changed"),)
+
+    def apply(self, assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:
+        """Apply exact TOML-owner bytes; recheck even for direct protocol callers."""
+        ids = tuple(effect.id for effect in assessment.effects)
+        if not assessment.complete or not explicit_consent.automatic or explicit_consent != assessment.consent:
+            return OwnerApplyResult(PROVIDER_KEY, skipped=ids, outcome="skipped")
+        if not ids:
+            return OwnerApplyResult(PROVIDER_KEY)
+        with self.recheck(assessment) as diagnostics:
+            if diagnostics:
+                return OwnerApplyResult(PROVIDER_KEY, skipped=ids, diagnostics=diagnostics, outcome="precondition_changed")
+            prepared = assessment.prepared
+            if not isinstance(prepared, PreparedVibeConfig):
+                raise TypeError("Expected native preparation")
+            try:
+                ensure_project_skill_path(assessment.root.path, prepared=prepared)
+            except (OSError, ValueError) as exc:
+                succeeded = tuple(e.id for e in assessment.effects if _directory_postcondition_holds(e))
+                return OwnerApplyResult(
+                    PROVIDER_KEY,
+                    succeeded=succeeded,
+                    failed=tuple(i for i in ids if i not in succeeded),
+                    diagnostics=(Diagnostic("native_apply_failed", PROVIDER_KEY, "error", str(exc)),),
+                    outcome="partial" if succeeded else "failed",
+                )
+        return OwnerApplyResult(PROVIDER_KEY, succeeded=ids)
+
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind == SurfaceKind.NATIVE_CONFIG
+        return bool(definition.kind == ToolSurfaceKind.NATIVE_CONFIG)
 
     def expand(
         self,
@@ -106,9 +262,7 @@ class NativeConfigProvider:
         ]
 
     @staticmethod
-    def _research_gap_instance(
-        definition: SurfaceDefinition, tool_key: str
-    ) -> SurfaceInstance:
+    def _research_gap_instance(definition: SurfaceDefinition, tool_key: str) -> SurfaceInstance:
         return SurfaceInstance(
             definition=definition,
             path=Path(_RESEARCH_GAP_SENTINEL),
@@ -150,8 +304,7 @@ class NativeConfigProvider:
                 make_finding(
                     NATIVE_CONFIG_MISSING,
                     SEVERITY_ERROR,
-                    f"Native-config glue missing for {instance.owner}: "
-                    f"{instance.path}",
+                    f"Native-config glue missing for {instance.owner}: {instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
                     path=instance.path,
@@ -174,41 +327,38 @@ class NativeConfigProvider:
     ) -> RepairResult:
         """Write the missing native-config glue via the owning helper."""
         actionable = [s for s in statuses if s.state == STATE_MISSING]
-        skipped = tuple(
-            _surface_id(s.instance)
-            for s in statuses
-            if s.state == STATE_NOT_APPLICABLE
-        )
+        skipped = tuple(_surface_id(s.instance) for s in statuses if s.state == STATE_NOT_APPLICABLE)
         if not actionable:
             return RepairResult(skipped=skipped, dry_run=dry_run)
-        if dry_run:
-            return RepairResult(
-                repaired=tuple(_surface_id(s.instance) for s in actionable),
-                skipped=skipped,
-                dry_run=True,
-            )
-        return self._apply(project_root, actionable, skipped)
-
-    @staticmethod
-    def _apply(
-        project_root: Path,
-        actionable: Sequence[SurfaceStatus],
-        skipped: tuple[str, ...],
-    ) -> RepairResult:
-        repaired: list[str] = []
-        failed: list[str] = []
-        for status in actionable:
-            try:
-                ensure_project_skill_path(project_root)
-                repaired.append(_surface_id(status.instance))
-            except Exception as exc:  # surfaced as a failure, never swallowed
-                failed.append(f"{status.instance.owner}: {exc}")
-        return RepairResult(
-            repaired=tuple(repaired),
-            skipped=skipped,
-            failed=tuple(failed),
-            dry_run=False,
+        consent = ApplyConsent(automatic=True)
+        assessment = self.assess(
+            AssessmentInputs(OperationRoot("project", "project", project_root), consent=consent),
+            actionable,
+            selections=(SurfaceSelection("vibe", native_config_definition()),),
         )
+        if not assessment.complete:
+            return RepairResult(skipped=skipped, failed=tuple(d.message for d in assessment.diagnostics), dry_run=dry_run)
+        if any(d.state == "not_applicable" for d in assessment.dispositions):
+            return RepairResult(skipped=skipped + tuple(_surface_id(s.instance) for s in actionable), dry_run=dry_run)
+        result = None if dry_run else self.apply(assessment, consent)
+        failed = tuple(d.message for d in result.diagnostics) if result is not None else ()
+        return RepairResult(
+            repaired=() if failed else tuple(_surface_id(s.instance) for s in actionable),
+            skipped=skipped,
+            failed=failed,
+            dry_run=dry_run,
+        )
+
+
+def _directory_postcondition_holds(effect: PhysicalEffect) -> bool:
+    """A mkdir alone does not complete a create with a promised final mode."""
+    if effect.after.kind != "directory":
+        return False
+    try:
+        observed = observe_presence_path(effect.root.path, effect.path)[-1]
+    except (OSError, ValueError):
+        return False
+    return bool(presence_state(observed) == effect.after)
 
 
 def _vibe_skill_path_present(config_path: Path) -> bool:
@@ -241,8 +391,8 @@ SurfaceProviderRegistry.register(
         provider_class=NativeConfigProvider,
         definitions=(native_config_definition(),),
         kind_tokens={
-            "native-config": SurfaceKind.NATIVE_CONFIG,
-            "native_config": SurfaceKind.NATIVE_CONFIG,
+            "native-config": ToolSurfaceKind.NATIVE_CONFIG,
+            "native_config": ToolSurfaceKind.NATIVE_CONFIG,
         },
         order=30,
     )

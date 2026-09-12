@@ -28,6 +28,7 @@ from specify_cli.status.identity_audit import (
     find_duplicate_prefixes,
     summarize,
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +186,50 @@ def test_audit_repo_skips_non_directories(tmp_path: Path) -> None:
     assert result[0].slug == "001-hello"
 
 
+def test_audit_repo_unstattable_entry_is_skipped_not_crashed(tmp_path: Path) -> None:
+    """`#3194`: an unstattable candidate must be skipped like a non-directory,
+    not crash `audit_repo` (nor silently vanish only on some interpreters).
+
+    `Path.is_dir()` answers `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13, uncaught here before this fix — there was no
+    per-entry ``try``/``except`` at all). ``safe_is_dir``, wrapped in a local
+    ``try/except OSError: continue``, folds an unstattable entry into the SAME
+    "skip it" bucket this function already documents for non-directory entries
+    (``README.md``, templates, ...) — on every interpreter, and it still audits
+    every OTHER mission in the corpus.
+    """
+    import os
+
+    from tests._support.eacces import mode_bits_enforced
+
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    _mission_dir(specs, "001-hello", _ULID_A, 1)
+
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        result = audit_repo(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
+
+    slugs = {s.slug for s in result}
+    assert slugs == {"001-hello"}, (
+        f"the unstattable candidate must be skipped and the readable one kept: {slugs!r}"
+    )
+
+
 def test_audit_repo_all_four_states(tmp_path: Path) -> None:
     """audit_repo correctly classifies a repo with one mission per state."""
     specs = tmp_path / "kitty-specs"
@@ -293,6 +338,41 @@ def test_find_duplicate_prefixes_skips_non_directory_entries(tmp_path: Path) -> 
     _mission_dir(specs, "080-two", _ULID_B, 80)
 
     dupes = find_duplicate_prefixes(tmp_path)
+
+    assert "080" in dupes
+    assert frozenset(s.slug for s in dupes["080"]) == frozenset({"080-one", "080-two"})
+
+
+def test_find_duplicate_prefixes_unstattable_entry_is_skipped_not_crashed(
+    tmp_path: Path,
+) -> None:
+    """`#3194` companion to ``test_audit_repo_unstattable_entry_is_skipped_not_crashed``,
+    for ``find_duplicate_prefixes``'s own separate directory walk."""
+    import os
+
+    from tests._support.eacces import mode_bits_enforced
+
+    specs = tmp_path / "kitty-specs"
+    _mission_dir(specs, "080-one", _ULID_A, 80)
+    _mission_dir(specs, "080-two", _ULID_B, 80)
+
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        dupes = find_duplicate_prefixes(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
 
     assert "080" in dupes
     assert frozenset(s.slug for s in dupes["080"]) == frozenset({"080-one", "080-two"})
@@ -560,19 +640,17 @@ def _build_200_mission_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_nfr_002_timing_200_missions() -> None:
-    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors must complete
-    in < 3 seconds for a synthetic 200-mission repo (NFR-002)."""
+def test_audit_200_missions_functional() -> None:
+    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors is correct
+    for a synthetic 200-mission repo (functional, #4015 split)."""
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_root = _build_200_mission_repo(Path(tmpdir))
 
-        start = time.monotonic()
         states = audit_repo(repo_root)
         dupes = find_duplicate_prefixes(repo_root)
         ambiguous = find_ambiguous_selectors(states)
-        elapsed = time.monotonic() - start
 
         # Sanity checks: the data is correct
         assert len(states) == 200  # golden-count: cardinality-is-contract
@@ -580,8 +658,21 @@ def test_nfr_002_timing_200_missions() -> None:
         assert dupes == {}  # all distinct prefixes
         assert ambiguous == {}  # all distinct human slugs
 
+
+@pytest.mark.performance
+def test_nfr_002_timing_200_missions() -> None:
+    """audit_repo + find_duplicate_prefixes + find_ambiguous_selectors must complete
+    in < 3 seconds for a synthetic 200-mission repo (NFR-002, #4015 split)."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_root = _build_200_mission_repo(Path(tmpdir))
+
+        start = time.monotonic()
+        states = audit_repo(repo_root)
+        find_duplicate_prefixes(repo_root)
+        find_ambiguous_selectors(states)
+        elapsed = time.monotonic() - start
+
         # NFR-002: must be under 3 seconds
-        assert elapsed < 3.0, (
-            f"NFR-002 timing violation: {elapsed:.2f}s for 200 missions "
-            f"(limit: 3.0s). Check for I/O hotspots."
-        )
+        assert_timing_budget(elapsed, 3.0, name="elapsed")

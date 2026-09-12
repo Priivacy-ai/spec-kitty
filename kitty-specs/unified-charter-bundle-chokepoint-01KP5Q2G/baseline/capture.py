@@ -126,9 +126,16 @@ def _build_fixture(root: Path) -> Path:
         check=True,
     )
 
-    # Charter (the file presence drives the dashboard charter probe).
+    # Charter (charter.yaml drives the dashboard presence probe per FR-003/
+    # #3150; charter.md is the readable secondary prose companion served by
+    # resolve_project_charter_path -- both are seeded, matching a real
+    # project where `charter generate` compiles them together).
     charter_dir = root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text(
+        "schema_version: '2.0.0'\n",
+        encoding="utf-8",
+    )
     (charter_dir / "charter.md").write_text(
         "# Project Charter\n\n## Policy Summary\n\n- Be deterministic.\n",
         encoding="utf-8",

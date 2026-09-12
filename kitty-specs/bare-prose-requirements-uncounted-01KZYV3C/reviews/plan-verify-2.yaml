@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Commit 496bdba9c corrects "7 candidate tokens" to "8 candidate tokens total —
+      raw per-occurrence count, no dedup step" in both plan.md C-008 locations and the
+      tracer-design-decisions.md PLAN-GOV-002 row, and an independent re-implementation
+      of the broadened-predicate scan against the live 368-spec corpus reproduces 8 raw
+      matches across the same 5 flagged specs (2 for C-009 in coord-read-residuals...,
+      3 for C-007 in doctrine-public-api-surface..., 1 each for the remaining three),
+      with the 5/368=1.36% figure and C-008 disposition (b) left untouched.

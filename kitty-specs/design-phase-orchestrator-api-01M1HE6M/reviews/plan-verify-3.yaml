@@ -1,0 +1,48 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: design-phase-orchestrator-api-01M1HE6M
+verdicts:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reasoning: >
+      Commit de7d868fc adds 12 lines to plan.md § (e) Gate Set, item 3, first
+      bullet, immediately after the existing four-file re-run sentence and
+      before the `test_next_answer_effective_root.py` bullet. The added text
+      states that directory placement alone does not select the five new
+      WP03-08 verb test files into either job that collects
+      `tests/specify_cli/orchestrator_api/`, quotes both jobs' marker
+      filters, and instructs each new file to carry an explicit `pytestmark`
+      — `pytest.mark.fast` for pure in-process verb tests, or
+      `[pytest.mark.integration, pytest.mark.git_repo]` for real
+      git-repo/fixture-mission I/O tests, citing `test_transition_subtask_gate.py`
+      as the integration precedent against the other three files' `fast`
+      precedent. This is exactly the remediation the finding requested, and
+      it mirrors the phrasing/rigor already used three paragraphs later for
+      the WP02 seam test (item 3's third bullet / item 4), closing the
+      inconsistency the finding flagged. Independently re-verified against
+      the current codebase, not the fix's own citations: (1)
+      `.github/workflows/ci-quality.yml:1699-1715` (fast-tests-core-misc's
+      specify-cli-rest shard ignore_args) does not exclude
+      `tests/specify_cli/orchestrator_api`, and its run step at line 1793-1794
+      filters `-m "fast and not windows_ci and not regression"` — matches
+      the plan's quote and cited line number exactly. (2)
+      `ci-quality.yml:1974-2066` (integration-tests-core-misc's
+      specify-cli-rest shard) likewise does not ignore `orchestrator_api`,
+      and its run step at line 2066 filters
+      `-m 'not windows_ci and (git_repo or integration or architectural) and
+      not timing and not regression${{ matrix.marker_extra }}'` — matches
+      the plan's quote verbatim (the `marker_extra` interpolation is inert
+      for this shard, which sets `marker_extra: ''`). (3) `fast-tests-core-misc`
+      is confirmed a required member of blocking `quality-gate.needs`
+      (`ci-quality.yml:4284`). (4) The four existing files' actual
+      `pytestmark` lines were re-read directly:
+      `test_commands_fail_closed.py:39`, `test_fail_message_preserved.py:25`,
+      `test_typed_error_fail_closed.py:38` all carry
+      `pytestmark = [pytest.mark.fast]`, and
+      `test_transition_subtask_gate.py:32` carries
+      `pytestmark = [pytest.mark.integration, pytest.mark.git_repo]` — exactly
+      as the plan now states. The fix is substantive (new concrete
+      instruction, not a restatement of the finding) and its every factual
+      claim independently checks out against the workflow file and the test
+      files themselves. No remaining gap.

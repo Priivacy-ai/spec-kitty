@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from specify_cli.mission_metadata import load_meta, resolve_mission_identity
+from kernel.clock import UTC, Clock, DEFAULT_CLOCK, datetime, from_epoch, parse_iso, timedelta
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
+    LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
     MISSION_REOPENED,
     mission_event_log_path,
     read_lifecycle_events,
@@ -101,9 +102,7 @@ class MissionLifecycleResult:
             "terminal_wp_count": self.terminal_wp_count,
             "has_event_log": self.has_event_log,
             "post_mission_events": list(self.post_mission_events),
-            "last_follow_up_at": self.last_follow_up_at.isoformat()
-            if self.last_follow_up_at
-            else None,
+            "last_follow_up_at": self.last_follow_up_at.isoformat() if self.last_follow_up_at else None,
             "stale_after_days": self.stale_after_days,
             "abandoned_after_days": self.abandoned_after_days,
         }
@@ -130,7 +129,7 @@ def _parse_dt(raw: object) -> datetime | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
     try:
-        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = parse_iso(raw.replace("Z", "+00:00"))
     except ValueError:
         return None
     if parsed.tzinfo is None:
@@ -139,30 +138,30 @@ def _parse_dt(raw: object) -> datetime | None:
 
 
 def _fallback_created_at(feature_dir: Path) -> datetime | None:
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    meta = load_meta_fail_closed(feature_dir) or {}
     created_at = _parse_dt(meta.get("created_at"))
     if created_at is not None:
         return created_at
 
     try:
-        return datetime.fromtimestamp(feature_dir.stat().st_mtime, tz=UTC)
+        return from_epoch(feature_dir.stat().st_mtime)
     except OSError:
         return None
 
 
 def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
-    candidates = [
-        _parse_dt(wp_state.get("last_transition_at"))
-        for wp_state in snapshot.work_packages.values()
-        if isinstance(wp_state, dict)
-    ]
+    candidates = [_parse_dt(wp_state.get("last_transition_at")) for wp_state in snapshot.work_packages.values() if isinstance(wp_state, dict)]
     filtered = [candidate for candidate in candidates if candidate is not None]
     if filtered:
         return max(filtered)
     return _parse_dt(snapshot.materialized_at)
 
 
-_POST_MISSION_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
+# Post-mission events (reopen / follow-up) ARE the local-only lifecycle set by
+# design; alias the single public owner rather than re-declaring the membership.
+_POST_MISSION_EVENT_TYPES = LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
 
 
 def _event_sort_key(event: dict[str, Any]) -> tuple[str, str]:
@@ -184,11 +183,7 @@ def _collect_post_mission_events(feature_dir: Path) -> tuple[dict[str, Any], ...
     log_path = mission_event_log_path(feature_dir)
     if not log_path.exists():
         return ()
-    relevant = [
-        event
-        for event in read_lifecycle_events(log_path)
-        if event.get("event_type") in _POST_MISSION_EVENT_TYPES
-    ]
+    relevant = [event for event in read_lifecycle_events(log_path) if event.get("event_type") in _POST_MISSION_EVENT_TYPES]
     relevant.sort(key=_event_sort_key)
     return tuple(relevant)
 
@@ -210,21 +205,13 @@ def _latest_event_time(event: dict[str, Any]) -> datetime | None:
 
 
 def _last_reopen_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
-    times = [
-        _latest_event_time(event)
-        for event in events
-        if event.get("event_type") == MISSION_REOPENED
-    ]
+    times = [_latest_event_time(event) for event in events if event.get("event_type") == MISSION_REOPENED]
     filtered = [t for t in times if t is not None]
     return max(filtered) if filtered else None
 
 
 def _last_follow_up_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
-    times = [
-        _latest_event_time(event)
-        for event in events
-        if event.get("event_type") == FOLLOW_UP_RECORDED
-    ]
+    times = [_latest_event_time(event) for event in events if event.get("event_type") == FOLLOW_UP_RECORDED]
     filtered = [t for t in times if t is not None]
     return max(filtered) if filtered else None
 
@@ -236,7 +223,9 @@ def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
     typically ``None``. A subsequent re-merge re-stamps ``merged_at``; when that
     postdates the latest re-open the mission is no longer ``reopened``.
     """
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    meta = load_meta_fail_closed(feature_dir) or {}
     return _parse_dt(meta.get("merged_at"))
 
 
@@ -298,10 +287,26 @@ def _classify_state(
 _COMPLETED_LIFECYCLE_STATES = frozenset({"recently_completed", "archived"})
 
 
+def is_mission_merged(feature_dir: Path) -> bool:
+    """Return ``True`` iff the mission carries a live merge marker (#801).
+
+    Narrower than :func:`is_mission_completed`: ONLY the explicit ``merged_at``
+    marker counts — an unmerged mission whose WPs are all terminal
+    (``recently_completed`` / ``archived``) is NOT merged. Gates that must fire
+    exclusively on merged missions (the runtime bootstrap short-circuit, the
+    resolver's primary re-anchor) use this predicate so a normally-completing
+    mission still finalizes its run and passes the retrospective gate.
+    ``MissionReopened`` clears ``merged_at`` (IC-02), so a re-opened mission is
+    correctly not merged until re-merged.
+    """
+    return _last_merge_marker_at(feature_dir) is not None
+
+
 def is_mission_completed(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> bool:
     """Return ``True`` iff the mission has reached completion (#1926).
 
@@ -323,7 +328,7 @@ def is_mission_completed(
     """
     if _last_merge_marker_at(feature_dir) is not None:
         return True
-    lifecycle = derive_mission_lifecycle(feature_dir, now=now)
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock)
     return lifecycle.state in _COMPLETED_LIFECYCLE_STATES
 
 
@@ -331,9 +336,15 @@ def derive_mission_lifecycle(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> MissionLifecycleResult:
-    """Return canonical lifecycle state for one mission directory."""
-    now = (now or datetime.now(UTC)).astimezone(UTC)
+    """Return canonical lifecycle state for one mission directory.
+
+    ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+    FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only when
+    ``now`` (an explicit value) is omitted.
+    """
+    now = (now if now is not None else clock.now()).astimezone(UTC)
     identity = resolve_mission_identity(feature_dir)
     has_event_log = (feature_dir / EVENTS_FILENAME).exists()
 
@@ -341,11 +352,7 @@ def derive_mission_lifecycle(
         from specify_cli.status.reducer import reduce
 
         snapshot = reduce(read_events(feature_dir))
-        snapshot.mission_number = (
-            str(identity.mission_number)
-            if identity.mission_number is not None
-            else None
-        )
+        snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
         snapshot.mission_type = identity.mission_type
         if not snapshot.mission_slug:
             snapshot.mission_slug = identity.mission_slug or feature_dir.name
@@ -431,9 +438,10 @@ def generate_lifecycle_json(
     derived_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> None:
     """Write ``lifecycle.json`` for one mission under ``.kittify/derived``."""
-    lifecycle = derive_mission_lifecycle(feature_dir, now=now)
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock)
     mission_slug = lifecycle.mission_slug or feature_dir.name
     output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)

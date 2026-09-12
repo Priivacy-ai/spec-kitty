@@ -2,8 +2,8 @@
 Test suite for RoleCapabilities.
 """
 
-from doctrine.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES, RoleCapabilities, get_capabilities
-from doctrine.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.capabilities import DEFAULT_ROLE_CAPABILITIES, RoleCapabilities, get_capabilities
+from charter.offering.agent_profiles.profile import AgentProfile, Role
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

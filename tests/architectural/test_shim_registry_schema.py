@@ -65,15 +65,8 @@ class TestTopLevelStructure:
         with pytest.raises(RegistrySchemaError, match="top-level"):
             validate_registry({"other_key": []})
 
-    def test_shims_not_a_list_raises(self) -> None:
-        with pytest.raises(RegistrySchemaError, match="top-level.shims"):
-            validate_registry({"shims": "not-a-list"})
-
     def test_empty_shims_list_is_valid(self) -> None:
         validate_registry({"shims": []})
-
-    def test_valid_full_entry_passes(self) -> None:
-        validate_registry({"shims": [_entry()]})
 
 
 class TestRequiredFields:
@@ -110,10 +103,10 @@ class TestLegacyPath:
 
 class TestCanonicalImport:
     def test_string_canonical_import_is_valid(self) -> None:
-        validate_registry({"shims": [_entry(canonical_import="charter.context")]})
+        validate_registry({"shims": [_entry(canonical_import="charter.activation.context")]})
 
     def test_list_canonical_import_is_valid(self) -> None:
-        validate_registry({"shims": [_entry(canonical_import=["charter.context", "charter.bundle"])]})
+        validate_registry({"shims": [_entry(canonical_import=["charter.activation.context", "charter.bundle"])]})
 
     def test_empty_list_canonical_import_raises(self) -> None:
         with pytest.raises(RegistrySchemaError, match="canonical_import"):

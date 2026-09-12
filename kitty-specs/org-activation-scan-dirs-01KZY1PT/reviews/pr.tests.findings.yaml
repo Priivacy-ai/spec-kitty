@@ -1,0 +1,47 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PR-TESTS-001
+    lens: "mission-specific lens 4 (function-body-only revert of _org_scan_dirs)"
+    severity: 2
+    title: "test_neither_dir_present_returns_empty_list does not regress under a function-body-only revert -- non-discriminating, and duplicates pre-existing coverage"
+    evidence:
+      - artifact: "empirical: git diff against src/charter/kind_vocabulary.py, function body only, reverted to origin/main shape (candidate = root / kind.plural / \"built-in\"; if candidate.is_dir(): dirs.append((candidate, True))), then restored"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:225-227 (test_neither_dir_present_returns_empty_list)"
+      - artifact: "command: uv run pytest tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py -q -- outcome with body reverted: '........FFFF.F.....FF' -> 7 failed, 14 passed. test_neither_dir_present_returns_empty_list is NOT among the 7 failures (test_existing_org_built_in_dir_returned, test_flat_only_dir_returned_non_recursive, test_flat_only_resolves_via_resolve_artifact_urn_without_raising, test_legacy_only_dir_returned_recursive, test_same_config_stem_precedence_flat_wins, and the two activation-regression tests all failed; test_neither_dir_present_returns_empty_list stayed green)"
+      - code: "tests/charter/test_kind_vocabulary_scan_roots.py:127-131 (pre-existing, untouched by this diff: test_none_org_roots_returns_empty_list, test_missing_org_built_in_dir_skipped -- both already cover the 'root missing/empty' case and also pass under both the pre-fix and post-fix bodies)"
+    claim: >
+      Of the 5 new/modified tests in TestOrgScanDirsHelper named by the mission brief,
+      4 genuinely regress when just the _org_scan_dirs function body is reverted to its
+      pre-fix form (confirming they exercise the fix), but
+      test_neither_dir_present_returns_empty_list does not -- it asserts _org_scan_dirs
+      returns [] when the org root itself does not exist on disk, a code path where
+      is_dir() returns False for every candidate under both the old and the new
+      implementation, so the assertion is trivially true regardless of whether the
+      flat/legacy-split fix is present, absent, or itself broken. It provides no
+      regression protection specific to this mission's change and duplicates the
+      pre-existing test_missing_org_built_in_dir_skipped (empty existing root) /
+      test_none_org_roots_returns_empty_list (None org_roots), which already cover
+      functionally the same "nothing to scan" outcome. This is not a wrong assertion --
+      the test is factually correct in both versions -- but it adds no discriminating
+      signal, and its docstring/positioning among the FR-003 enumerated cases could
+      read as if it validates fix behavior when it does not.
+    remediation: >
+      Either remove test_neither_dir_present_returns_empty_list as redundant with the
+      two pre-existing tests covering the same "nothing to scan" outcome, or -- if kept
+      for FR-003's enumeration completeness -- add a one-line comment noting it is a
+      non-discriminating boundary case (identical under pre-fix and post-fix
+      implementations) so a future reader does not mistake it for fix-specific coverage.
+findings_meta:
+  lenses_cleared_no_finding:
+    - "Lens 1 (new tests pass with change reverted, file-level): reproduced independently -- reverting the whole function body gives 7 failed / 14 passed, matching the per-WP reviewer's whole-file-revert numbers (21 -> 7 failed/14 passed). All new activation-regression tests (test_flat_layout_org_directive_survives_activation_filter, test_order_independence_and_selectivity) and 4 of 5 named TestOrgScanDirsHelper tests correctly go red."
+    - "Lens 2 (pytest.mark.fast collection): tests/charter/test_kind_vocabulary_scan_roots.py:36 carries module-level `pytestmark = [pytest.mark.unit, pytest.mark.fast]`; tests/charter/test_org_scan_dirs_activation_regression.py:39 carries `pytestmark = pytest.mark.fast`. `fast` is a registered marker (pytest.ini:25). Confirmed collected both by the targeted run (21 passed) and by CI's real selection: .github/workflows/ci-quality.yml's `fast-tests-charter` job (~line 2401-2415) runs `pytest tests/charter tests/specify_cli/charter_freshness tests/specify_cli/charter_lint tests/specify_cli/charter_preflight -m \"fast and not windows_ci and not timing\"`, gated by the `changes.charter` path filter (ci-quality.yml:430-436) which includes both `src/charter/**` and `tests/charter/**` -- exactly the paths this diff touches. No orphaned marker; not an instance of the #3241 class."
+    - "Lens 3 (patch() targets / vacuous assertions / faking fixtures): no mock.patch/monkeypatch/Mock usage in any new or modified test in this diff (existing monkeypatch usages at test_kind_vocabulary_scan_roots.py:48-122 predate this diff and target unrelated _built_in_scan_dir tests). _org_scan_dirs and resolve_artifact_urn are called directly against real tmp_path filesystem state in every new test -- no fake standing in for the code under test. Coverage-floor movement could not be assessed under the RUN CONSTRAINT (targeted-file-only run, no --cov); no evidence of regression found, no finding raised without evidence."
+    - "Lens 5 (e2e regression test vacuousness): test_flat_layout_org_directive_survives_activation_filter's assertion is not satisfiable by an unfiltered/broken-filter graph -- empirically, reverting _org_scan_dirs's body drops the org node from filtered.nodes while leaving ~50 unrelated built-in nodes (action:*, template:*, asset:*, mission_type:*) present, proving filtering itself ran and is the actual discriminator, not graph-load failure or a no-op filter. test_order_independence_and_selectivity's selectivity assertion (_ORG_DIRECTIVE_URN not in urns_c) also empirically failed to hold as a guard against an 'always include' broken filter would be caught, and the presence-side assertions (urns_a/urns_b) independently went red under the same revert, confirming the org DRG fragment loads successfully regardless of the fix (ruling out silent graph-load failure as the reason the node is normally absent) and that activation gating is the sole discriminator."
+  restore_confirmation: >
+    After the empirical function-body-only revert-and-restore for lens 4, `git status
+    --porcelain -uno -- src/ tests/` returned empty and the targeted suite was
+    reconfirmed green (21 passed in 1.35s) before this review concluded.

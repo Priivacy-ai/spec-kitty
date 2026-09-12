@@ -103,8 +103,15 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
-    (repo / ".kittify").mkdir(parents=True, exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
     (repo / "kitty-specs").mkdir(parents=True, exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set; every mission this fixture creates is
+    # software-dev (see _create_mission).
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init", "-b", branch], cwd=repo, capture_output=True, check=True)
     _git(repo, "config", "user.email", "golden-path@spec-kitty.test")
     _git(repo, "config", "user.name", "Golden Path Fixture")
@@ -249,7 +256,6 @@ def _run_setup_plan(repo: Path, mission_handle: str, *, target_branch: str = "ma
             patch.object(mission_module, "_show_branch_context", side_effect=_fake_show_branch_context),
             patch.object(mission_module, "get_current_branch", return_value=target_branch),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value=target_branch),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,

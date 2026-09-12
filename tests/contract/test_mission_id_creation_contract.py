@@ -26,6 +26,7 @@ from specify_cli.core.mission_creation import (
     MissionCreationResult,
     create_mission_core,
 )
+from tests._factories import provision_test_charter
 
 # Crockford base32 subset (excludes I, L, O, U) — the ULID alphabet.
 
@@ -68,6 +69,10 @@ def _init_git_repo(repo: Path) -> None:
         capture_output=True,
         check=True,
     )
+    # WP04 fail-closed follow-up: create_mission_core() hard-requires an
+    # activated mission type; a bare git-init fixture never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo)
 
 
 def _create_mission(

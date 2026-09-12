@@ -20,8 +20,8 @@ from charter.drg import (
     DRGNode,
     NodeKind,
     OrgDRGFragment,
-    merge_three_layers,
 )
+from charter.activation.drg_activation import merge_three_layers
 
 pytestmark = [pytest.mark.unit]
 

@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2077": {
+      "evidence_ref": "Referenced by WP09 only as the CONSTRAINT that shaped its gates, not as work this mission performs. #2077's recurrence guard (tests/architectural/test_ratchet_positional_anchor_ban.py, DIR-041, mission content-address-ratchet-allowlists-01KX8M4D) already shipped and is verified live: reviewer read the guard and confirmed it bans int-to-line-sinks and path:NNN literals in module-level allow-list seeds anywhere under tests/architectural/, and confirmed all 46 of its tests pass with WP09's three new gate files in place. WP09 therefore keys its exclusions by content descriptor (file, qualname, token) instead of spec.md NFR-001's literal (file, qualname, line); the drift #2077 exists to prevent was independently reproduced here (registry.py 48->73, profile_resolution.py 81->95, projection.py 84->115, _doctrine_collect.py 193/283/420/828 -> 209/314/468/920). No reopening, no new work required.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "CT7: Test-hygiene directive/styleguide + recurrence-prevention guard",
+      "verdict": "verified-already-fixed",
+      "wp": "WP09"
+    },
+    "#2986": {
+      "evidence_ref": "Follow-up: #2986 remains open as its own tracked follow-on -- runtime->doctrine import-ratchet's own function-local-import blind spot, 61 sites/30 files, different pair (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-006",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "runtime→doctrine boundary ratchet sees only module-level imports; 61 function-local imports across 30 files bypass it",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3022": {
+      "evidence_ref": "Follow-up: #3022 remains open as its own tracked follow-on -- extract built-in packs into spec-kitty-packs-open, packaging/distribution track (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-006",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Extract built-in doctrine packs into spec-kitty-packs-open (dogfood our own pack distribution)",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3036": {
+      "evidence_ref": "Follow-up: #3036 remains open as its own tracked follow-on -- a doctrine-content-shippability gate contradiction, different domain (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-006",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Architectural gate requires the repo-coupling the shippable-doctrine rule forbids",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3039": {
+      "evidence_ref": "Follow-up: #3039 remains open as its own tracked follow-on -- a test-file reorganisation unrelated to access-path enforcement (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-006",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Split test_no_dead_doctrine_paths.py: Gate A is a src/-wide CLI gate wearing a doctrine name",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3091": {
+      "evidence_ref": "Follow-up: #3091 remains open as its own tracked follow-on -- relocate src/doctrine/missions/ to packs/built-in, packaging track (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-006",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Phase 1b: relocate the missions/ doctrine tree to packs/built-in",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3101": {
+      "evidence_ref": "Follow-up: #3101 (kernel->doctrine->charter wheel-cutover track) remains open, likewise untouched by this mission per spec.md C-003; ADR docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md already assesses and sequences the cutover as a deferred no-partial follow-on",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Split src/doctrine/ (and assess src/charter/) into a separate installable wheel/package",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3176": {
+      "evidence_ref": "Follow-up: #3176 tracks the root cause -- build_activation_aware_doctrine_service exposes no parameter letting a caller retarget the inner DoctrineService's project-overlay directory to .kittify/agent_profiles (it is fixed to charter._doctrine_paths.resolve_project_root's three doctrine candidates), so projection.py:115's default_profile_repository() cannot migrate onto the factory without silently dropping project-overlay profiles (spec.md FR-001, WP02 escalation, C-002).",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "src/specify_cli/tool_surface/profiles/projection.py",
+      "title": "Charter sole door: build_activation_aware_doctrine_service cannot reach .kittify/agent_profiles, blocking projection.py's FR-001 migration",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#2668": {
+      "evidence_ref": "Historical citation, no new work performed: builtin_missions_root() was already promoted (and closed) as a shared authority by #2668, referenced at charter/action_grain.py:203-204 and charter/mission_type_profiles.py:646-647 (spec.md FR-004, research.md, tasks/WP06-consolidate-missions-root-paths.md). FR-004/WP06 verifies #2668's promotion survives unchanged: builtin_missions_root() becomes a thin delegate to MissionTemplateRepository.default_missions_root(), and existing callers of builtin_missions_root() (including #2668's own promotion) are unaffected. NOTE: recorded as 'verified-already-fixed' rather than a literal 'context-only' verdict -- IssueMatrixVerdict's closed set (fixed/verified-already-fixed/deferred-with-followup/in-mission, src/specify_cli/cli/commands/review/_issue_matrix.py) has no context-only member; this is the closest genuine match (issue already closed/fixed, this mission only verifies continuity, performs no new work on it) and keeps the row schema-valid instead of tripping ISSUE_MATRIX_VERDICT_UNKNOWN.",
+      "fr": "FR-004",
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Promote `MissionTypeProfileRepository._default_built_in_dir` to a public `builtin_missions_root()` accessor",
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}

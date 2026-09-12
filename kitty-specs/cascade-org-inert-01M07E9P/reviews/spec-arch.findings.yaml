@@ -1,0 +1,92 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: cascade-org-inert-01M07E9P
+findings:
+  - id: SPEC-ARCH-001
+    lens: Layering
+    severity: 4
+    title: "FR-001's resolve_layer_roots widening ignores its third consumer (charter list --all-layers), which shares the same dict[str, Path] contract"
+    evidence:
+      - artifact: "spec.md § User Story 3, FR-001 title, FR-001 AC2"
+      - code: "src/specify_cli/cli/commands/charter/_layer_roots.py:31-34"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:447"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:221"
+      - code: "src/specify_cli/cli/commands/charter/list_cmd.py:165,200,219,48-77"
+      - code: "src/charter/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
+    claim: >
+      FR-001's title says it will "widen resolve_layer_roots past its first-match break," and
+      User Story 3 frames the need purely in terms of `_drg_id_to_config_id` (consumed by
+      activate.py's cascade renderers). Verified: `resolve_layer_roots` (src/specify_cli/cli/commands/charter/_layer_roots.py:31-34)
+      does have the exact first-match-wins `break` the spec describes, and it is called from
+      three sites, not two: activate.py:447, deactivate.py:221, AND list_cmd.py:165 (the
+      `charter list --all` / `--all-layers` command). The third call site feeds
+      `layer_roots["org"]` into `_template_tier_roots` (list_cmd.py:64,77) and into
+      `CharterPackManager.list_available_detailed(..., layer_roots=layer_roots)`
+      (src/charter/pack_manager.py:779-816), whose documented signature is
+      `layer_roots: dict[str, Path] | None` — a single Path per layer, not a list. FR-001's ACs
+      (User Story 3's Independent Test, AC2, SC-001) only exercise `_drg_id_to_config_id`'s
+      cascade-ID-mapping use; they never test `charter list --all-layers` over a 2-pack chain,
+      and SC-004's regression list (activate.py/deactivate.py/context.py/rebaseline.py) omits
+      list_cmd.py entirely. Left as-is, the plan phase has two ways to go wrong and no AC to
+      catch either: (a) if the widened shape changes the "org" value from `Path` to
+      `list[Path]`, `list_cmd.py`'s `_template_tier_roots`/`list_available_detailed` consumers
+      break at the type level with no regression test to catch it; (b) if the plan phase instead
+      patches only the two cascade sites' local consumption without changing
+      `resolve_layer_roots`'s actual return contract, `charter list --all-layers` keeps
+      under-listing pack-2+ artifacts under the exact same defect class this mission claims to
+      close, with the spec never disclosing that gap.
+    remediation: >
+      Add list_cmd.py (and the pack_manager.list_available_detailed / _template_tier_roots
+      consumers of layer_roots["org"]) as a named third consumer of resolve_layer_roots in
+      FR-001, alongside activate.py and deactivate.py. Either (a) require the widened shape to
+      be threaded through list_cmd.py in the same change, with a regression test asserting
+      `charter list --all-layers` surfaces pack-2 artifacts in a 2-pack chain, or (b) explicitly
+      scope list_cmd.py out with a stated rationale and a follow-up tracker reference — not
+      silently left for the plan phase to discover via a type error or an unreported behavior gap.
+
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 4
+    title: "FR-002's stated fix (swap _load_action_doctrine_bundle for _resolve_action_bundle) is a no-op as scoped, and the spec's claim that the plain-text charter context path is unaffected is factually wrong"
+    evidence:
+      - artifact: "spec.md § User Story 4 \"Why this priority\", FR-002 AC5"
+      - code: "src/specify_cli/cli/commands/charter/context.py:84-85 (org_root = org_roots[0] if org_roots else None)"
+      - code: "src/specify_cli/cli/commands/charter/context.py:113-119 (build_charter_context(..., org_root=org_root))"
+      - code: "src/specify_cli/cli/commands/charter/context.py:128-134 (build_charter_context_json(..., org_root=org_root))"
+      - code: "src/charter/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
+      - code: "src/charter/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
+      - code: "src/charter/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
+    claim: >
+      User Story 4's priority rationale states the JSON-path bug "does not affect the plain
+      `charter context` human-readable path." This is contradicted by the code: the CLI command
+      (src/specify_cli/cli/commands/charter/context.py:84-85) computes ONE truncated
+      `org_root = org_roots[0] if org_roots else None` and passes that SAME truncated value into
+      BOTH `build_charter_context` (plain-text, line 117) and `build_charter_context_json`
+      (JSON, line 132). `build_charter_context` already routes through `_resolve_action_bundle`
+      (src/charter/context.py:270) — the "already-fixed" wrapper the spec cites as the target
+      for FR-002 — but `_resolve_action_bundle` only self-resolves the full org-pack chain when
+      its caller passes `org_root=None`; an explicit (already-truncated) `org_root` is "honoured
+      verbatim and does not widen into the chain" (src/charter/action_doctrine_bundle.py:96-99,
+      docstring). So the plain-text path is truncated to pack 1 TODAY, by the same root cause,
+      despite already using the "correct" wrapper — and FR-002's AC5-recommended fix (swap
+      `build_charter_context_json`'s internal call from `_load_action_doctrine_bundle` to
+      `_resolve_action_bundle`) does not by itself fix the JSON path either, because the CLI
+      still hands in the pre-truncated `org_root` — `_resolve_action_bundle` would still see a
+      non-None org_root and would still not widen. As scoped, an implementer who follows FR-002
+      AC5 literally produces a wrong implementation: FR-002 AC2 (multi-pack chain test) would
+      still fail post-fix, and the plain-text path — which the spec explicitly claims is
+      out of scope — silently keeps the same defect indefinitely, with no AC anywhere to catch
+      either gap.
+    remediation: >
+      Correct User Story 4's priority framing: the plain-text `charter context` path is equally
+      affected today and must be added as an in-scope regression surface (its own AC + test,
+      not just "already works today for pack 1"). Change FR-002's fix description to stop the
+      truncation at its actual source: `specify_cli/cli/commands/charter/context.py:84-85` must
+      stop precomputing `org_root = org_roots[0]` and instead pass `org_root=None` through to
+      `build_charter_context` / `build_charter_context_json` (or an equivalent explicit
+      "resolve the full chain" call), letting the charter-layer self-resolution
+      (`_resolve_action_bundle`'s `if effective_org_root is None` branch) do the widening — the
+      internal `_load_action_doctrine_bundle` → `_resolve_action_bundle` swap inside
+      `build_charter_context_json` is necessary but not sufficient on its own.

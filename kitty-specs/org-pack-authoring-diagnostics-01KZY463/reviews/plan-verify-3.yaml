@@ -1,0 +1,11 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: "plan.md:234-266 now correctly states the docs-freshness job already fires from FR-001's docs/**-matching guide edit (line 236-237, matches .github/workflows/docs-freshness.yml:38 'docs/**'), that the CHANGELOG-sync step (:126-127, verified to carry no per-step if:/path condition) runs unconditionally once the job fires (line 253-255), and that IC-04's edit to docs/changelog/CHANGELOG.md matches the docs/** filter rather than the literal CHANGELOG.md entry at :43 since the root symlink is untouched (line 256-260) — all three points verified accurate against the live workflow file."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: "plan.md:281 now states docs/context/*.md is a '24-file directory', matching the live count of 24 .md files found directly via `find docs/context -maxdepth 1 -iname '*.md' | wc -l`."

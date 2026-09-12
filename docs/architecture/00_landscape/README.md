@@ -35,9 +35,16 @@ implementation-agnostic:
 | Event Store | Filesystem (JSONL, frontmatter, meta.json) | Database, cloud event store |
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
 | Agent Tool Connectors | In-tool (`spec-kitty implement`) | Async shell, SDK, remote API |
-| Doctrine | YAML artifacts in `src/doctrine/`; canonical skill packs in `src/doctrine/skills/`; deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
-| Charter | Compiled governance bundle in `.kittify/` | Same — governance artifacts |
+| Doctrine | Pack content in `packs/built-in/`; doctrine code + canonical skill packs in `src/charter/offering/` (incl. `src/charter/offering/skills/`); deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
+| Charter | Governance authority in `src/charter/` (absorbed the former `src/doctrine/` package at `src/charter/offering/`); compiled Charter Bundle in `.kittify/charter/` | Same — governance artifacts |
+| Glossary | Terminology / semantic-integrity pipeline + DRG glossary bridge in `src/glossary/` | Same — knowledge artifacts |
+| Runtime | Canonical mission control loop in `src/runtime/next/_internal_runtime/` | Same — domain logic |
+| Mission Runtime | Artifact-placement seam in `src/mission_runtime/` (PlacementSeam, resolver port, identity, lifecycle_phase) | Same — domain logic |
 | Kernel | Zero-dependency shared primitives in `src/kernel/` | Same — utility layer |
+
+> **Note:** Kernel, Glossary, Runtime, and Mission Runtime are layer packages in
+> the enforced import chain (`tests/architectural/test_layer_rules.py`), not
+> narrated Domain Containers — they have no matching `###` section below.
 
 Whether a module is in-process, a separate service, or a remote API is an
 implementation detail — the contracts between them remain stable regardless.
@@ -159,8 +166,10 @@ scope which artifacts apply to each execution phase within a mission.
 Consumed by Charter (compilation source and action-scoped intersection)
 and by Agent Tool Connectors (execution-time governance context). The Skills
 Installer (`specify_cli/skills/`) deploys canonical skill packs from
-`doctrine/skills/` into agent directories during `spec-kitty init`. Doctrine
-itself is standalone — it does not depend on any other container.
+`src/charter/offering/skills/` into agent directories during `spec-kitty init`.
+The doctrine code now lives under `src/charter/offering/` (the former top-level
+`src/doctrine/` package was absorbed there in the convergence; `src/doctrine.py`
+is a deprecation shim) — it depends on nothing except Kernel.
 
 ### Charter
 
@@ -266,20 +275,49 @@ flowchart TB
 | Orchestration | Event Store | ↔ read/write | Reads state for scheduling; writes lifecycle/execution events |
 | Dashboard | Event Store | ← read | WP status, mission progress, execution history |
 | Orchestration | Agent Tool Connectors | → | Work dispatch (WP prompt, context, constraints) |
-| Agent Tool Connectors | Doctrine | ← uses | Directive/tactic/paradigm context at execution time |
+| Agent Tool Connectors | Doctrine | ← uses | Directive/tactic/paradigm context at execution time (served through Charter's offering surface) |
 | Agent Tool Connectors | Charter | ← uses | Governance rules at execution time |
-| Charter | Doctrine | ← uses | Source material for governance compilation |
 
 ## Dependency Rules
 
 1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli`, `charter`, and `doctrine`. Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
-2. **Doctrine is a root knowledge dependency** — consumed by Charter and Agent Tool Connectors; depends on nothing except Kernel.
-3. **Charter depends only on Doctrine and Kernel** — never on Kitty-core, Orchestration, or Event Store.
+2. **Doctrine ships inside Charter, not as a separate dependency peer** — the knowledge store lives at `src/charter/offering/` and depends on nothing except Kernel. Agent Tool Connectors still consume Doctrine content (directive/tactic/paradigm context) through Charter's offering surface at execution time.
+3. **Charter depends only on Kernel** — never on Kitty-core, Orchestration, or Event Store. (Doctrine's content is carried internally within Charter, not consumed as an external dependency.)
 4. **Event Store is a shared persistence boundary** — writers (Kitty-core, Orchestration) and readers (Dashboard, Orchestration) interact through interface contracts, never directly with each other through the store.
 5. **Dashboard has no write path** — strictly read-only against Event Store.
 6. **Agent Tool Connectors are leaf nodes** — they execute work and consume governance context; they do not write to other containers except through Orchestration (results/events flow back through Orchestration to Event Store).
 7. **Orchestration does not bypass Kitty-core** — it executes the graph that Kitty-core produced; it does not construct planning artifacts.
 8. **Control Plane is the single user entry point** for mutations — Dashboard is read-only.
+
+## Modularity SSOT (enforced authority)
+
+The conceptual containers above are a *lens*, not the authority for module boundaries. The
+**canonical single source of truth for the module set and its import direction is the enforced
+pair** — the two surfaces CI actually defends, which agree with each other and with the code:
+
+- **Module inventory** — `pyproject.toml` `[tool.hatch.build.targets.wheel].packages`, enforced
+  by `tests/architectural/test_pyproject_shape.py`.
+- **Import direction (the layer chain)** — the `landscape` fixture in
+  `tests/architectural/conftest.py` + `tests/architectural/test_layer_rules.py`, enforced by
+  pytestarch `LayerRule`s, the `TestLayerCoverage` meta-tests, and the shrink-only
+  `mission_runtime` and `runtime` outbound ledgers.
+
+```
+kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli
+```
+
+Every other module map (this document, `04_implementation_mapping`, the `AGENTS.md` package
+lists, and the demoted `05_ownership_map.md`) is a **derived view** that must cite the enforced
+pair; on any conflict, the enforced pair wins. The former self-declared authority
+`05_ownership_manifest.yaml` was deleted (mission `post-convergence-governance-01M1TMPH`) after
+it drifted from reality.
+
+**Client-repo inversion.** `charter.offering` holds the doctrine code (the former top-level
+`src/doctrine/`; `src/doctrine.py` is a deprecation shim). `src/specify_cli/zeitgeist_client/`
+and `src/specify_cli/saas_client/` are **clients** of the upstream authoritative repos
+`spec-kitty/zeitgeist` and `spec-kitty/saas` — consumer code integrated here, not in-repo
+successor subsystems (the API is authored/published upstream). See ADR
+`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`.
 
 ## Traceability
 

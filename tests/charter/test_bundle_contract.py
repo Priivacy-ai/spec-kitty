@@ -117,7 +117,7 @@ def test_manifest_vs_on_disk_contract(tmp_path: Path) -> None:
     """
     from charter.bundle import CANONICAL_MANIFEST
     from charter.resolution import resolve_canonical_repo_root
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     repo_root = _init_fixture(tmp_path).resolve()
     resolve_canonical_repo_root.cache_clear()
@@ -163,7 +163,7 @@ def test_derived_files_are_not_git_tracked(tmp_path: Path) -> None:
     """
     from charter.bundle import CANONICAL_MANIFEST
     from charter.resolution import resolve_canonical_repo_root
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     repo_root = _init_fixture(tmp_path).resolve()
     resolve_canonical_repo_root.cache_clear()
@@ -184,7 +184,7 @@ def test_second_chokepoint_call_is_noop(tmp_path: Path) -> None:
     and return ``synced=False``.
     """
     from charter.resolution import resolve_canonical_repo_root
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     repo_root = _init_fixture(tmp_path).resolve()
     resolve_canonical_repo_root.cache_clear()

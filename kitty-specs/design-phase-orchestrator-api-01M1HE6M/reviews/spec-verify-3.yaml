@@ -1,0 +1,132 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+mission: design-phase-orchestrator-api-01M1HE6M
+verdicts:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    evidence: >
+      Judged against the operator ruling, not the original finding's framing.
+      All five elements the ruling required are present in implementer-binding
+      sections, not only in prose:
+      (1) FR-014 (spec.md L515, FR table) requires extraction of
+      `_pair_previous_lifecycle_record`, `_emit_mission_next_invoked`, and
+      `_write_issuance_lifecycle_record` into a shared seam both the host CLI
+      and orchestrator-api call, "without inlining CLI-layer helpers into the
+      orchestrator-api layer or duplicating logic."
+      (2) FR-013 (L514) is amended to require "full CLI event/lifecycle-log
+      parity... depends on FR-014."
+      (3) C-005 (L535, Constraints table) states FR-014 must be planned/
+      implemented before FR-013, and requires "a shared regression test that
+      fails if EITHER caller... stops writing the mission-event-log entry or
+      the lifecycle records (SC-008)" — i.e. the ruling's behaviour-preservation
+      + dual-failing-test requirement, stated as a binding constraint.
+      (4) Acceptance Scenario 7 (L413-428, User Story 5) exercises all three
+      side effects (pairing, event-log write, new issuance record) reached
+      "through the shared seam extracted from next_cmd.py (FR-014)... never
+      inlined or reimplemented inside the orchestrator-api layer."
+      (5) SC-007 clause (c) (L914-924) and new SC-008 (L925-932) pin this as
+      measurable success criteria — SC-008 explicitly is the dual-caller
+      regression test the ruling required.
+      Scope Notes (L954-965) also gained a `next_cmd.py` touch-point entry
+      naming the exact three functions and their def lines (verified against
+      the real file: L333 `_pair_previous_lifecycle_record`, L430
+      `_write_issuance_lifecycle_record`, L863 `_emit_mission_next_invoked` —
+      all correct), and states the plan phase must pick a target module that
+      both `next_cmd.py` and `orchestrator_api/commands.py` can import without
+      orchestrator-api reaching into CLI-layer code.
+      User Story 5's composite-design prose (L294-319) and the Key Entities
+      "Run decision" bullet (L541) both walk through the full 5-step sequence
+      ((1) persist, (2) pair-previous, (3) decide_next, (4) emit event, (5)
+      conditional issuance record) and explicitly say steps (2)/(4)/(5) are
+      "REQUIRED, not optional or deferred" per the ruling.
+    note: >
+      The fix goes slightly beyond the ruling's minimum ask by also adding
+      Clarification 7, a full rationale writeup mirroring the ruling's own
+      four rationale points — this is documentation, not a substitute for the
+      binding FR/AC/SC changes, all of which independently exist and were
+      verified above. No way in which the fix falls short of the ruling was
+      found. The ruling's scope consequence (a plan-phase work package for
+      the extraction, sequenced before FR-013) is correctly deferred to the
+      plan phase — this spec phase only needs to (and does) state that
+      requirement via C-005 and FR-014's "Sequenced BEFORE FR-013 in the
+      plan/tasks phases" language, which it does.
+
+  - id: SPEC-FRESH2-002
+    status: resolved
+    evidence: >
+      The Key Entities "Run decision" bullet (spec.md L541) — the place the
+      response shape is actually defined, not merely a clarification aside —
+      now states explicitly: "`data` carries NO equivalent of the CLI's
+      second extra key, `answer` (the submitted answer text, echoed back by
+      `_print_decision`'s `d[\"answer\"] = answer` at `next_cmd.py:915`):
+      that echo is intentionally OMITTED because the host already possesses
+      the value it submitted in its own request." The identical statement
+      also appears in User Story 5's Independent Test (L345-346) and in
+      Clarification 3, Mechanism B (L680-683, "`data` carries NO equivalent
+      of the CLI's second extra key, `answer`..."). All three locations agree;
+      no other section of the spec (AC1, AC3, SC-007) implies `data` should
+      carry an `answer` echo, so nothing contradicts the stated choice.
+      `next_cmd.py:915` (`d["answer"] = answer`) verified against the real
+      file — correct.
+    note: >
+      The fixer's chosen answer ("intentionally omitted, host already has the
+      value") is the ruling-sanctioned acceptable answer, and it is anchored
+      in the Key Entities definition itself, satisfying "not only in a
+      clarification note."
+
+  - id: SPEC-FRESH2-003
+    status: resolved
+    evidence: >
+      Both `next_cmd.py:246-248` occurrences (User Story 5 intro and
+      Clarification 3, Mechanism B) are corrected to `next_cmd.py:248-250`.
+      Verified directly against the real file: L248 is `decision =
+      decide_next(` and L250 is the closing `)` of that call — this is
+      exactly the `decide_next(...)` call the citation is meant to anchor.
+      No occurrence of the stale `246-248` string remains anywhere in
+      spec.md (grep confirms zero hits).
+      The fixer's second claimed correction, `decision.py:64-68` ->
+      `:63-67`, is also verified correct: `decision.py:63-67` is exactly the
+      `DecisionKind` member block (`step`, `decision_required`, `blocked`,
+      `terminal`, `query`) the citation describes.
+      Independent spot-check of citations NOT touched by this fix round (11
+      total, well over the requested 8), all verified against the real repo
+      files and all correct: `next_cmd.py:213-221` (`_maybe_handle_answer`
+      call), `next_cmd.py:244-246` (`_pair_previous_lifecycle_record` call),
+      `next_cmd.py:251-258` (`_emit_mission_next_invoked` call),
+      `next_cmd.py:263-269` (`_write_issuance_lifecycle_record` call),
+      `next_cmd.py:333` / `:430` / `:863` (the three functions' `def` lines),
+      `next_cmd.py:743-750` (`_validate_result_and_answer`),
+      `next_cmd.py:910-919` / `:913-915` (`_print_decision` and its
+      `answered`/`answer` key assignment), `next_cmd.py:923-1018`
+      (`_handle_answer`), `decision.py:413` (`def decide_next`),
+      `runtime_bridge.py:2191` (`def decide_next_via_runtime`),
+      `runtime_bridge.py:2587-2662` (`def answer_decision_via_runtime`
+      through its closing paren), `commands.py:1258-1266` and `:1352-1360`
+      (`start-implementation`/`start-review` `wp_id`/`from_lane`/`to_lane`
+      dict literals). Every citation checked lands exactly where the spec
+      claims.
+    note: >
+      No further citation drift found. The fixer's "swept all 48 citations"
+      claim could not be exhaustively verified (only a sample was checked),
+      but the sample — chosen across every citation directly touched by or
+      adjacent to this fix round, plus several untouched ones — was 100%
+      accurate, which is strong evidence the sweep was real rather than a
+      restated claim.
+
+internal_consistency_check: >
+  Verified the fixer's claimed step-reference renumbering in Acceptance
+  Scenario 1 (spec.md L370, "step (3)'s decide_next call") is correct against
+  the new 5-step sequence defined in User Story 5's intro and the Key
+  Entities "Run decision" bullet, and searched the full spec.md for every
+  "step (N)" / "call (N)" occurrence (L317, L367, L370, L541) — all consistent
+  with the new numbering, no stale "step (2)" referring to decide_next
+  remains. Also checked for leftover "BOTH calls" / "two-call" language
+  (FR-013 intro L514, Scope Notes L947, SC-007 L918) — all correctly scoped
+  to "the two ENGINE calls" as a subset of the full requirement, not
+  contradicting the five-step/three-side-effect model. No contradiction was
+  introduced with untouched sections (User Story 3, FR-012, C-003 all still
+  correctly describe Mechanism A vs Mechanism B boundaries unchanged). No
+  existing acceptance criterion was weakened: SC-007 strictly gained clause
+  (c) without altering (a)/(b); Acceptance Scenario 1 is otherwise unchanged
+  aside from the step-number fix.

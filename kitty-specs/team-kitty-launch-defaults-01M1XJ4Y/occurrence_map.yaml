@@ -1,0 +1,66 @@
+# Occurrence map for mission team-kitty-launch-defaults-01M1XJ4Y (DIRECTIVE_035).
+#
+# Primary target: the retired hosted enable flag. The sibling identifiers this
+# mission retires under the SAME category rules are:
+#   SPEC_KITTY_SYNC_DISABLE, SPEC_KITTY_SYNC_MINIMAL_IMPORT   (env names)
+#   SYNC_DISABLE_ENV_VARS, first_set_sync_disable_env         (env registry)
+#   sync_active, is_saas_sync_enabled, saas_sync_disabled_message, SAAS_SYNC_ENV_VAR
+#   OWNED_SYNC_UNSUPPORTED                                    (error code)
+#   [sync] server_url                                         (config.toml table)
+# Replacements: authentication state (no flag); SPEC_KITTY_SKIP_PRE_REVIEW_GATE;
+# SPEC_KITTY_NO_MOMENT_HANDLERS; [team_kitty] server_url.
+# Historical archives are never rewritten (exceptions below).
+
+target:
+  term: SPEC_KITTY_ENABLE_SAAS_SYNC
+  replacement: null
+  operation: remove
+
+categories:
+  code_symbols:         { action: rename }                 # gate functions/constants are removed or renamed to the two named opt-outs
+  import_paths:         { action: rename }                 # core.saas_sync_config and tracker.feature_flags re-exports go away
+  filesystem_paths:     { action: manual_review }          # .kitty.env provisioning + redaction lists: edit the var tuples, never paths
+  serialized_keys:      { action: manual_review }          # config.toml [sync].server_url -> [team_kitty] server_url; .kitty.env seeding lists
+  cli_commands:         { action: do_not_change }          # no subcommand or flag is renamed; --skip-pre-review-gate stays
+  user_facing_strings:  { action: rename_if_user_visible } # help text, notices, docs, skills: retire the vocabulary
+  tests_fixtures:       { action: rename }                 # test env fixtures and assertions follow the new names
+  logs_telemetry:       { action: do_not_change }          # no metric or log key carries the retired names
+
+exceptions:
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Mission dossiers are immutable history (archive byte-freeze gate); this mission's own dossier is exempt from the retirement too"
+  - path: "kitty-ops/**"
+    action: do_not_change
+    reason: "Op ledgers are append-only history"
+  - path: "docs/adr/**"
+    action: do_not_change
+    reason: "Accepted ADRs are immutable; the D-5 reversal is a NEW record, not an edit"
+  - path: "docs/archive/**"
+    action: do_not_change
+    reason: "Archived program evidence is byte-frozen"
+  - path: "docs/changelog/**"
+    action: do_not_change
+    reason: "Released changelog entries are history; the new entry is appended, not rewritten"
+  - path: "CHANGELOG.md"
+    action: manual_review
+    reason: "Append the retirement entry only"
+  - path: "src/specify_cli/upgrade/migrations/**"
+    action: manual_review
+    reason: "m_3_2_8 stops seeding retired names; older migrations are historical and unchanged"
+
+structural_targets:
+  - path: "src/specify_cli/auth/server_target.py"
+    reason: "Packaged default, [team_kitty] key, source reporting: structural edit, not a find/replace"
+  - path: "src/specify_cli/auth/config.py"
+    reason: "get_saas_base_url stops raising; DEFAULT_HOSTED_SAAS_URL introduced"
+  - path: "src/specify_cli/readiness/coordinator.py"
+    reason: "Gate removed; one-time hint state added"
+  - path: "src/specify_cli/cli/commands/agent/tasks_move_task.py"
+    reason: "OWNED_SYNC_UNSUPPORTED preflight deleted; pre-review opt-out re-keyed"
+  - path: "src/specify_cli/cli/commands/agent/tasks_mark_status.py"
+    reason: "OWNED_SYNC_UNSUPPORTED preflight deleted"
+  - path: "src/specify_cli/status/adapters.py"
+    reason: "Import gate re-keyed to SPEC_KITTY_NO_MOMENT_HANDLERS"
+  - path: "src/specify_cli/core/env.py"
+    reason: "Retired registry tuple replaced by the two named opt-outs"

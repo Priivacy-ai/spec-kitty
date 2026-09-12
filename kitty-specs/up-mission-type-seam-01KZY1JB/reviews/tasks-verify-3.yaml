@@ -1,0 +1,14 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      WP07's Branch Strategy section and the tracer's Correction paragraph both now give the
+      concrete `git branch -a --list '*lane-b*'` / `'*lane-c*'` command to resolve the placeholder
+      into an actual ref before feeding it to `git merge-base --is-ancestor`, use identical
+      "resolved lane-b/lane-c branch" terminology (no more "tip" vs "tip commit" drift), and
+      wps.yaml's header still only points back to WP07's prompt as the finding itself said was
+      acceptable.

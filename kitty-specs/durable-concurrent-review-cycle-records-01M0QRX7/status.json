@@ -1,0 +1,289 @@
+{
+  "event_count": 144,
+  "last_event_id": "01M0T1EKYGJE12J1MMTVRR3XA6",
+  "materialized_at": "2026-08-24T14:05:38.128937+00:00",
+  "mission_number": "",
+  "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 9,
+      "lane": "approved",
+      "last_event_id": "01M0SW3AQ9ZED2C2JRBFGA4294",
+      "last_transition_at": "2026-08-24T12:32:05.353330+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented production-path spawn durability oracle in 983018e0404351f1d28ad76d4643c1a7f71065d3. Exact event and evidence mutants pass, including real coordination transaction lock/replace seam. Baseline is intentionally red on current production at round 0: successful command event_id has review_result=None, classified authoritative_event_mismatch. Diff-scoped Ruff and git diff checks pass; only owned integration test changed. Forced lifecycle transition solely because the lane predated current planning-branch artifacts and the guard classified inherited kitty-specs commits as lane-local; no planning artifact was edited by this WP.",
+        "Review cycle 2 fixes committed in 1bef5f30f105e80bbf40d920ebcb59920b32bcf6. Refusals now require nonzero structured allowlisted causal evidence with five negative controls; event mutant proves two distinct committed matching blobs plus both active bindings in flat and coord topologies before missing-event classification; evidence mutant accepts liar-success read-back or typed persistence refusal while ordinary oracle returns exact missing_committed_evidence. Event/evidence/refusal controls pass, Ruff/diff checks pass, baseline remains expected red at authoritative_event_mismatch. Force only bypasses inherited planning-artifact lane guard; WP changed no kitty-specs file.",
+        "Review cycle 2 passed: all prior causal-oracle blockers fixed; exact event/evidence mutants pass, noncausal refusal negatives pass, red-first baseline fails honestly on the current production defect, ownership is limited to the declared integration test, Ruff and strict mypy pass. Anti-patterns: dead code N/A; synthetic fixture PASS; silent empty return N/A; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility N/A.",
+        "Reopened after final fail-loud and retained-adoption semantics exposed stale integration-oracle expectations",
+        "Ready for independent re-review: fail-closed oracle correction adf2537a9; integrated approved WP04 e5472aa58; 39/39 owned, 126/126 combined, Ruff clean, scoped strict mypy clean, 94% diff coverage. Force used only to override inherited committed kitty-specs lane-history guard.",
+        "Review cycle 4 passed: correction adf2537a9 aligns the owned production-command oracle with final fail-closed destination read-back and exact retained-record adoption while preserving strict canonical top-level refusal checks, exact governed-ref bytes, event correlation, 50-round plus deterministic wait-in-line SC-004, and independent event/evidence mutants. Evidence: 39/39 owned; 126/126 WP01-WP04 with fresh coverage; 142/142 including current WP05 topology; Ruff clean; ordinary strict mypy/no-incremental has zero WP01 diagnostics and exactly five transparently classified imported WP04-test-only diagnostics; mission diff coverage 94% and correction-adjacent production delta 100%; pre-correction oracle causally fails 17/39. No skip/xfail/retry-to-green additions. Ownership limited to tests/integration/test_review_durability_matrix.py; approved WP04 integration separately owned. Anti-patterns: dead code N/A; synthetic fixture PASS; silent empty return PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS with dependency merge recorded; production fragility N/A. Force used only to override inherited committed kitty-specs lane-history guard.",
+        "Correction fe6624290 independently reviewed",
+        "Independent cycle-4 review approved fe6624290: 42 owned tests, exact SC-004 3/3, golden-count and integration-boundary gates, Ruff and diff-check green; no owned mypy diagnostics.",
+        "Correction 0b010ddbe independently reviewed",
+        "Independent cycle-5 review approved 0b010ddbe: exact three nodes green; causal output-first mutant sequencing, Ruff and diff-check verified; no owned mypy diagnostics."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-5 review approved 0b010ddbe: exact three nodes green; causal output-first mutant sequencing, Ruff and diff-check verified; no owned mypy diagnostics.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 8,
+      "lane": "approved",
+      "last_event_id": "01M0SS3AJQBT6GXZPW4SJQYERV",
+      "last_transition_at": "2026-08-24T11:39:39.479697+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review. Commits cfcfd8ed5 (red-first contract) and e95eab253 (production). 9 focused tests pass; 100% module coverage; diff-scoped Ruff, strict mypy, and diff-check pass. Verified common-dir keying, exact 10.0s typed timeout, explicit reentrancy refusal, release after normal/exception/spawned-process death, and no daemon/status-event dependency. Force used only to bypass inherited planning-artifact drift between this lane base and the updated planning branch; no kitty-specs files were edited or committed by this WP. WP03/WP04 own live command integration.",
+        "Cycle 2/3 feedback resolved in dadaf0906 (red-first tests) and 72b57ef52 (finite timeout guard). All nan, +inf, -inf, zero, and negative budgets now fail before FileLock construction. Real portable spawn tests prove a live holder causes typed VerdictSaveBusy at 0.2s and that a contender remains blocked until normal owner release, then acquires; bounded joins and both child exit codes are asserted. Evidence: 15 tests pass, 100% module coverage, diff-scoped Ruff clean, strict mypy clean, diff-check clean. Force bypasses only inherited planning-artifact drift; WP edits remain limited to the two owned files.",
+        "Review passed cycle 2: both prior blockers fixed. PASS synthetic-fixture/FR coverage (real spawn live-holder busy refusal and wait-in-line acquisition), silent-empty-return, frozen surfaces, locked decisions, shared ownership, and production fragility; dead-code N/A for explicitly foundational WP02 pending declared WP03/WP04 integration. 15 focused tests, Ruff, strict mypy, diff-check, finite timeout validation, process death, keying, and no-daemon/status dependency all verified. Force only bypasses inherited mission planning-artifact commits already documented at handoff; WP02 owned diff remains limited to its queue module and focused test.",
+        "Force is limited to action-generated target/coord merge provenance 77d626395/d97797563; correction commit 30901c69a is test-only and independently validated at 15/15 normal and selector with collection completeness green.",
+        "Independent cycle 4 approval at 30901c69a: exact owned diff, 15/15 normal and selector, collection completeness zero orphans, Ruff and strict production mypy green.",
+        "Correction e1d10fdfe independently reviewed",
+        "Independent cycle-5 review approved e1d10fdfe: 15 queue tests, Ruff, strict production mypy, narrow four-symbol export removal; integrated consumers verified."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-5 review approved e1d10fdfe: 15 queue tests, Ruff, strict production mypy, narrow four-symbol export removal; integrated consumers verified.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01M0SW4P2X2RSBFMS2X49PJ072",
+      "last_transition_at": "2026-08-24T12:32:49.757520+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented typed evidence persistence, retained/adopted retries, exact governed-ref readback, and repository-state preservation. Focused 39 tests pass; 46 downstream caller tests and 4 live rejection integration tests pass; Ruff and strict mypy pass; origin/main diff coverage 92.6%.",
+        "Review cycle 2 fixes: all placement and Git queries execute outside feature_status_lock with locked local revalidation; automatic allocation/adoption proves no nested verdict queue acquisition; retained evidence retry matrices cover untracked, staged, partially staged, unrelated cached/worktree/untracked state. Focused 45 tests, downstream/integration 50 tests, lock spy, Ruff, strict mypy pass; origin/main diff coverage 93.4%.",
+        "Review passed: cycle-2 fixes causally prove no Git under the feature-status lock on automatic allocation/adoption, no queue reacquisition, retained index-state recovery, governed-ref byte identity, and race-safe candidate revalidation; 45 focused and 17 downstream tests pass, Ruff/mypy pass, diff coverage 93.4%. Force only overrides planning-artifact commits inherited from the mission-branch merge.",
+        "Correction 45de90399 independently reviewed",
+        "Independent cycle-3 review approved 45de90399: deterministic UTF-8 LF serialization, red-capable Windows regression, 82 artifact/cycle and 26 downstream tests, Ruff, strict mypy and diff-check green; exact comparator unchanged."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-3 review approved 45de90399: deterministic UTF-8 LF serialization, red-capable Windows regression, 82 artifact/cycle and 26 downstream tests, Ruff, strict mypy and diff-check green; exact comparator unchanged.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 11,
+      "lane": "approved",
+      "last_event_id": "01M0SXS2J8AV8JS7CRPCG392GW",
+      "last_transition_at": "2026-08-24T13:01:26.472926+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: automatic verdict saves are queue-serialized through verified evidence, typed failures block event success, compensation reuses the queue after status lock release, local-only stays non-durable, and the adverse outcome matrix is covered.",
+        "Cycle 2 resolved review feedback: 24 focused real-command tests cover busy, returned error, wrong-surface, raised exception, timeout, identical retained-path retries, post-commit interruption idempotence, one authoritative event/no duplicate, and direct Git lock-order observation; 407 frozen tests and 84 combined coverage tests pass; Ruff and strict mypy pass; diff coverage 93%. Commit e446caced. Force used only for inherited committed kitty-specs lane preflight.",
+        "Cycle 3 resolved review feedback: verified automatic approval events now reuse the canonical CreatedRejectedReviewCycle ReviewResult; ReviewResult and DoneEvidence reference the same review-cycle pointer, feedback_path resolves to evidence_ref, and exact bytes match destination_ref. Human approval_ref remains in artifact body only. Returned/raised retries and post-commit interruption correlate one event to retained cycle 2 with no duplicate; local-only/rejection/lock order preserved. 25 focused, 407 frozen, and 85 combined tests pass; Ruff and strict mypy pass; diff coverage 93%. Commits 0c7768617 and 8ed1ff5ac. Force used only for inherited committed kitty-specs lane preflight.",
+        "Review passed: canonical durable-cycle ReviewResult and DoneEvidence pointer correlation proven; exact destination bytes verified; approval_ref remains artifact context only; local-only, rejection, retry/interruption idempotence, compensation, exception and lock ordering preserved; 25 focused, 416 current frozen compatibility/seam (superset of recorded 407), 85 combined at 93% diff coverage, Ruff and strict mypy pass; causal negative control fails on pre-fix regression. Force used only for inherited committed kitty-specs lane preflight.",
+        "Reopened after WP05 integrated gate proved queued second-verdict event loses its verified ReviewResult",
+        "Cycle 3: preserve exact verified ReviewResult on serialized queued rejection event; 27 focused, 87 combined, 416 compatibility, 92% diff coverage.",
+        "Review cycle 5 passed: exact queued planned-to-planned ReviewResult propagation and two distinct committed evidence/event tuples proven; later event is current; lock order, no-retry/no-synthesis/local-only contracts, ownership, and contract round-trip pass. 27 focused, 416 compatibility/seam, 87 combined at 94% diff coverage, Ruff, strict mypy, event/evidence mutants, and three retained issue-pinned runs at 306/306 authoritative records pass. Historical old direct-writer harness reproduced 4/5 red (98-99/100) because it bypasses the production command/queue and appends an uncommitted event susceptible to concurrent Git snapshot restoration; replacement production-command oracle does not mask successful loss. Force bypasses only inherited committed kitty-specs artifacts already present on lane-d.",
+        "Correction 35cccbe32 independently reviewed",
+        "Independent cycle-5 review approved 35cccbe32: exact regression, full collision module, 27 durability tests, Ruff, strict mypy and diff-check green; real Git/queue path and governed-ref bytes verified."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-6 review approved 9388ebf83: typed authoritative structured state refusal, no message parsing/retry/policy drift; 28 durability, 338 compatibility/approval tests, 50-round production node, Ruff, strict mypy and diff-check green.",
+        "reviewer": "reviewer-hypatia",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01M0STFVDFZ240SEVDZFQYNM8W",
+      "last_transition_at": "2026-08-24T12:03:58.511777+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review at 2892c7de4. Validation: topology module 15 passed; isolated causal controls 3 passed; Ruff clean; mypy --strict clean. Force only bypassed inherited Spec Kitty-managed mission artifacts on the lane; WP05 changes only its owned test module.",
+        "Cycle-2 ready for independent review. Owned correction 8af4fbbf7 strengthens production-reader event decoding, exact tuple/byte assertions, and causal wrong-verdict/byte controls. Merge 5ba29b426 integrates exact approved tip 46781c485 (WP01 adf2537a9; WP04 e5472aa58/000fc51ef); the only conflict was status.events.jsonl, resolved from the approved tip after proving it strictly supersets lane history. Gates: exact five-file set 142 passed; focused WP05 16 passed; requested causal controls 2 passed; Ruff and strict mypy clean; owned diff coverage 90.8%. Force bypasses only inherited Spec Kitty-managed mission artifacts introduced by the approved merge; no WP05 scope exception.",
+        "Review cycle 2 passed: all prior blockers resolved. Production read_events/model decoding, exact governed-ref byte equality, exact mission/WP/reviewer/verdict/event/pointer correlation in automatic and local-only modes, causal wrong-verdict and altered/truncated-byte controls, all four topologies x two modes, compensation success/failure, and coordination transaction-lock missing-event causality verified. Evidence: 16 focused; 142 integrated; 2 causal controls; Ruff and strict mypy clean; owned diff coverage 90.8%. Correction 8af4fbbf7 is ownership-clean. Integration merge 5ba29b426 preserves a strict status-history superset and exact approved code semantics with no post-merge src/tests drift. Force used only to bypass inherited committed Spec Kitty mission artifacts from the approved dependency integration merge; no WP05 scope exception. Anti-patterns: dead code N/A; synthetic fixture PASS; silent empty return N/A; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS via documented approved integration merge; production fragility N/A.",
+        "Correction 3a2cabe4e independently reviewed",
+        "Independent cycle-3 review approved 3a2cabe4e: 16 topology tests, zero owned golden-count sites, Ruff, strict mypy and diff-check green; exact singleton path contract preserved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-3 review approved 3a2cabe4e: 16 topology tests, zero owned golden-count sites, Ruff, strict mypy and diff-check green; exact singleton path contract preserved.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01M0STH87HHYXT8Y5A5SAJJ76X",
+      "last_transition_at": "2026-08-24T12:04:44.401288+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review: commit 404f9fedc adds only the owned statistical real-command benchmark. Five rounds plus one untimed warmup measured median 0.575518s (min 0.570233, max 0.578115, stddev 0.003050), satisfying <2s. Exactly one performance node selected; 2 focused tests and 85 downstream tests pass; 95% module coverage; Ruff, strict mypy, and diff-check pass. Every measured success is checked against one correlated approval event and exact committed evidence bytes. Baseline <gate-coverage-junit> is the pre-existing no-JUnit harness defect tracked in #2929, not a product failure. Force bypasses only three inherited committed kitty-specs files already present on the dependency-built lane; WP06 changed and committed only tests/review/test_verdict_save_performance.py.",
+        "Implementation handoff reopened solely to ensure the final amended fixture-fidelity commit a620efa10fc77dfda0dbc9a5737e236099459ada precedes the authoritative for_review transition; no reviewer verdict has been recorded.",
+        "Final clean handoff: a620efa10fc77dfda0dbc9a5737e236099459ada is committed and lane-f is clean. The real-command benchmark uses canonical committed prior-rejection state and prepares/reset fixtures outside timing. Post-fix 5-round median 0.683200s (min 0.672851, max 0.717756, stddev 0.017902), <2s PASS; earlier workflow-equivalent run median 0.575518s. Exactly one benchmark node selected; 2 focused and 85 downstream tests pass; 95% coverage; Ruff, strict mypy, diff-check pass. Every sample verifies one correlated approval event and exact evidence bytes at destination_ref. Baseline <gate-coverage-junit> is issue #2929, not a product failure. Force bypasses only inherited committed mission artifacts; WP06 owns and changes only tests/review/test_verdict_save_performance.py.",
+        "Independent review passed: final commit a620efa10 changes only the owned performance test. Workflow-equivalent benchmark selected once and reproduced median 0.657419s over 5 rounds (max 0.732402s), under 2s; full module 2 passed at 95% coverage; downstream queue/cycle/move-task suite 85 passed; Ruff and strict mypy clean. Every sample is isolated in a fresh repo and verifies durable classification, exact governed-ref bytes, canonical evidence pointer, and one correlated approval event. Reversing production fix 8ed1ff5ac in a detached temporary worktree made the smoke test fail at event.review_result.reference, proving causal sensitivity. #2929 is classified deferred-with-followup at its existing open tracker issue and independently shown not to hide a WP06 regression. Anti-patterns: dead code N/A; synthetic fixture PASS; silent empty return PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility N/A. Reviewer force is used only to bypass inherited committed mission artifacts (acceptance-matrix/status files) already present on the dependency-built lane, not tests or verdict criteria.",
+        "Correction 5a0595883 independently reviewed",
+        "Independent cycle-1 review approved 5a0595883: benchmark median 604ms, golden-count gate, collection, Ruff, strict mypy and diff-check green; exact singleton payload contract preserved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent cycle-1 review approved 5a0595883: benchmark median 604ms, golden-count gate, collection, Ruff, strict mypy and diff-check green; exact singleton payload contract preserved.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    },
+    "WP07": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M0T1EKYGJE12J1MMTVRR3XA6",
+      "last_transition_at": "2026-08-24T14:05:38.128937+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Independent WP07 cycle-1 approval: correction 7465f0982; CI Quality 32734019233 and enforced diff job 97457875132 prove 262 lines, 11 missing, 95% under origin/main --fail-under=90; native rerun 32734018925 passes exact three nodes on Ubuntu, macOS, Windows.",
+        "reviewer": "reviewer-ampere",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3235"
+      ]
+    }
+  }
+}

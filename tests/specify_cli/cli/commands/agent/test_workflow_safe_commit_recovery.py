@@ -71,6 +71,11 @@ def test_modern_workflow_does_not_restore_after_post_commit_recovery_failure(
             recovery = _post_commit_recovery_failure(worktree_root=repo_root)
             raise BookkeepingCommitFailed("wrapped recovery failure") from recovery
 
+        def commit_idempotent(self, message: str) -> None:
+            # Mirrors the real seam: with a genuine staged change present
+            # (write_artifact above), commit_idempotent delegates to commit().
+            return self.commit(message)
+
     class FakeTransactionFactory:
         @staticmethod
         def acquire(**_kwargs: object) -> FakeTransaction:

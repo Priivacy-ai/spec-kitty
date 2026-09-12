@@ -18,6 +18,21 @@ early signals (:func:`override_persist_signal`, :func:`arbiter_persist_signal`)
 computed from early facts alone. This module does not reconcile or unify
 behaviour.
 
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001): :func:`_guard_rejected_verdict`'s
+plain-refuse arm — a latest ``"rejected"`` verdict with no
+``--skip-review-artifact-check`` — is an INTENTIONAL, one-off behaviour change,
+not a pure-parity reproduction. See that function's docstring for the full
+rationale: refusing was the old command's only way to prevent a silent
+approve-over-rejection when nothing could record a genuine approval; now that
+``_mt_finalize_plan`` persists a real approved artifact, the ordinary
+reject-fix-approve path is allowed to proceed instead of dead-ending at the
+mission's one documented escape hatch.
+
+EXCEPTION (FIX-M2-03): :func:`_guard_agent_ownership`'s
+``GENERIC_IMPLEMENTATION_ACTORS`` early-return is a second INTENTIONAL,
+one-off behaviour change, not a pure-parity reproduction. See that function's
+docstring for the full rationale.
+
 Design (functional core / imperative shell):
 
 * The orchestrator (``move_task``) performs all filesystem / git / clock reads
@@ -62,6 +77,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _self_review_fallback_option_error,
 )
 from specify_cli.status import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
     Lane,
     resolve_lane_alias,
@@ -184,6 +200,47 @@ TransitionOutcome = Emit | RefuseExit1
 # ---------------------------------------------------------------------------
 
 
+def _wire_contract_allows_force_free(
+    old_lane: str,
+    new_lane: str,
+    reason: str | None,
+    review_ref: str | None,
+) -> bool:
+    """Ask the SHARED ``spec-kitty-events`` contract whether this backward edge
+    is legal *without* ``force`` (#3307).
+
+    The emit decision must be governed by the wire contract the SaaS ingestion
+    endpoint enforces — not only the CLI-local FSM. The two historically gave
+    opposite answers for the review-rejection family (``*-> planned`` and
+    ``in_review -> in_progress``): the local FSM accepted them force-free given
+    plan-layer evidence, while the shared package declares them
+    ``force=True``-required, so contract-invalid ``force=False`` events were
+    emitted and queued silently, only to be rejected 11+ days later at sync.
+
+    Fail-closed: if the candidate cannot even be represented as a force-free
+    wire payload, treat the edge as force-required.
+    """
+    from spec_kitty_events import validate_transition as _wire_validate
+    from spec_kitty_events.status import ExecutionMode, Lane, StatusTransitionPayload
+
+    try:
+        candidate = StatusTransitionPayload(
+            mission_slug="_wire_probe",
+            wp_id="_wire_probe",
+            from_lane=Lane(old_lane),
+            to_lane=Lane(new_lane),
+            actor="cli",
+            force=False,
+            reason=reason,
+            execution_mode=ExecutionMode("direct_repo"),
+            review_ref=review_ref,
+            evidence=None,
+        )
+    except (ValueError, TypeError):
+        return False
+    return bool(_wire_validate(candidate).valid)
+
+
 def build_transition_plan(
     *,
     old_lane: str,
@@ -202,21 +259,28 @@ def build_transition_plan(
     planned-rollback / arbiter side effects (they are ``None`` on the happy path).
 
     FR-015 (force provenance): a backward edge is NOT blindly auto-promoted to
-    ``emit_force=True`` anymore. Instead we **ask the FSM** whether the edge is
-    legal *force-free* given the evidence we actually carry at the plan layer
-    (``reason`` / ``review_ref``, plus ``review_result`` when the caller supplies
-    it) and only promote ``emit_force`` when the FSM genuinely rejects it. This is
-    edge-agnostic — there is deliberately **no hard-coded edge list** (it would rot
-    if the transition matrix changes; ``contracts/emit-force.md``).
+    ``emit_force=True``. We ask the FSM whether the edge is legal *force-free*
+    given the plan-layer evidence (``reason`` / ``review_ref``, plus
+    ``review_result`` when the caller supplies it). This is edge-agnostic — there
+    is deliberately **no hard-coded edge list** (it would rot if the transition
+    matrix changes; ``contracts/emit-force.md``).
+
+    #3307: the FSM verdict alone is NOT sufficient to stay force-free. The wire
+    event we emit is consumed by the SaaS ingestion endpoint, which enforces the
+    **shared** ``spec-kitty-events`` contract — and that contract declares the
+    review-rejection family (``in_progress|for_review|in_review|approved ->
+    planned`` and ``in_review -> in_progress``) ``force=True``-required
+    regardless of evidence. So we gate on BOTH: stay force-free only when the
+    internal FSM *and* the shared wire contract agree (see
+    :func:`_wire_contract_allows_force_free`); otherwise emit ``force=True`` with
+    the structured rewind rationale. This keeps the emitted event conformant with
+    the very package this project vendors, instead of producing ``force=False``
+    events its own dependency rejects.
 
     ``review_result`` is the seam WP06 threads its structured review outcome
-    (reviewer + verdict + reference) into for the two ``in_review -> *`` edges. In
-    the WP02 window it is always ``None``, so those two edges are FSM-rejected
-    force-free and honestly stay ``emit_force=True`` (WP02 supplies no valid
-    evidence for them); WP06 populates it and flips them force-free. The three
-    plan-reachable edges (``in_progress -> planned``, ``approved -> in_progress``,
-    ``approved -> planned``) resolve force-free here from the ``reason`` /
-    ``review_ref`` evidence WP02 already carries.
+    (reviewer + verdict + reference) into for the two ``in_review -> *`` edges; it
+    still feeds the internal FSM verdict, but the shared wire contract is now the
+    binding gate for the family's force flag.
     """
     canonical_lane = resolve_lane_alias(target_lane)
 
@@ -233,6 +297,18 @@ def build_transition_plan(
     # Arbiter override reuses the rejection's review_ref when no base ref applies.
     if arb_review_ref and emit_review_ref is None:
         emit_review_ref = arb_review_ref
+
+    # #3307: the shared wire contract requires a ``review_ref`` on the
+    # review-rollback edges out of ``for_review`` / ``in_review`` / ``approved``
+    # into ``in_progress`` / ``planned`` — and, for ``in_review -> in_progress``,
+    # ``force=True`` does NOT exempt it (that edge is outside the mandatory-force
+    # ``*-> planned`` family). When a structured ``review_result`` carries a
+    # reference, thread it onto the wire so the emitted event conforms instead of
+    # being rejected at sync for a missing ``review_ref``.
+    if emit_review_ref is None and review_result is not None:
+        review_result_ref = getattr(review_result, "reference", None)
+        if isinstance(review_result_ref, str) and review_result_ref.strip():
+            emit_review_ref = review_result_ref
 
     emit_reason: str | None = note_text if note_text else None
     if force and not emit_reason:
@@ -261,7 +337,16 @@ def build_transition_plan(
         legal_force_free, _ = validate_transition(
             old_lane, canonical_lane, ctx_with_evidence
         )
-        emit_force = not legal_force_free
+        # #3307: stay force-free ONLY when the internal FSM *and* the shared
+        # wire contract (the one the SaaS ingestion endpoint enforces) both
+        # accept the edge force-free. When the wire contract requires force —
+        # the review-rejection family does — emit ``force=True`` and carry the
+        # structured rewind rationale below, rather than silently emitting a
+        # contract-invalid ``force=False`` event.
+        wire_allows_force_free = _wire_contract_allows_force_free(
+            old_lane, canonical_lane, emit_reason, emit_review_ref
+        )
+        emit_force = not (legal_force_free and wire_allows_force_free)
         original_reason = (
             None
             if emit_reason is None or emit_reason.startswith("move-task: ")
@@ -337,6 +422,22 @@ def _guard_protected_branch(req: MoveTaskRequest) -> RefuseExit1 | None:
 
 
 def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
+    # FIX-M2-03: a WP's assignee is a GENERIC_IMPLEMENTATION_ACTORS placeholder
+    # (``implement-command``) whenever it was claimed through the internal
+    # ``spec-kitty implement`` compat surface without ``--actor`` -- a
+    # documented, supported call shape (see implement.py's own docstring:
+    # "This command remains available as a compatibility surface for direct
+    # callers"), not a real owner. status/work_package_lifecycle.py's own
+    # claim/in_progress ownership check already treats this placeholder as
+    # unclaimed-in-practice (``_actors_compatible(..., allow_generic_existing=
+    # True)``); this guard previously compared ``current_agent`` by raw
+    # equality only, so any real ``--agent`` value permanently tripped the
+    # ownership-mismatch refusal against a WP no real agent ever claimed,
+    # forcing every caller to pass ``--force`` for a conflict that was never
+    # real. Matching the SAME allowance here keeps the two ownership checks
+    # consistent instead of one silently stricter than the other.
+    if req.current_agent in GENERIC_IMPLEMENTATION_ACTORS:
+        return None
     if not (
         req.current_agent
         and req.agent
@@ -354,15 +455,66 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
         "   If not, you may be modifying the wrong WP!",
         "",
     )
-    return RefuseExit1(
+    error = (
         f"Agent mismatch: {req.task_id} is assigned to '{req.current_agent}', "
-        f"not '{req.agent}'. Use --force to override.",
+        f"not '{req.agent}'. Use --force to override."
+    )
+    target_lane = resolve_lane_alias(req.target_lane)
+    current_lane = resolve_lane_alias(req.old_lane)
+    # The command is still attempting a rejection-verdict save when a
+    # concurrent winner has already advanced the lane to ``planned``.
+    is_rejection_save = target_lane == Lane.PLANNED and req.feedback_provided
+    is_approval_save = target_lane in _APPROVAL_LANES
+    diagnostic = None
+    if req.auto_commit and (is_rejection_save or is_approval_save):
+        # Preserve the ownership policy and exit code while making this
+        # verdict-command refusal causal and machine-verifiable.
+        diagnostic = {
+            "result": "error",
+            "code": "ownership_refusal",
+            "error": error,
+            "current_lane": current_lane,
+            "requested_lane": target_lane,
+            "assigned_agent": req.current_agent,
+            "requesting_agent": req.agent,
+            "verdict_durably_persisted": False,
+            "evidence_ref": None,
+            "destination_ref": None,
+        }
+    return RefuseExit1(
+        error,
+        diagnostic=diagnostic,
         console_warning=warning,
     )
 
 
 def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
     """Refuse arms of the rejected-verdict guard (APPROVAL_LANES only).
+
+    FR-001 (review-verdict-write-integrity-01KZ1CGF): a latest verdict of
+    ``"rejected"`` no longer fails-closed the ORDINARY approve path by itself.
+    Before the durable writer existed (T001/T005's ``_persist_approved_review_cycle``
+    — since WP06's verdict-seam extraction, a top-level function in
+    ``tasks_verdict_persistence.py``, not this file), refusing here was the only
+    way to stop a rejected verdict from being silently approved over — there was
+    nothing that could record a genuine approval artifact, so blocking was
+    the safest failure mode. Now that ``tasks_move_task.py``'s ``_mt_finalize_plan``
+    calls into that function and persists a real ``verdict: approved``
+    review-cycle artifact once the transition proceeds, continuing to refuse
+    would keep the ordinary reject-fix-approve path hitting the "only escape
+    hatch" this mission exists to close (spec.md User Story 1, Acceptance
+    Scenarios 1 & 2 / SC-002 / NFR-002).
+
+    What this guard still refuses:
+
+    * An unparseable verdict (the artifact itself is broken) — unrelated to
+      rejection, always refused.
+    * ``--skip-review-artifact-check`` supplied WITHOUT ``--note`` — the
+      arbiter-override mechanism (:func:`_authorize_review_override`,
+      spec.md Edge Cases) still requires durable justification when a
+      caller explicitly invokes it. The override flag is no longer
+      *required* to approve after a rejection, but if a caller chooses to
+      use it anyway, it must still carry a reason.
 
     The PROCEED-with-override arm is not a refusal — it is signalled by
     :func:`_authorize_review_override`.
@@ -374,17 +526,14 @@ def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
             f"{req.task_id} {req.review_artifact_name} has no parseable review verdict.\n"
             "Repair the review artifact before approving or marking done."
         )
-    if req.review_verdict == "rejected":
-        if not req.skip_review_artifact_check:
-            return RefuseExit1(
-                f"{req.task_id} has a rejected review artifact ({req.review_artifact_name}). "
-                "Re-run with --skip-review-artifact-check --note <reason> "
-                "to record an arbiter override."
-            )
-        if not (req.note.strip() if isinstance(req.note, str) else ""):
-            return RefuseExit1(
-                "--skip-review-artifact-check requires --note so override evidence is durable."
-            )
+    if (
+        req.review_verdict == "rejected"
+        and req.skip_review_artifact_check
+        and not (req.note.strip() if isinstance(req.note, str) else "")
+    ):
+        return RefuseExit1(
+            "--skip-review-artifact-check requires --note so override evidence is durable."
+        )
     return None
 
 

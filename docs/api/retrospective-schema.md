@@ -8,7 +8,7 @@ updated: '2026-06-03'
 
 This reference documents the `retrospective.yaml` schema, proposal types, retrospective status
 events, and synthesizer exit codes. For how to use the retrospective loop, see
-[How to Use the Retrospective Learning Loop](../guides/use-retrospective-learning.md).
+[How to Use the Retrospective Learning Loop](../guides/how-to/governance/use-retrospective-learning.md).
 
 ---
 
@@ -200,5 +200,5 @@ uv run spec-kitty agent retrospect synthesize --help
 
 ## See Also
 
-- [How to Use the Retrospective Learning Loop](../guides/use-retrospective-learning.md)
+- [How to Use the Retrospective Learning Loop](../guides/how-to/governance/use-retrospective-learning.md)
 - [Understanding the Retrospective Learning Loop](../architecture/retrospective-learning-loop.md)

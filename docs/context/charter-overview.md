@@ -6,7 +6,8 @@ updated: '2026-07-20'
 type: explanation
 related:
 - docs/context/governance-files.md
-- docs/guides/setup-governance.md
+- docs/guides/how-to/governance/setup-governance.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # How Charter Works
 
@@ -15,9 +16,9 @@ Charter is the governance layer that turns your project's structured policy file
 receives. This page explains the mental model — synthesis, the DRG, governed context, and profile
 invocation. For the complete, step-by-step create-your-charter flow (interview through
 generation, validation, and synthesis), see
-[How to Set Up Project Governance](../guides/setup-governance.md). For the guided tour connecting
+[How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md). For the guided tour connecting
 setup to a full mission run, see the
-[Governed Charter Workflow Tutorial](../guides/charter-governed-workflow.md).
+[Governed Charter Workflow Tutorial](../guides/tutorials/charter-governed-workflow.md).
 
 > **Key invariant**: `.kittify/charter/charter.yaml` is the git-tracked, authoritative,
 > structured charter — `governance`, `directives`, `catalog`, activation, and `overrides` all
@@ -64,7 +65,7 @@ refresh) `charter.yaml`, check for graph-native decay, synthesize doctrine into
 `.kittify/doctrine/`, validate the bundle against the `CharterBundleManifest` v2.0.0 schema, and
 confirm status shows no drift. For the complete command-by-command walkthrough — including flags,
 what each command outputs, and how to recover from a stale bundle — follow
-[How to Set Up Project Governance](../guides/setup-governance.md) rather than reproducing the
+[How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) rather than reproducing the
 sequence here.
 
 **`charter context`** is a separate runtime/debug command for rendering action-specific
@@ -79,6 +80,17 @@ To change runtime policy by hand, edit `charter.yaml`'s `governance:` or `direct
 directly. There is no separate sync step: the next `charter context` call reads the file as-is.
 `charter sync` still exists for canonical-root resolution and back-compat call sites, but it no
 longer extracts anything from `charter.md` — running it is always a no-op.
+
+A directive you add under the `directives:` section is **additive**: it is unioned onto the
+directive set the project already resolves (the built-in catalog default, charter-activated
+directives, or an explicit `governance.charter.selected_directives` selection), never a
+replacement of it. If you set `governance.charter.selected_directives`, that list defines the
+authoritative *base* set; the `directives:` section then layers on top of it additively. The
+resolution branch is now visible: `spec-kitty charter context --action plan --json` exposes a
+top-level `directives_source` (for example `catalog_fallback+project_local` when a project-local
+directive is merged onto the catalog default, or `catalog_fallback` for a bare project), and the
+human-readable `charter context` output prints a diagnostic when project-local directives are
+merged or when the catalog-default fallback is used.
 
 For partial regeneration of a specific directive or tactic without touching unrelated artifacts:
 
@@ -110,12 +122,12 @@ Projects that already publish governance outside `.kittify/`, for example
 `.kittify/charter/charter.yaml`. Spec Kitty does not require the public document, `charter.yaml`,
 and `charter.md` to be byte-for-byte equal — `charter.yaml` is the only one the runtime resolves.
 
-Declare supporting docs under `governance.doctrine.governance_references` in `charter.yaml`
+Declare supporting docs under `governance.charter.governance_references` in `charter.yaml`
 (the interview's equivalent answer writes into this same section):
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```
@@ -162,6 +174,8 @@ See [Governance Files Reference](governance-files.md) for the full table.
 ## See Also
 
 - [Governance Files Reference](governance-files.md) — authoritative file table
-- [How to Set Up Project Governance](../guides/setup-governance.md) — initial setup walkthrough
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis
+- [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) — initial setup walkthrough
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md) — day-to-day synthesis
 - [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — deeper explanation
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the pack-driven
+  onboarding path (`charter pack apply` → `charter generate`) and the dispatch safety net

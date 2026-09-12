@@ -21,7 +21,7 @@ import typer
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
 from specify_cli.lanes.persistence import (
     CorruptLanesError,
     MissingLanesError,
@@ -31,8 +31,7 @@ from specify_cli.merge._constants import logger
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
     ReviewArtifactPreflightResult,
@@ -58,7 +57,14 @@ def _emit_review_artifact_block(
     resolved_target_branch: str,
     json_output: bool,
 ) -> None:
-    """Emit the review-artifact gate failure (REJECTED_REVIEW_ARTIFACT_CONFLICT)."""
+    """Emit the review-artifact gate failure (REJECTED_REVIEW_ARTIFACT_CONFLICT).
+
+    FR-001 (WP07/T030, traced not assumed): renders ``review_artifact_preflight``
+    opaquely (``.diagnostics()`` / ``.findings``) — no independent frontmatter
+    re-parse of its own. The event-sourced ``review_result`` reducer slot T029
+    wired into ``run_review_artifact_consistency_preflight`` therefore reaches
+    the dry-run preview automatically; no additional code change is needed here.
+    """
     diagnostics = review_artifact_preflight.diagnostics(
         repo_root=main_repo_for_diag,
     )
@@ -99,8 +105,6 @@ def _emit_review_artifact_block(
             console.print(
                 f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
             )
-        if "schema_error" in diagnostic:
-            console.print(f"    schema_error: {diagnostic['schema_error']}")
         remediation = diagnostic.get("remediation", [])
         if not isinstance(remediation, list):
             remediation = [str(remediation)]
@@ -130,8 +134,8 @@ def run_dry_run_forecast(
     resolved_feature: str | None,
     resolved_target_branch: str,
     resolved_strategy: MergeStrategy,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
     push: bool,
     json_output: bool,
 ) -> None:
@@ -141,6 +145,13 @@ def run_dry_run_forecast(
     command body. Always terminates the dry-run path (returns on success after
     printing the payload; raises ``typer.Exit(1)`` on unresolved slug / missing
     lanes / review-artifact conflict).
+
+    ``delete_branch`` / ``remove_worktree`` are tri-state (``None`` = flag
+    unset): they are resolved against the mission's ``meta.json`` retention
+    policy via :func:`resolve_merge_retention` (contracts/retention-resolver-
+    contract.md, consumption contract item 2) -- the SAME resolver the merge
+    executor uses -- so the forecast reports the RESOLVED cleanup decision
+    instead of echoing raw flags.
     """
     if not resolved_feature:
         _emit_dry_run_error(
@@ -157,25 +168,35 @@ def run_dry_run_forecast(
         # absent → the forecast spuriously reports missing lanes. Route by kind so
         # the dry-run reads the real PRIMARY lane manifest.
         lanes_manifest = require_lanes_json(
-            resolve_planning_read_dir(
-                get_main_repo_root(repo_root),
-                resolved_feature,
-                kind=MissionArtifactKind.LANE_STATE,
+            placement_seam(
+                get_main_repo_root(repo_root), resolved_feature
+            ).read_dir(
+                MissionArtifactKind.LANE_STATE
             )
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
 
-    # FR-001 (#2185): the review-artifact consistency preflight reads ``tasks/``
-    # review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY-partition) and the
-    # ``would_assign_mission_number`` scan reads ``meta.json`` — both live on the
-    # PRIMARY checkout. Resolve by the WP-task kind so neither lands on the husk.
-    feature_dir_for_preview = resolve_planning_read_dir(
+    # FR-006 (#2885): the review-artifact consistency preflight needs facts from
+    # TWO partitions — WP lane state (STATUS_STATE, the coord husk for a coord
+    # mission) and review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY) — and it now
+    # resolves each from its OWN declared home internally (see
+    # ``find_rejected_review_artifact_conflicts``) rather than judging both off one
+    # dir this caller supplies. The prior single ``feature_dir_for_preview`` handed
+    # the gate a PRIMARY dir, whose empty status log made every WP look stateless so
+    # the preview passed a rejected review while real merge — reading the coord husk
+    # — refused: preview and consolidation disagreed. Below stays PRIMARY because it
+    # ALSO drives the ``would_assign_mission_number`` scan (``meta.json`` is a
+    # PRIMARY-partition fact for every topology); passing it into the preflight only
+    # supplies the mission slug (``.name``), which the preflight re-resolves both
+    # homes from. Routed through the ONE affirmative surface→filesystem seam
+    # (lifecycle-gate-execution-context WP02).
+    feature_dir_for_preview = resolve_artifact_surface(
         get_main_repo_root(repo_root),
         resolved_feature,
-        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-    )
+        MissionArtifactKind.WORK_PACKAGE_TASK,
+    ).path
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
     # that real merge runs (issue #991). When a rejected review-cycle
@@ -202,17 +223,33 @@ def run_dry_run_forecast(
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
 
+    # FR-008 (#3131): resolve the SAME retention decision the merge executor
+    # would make -- via the single shared resolver -- instead of echoing the
+    # raw CLI flags. ``feature_dir_for_preview`` is already the PRIMARY meta
+    # dir (see the comment above it), which is where ``meta.json`` retention
+    # policy lives.
+    retention_decision = resolve_merge_retention(
+        feature_dir_for_preview,
+        explicit_delete_branch=delete_branch,
+        explicit_remove_worktree=remove_worktree,
+    )
+
     payload: dict[str, object] = {
         "spec_kitty_version": SPEC_KITTY_VERSION,
         "mission_slug": resolved_feature,
         "target_branch": resolved_target_branch,
         "strategy": resolved_strategy.value,
-        "delete_branch": delete_branch,
-        "remove_worktree": remove_worktree,
+        "delete_branch": retention_decision.delete_branch,
+        "remove_worktree": retention_decision.remove_worktree,
         "push": push,
         "mission_branch": lanes_manifest.mission_branch,
         "lanes": [lane.to_dict() for lane in lanes_manifest.lanes],
         "would_assign_mission_number": would_assign_number,
+        "retention": {
+            "branch_source": retention_decision.branch_source,
+            "worktree_source": retention_decision.worktree_source,
+            "warnings": list(retention_decision.warnings),
+        },
     }
     if would_assign_number is not None and not json_output:
         console.print(

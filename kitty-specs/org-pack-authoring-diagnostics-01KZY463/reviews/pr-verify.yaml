@@ -1,0 +1,89 @@
+schema: review-verify/v1
+phase: pr
+complete: true
+results:
+  - id: PR-M-001
+    status: resolved
+    reason: >-
+      Verified in src/specify_cli/doctrine/pack_validator.py:880-898.
+      The guard's exception pair, (PackRootNotFound, BuiltInContentDirNotAvailable),
+      is imported at module top (line 84) and is the exact pair the sibling
+      _load_built_in_ids_per_kind (line 948-951) guards for the same
+      built_in_dir() seam - not a broader or narrower set. Traced the only
+      raise-capable step inside AgentProfileRepository.__init__ /
+      DoctrineService.agent_profiles construction: _default_built_in_dir()
+      -> built_in_dir(ArtifactKind.AGENT_PROFILE). _default_drg() degrades to
+      an empty graph internally (catches DRGLoadError, does not raise) and
+      _load_layer/_parse_profile_from_file record failures via _record_skip
+      rather than raising, so no other exception surfaces during
+      construction or skipped_profiles() - the two-exception guard is
+      neither too broad (it doesn't swallow unrelated bugs) nor too narrow
+      (nothing else can raise on this path). On failure the helper returns
+      a single error-severity profile_skipped ValidationIssue instead of
+      propagating, and validate_pack consumes it via errors.extend(...)
+      (line 413-415) rather than an early return, so DRG/asset/collision/
+      org-charter checks for the rest of the pack still run.
+      REVERT RESULT: swapped in the pre-fix (39569e088^) file, ran the two
+      new tests (test_repository_construction_failure_is_guarded,
+      test_validate_pack_survives_repository_construction_failure) -> both
+      FAILED with an uncaught doctrine.pack_paths.PackRootNotFound
+      traceback, exactly the finding's original symptom. Restored the
+      post-fix file (md5sum be7454effb66c6dc5c31f380f357567a matched
+      before/after); git status --porcelain -uno clean throughout. The two
+      tests genuinely force and depend on the guard.
+  - id: PR-M-002
+    status: resolved
+    reason: >-
+      Verified the reduction directly in src/doctrine/service.py:143-150:
+      DoctrineService.agent_profiles constructs
+      AgentProfileRepository(org_dirs=self._org_dirs("agent_profiles"),
+      project_dir=self._project_dir("agent_profiles"),
+      active_languages=self._active_languages). With
+      DoctrineService(org_roots=[pack_dir]): _org_roots=[pack_dir], so
+      _org_dirs("agent_profiles") = [pack_dir / "agent_profiles"] (service.py:55,
+      matches the pre-fix call's org_dirs argument exactly); _project_root
+      defaults to None so _project_dir(...) returns None (service.py:37-38),
+      matching AgentProfileRepository's own project_dir=None default; and
+      active_languages defaults to None in DoctrineService.__init__, so
+      self._active_languages stays None (service.py:33), matching
+      AgentProfileRepository's active_languages=None default. All three
+      constructor arguments are therefore identical to the pre-fix direct
+      call - no default drifted, so the construction-path change is
+      behavior-preserving as claimed. The new `from doctrine.service import
+      DoctrineService` (pack_validator.py:880) is a lazy, function-local
+      import, consistent with this file's existing convention (see lines
+      542-543, 771, 1135-1139, 1267) and with the prior lazy
+      AgentProfileRepository import it replaces; no cycle risk observed
+      (doctrine.service is already imported lazily elsewhere in the doctrine
+      package without incident).
+  - id: PR-M-004
+    status: resolved
+    reason: >-
+      grep confirms `_DRG_GRAPH_GLOB = "*.graph.yaml"` (pack_validator.py:503)
+      is referenced at all 4 code sites that previously held the literal:
+      _validate_drg (547), both checks inside
+      _check_drg_root_graph_missing (669, 671), and
+      _collect_fragment_edge_intent (1145). Remaining `*.graph.yaml`
+      occurrences in the file (119-120, 359-360, 424, 529, 660-662, 680-681)
+      are docstrings/comments, not code literals, so they are outside
+      Sonar S1192's scope and correctly left as prose. All 4 converted
+      sites glob for the same concept (a pack's DRG-graph fragment/root
+      file), confirmed by reading each call site - no semantically
+      different glob was collapsed into this constant.
+fresh_sweep:
+  performed: true
+  new_findings: []
+measured_counts: >-
+  Measured directly with `uv run python -m pytest
+  tests/specify_cli/doctrine/test_pack_validator.py
+  tests/doctrine/test_agent_profile_model_field.py
+  tests/specify_cli/doctrine/test_pack_assembler.py
+  tests/cli/test_doctrine_org_commands.py -q` at the current tree (tip of
+  39569e088): 68 passed, 5 skipped, 0 failed, 44.64s - matches the fix
+  agent's reported 68 passed/5 skipped (+2 over the pre-fix-tip baseline
+  of 66 passed/5 skipped/0 failed recorded in pr-tests.findings.yaml). One
+  pre-existing DeprecationWarning (analyst-annie scalar `role:` field) is
+  unrelated to this diff. No fresh test run was needed against the pre-fix
+  tip since pr-tests.findings.yaml already carries that measurement
+  independently corroborated by pr.merged.yaml.
+verdict: pass

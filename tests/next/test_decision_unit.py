@@ -25,8 +25,6 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
     decide_next,
-    derive_mission_state,
-    evaluate_guards,
 )
 
 
@@ -186,229 +184,6 @@ def _complete_all_steps(
 
 
 # ---------------------------------------------------------------------------
-# derive_mission_state (legacy)
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveMissionState:
-    def test_empty_log_returns_initial(self, feature_dir: Path) -> None:
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
-
-    def test_no_events_file_returns_initial(self, tmp_path: Path) -> None:
-        assert derive_mission_state(tmp_path, "specify") == "specify"
-
-    def test_with_phase_entered_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
-        events = [
-            {"type": "phase_entered", "payload": {"state": "specify"}},
-            {"type": "phase_exited", "payload": {"state": "specify"}},
-            {"type": "phase_entered", "payload": {"state": "plan"}},
-        ]
-        events_file.write_text(
-            "\n".join(json.dumps(e) for e in events) + "\n",
-            encoding="utf-8",
-        )
-        assert derive_mission_state(feature_dir, "discovery") == "plan"
-
-    def test_only_non_phase_events(self, feature_dir: Path) -> None:
-        events_file = feature_dir / "mission-events.jsonl"
-        events = [
-            {"type": "guard_failed", "payload": {"guard": "spec.md"}},
-        ]
-        events_file.write_text(json.dumps(events[0]) + "\n", encoding="utf-8")
-        assert derive_mission_state(feature_dir, "discovery") == "discovery"
-
-
-# ---------------------------------------------------------------------------
-# evaluate_guards (legacy)
-# ---------------------------------------------------------------------------
-
-
-class TestEvaluateGuards:
-    def test_no_advance_transition(self) -> None:
-        config = {
-            "transitions": [
-                {"trigger": "rework", "source": "review", "dest": "implement"},
-            ],
-        }
-        passed, failures = evaluate_guards(config, Path("/fake"), "review")
-        assert passed is True
-        assert failures == []
-
-    def test_all_guards_pass(self, feature_dir: Path) -> None:
-        # Create the artifact the guard expects
-        (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
-
-        def guard_pass(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [guard_pass],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_some_guards_fail(self, feature_dir: Path) -> None:
-        def guard_fail(event_data):
-            return False
-
-        def guard_pass(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [guard_pass, guard_fail],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-
-    def test_uncompiled_string_guard(self, feature_dir: Path) -> None:
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": ['artifact_exists("spec.md")'],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert "Uncompiled guard" in failures[0]
-
-    def test_no_conditions(self) -> None:
-        config = {
-            "transitions": [
-                {"trigger": "advance", "source": "discovery", "dest": "specify"},
-            ],
-        }
-        passed, failures = evaluate_guards(config, Path("/fake"), "discovery")
-        assert passed is True
-        assert failures == []
-
-    def test_unless_guard_blocks_when_true(self, feature_dir: Path) -> None:
-        """Unless guards block advancement when they return True."""
-
-        def unless_active(event_data):
-            return True  # condition is active -> should block
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": [unless_active],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-        assert "Unless-guard" in failures[0]
-
-    def test_unless_guard_passes_when_false(self, feature_dir: Path) -> None:
-        """Unless guards pass when they return False."""
-
-        def unless_inactive(event_data):
-            return False  # condition is inactive -> should pass
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": [unless_inactive],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_conditions_and_unless_combined(self, feature_dir: Path) -> None:
-        """Both conditions and unless must pass for guard to pass."""
-
-        def cond_pass(event_data):
-            return True
-
-        def unless_inactive(event_data):
-            return False
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [cond_pass],
-                    "unless": [unless_inactive],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is True
-        assert failures == []
-
-    def test_conditions_pass_but_unless_blocks(self, feature_dir: Path) -> None:
-        """If conditions pass but unless is active, overall guard fails."""
-
-        def cond_pass(event_data):
-            return True
-
-        def unless_active(event_data):
-            return True
-
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "conditions": [cond_pass],
-                    "unless": [unless_active],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert len(failures) == 1
-
-    def test_uncompiled_unless_string(self, feature_dir: Path) -> None:
-        """Uncompiled string unless-guards report as failures."""
-        config = {
-            "transitions": [
-                {
-                    "trigger": "advance",
-                    "source": "specify",
-                    "dest": "plan",
-                    "unless": ['some_check("arg")'],
-                },
-            ],
-        }
-        passed, failures = evaluate_guards(config, feature_dir, "specify")
-        assert passed is False
-        assert "Uncompiled unless-guard" in failures[0]
-
-
-# ---------------------------------------------------------------------------
 # WP progress and lane helpers
 # ---------------------------------------------------------------------------
 
@@ -557,6 +332,90 @@ class TestDecideNext:
         assert decision.kind == DecisionKind.step
         assert decision.run_id is not None
         assert decision.step_id is not None
+
+
+# ---------------------------------------------------------------------------
+# decide_next -- owned-checkout (effective_root) threading (#3328)
+# ---------------------------------------------------------------------------
+
+
+class TestDecideNextOwnedCheckout:
+    """``decide_next``'s ``effective_root`` fork threads the kwarg into
+    ``runtime_bridge.decide_next_via_runtime`` instead of calling the plain
+    3-positional-arg form. A monkeypatched stand-in isolates this one
+    dispatch decision from the (separately unit-tested, tests/next/
+    test_runtime_bridge_unit.py) owned-checkout resolution itself."""
+
+    def test_effective_root_threads_to_runtime_bridge(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import runtime.next.runtime_bridge as runtime_bridge_module
+
+        captured: dict[str, object] = {}
+
+        def _fake_decide_next_via_runtime(
+            agent: str,
+            mission_slug: str,
+            result: str,
+            repo_root: Path,
+            *,
+            effective_root: Path | None = None,
+        ) -> Decision:
+            captured["args"] = (agent, mission_slug, result, repo_root)
+            captured["effective_root"] = effective_root
+            return Decision(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission="software-dev",
+                mission_state="done",
+                timestamp="2026-01-01T00:00:00+00:00",
+            )
+
+        monkeypatch.setattr(
+            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
+        )
+
+        owned_root = tmp_path / "owned-checkout"
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        decision = decide_next(
+            "claude", "owned-mission", "success", decoy_repo_root, effective_root=owned_root
+        )
+
+        assert decision.kind == DecisionKind.terminal
+        assert captured["args"] == ("claude", "owned-mission", "success", decoy_repo_root)
+        assert captured["effective_root"] == owned_root
+
+    def test_without_effective_root_uses_the_plain_three_positional_form(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Anti-vacuity: omitting ``effective_root`` must NOT thread the kwarg
+        at all -- proving the two call shapes genuinely diverge rather than
+        ``effective_root=None`` being passed unconditionally either way."""
+        import runtime.next.runtime_bridge as runtime_bridge_module
+
+        captured: dict[str, object] = {}
+
+        def _fake_decide_next_via_runtime(*args: object, **kwargs: object) -> Decision:
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return Decision(
+                kind=DecisionKind.terminal,
+                agent=str(args[0]),
+                mission_slug=str(args[1]),
+                mission="software-dev",
+                mission_state="done",
+                timestamp="2026-01-01T00:00:00+00:00",
+            )
+
+        monkeypatch.setattr(
+            runtime_bridge_module, "decide_next_via_runtime", _fake_decide_next_via_runtime
+        )
+
+        decide_next("claude", "plain-mission", "success", tmp_path)
+
+        assert captured["kwargs"] == {}
 
 
 # ---------------------------------------------------------------------------
@@ -820,8 +679,6 @@ class TestDecisionKindSerialisation:
         same bytes as when using the raw string literal — the pre-enum contract
         is preserved exactly.
         """
-        import json
-
         for member in DecisionKind:
             enum_output = json.dumps({"kind": member})
             str_output = json.dumps({"kind": member.value})
@@ -832,8 +689,6 @@ class TestDecisionKindSerialisation:
 
     def test_to_dict_kind_field_is_bare_string(self, tmp_path: Path) -> None:
         """Decision.to_dict() emits kind as a bare string, not an enum repr."""
-        import json
-
         prompt = tmp_path / "p.md"
         prompt.write_text("# p", encoding="utf-8")
         decision = Decision(

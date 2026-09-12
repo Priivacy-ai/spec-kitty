@@ -59,6 +59,9 @@ class CommandPathEntry:
             help-text prefix).
         help_summary: First non-empty line of the help / short_help text,
             trimmed. ``""`` if no help is available.
+        help_body: Full command help text, including callback docstrings that
+            Typer resolves only when it builds the Click command. ``""`` if
+            no help is available.
         source_file: File path of the registered callback, if discoverable
             via :func:`inspect.getsourcefile`. ``None`` otherwise.
         source_function: Qualified function name of the callback if
@@ -76,6 +79,7 @@ class CommandPathEntry:
     source_file: str | None
     source_function: str | None
     requires_saas_sync: bool
+    help_body: str = ""
 
 
 def _resolve_flag(*candidates: Any) -> bool:
@@ -157,7 +161,9 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
     def _recurse(typer_app: typer.Typer, prefix: tuple[str, ...]) -> None:
         for cmd in typer_app.registered_commands:
             name = cmd.name or (
-                cmd.callback.__name__ if cmd.callback is not None else None
+                cmd.callback.__name__.replace("_", "-")
+                if cmd.callback is not None
+                else None
             )
             if not name:
                 continue
@@ -168,6 +174,8 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
             seen.add(key)
             hidden = _resolve_flag(cmd.hidden)
             help_text = _resolve_text(cmd.help, cmd.short_help)
+            callback_help = inspect.getdoc(cmd.callback) if cmd.callback else ""
+            help_body = _resolve_text(cmd.help, callback_help, cmd.short_help)
             summary = _summarize_help(help_text)
             deprecated_flag = _resolve_flag(cmd.deprecated)
             deprecated_by_help = summary.lower().startswith("deprecated")
@@ -182,6 +190,7 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
                     source_file=src_file,
                     source_function=src_func,
                     requires_saas_sync=_is_saas_path(path),
+                    help_body=help_body,
                 )
             )
 
@@ -213,13 +222,19 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
                 else None
             )
             hidden = _resolve_flag(grp.hidden, info_hidden)
+            callback = grp.callback or (
+                grp.typer_instance.info.callback
+                if grp.typer_instance is not None
+                else None
+            )
             help_text = _resolve_text(grp.help, grp.short_help, info_help)
+            callback_help = inspect.getdoc(callback) if callback else ""
+            help_body = _resolve_text(
+                grp.help, info_help, callback_help, grp.short_help
+            )
             summary = _summarize_help(help_text)
             deprecated_flag = _resolve_flag(grp.deprecated, info_deprecated)
             deprecated_by_help = summary.lower().startswith("deprecated")
-            callback = grp.callback or (
-                grp.typer_instance.info.callback if grp.typer_instance is not None else None
-            )
             src_file, src_func = _callback_source(callback)
             out.append(
                 CommandPathEntry(
@@ -231,6 +246,7 @@ def walk(app: typer.Typer) -> list[CommandPathEntry]:
                     source_file=src_file,
                     source_function=src_func,
                     requires_saas_sync=_is_saas_path(path),
+                    help_body=help_body,
                 )
             )
             if grp.typer_instance is not None:

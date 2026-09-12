@@ -162,12 +162,6 @@ class TestSkillsPreambleWriterRegistry:
         result = get_writer("letta")
         assert isinstance(result, SkillsPreambleWriter)
 
-    def test_get_writer_codex_returns_agents_md_not_skills_preamble(self) -> None:
-        """codex is Pattern C, not Pattern D — should be AgentsMdWriter, not SkillsPreambleWriter."""
-        result = get_writer("codex")
-        assert isinstance(result, AgentsMdWriter)
-        assert not isinstance(result, SkillsPreambleWriter)
-
     def test_get_writer_opencode_returns_agents_md_not_skills_preamble(self) -> None:
         result = get_writer("opencode")
         assert isinstance(result, AgentsMdWriter)

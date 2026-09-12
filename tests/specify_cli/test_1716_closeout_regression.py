@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import validate_no_overlap
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -28,7 +28,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _manifest(owned: tuple[str, ...], surface: str) -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode.CODE_CHANGE,
+        execution_mode=WorkProductKind.CODE_CHANGE,
         owned_files=owned,
         authoritative_surface=surface,
     )

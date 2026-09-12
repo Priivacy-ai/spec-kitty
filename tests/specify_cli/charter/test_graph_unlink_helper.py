@@ -1,6 +1,6 @@
 """Unit tests for the shared graph-residue unlink helper (WP04 / FR-007).
 
-``charter.synthesizer.graph_residue.unlink_stale_project_graph`` is the single
+``charter.activation.synthesizer.graph_residue.unlink_stale_project_graph`` is the single
 sanctioned removal of a project ``graph.yaml`` that a ``built_in_only`` writer
 disowns. It consolidates the two former bare-``unlink`` sites
 (``project_drg.apply_post_condition`` and ``_fresh_doctrine``). These tests pin
@@ -16,8 +16,8 @@ from textwrap import dedent
 
 import pytest
 
-from charter.synthesizer.graph_residue import unlink_stale_project_graph
-from charter.synthesizer.project_drg import _GRAPH_FILENAME
+from charter.activation.synthesizer.graph_residue import unlink_stale_project_graph
+from charter.activation.synthesizer.project_drg import _GRAPH_FILENAME
 
 pytestmark = [pytest.mark.fast]
 
@@ -87,7 +87,7 @@ def test_reuses_canonical_graph_filename() -> None:
 
 def _seed_manifest(repo: Path, *, built_in_only: bool) -> Path:
     """Write a topology-true synthesis manifest with a valid self-hash."""
-    from charter.synthesizer.synthesize_pipeline import canonical_yaml
+    from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +127,7 @@ def test_apply_post_condition_unlinks_present_graph(tmp_path: Path) -> None:
     """``apply_post_condition(has_project_graph=False)`` routes through the
     shared unlink helper to remove a present ``graph.yaml`` and flips the
     manifest to ``built_in_only=true``."""
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     manifest_path = _seed_manifest(tmp_path, built_in_only=False)
     graph_path = tmp_path / ".kittify" / "doctrine" / _GRAPH_FILENAME

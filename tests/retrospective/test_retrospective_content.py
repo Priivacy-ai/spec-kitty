@@ -195,23 +195,6 @@ class TestWorkflowFailuresIngestor:
 class TestAnalysisAndReviewIngestors:
     """T037: analysis-report.md and mission-review-report.md produce findings."""
 
-    def test_analysis_report_absent_is_noop(self) -> None:
-        """None analysis text → no finding."""
-        counters: dict = {}
-        ev_reg = _EvidenceRegistry()
-        helped, not_helpful, _gaps = _build_ingestor_findings(
-            workflow_failures_text=None,
-            analysis_report_text=None,
-            review_report_text=None,
-            workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
-            analysis_report_rel="kitty-specs/test/analysis-report.md",
-            review_report_rel="kitty-specs/test/mission-review-report.md",
-            finding_id_counters=counters,
-            ev_reg=ev_reg,
-        )
-        assert helped == []
-        assert not_helpful == []
-
     def test_analysis_report_present_produces_not_helpful_finding(self) -> None:
         """Non-None analysis text → not_helpful finding with category 'doc'."""
         counters: dict = {}
@@ -311,6 +294,140 @@ class TestAnalysisAndReviewIngestors:
         assert wf_rel in paths
         assert ar_rel in paths
         assert rr_rel in paths
+
+    # --- #3793: the T037 findings must assert only what the parsed
+    # frontmatter establishes, never content inferred from file presence.
+
+    def _ingestors(self, analysis_text: str | None, review_text: str | None):
+        counters: dict = {}
+        ev_reg = _EvidenceRegistry()
+        return _build_ingestor_findings(
+            workflow_failures_text=None,
+            analysis_report_text=analysis_text,
+            review_report_text=review_text,
+            workflow_failures_rel="kitty-specs/test/workflow-failures-log.md",
+            analysis_report_rel="kitty-specs/test/analysis-report.md",
+            review_report_rel="kitty-specs/test/mission-review-report.md",
+            finding_id_counters=counters,
+            ev_reg=ev_reg,
+        )
+
+    def test_zero_finding_analysis_report_emits_helped_not_claims(self) -> None:
+        """#3793: a ready verdict with an empty findings list and all-zero
+        issue_counts must not be reported as 'present with findings'."""
+        text = (
+            "---\n"
+            "verdict: ready\n"
+            "issue_counts:\n"
+            "  low: 0\n"
+            "  medium: 0\n"
+            "  critical: 0\n"
+            "  high: 0\n"
+            "  info: 0\n"
+            "findings: []\n"
+            "---\n"
+            "\n"
+            "# Analysis Report\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(text, None)
+        assert not_helpful == []
+        assert len(helped) == 1
+        assert helped[0].category == "doc"
+        assert "no recorded findings" in helped[0].summary
+
+    def test_analysis_report_with_structured_findings_counts_them(self) -> None:
+        """A report whose frontmatter actually records findings reports the
+        real count, not the presence template."""
+        text = (
+            "---\n"
+            "verdict: blocked\n"
+            "issue_counts:\n"
+            "  low: 1\n"
+            "  medium: 1\n"
+            "  critical: 0\n"
+            "  high: 0\n"
+            "  info: 0\n"
+            "findings:\n"
+            "  - id: C1\n"
+            "    severity: medium\n"
+            "    summary: something was off\n"
+            "  - id: C2\n"
+            "    severity: low\n"
+            "    summary: minor drift\n"
+            "---\n"
+            "\n"
+            "# Analysis Report\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(text, None)
+        assert helped == []
+        assert len(not_helpful) == 1
+        assert not_helpful[0].category == "doc"
+        assert "records 2 finding(s)" in not_helpful[0].summary
+
+    def test_legacy_unknown_verdict_analysis_report_is_not_claimed(self) -> None:
+        """#3793: verdict: unknown is what write_analysis_report records for a
+        legacy report with no structured carrier — an empty findings list
+        there does not establish 'no findings', so nothing is claimed."""
+        text = (
+            "---\n"
+            "verdict: unknown\n"
+            "issue_counts:\n"
+            "  low: null\n"
+            "  medium: null\n"
+            "  critical: null\n"
+            "  high: null\n"
+            "  info: null\n"
+            "findings: []\n"
+            "---\n"
+            "\n"
+            "# Analysis Report\n"
+            "\n"
+            "C1 (medium): prose finding the carrier never captured\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(text, None)
+        assert helped == []
+        assert len(not_helpful) == 1
+        assert "not machine-readable" in not_helpful[0].summary
+
+    def test_zero_finding_review_report_emits_helped(self) -> None:
+        """#3793: mission-review-report.md with findings: 0 (verdict pass)
+        must not be reported as 'present with findings'."""
+        text = (
+            "---\n"
+            "verdict: pass\n"
+            "mode: lightweight\n"
+            "reviewed_at: 2026-06-13T00:00:00+00:00\n"
+            "findings: 0\n"
+            "gates_recorded: []\n"
+            "---\n"
+            "\n"
+            "No findings.\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(None, text)
+        assert not_helpful == []
+        assert len(helped) == 1
+        assert helped[0].category == "review_loop"
+        assert "no findings" in helped[0].summary
+
+    def test_review_report_with_findings_counts_them(self) -> None:
+        """A review report whose frontmatter records a nonzero findings count
+        reports the real count."""
+        text = (
+            "---\n"
+            "verdict: pass_with_notes\n"
+            "mode: lightweight\n"
+            "reviewed_at: 2026-06-13T00:00:00+00:00\n"
+            "findings: 3\n"
+            "gates_recorded: []\n"
+            "---\n"
+            "\n"
+            "## Findings\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(None, text)
+        assert helped == []
+        assert len(not_helpful) == 1
+        assert not_helpful[0].category == "review_loop"
+        assert "records 3 finding(s)" in not_helpful[0].summary
 
 
 # ---------------------------------------------------------------------------
@@ -554,3 +671,124 @@ class TestGoldenIngestorFixture:
             actor=_ACTOR,
         )
         assert record is not None
+
+
+# ---------------------------------------------------------------------------
+# #3793 — end-to-end: findings assert only checked content
+# ---------------------------------------------------------------------------
+
+
+class TestIssue3793ContentCheckedFindings:
+    """End-to-end reproduction of the reported mission: a zero-finding
+    analysis-report.md, a zero-finding mission-review-report.md, and one
+    arbiter override whose move-task emitted one event per lane hop.
+    """
+
+    def test_zero_finding_reports_and_single_hop_pair_override(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "mission-3793-repro"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+
+        meta = {
+            "mission_id": "01TEST3793REPRO00000000",
+            "mission_slug": "mission-3793-repro",
+            "friendly_name": "3793 Repro",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-06-13T00:00:00+00:00",
+        }
+        (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        (feature_dir / "spec.md").write_text("# Spec\n\n## FR-001\n\nA requirement.\n", encoding="utf-8")
+        (tasks_dir / "WP05.md").write_text("# WP05\n\nDo the thing.\n", encoding="utf-8")
+
+        # One arbiter override from for_review to approved: move-task emits
+        # one event per lane hop, both carrying the same operator reason.
+        events = [
+            {
+                "event_id": "01TESTEV0000000000000065",
+                "wp_id": "WP05",
+                "from_lane": "for_review",
+                "to_lane": "in_review",
+                "actor": "user",
+                "at": "2026-06-13T01:00:00+00:00",
+                "feature_slug": "mission-3793-repro",
+                "force": False,
+                "evidence": None,
+                "reason": "Arbiter override: WP05 was reviewed and approved at cycle 2",
+                "review_ref": None,
+                "execution_mode": "worktree",
+            },
+            {
+                "event_id": "01TESTEV0000000000000066",
+                "wp_id": "WP05",
+                "from_lane": "in_review",
+                "to_lane": "approved",
+                "actor": "user",
+                "at": "2026-06-13T01:00:01+00:00",
+                "feature_slug": "mission-3793-repro",
+                "force": False,
+                "evidence": None,
+                "reason": "Arbiter override: WP05 was reviewed and approved at cycle 2",
+                "review_ref": None,
+                "execution_mode": "worktree",
+            },
+        ]
+        (feature_dir / "status.events.jsonl").write_text(
+            "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8"
+        )
+
+        # The reported zero-finding analysis-report.md frontmatter.
+        (feature_dir / "analysis-report.md").write_text(
+            "---\n"
+            "verdict: ready\n"
+            "issue_counts:\n"
+            "  low: 0\n"
+            "  medium: 0\n"
+            "  critical: 0\n"
+            "  high: 0\n"
+            "  info: 0\n"
+            "findings: []\n"
+            "---\n"
+            "\n"
+            "# Analysis Report\n",
+            encoding="utf-8",
+        )
+        # A clean mission-review-report.md (verdict pass, zero findings).
+        (feature_dir / "mission-review-report.md").write_text(
+            "---\n"
+            "verdict: pass\n"
+            "mode: lightweight\n"
+            "reviewed_at: 2026-06-13T02:00:00+00:00\n"
+            "findings: 0\n"
+            "gates_recorded: []\n"
+            "---\n"
+            "\n"
+            "No findings.\n",
+            encoding="utf-8",
+        )
+
+        policy = _make_policy()
+        record = generate_retrospective(
+            "mission-3793-repro",
+            policy,
+            tmp_path,
+            invoked_at=_TS,
+            actor=_ACTOR,
+        )
+
+        # Neither report may be reported as carrying findings it does not have.
+        all_summaries = [f.summary for f in record.helped + record.not_helpful + record.gaps]
+        assert not any("present with findings" in s for s in all_summaries), (
+            f"presence-only claim leaked into findings: {all_summaries!r}"
+        )
+        helped_summaries = [f.summary for f in record.helped]
+        assert any("analysis-report.md" in s and "no recorded findings" in s for s in helped_summaries)
+        assert any("mission-review-report.md" in s and "no findings" in s for s in helped_summaries)
+
+        # The single override reads as 1x, not the 2x of its two lane hops.
+        gap_summaries = [f.summary for f in record.gaps]
+        assert any("Arbiter override needed for WP05 (1x)" in s for s in gap_summaries), (
+            f"expected a single-count arbiter override finding; got gaps={gap_summaries!r}"
+        )
+        assert not any("(2x)" in s for s in gap_summaries)

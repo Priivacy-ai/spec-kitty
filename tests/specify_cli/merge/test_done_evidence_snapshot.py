@@ -25,6 +25,7 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import (
+    CurrentWpState,
     Lane,
     ReviewOverride,
     WPInnerStateDelta,
@@ -98,7 +99,7 @@ def _isolate_transactional_lane(monkeypatch: Any, emit_mock: Mock, *, lane: Lane
     )
     monkeypatch.setattr(
         "specify_cli.coordination.status_transition.read_current_wp_state_transactional",
-        lambda **_kw: (lane, "prior-actor"),
+        lambda **_kw: CurrentWpState(lane, "prior-actor", None),
     )
     monkeypatch.setattr(
         "specify_cli.coordination.status_transition.has_transition_to_transactional",

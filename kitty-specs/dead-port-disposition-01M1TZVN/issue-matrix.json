@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#1868": {
+      "evidence_ref": "Parent candidate epic (context). Follow-up: WP02 FR-010 drafts the FR-020 enforcement-honesty note in design-notes/WP02-glossary.md; the operator posts it on #1868",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#3285": {
+      "evidence_ref": "Not a defect of this mission: #3285 is the upstream PR (177e06269, 'sanitize low-signal suite cruft') that deleted test_a_baseline_entry_does_not_survive_its_owner / test_every_named_owner_resolves, orphaning the owner-resolution helpers in tests/architectural/_inert_slots.py:574-629 (zero callers). Cited in WP03 rider T014b as history. Follow-up: file an upstream gap issue from the retrospective (restore or delete the orphaned inert-slots owner gate).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#3888": {
+      "evidence_ref": "PR #3888 merged into main (c0054153b) and into this branch (ba58652f0); C-002 satisfied; WP03 FR-013 lands the constitution-exclusion deletion after it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
+    },
+    "#3898": {
+      "evidence_ref": "ADR merged Accepted via PR #3898 on 2026-09-06; executed canonically by PR #3921 (adopted into this branch at d8259dcae by operator decision 2026-09-07), with this mission's WP05 execution superseded; FR-011 record research/emitter-adr-inputs.md was the input.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP05"
+    },
+    "#3899": {
+      "evidence_ref": "PR #3899 (quick-wins, draft) owns truststore + scripts/prose residue; this mission owns the src/mission_runtime residue (OD8); whichever lands second rebases pyproject.toml/uv.lock",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3904": {
+      "evidence_ref": "Not a defect: #3904 is the pull request whose branch (missions/coreloop-proto-missions) hosts both proto-missions; cited in plan.md:6 as the branch contract. No fix owed by any WP.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3913": {
+      "evidence_ref": "Pre-existing mypy baseline-red (21 errors in runtime/next engine.py, runtime_bridge_engine.py, schema.py) cited in WP05's baseline-red gotcha; out of scope for this mission (deletions only). Follow-up: tracked on #3913 itself; WP05 reports only NEW mypy errors.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}

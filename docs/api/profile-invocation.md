@@ -162,5 +162,5 @@ record results in `InvalidModeForEvidenceError`, and no write occurs. Re-run
 ## See Also
 
 - [Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md)
-- [How to Run a Governed Mission](../guides/run-governed-mission.md)
+- [How to Run a Governed Mission](../guides/how-to/governance/run-governed-mission.md)
 - [How Charter Works](../context/charter-overview.md)

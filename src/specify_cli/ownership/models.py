@@ -1,6 +1,6 @@
 """Ownership manifest models for spec-kitty work packages.
 
-Defines ExecutionMode (StrEnum) and OwnershipManifest (frozen dataclass)
+Defines WorkProductKind (StrEnum) and OwnershipManifest (frozen dataclass)
 representing the ownership profile of a single work package.
 """
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 SCOPE_CODEBASE_WIDE = "codebase-wide"
 
 
-class ExecutionMode(StrEnum):
+class WorkProductKind(StrEnum):
     """Execution mode of a work package.
 
     Exactly two values:
@@ -44,7 +44,7 @@ class OwnershipManifest:
             Ownership validation is relaxed for such WPs.
     """
 
-    execution_mode: ExecutionMode
+    execution_mode: WorkProductKind
     owned_files: tuple[str, ...]  # Glob patterns
     authoritative_surface: str  # Path prefix
     scope: str | None = None  # "codebase-wide" or None (narrow/default)
@@ -68,14 +68,14 @@ class OwnershipManifest:
 
         Raises:
             KeyError: If a required key is missing.
-            ValueError: If ``execution_mode`` is not a valid ExecutionMode value.
+            ValueError: If ``execution_mode`` is not a valid WorkProductKind value.
         """
         from specify_cli.status import WPMetadata
 
         if isinstance(data, WPMetadata):
             # Normalize to a dict and fall through to the single extraction path.
             # Two contracts must be preserved through the normalization:
-            #   1. KeyError (not the ValueError that ``ExecutionMode(None)`` would
+            #   1. KeyError (not the ValueError that ``WorkProductKind(None)`` would
             #      raise via the dict path) when execution_mode is None — guarded
             #      explicitly here before normalizing.
             #   2. ``authoritative_surface`` defaults to "" (not None), so coerce
@@ -91,7 +91,7 @@ class OwnershipManifest:
             }
 
         raw_mode = data["execution_mode"]
-        execution_mode = ExecutionMode(raw_mode)
+        execution_mode = WorkProductKind(raw_mode)
 
         raw_files = data.get("owned_files") or []
         if isinstance(raw_files, str):

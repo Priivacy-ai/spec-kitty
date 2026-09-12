@@ -14,12 +14,12 @@ from unittest.mock import patch
 
 import pytest
 
-from doctrine.missions import MissionTemplateRepository
+from charter.offering.missions import MissionTemplateRepository
 
 # Single source of truth for patch targets -- update here if the
 # canonical module ever moves again.
-_KITTIFY_HOME_TARGET = "doctrine.resolver.get_kittify_home"
-_REPO_DEFAULT_TARGET = "doctrine.missions.MissionTemplateRepository.default"
+_KITTIFY_HOME_TARGET = "charter.offering.resolver.get_kittify_home"
+_REPO_DEFAULT_TARGET = "charter.offering.missions.MissionTemplateRepository.default"
 
 
 @pytest.fixture()

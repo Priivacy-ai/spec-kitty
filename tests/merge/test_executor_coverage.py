@@ -10,6 +10,8 @@ removed). Behaviour-preserving: no executor source is modified.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -37,6 +39,7 @@ def _make_run(
     push: bool = False,
     remove_worktree: bool = True,
     delete_branch: bool = True,
+    teardown_coordination: bool | None = None,
 ) -> ex._MergeRunState:
     lanes_manifest = SimpleNamespace(
         target_branch="main",
@@ -45,6 +48,15 @@ def _make_run(
     )
     state = MergeState(
         mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"]
+    )
+    # #3131: mirrors resolve_merge_retention's coupling rule (delete_branch AND
+    # remove_worktree) so existing call sites that already pass both True keep
+    # exercising the coord-teardown gate without every call site needing an
+    # explicit teardown_coordination= kwarg.
+    resolved_teardown_coordination = (
+        (delete_branch and remove_worktree)
+        if teardown_coordination is None
+        else teardown_coordination
     )
     run = ex._MergeRunState(
         main_repo=tmp_path,
@@ -58,6 +70,7 @@ def _make_run(
         push=push,
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
+        teardown_coordination=resolved_teardown_coordination,
         strategy=ex.MergeStrategy.SQUASH,
         assume_yes=True,
         planning_artifact_only=planning_artifact_only,
@@ -71,50 +84,6 @@ def _make_run(
     run.target_baseline_sha = "abc123"
     run.baseline_mission_id = "01ID"
     return run
-
-
-# --- _emit_merge_diff_summary ----------------------------------------------
-
-
-def test_emit_diff_summary_returns_early_when_git_fails(tmp_path: Path) -> None:
-    with (
-        patch.object(ex, "run_command", return_value=(1, "", "err")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_not_called()
-
-
-def test_emit_diff_summary_skips_when_zero_changes(tmp_path: Path) -> None:
-    # numstat with malformed/short lines only -> files_changed stays 0 -> no emit.
-    with (
-        patch.object(ex, "run_command", return_value=(0, "badline\n\n", "")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_not_called()
-
-
-def test_emit_diff_summary_emits_parsed_numstat(tmp_path: Path) -> None:
-    numstat = "10\t2\tsrc/a.py\n-\t-\tbin\n5\t0\tsrc/b.py\n"
-    with (
-        patch.object(ex, "run_command", return_value=(0, numstat, "")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_called_once()
-    kwargs = emit_mock.call_args.kwargs
-    # Three numstat rows -> 3 files; binary "-" rows are counted as files but
-    # contribute no line totals.
-    assert kwargs["files_changed"] == 3
-    assert kwargs["lines_added"] == 15
-    assert kwargs["lines_deleted"] == 2
 
 
 # --- _phase_gates_and_state -------------------------------------------------
@@ -268,9 +237,9 @@ def test_phase_bake_pre_target_done_restores_on_record_failure(tmp_path: Path) -
     restored: list[dict[Path, bytes | None]] = []
     with (
         patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", return_value={tmp_path / "x": b"o"}),
+        patch.object(ex, "_capture_merge_snapshots", return_value={tmp_path / "x": b"o"}),
         patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_bake_and_pre_target_done(run)
@@ -281,7 +250,7 @@ def test_phase_bake_pre_target_done_success_records(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
         patch.object(ex, "_bake_mission_number_into_mission_branch", return_value=None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", return_value={}),
+        patch.object(ex, "_capture_merge_snapshots", return_value={}),
         patch.object(ex, "_record_merged_wps_done_for_merge") as record_mock,
     ):
         ex._phase_bake_and_pre_target_done(run)
@@ -365,7 +334,7 @@ def test_restore_pre_target_restores_only_when_at_baseline(tmp_path: Path) -> No
     restored: list[object] = []
     with (
         patch.object(ex, "_target_branch_still_at_baseline", return_value=True),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
     ):
         ex._restore_pre_target_if_at_baseline(run)
     assert restored == [{tmp_path / "x": b"o"}]
@@ -375,7 +344,7 @@ def test_restore_pre_target_noop_when_target_advanced(tmp_path: Path) -> None:
     run = _make_run(tmp_path, done_marked_before_target=True)
     with (
         patch.object(ex, "_target_branch_still_at_baseline", return_value=False),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._restore_pre_target_if_at_baseline(run)
     restore_mock.assert_not_called()
@@ -390,7 +359,7 @@ def test_phase_record_done_restores_on_record_failure(tmp_path: Path) -> None:
     restored: list[object] = []
     with (
         patch.object(ex, "_record_merged_wps_done_for_merge", side_effect=RuntimeError("boom")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="boom"),
     ):
         ex._phase_record_done_and_project(run)
@@ -403,7 +372,7 @@ def test_phase_record_done_restores_on_project_failure(tmp_path: Path) -> None:
     restored: list[object] = []
     with (
         patch.object(ex, "_project_status_bookkeeping_to_target", side_effect=RuntimeError("proj")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots", side_effect=lambda s: restored.append(s)),
+        patch.object(ex, "restore_generated_artifact_snapshots", side_effect=lambda s: restored.append(s)),
         pytest.raises(RuntimeError, match="proj"),
     ):
         ex._phase_record_done_and_project(run)
@@ -427,7 +396,7 @@ def test_phase_porcelain_skips_when_git_status_fails(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
     with (
         patch.object(ex, "_raw_porcelain_status", return_value=(1, "")),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._phase_porcelain_invariant(run)
     restore_mock.assert_not_called()
@@ -438,10 +407,98 @@ def test_phase_porcelain_clean_tree_passes(tmp_path: Path) -> None:
     with (
         patch.object(ex, "_raw_porcelain_status", return_value=(0, "")),
         patch.object(ex, "_classify_porcelain_lines", return_value=([], 0)),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
     ):
         ex._phase_porcelain_invariant(run)
     restore_mock.assert_not_called()
+
+
+# --- #2804/FR-009: gate-artifact preservation guard --------------------------
+#
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245, Fix 7):
+# diff-coverage flagged the divergent-artifact RESTORE branch of
+# ``_restore_regressed_gate_artifacts`` and the ``expected_paths`` fold inside
+# ``_phase_porcelain_invariant`` as new-code-uncovered. Both tests below drive
+# the REAL functions (no mocking of the branch under test) so the fold's
+# actual effect on ``_classify_porcelain_lines``' verdict is proven, not
+# merely exercised.
+
+
+def test_restore_regressed_gate_artifacts_restores_divergent_target_copy(
+    tmp_path: Path,
+) -> None:
+    """#2804: an already-accepted target gate artifact that the squash merge's
+    ``-X theirs`` resolution clobbered is restored verbatim, and the path is
+    recorded on ``run.gate_artifact_restored_paths`` for the caller to fold
+    into the final bookkeeping commit + the porcelain-invariant gate."""
+    run = _make_run(tmp_path)
+    clobbered_path = run.target_feature_dir / "acceptance-matrix.json"
+    clobbered_path.parent.mkdir(parents=True, exist_ok=True)
+    clobbered_path.write_bytes(b'{"clobbered": true}')
+    untouched_path = run.target_feature_dir / "issue-matrix.json"
+    run.pre_target_gate_artifact_snapshots = {
+        clobbered_path: b'{"accepted": true}',
+        # Ordinary, non-divergent leg: target held nothing here pre-merge, so
+        # the squash merge's output is authoritative -- no restore.
+        untouched_path: None,
+    }
+
+    ex._restore_regressed_gate_artifacts(run)
+
+    assert clobbered_path.read_bytes() == b'{"accepted": true}'
+    assert run.gate_artifact_restored_paths == [clobbered_path]
+    assert not untouched_path.exists()
+
+
+def test_restore_regressed_gate_artifacts_noop_when_current_matches_original(
+    tmp_path: Path,
+) -> None:
+    """The ordinary, non-divergent case: the squash merge preserved the
+    pre-merge bytes verbatim, so no restore/record happens."""
+    run = _make_run(tmp_path)
+    matching_path = run.target_feature_dir / "acceptance-matrix.json"
+    matching_path.parent.mkdir(parents=True, exist_ok=True)
+    matching_path.write_bytes(b'{"accepted": true}')
+    run.pre_target_gate_artifact_snapshots = {matching_path: b'{"accepted": true}'}
+
+    ex._restore_regressed_gate_artifacts(run)
+
+    assert matching_path.read_bytes() == b'{"accepted": true}'
+    assert run.gate_artifact_restored_paths == []
+
+
+def test_phase_porcelain_folds_restored_gate_artifact_into_expected_paths(
+    tmp_path: Path,
+) -> None:
+    """#2804/FR-009: a path the restore guard rewrote is an EXPECTED
+    post-merge delta -- the porcelain-invariant gate must not treat it as a
+    violation. Uses the REAL ``_classify_porcelain_lines`` (not mocked) so the
+    ``expected_paths`` fold is what actually suppresses the flag; the
+    restored path is deliberately NOT a real mission-artifact kind, so
+    neither the coord-residue nor the self-bookkeeping legs could
+    accidentally absorb it instead -- isolating the fold under test."""
+    run = _make_run(tmp_path)
+    restored_path = tmp_path / "some" / "random" / "file.json"
+    run.gate_artifact_restored_paths = [restored_path]
+    with patch.object(
+        ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+    ):
+        ex._phase_porcelain_invariant(run)  # must not raise typer.Exit
+
+
+def test_phase_porcelain_flags_unrestored_unexpected_path(tmp_path: Path) -> None:
+    """Control for the test above: the SAME porcelain line, with
+    ``gate_artifact_restored_paths`` empty, is a genuine violation -- proving
+    the fold (not some other leg) is what suppressed it there."""
+    run = _make_run(tmp_path)
+    with (
+        patch.object(
+            ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+        ),
+        pytest.raises(typer.Exit) as exc,
+    ):
+        ex._phase_porcelain_invariant(run)
+    assert exc.value.exit_code == 1
 
 
 # --- _phase_commit_and_assert: no-changes + baseline-assert-failure ----------
@@ -489,7 +546,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
     with (
         patch.object(ex, "_paths_have_status_changes", return_value=True),
         patch.object(ex, "commit_merge_bookkeeping", side_effect=recovered),
-        patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
+        patch.object(ex, "restore_generated_artifact_snapshots") as restore_mock,
         pytest.raises(ex.SafeCommitRecoveryFailed),
     ):
         ex._phase_commit_and_assert(run)
@@ -502,10 +559,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
 
 def test_phase_dossier_and_stale_swallows_stale_failure(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
-    with (
-        patch.object(ex, "trigger_feature_dossier_sync_if_enabled"),
-        patch.object(ex, "run_check", side_effect=RuntimeError("scan crashed")),
-    ):
+    with patch.object(ex, "run_check", side_effect=RuntimeError("scan crashed")):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is None
 
@@ -516,10 +570,7 @@ def test_phase_dossier_and_stale_records_report(tmp_path: Path) -> None:
         base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
         elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
     )
-    with (
-        patch.object(ex, "trigger_feature_dossier_sync_if_enabled"),
-        patch.object(ex, "run_check", return_value=report),
-    ):
+    with patch.object(ex, "run_check", return_value=report):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is report
 
@@ -653,14 +704,10 @@ def test_phase_finalize_and_summary_runs_all_steps(tmp_path: Path) -> None:
     with (
         patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
         patch.object(ex, "clear_state") as clear_mock,
-        patch.object(ex, "_emit_merge_diff_summary") as diff_mock,
-        patch.object(ex, "emit_mission_closed") as closed_mock,
     ):
         ex._phase_finalize_and_summary(run)
     cleanup_mock.assert_called_once()
     clear_mock.assert_called_once()
-    diff_mock.assert_called_once()
-    closed_mock.assert_called_once()
 
 
 # --- _render_stale_findings -------------------------------------------------
@@ -702,3 +749,283 @@ def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
         elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
     )
     ex._render_stale_findings(report)
+
+
+# ---------------------------------------------------------------------------
+# #3131 T011 — WP02 owned unit assertions for the retention-enforcement gates.
+# ---------------------------------------------------------------------------
+
+
+def _assert_partial_retention_retains_coord_triple(
+    tmp_path: Path, *, delete_branch: bool, remove_worktree: bool
+) -> None:
+    """One (delete_branch, remove_worktree) case of the partial-retention
+    coord-coupling gate — extracted so the loop caller stays closure-free
+    (each fake-command call list is scoped to its own call, not a loop var)."""
+    calls: list[list[str]] = []
+
+    def _fake_cmd(args: list[str], **kwargs: object) -> tuple[int, str, str]:
+        calls.append(list(args))
+        return (0, "", "")
+
+    run = _make_run(
+        tmp_path,
+        remove_worktree=remove_worktree,
+        delete_branch=delete_branch,
+        teardown_coordination=False,
+    )
+    with (
+        patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
+        patch("specify_cli.lanes.branch_naming.worktree_path", return_value=tmp_path / "absent"),
+        patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
+        patch.object(ex, "_worktree_removal_delay", return_value=0),
+        patch.object(ex, "run_command", side_effect=_fake_cmd),
+        patch(
+            "specify_cli.mission_metadata.load_meta_or_empty",
+            return_value={"coordination_branch": "kitty/mission-m", "mid8": "deadbeef"},
+        ),
+        patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
+        patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
+        patch.object(ex, "commit_merge_bookkeeping") as commit_mock,
+    ):
+        ex._phase_cleanup_worktrees_and_branches(run)
+
+    mission_branch_deletes = [
+        c for c in calls if c[:3] == ["git", "branch", "-D"] and c[3:] == ["kitty/mission-m"]
+    ]
+    assert not mission_branch_deletes, (
+        f"delete_branch={delete_branch}, remove_worktree={remove_worktree}: "
+        f"mission/coordination branch was deleted despite teardown_coordination"
+        f"=False. calls={calls!r}"
+    )
+    commit_mock.assert_not_called()
+    cw_mock.teardown.assert_not_called()
+
+
+def test_teardown_coordination_gate_retains_coord_triple_on_partial_retention(
+    tmp_path: Path,
+) -> None:
+    """#3131 T008/T011/INV-2: partial retention (delete_branch XOR
+    remove_worktree, so ``teardown_coordination=False``) must not delete the
+    mission/coordination branch or attempt the coord-worktree teardown —
+    both cases (delete_branch=True/remove_worktree=False and the reverse)."""
+    _assert_partial_retention_retains_coord_triple(
+        tmp_path, delete_branch=True, remove_worktree=False
+    )
+    _assert_partial_retention_retains_coord_triple(
+        tmp_path, delete_branch=False, remove_worktree=True
+    )
+
+
+def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
+    tmp_path: Path,
+) -> None:
+    """#3131 FR-013/C-006: the merge SCRATCH workspace cleanup runs regardless
+    of the branch/worktree retention decision — retention only ever protects
+    the mission's OWN branches/worktrees, never the merge's disposable scratch
+    workspace."""
+    run = _make_run(
+        tmp_path, remove_worktree=False, delete_branch=False, teardown_coordination=False
+    )
+    with (
+        patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
+        patch.object(ex, "clear_state"),
+        patch.object(ex, "_render_stale_findings"),
+    ):
+        ex._phase_finalize_and_summary(run)
+    cleanup_mock.assert_called_once()
+
+
+def _init_abort_repo(tmp_path: Path, slug: str, *, retain_worktrees: bool) -> Path:
+    """Minimal real git repo + primary meta.json for ``--abort`` teardown tests."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"], check=True)
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    fdir = repo / "kitty-specs" / slug
+    fdir.mkdir(parents=True)
+    meta: dict[str, object] = {
+        "mission_slug": slug,
+        "mission_id": "01ABORT0000000000000000001",
+        "mid8": "01ABORT0",
+        "coordination_branch": f"kitty/mission-{slug}",
+        "target_branch": "main",
+    }
+    if retain_worktrees:
+        meta["retain_worktrees"] = True
+    (fdir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "seed mission"], check=True)
+    return repo
+
+
+def test_teardown_coordination_for_abort_retains_worktree_when_meta_retains(
+    tmp_path: Path,
+) -> None:
+    """#3131 FR-012/T009: ``merge --abort`` must NOT destroy a coordination
+    worktree the mission's meta.json asks to retain (INV-1: no silent
+    deletion)."""
+    from specify_cli.cli.commands.merge import _teardown_coordination_for_abort
+
+    slug = "abort-retain-repro"
+    repo = _init_abort_repo(tmp_path, slug, retain_worktrees=True)
+
+    with patch(
+        "specify_cli.coordination.teardown.teardown_coordination_topology"
+    ) as mock_teardown:
+        _teardown_coordination_for_abort(repo, slug, None)
+
+    mock_teardown.assert_not_called()
+
+
+def test_teardown_coordination_for_abort_destroys_worktree_when_no_policy(
+    tmp_path: Path,
+) -> None:
+    """FR-010 companion: a mission with NO retention policy keeps the
+    pre-#3131 ``--abort`` teardown behavior byte-identical."""
+    from specify_cli.cli.commands.merge import _teardown_coordination_for_abort
+
+    slug = "abort-default-repro"
+    repo = _init_abort_repo(tmp_path, slug, retain_worktrees=False)
+
+    with patch(
+        "specify_cli.coordination.teardown.teardown_coordination_topology"
+    ) as mock_teardown:
+        _teardown_coordination_for_abort(repo, slug, None)
+
+    mock_teardown.assert_called_once()
+
+
+def test_merge_resume_threads_raw_retention_flags_unchanged(tmp_path: Path) -> None:
+    """#3131 FR-007: a ``--resume``d merge must fall through into the SAME
+    retention resolution as a fresh merge — the resume dispatch must not
+    special-case the cleanup flags into concrete bools before
+    ``_run_real_merge``, which would bypass ``resolve_merge_retention``."""
+    from specify_cli.cli.commands import merge as merge_mod
+
+    captured: dict[str, object] = {}
+
+    def _fake_run_real_merge(_repo_root: object, **kwargs: object) -> None:
+        captured.update(kwargs)
+
+    with (
+        patch.object(merge_mod, "find_repo_root", return_value=tmp_path),
+        patch.object(merge_mod, "_enforce_git_preflight"),
+        patch.object(merge_mod, "_dispatch_resume", return_value="m"),
+        patch.object(merge_mod, "_resolve_slug_or_exit", return_value="m"),
+        patch.object(merge_mod, "load_state", return_value=None),
+        patch.object(
+            merge_mod, "_resolve_target_branch", return_value=("main", "meta.json")
+        ),
+        patch.object(merge_mod, "_validate_target_branch"),
+        patch.object(merge_mod, "_run_real_merge", side_effect=_fake_run_real_merge),
+    ):
+        merge_mod.merge(
+            strategy=None,
+            delete_branch=None,
+            remove_worktree=None,
+            push=False,
+            target_branch=None,
+            dry_run=False,
+            json_output=False,
+            mission="m",
+            resume=True,
+            abort=False,
+            context_token=None,
+            keep_workspace=False,
+            allow_sparse_checkout=False,
+            yes=True,
+            skip_review_artifact_check=False,
+            note=None,
+        )
+
+    assert captured.get("delete_branch") is None, (
+        "resume must NOT coerce the unset tri-state delete_branch flag into a "
+        f"concrete bool before _run_real_merge; got {captured.get('delete_branch')!r}"
+    )
+    assert captured.get("remove_worktree") is None, (
+        "resume must NOT coerce the unset tri-state remove_worktree flag into "
+        f"a concrete bool before _run_real_merge; got {captured.get('remove_worktree')!r}"
+    )
+
+
+def _init_orchestrator_retention_repo(
+    tmp_path: Path, slug: str, *, retain: bool, is_coord: bool
+) -> Path:
+    """Minimal real git repo + primary meta.json for the orchestrator resolver."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"], check=True)
+    fdir = repo / "kitty-specs" / slug
+    fdir.mkdir(parents=True)
+    meta: dict[str, object] = {
+        "mission_slug": slug,
+        "mission_id": "01ORCH000000000000000000001",
+        "mid8": "01ORCH00",
+        "target_branch": "main",
+    }
+    if is_coord:
+        meta["coordination_branch"] = f"kitty/mission-{slug}"
+    if retain:
+        meta["retain_branches"] = True
+        meta["retain_worktrees"] = True
+    (fdir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "seed mission"], check=True)
+    return repo
+
+
+def test_orchestrator_execute_lane_merge_resolves_retention_for_coord_mission(
+    tmp_path: Path,
+) -> None:
+    """#3131 C-007/T010: ``orchestrator_api._execute_lane_merge`` routes
+    through ``resolve_merge_retention`` and (topology-aware) does not mark the
+    mission/coordination branch deletable for a retaining coord mission —
+    the exact NFR-003 gap the hardcoded ``delete_branch=True,
+    remove_worktree=True`` caller used to reach."""
+    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+
+    slug = "orch-retain-coord-repro"
+    repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=True, is_coord=True)
+
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(
+        repo, slug, delete_branch=None, remove_worktree=None
+    )
+
+    assert retention.delete_branch is False
+    assert retention.remove_worktree is False
+    assert mission_branch_deletable is False, (
+        "a retaining COORD mission driven through the orchestrator entry must "
+        "not mark the mission/coordination branch deletable"
+    )
+
+
+def test_orchestrator_execute_lane_merge_non_coord_stays_on_delete_branch_gate(
+    tmp_path: Path,
+) -> None:
+    """Topology-aware parity with the executor (#3131 T008): a non-coord
+    mission's mission-branch deletability tracks ``delete_branch`` alone, not
+    the coupled ``teardown_coordination`` -- so an explicit delete with
+    worktrees kept still deletes the (non-coordination) mission branch."""
+    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+
+    slug = "orch-non-coord-repro"
+    repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=False, is_coord=False)
+
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(
+        repo, slug, delete_branch=True, remove_worktree=False
+    )
+
+    assert retention.delete_branch is True
+    assert retention.remove_worktree is False
+    assert retention.teardown_coordination is False
+    assert mission_branch_deletable is True, (
+        "a non-coord mission's mission-branch deletion must stay keyed to "
+        "delete_branch alone, not the coupled teardown_coordination"
+    )

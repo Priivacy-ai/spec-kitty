@@ -6,7 +6,9 @@ historically drifted apart:
 1. Doctrine prose — BOTH ``tasks/guidelines.md`` copies (the ``actions/`` runtime
    copy and the ``mission-steps/`` step-contract copy).
 2. The authoring template — ``software-dev/templates/task-prompt-template.md``
-   frontmatter.
+   frontmatter, plus (since #3795) the ``documentation`` mission's copy, which
+   had drifted and omitted the ownership keys and the REQUIRED profile-load
+   section that ``/spec-kitty.tasks`` pins for every mission type.
 3. The ownership validator — ``specify_cli.ownership.validation`` whose
    ``_CODE_PREFIXES = ("src/", "tests/")`` is **repo-root-relative**.
 
@@ -36,26 +38,42 @@ from specify_cli.ownership.frontmatter_source import (
 )
 from specify_cli.ownership.validation import validate_glob_matches, validate_ownership
 from specify_cli.status import WPMetadata
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.doctrine.conftest import BUILT_IN_MISSIONS_ROOT, REPO_ROOT
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # --- The three drifting encodings, pinned to disk -------------------------------
 
-SOFTWARE_DEV_ROOT = DOCTRINE_SOURCE_ROOT / "missions" / "software-dev"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated missions/ from src/charter/offering/missions (nested under
+# DOCTRINE_SOURCE_ROOT) to packs/built-in/missions (BUILT_IN_MISSIONS_ROOT,
+# see tests/doctrine/conftest.py).
+SOFTWARE_DEV_ROOT = BUILT_IN_MISSIONS_ROOT / "software-dev"
 
 GUIDELINES_ACTIONS = SOFTWARE_DEV_ROOT / "actions" / "tasks" / "guidelines.md"
 GUIDELINES_STEPS = (
-    DOCTRINE_SOURCE_ROOT
-    / "missions"
+    BUILT_IN_MISSIONS_ROOT
     / "mission-steps"
     / "software-dev"
     / "tasks"
     / "guidelines.md"
 )
 TASK_PROMPT_TEMPLATE = SOFTWARE_DEV_ROOT / "templates" / "task-prompt-template.md"
+DOCUMENTATION_TASK_PROMPT_TEMPLATE = (
+    BUILT_IN_MISSIONS_ROOT / "documentation" / "templates" / "task-prompt-template.md"
+)
 
 GUIDELINES_COPIES = (GUIDELINES_ACTIONS, GUIDELINES_STEPS)
+
+# Every bundled mission whose WP prompts /spec-kitty.tasks authors from a
+# task-prompt-template.md must declare the same ownership contract (#3795: the
+# documentation copy had none of it while software-dev had all of it). The
+# research mission's template is not yet in this map — its copy still omits the
+# contract and is tracked as #4060.
+TASK_PROMPT_TEMPLATES = {
+    "software-dev": TASK_PROMPT_TEMPLATE,
+    "documentation": DOCUMENTATION_TASK_PROMPT_TEMPLATE,
+}
 
 # The four ownership-contract keys a template-authored WP must self-declare so it
 # validates + finalizes on the first pass.
@@ -81,6 +99,23 @@ AUTHORED_OWNED_FILES = (
 )
 # A planned-new file modelled in create_intent (real-format repo-relative path).
 AUTHORED_CREATE_INTENT = ("src/specify_cli/ownership/_roundtrip_probe.py",)
+
+# Documentation-mission authored WP: the template's placeholders resolve to
+# docs/ surfaces (execution_mode "planning_artifact" — planning prefixes are
+# kitty-specs/ and docs/), so the round-trip probes use real files there.
+DOC_AUTHORED_AUTHORITATIVE_SURFACE = "docs/architecture/"
+DOC_AUTHORED_OWNED_FILES = (
+    "docs/architecture/documentation-mission.md",
+    "docs/architecture/README.md",
+)
+DOC_AUTHORED_CREATE_INTENT = ("docs/architecture/_roundtrip_probe.md",)
+
+# The REQUIRED first body section of every task-prompt template
+# (mission-steps/software-dev/tasks/prompt.md: "REQUIRED, must be the first
+# body section ... See task-prompt-template.md for the exact block").
+PROFILE_LOAD_SECTION_HEADING = "## ⚡ Do This First: Load Agent Profile"
+# Frontmatter fields the profile-load block's placeholders resolve against.
+PROFILE_LOAD_FIELDS = ("agent_profile", "role", "agent")
 
 
 # --- T003 step 2: mandatory prose ratchet (pins the doctrine TEXT) ---------------
@@ -229,3 +264,86 @@ def test_absolute_owned_files_entry_fails_validation_consistently() -> None:
         assert any(absolute_entries[0] in err for err in result.errors), (
             f"validation failed but the absolute path was not surfaced: {result.errors}"
         )
+
+
+# --- #3795: mission-parity ratchet — documentation must match software-dev ------
+
+
+@pytest.mark.parametrize("mission", sorted(TASK_PROMPT_TEMPLATES))
+def test_task_prompt_template_declares_ownership_contract_keys(mission: str) -> None:
+    """Every mapped mission's template must declare the ownership-contract keys.
+
+    ``/spec-kitty.tasks`` applies the same finalize-tasks requirements regardless
+    of mission type, so a template that omits the keys authors WPs that fail
+    ``finalize-tasks --validate-only`` (or pass with inferred ownership). Read
+    from disk (not fabricated) so the ratchet fails if a template omits a key.
+    """
+    frontmatter, _body = read_frontmatter(TASK_PROMPT_TEMPLATES[mission])
+    missing = [key for key in OWNERSHIP_CONTRACT_KEYS if key not in frontmatter]
+    assert not missing, (
+        f"{mission} task-prompt-template.md frontmatter omits "
+        f"ownership-contract keys: {missing}. A template-authored WP cannot "
+        "validate + finalize on the first pass without them."
+    )
+
+
+@pytest.mark.parametrize("mission", sorted(TASK_PROMPT_TEMPLATES))
+def test_task_prompt_template_carries_required_profile_load_section(mission: str) -> None:
+    """Every mapped mission's template must carry the REQUIRED profile-load block.
+
+    ``/spec-kitty.tasks`` marks ``## ⚡ Do This First: Load Agent Profile`` as
+    REQUIRED and instructs the agent to "See ``task-prompt-template.md`` for the
+    exact block" — the named file must actually carry it, and the frontmatter
+    must declare the fields its placeholders resolve against (#3795: the
+    documentation copy carried neither).
+    """
+    frontmatter, body = read_frontmatter(TASK_PROMPT_TEMPLATES[mission])
+    assert PROFILE_LOAD_SECTION_HEADING in body, (
+        f"{mission} task-prompt-template.md omits the REQUIRED "
+        f"'{PROFILE_LOAD_SECTION_HEADING}' section that /spec-kitty.tasks pins."
+    )
+    missing_fields = [field for field in PROFILE_LOAD_FIELDS if field not in frontmatter]
+    assert not missing_fields, (
+        f"{mission} task-prompt-template.md omits profile-load frontmatter "
+        f"fields {missing_fields} that the REQUIRED section references."
+    )
+
+
+def test_documentation_template_authored_wp_passes_ownership_and_finalize() -> None:
+    """A documentation-mission WP authored from its template validates first time.
+
+    Same seam as the software-dev green round-trip (``resolve_wp_manifests`` →
+    ``validate_ownership`` → ``validate_glob_matches``), driven by the
+    documentation template's real ``execution_mode``/``authoritative_surface``
+    shape with production-shaped docs/ paths — proving the template's
+    placeholder contract is completable, not just present.
+    """
+    frontmatter, _body = read_frontmatter(DOCUMENTATION_TASK_PROMPT_TEMPLATE)
+    for key in OWNERSHIP_CONTRACT_KEYS:
+        assert key in frontmatter, f"documentation template must declare {key!r}"
+
+    wp_meta = WPMetadata(
+        work_package_id="WP01",
+        title="Documentation WP-authoring round-trip probe",
+        execution_mode=str(frontmatter["execution_mode"]),
+        owned_files=list(DOC_AUTHORED_OWNED_FILES),
+        authoritative_surface=DOC_AUTHORED_AUTHORITATIVE_SURFACE,
+        create_intent=list(DOC_AUTHORED_CREATE_INTENT),
+    )
+    source = InMemoryFrontmatterSource({"WP01": wp_meta})
+    manifests = resolve_wp_manifests(source)
+    assert "WP01" in manifests, "authored documentation WP did not resolve to a manifest"
+
+    ownership_result = validate_ownership(manifests, {"WP01": []})
+    assert ownership_result.passed, (
+        f"documentation authored WP unexpectedly failed ownership validation: "
+        f"{ownership_result.errors}"
+    )
+
+    glob_result = validate_glob_matches(
+        manifests, REPO_ROOT, create_intent={"WP01": list(DOC_AUTHORED_CREATE_INTENT)}
+    )
+    assert glob_result.passed, (
+        f"documentation authored WP failed the finalize literal-path glob check: "
+        f"{glob_result.errors}"
+    )

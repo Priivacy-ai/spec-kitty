@@ -22,49 +22,100 @@
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX06J4W4KDCY63KEEZQPJ",
-      "last_transition_at": "2026-04-23T05:27:14.386624+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.386624+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0CCXAX4PGMKA4N3PFS4",
-      "last_transition_at": "2026-04-23T05:27:14.572507+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.572507+00:00",
+      "subtasks": {
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0CJSC8TSQEJM4A889YJ",
-      "last_transition_at": "2026-04-23T05:27:14.579020+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.579020+00:00",
+      "subtasks": {
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0CQT5S9BB10YXY1XVKB",
-      "last_transition_at": "2026-04-23T05:27:14.583784+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.583784+00:00",
+      "subtasks": {
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0CWGBRSE6RZXHMPPPQJ",
-      "last_transition_at": "2026-04-23T05:27:14.588256+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.588256+00:00",
+      "subtasks": {
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0D0AQ2VN909KWMCDEZD",
-      "last_transition_at": "2026-04-23T05:27:14.592433+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.592433+00:00",
+      "subtasks": {
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned"
+      }
     },
     "WP07": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KPWCX0D48DH6JNKXMZRHD852",
-      "last_transition_at": "2026-04-23T05:27:14.596476+00:00"
+      "last_transition_at": "2026-04-23T05:27:14.596476+00:00",
+      "subtasks": {
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned"
+      }
     }
   }
 }

@@ -10,7 +10,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.charter_runtime.lint.checks.contradiction import ContradictionChecker
+from specify_cli.charter_runtime.lint.checks.contradiction import (
+    ContradictionChecker,
+    _adr_topic_and_decision_hash,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +121,46 @@ class TestDuplicateGlossarySenses:
 # ---------------------------------------------------------------------------
 # Tests — missing/empty DRG
 # ---------------------------------------------------------------------------
+
+
+class TestAdrTopicAndDecisionHashHelper:
+    """Direct coverage for the extracted ``_adr_topic_and_decision_hash`` helper.
+
+    Extracted from ``_check_adr_topic_clash`` (Sonar S3776 cognitive-complexity
+    remediation) so this dispatch logic is independently testable.
+    """
+
+    def test_non_adr_node_returns_none(self):
+        node = _make_node("directive:DIR-001", "directive", topic="logging")
+        assert _adr_topic_and_decision_hash(node) is None
+
+    def test_adr_without_topic_returns_none(self):
+        node = _make_node("adr:ADR-001", "adr", label="No topic")
+        assert _adr_topic_and_decision_hash(node) is None
+
+    def test_topic_from_metadata_dict_used_when_no_direct_attribute(self):
+        node = _make_node(
+            "adr:ADR-001", "adr", decision="use structlog", metadata={"topic": "logging"}
+        )
+        result = _adr_topic_and_decision_hash(node)
+        assert result is not None
+        topic, _decision_hash = result
+        assert topic == "logging"
+
+    def test_decision_falls_back_to_label_when_no_decision_field(self):
+        node = _make_node("adr:ADR-001", "adr", label="fallback decision", topic="logging")
+        result = _adr_topic_and_decision_hash(node)
+        assert result is not None
+        _topic, decision_hash = result
+        assert decision_hash != ""
+
+    def test_same_decision_text_produces_same_hash(self):
+        node_a = _make_node("adr:ADR-001", "adr", topic="logging", decision="use structlog")
+        node_b = _make_node("adr:ADR-002", "adr", topic="logging", decision="use structlog")
+        result_a = _adr_topic_and_decision_hash(node_a)
+        result_b = _adr_topic_and_decision_hash(node_b)
+        assert result_a is not None and result_b is not None
+        assert result_a[1] == result_b[1]
 
 
 class TestContradictionCheckerMissingDRG:

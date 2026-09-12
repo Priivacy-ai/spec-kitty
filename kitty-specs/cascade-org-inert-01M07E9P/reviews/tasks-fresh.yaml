@@ -1,0 +1,20 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: cascade-org-inert-01M07E9P
+note: >
+  Fresh sweep performed directly by the phase agent (same deviation as recorded in
+  reviews/spec-refute-1.yaml) after the T011/T020 AC1-coverage fix landed. Checked: subtask ID
+  continuity (T001-T021, no gaps, no duplicates, verified by grep across tasks.md); frontmatter
+  `subtasks:` lists in all three WP prompt files match tasks.md's own Subtask Index table exactly
+  (T001-T007 / T008-T016 / T017-T021, verified directly); no cross-WP file-scope overlap (verified
+  by listing each WP's touched files and checking set intersection = empty); the Requirements
+  Coverage Summary table's FR/NFR/C-ID list matches spec.md's actual current requirement IDs
+  post-both-fix-rounds (re-grepped spec.md's FR/NFR/C tables to confirm FR-004/SC-003/C-005 are
+  correctly ABSENT from tasks.md, since both were retired in the spec's second fix round -- tasks.md
+  never references them, confirmed clean); no terminology drift (`Mission` not `Feature`, spot
+  checked); PR-shape statement (one PR per mission) matches sk-design's own default, not
+  Team Kitty's one-PR-per-WP rule -- correctly NOT copied from the wrong family's convention. No
+  new problems found.
+findings: []

@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-08-22T20:14:38.008929+00:00",
+  "flattened": false,
+  "friendly_name": "Close the three #1058 deferrals: widen the dossier positional-call guard, trim CLI-namespace type re-exports, and unbreak the analyze commitlint gate",
+  "mission_id": "01M0NHRTXR2623RXVM2Z92SMCP",
+  "mission_number": null,
+  "mission_slug": "dossier-guard-reexport-analyze-cleanup-01M0NHRT",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Close the three #1058 deferrals: widen the dossier positional-call guard, trim CLI-namespace type re-exports, and unbreak the analyze commitlint gate on fix/dossier-guard-reexport-analyze-cleanup-3676 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Close the three #1058 deferrals: widen the dossier positional-call guard, trim CLI-namespace type re-exports, and unbreak the analyze commitlint gate",
+  "slug": "dossier-guard-reexport-analyze-cleanup-01M0NHRT",
+  "status_phase": "1",
+  "target_branch": "fix/dossier-guard-reexport-analyze-cleanup-3676",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-23T00:15:14.736688+00:00"
+}

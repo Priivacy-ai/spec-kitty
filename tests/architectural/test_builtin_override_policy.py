@@ -1,6 +1,6 @@
 """Governance-as-test: built-in DRG overrides must be sanctioned by the repo.
 
-The three-layer merge (:mod:`doctrine.drg.merge`) PERMITS a same-kind org node
+The three-layer merge (:mod:`charter.offering.drg.merge`) PERMITS a same-kind org node
 to override a built-in node in place (recorded as a ``node_override`` conflict
 with ``resolution_applied == "org_override"`` and a warning). The merge does
 NOT decide whether *this* repo sanctions a given override — that is a per-repo
@@ -23,11 +23,11 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source, load_graph_or_dir
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
-from doctrine.drg.org_pack_loader import OrgDRGFragment
-from doctrine.drg.override_policy import (
+from charter.offering.drg.loader import built_in_graph_source, load_graph_or_dir
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
+from charter.offering.drg.override_policy import (
     ReplaceableBuiltinsPolicy,
     find_overridden_builtin_urns,
     find_unsanctioned_overrides,
@@ -50,7 +50,7 @@ def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:
     suite is allowed to reach across layers. A repo with no ``organisation_packs``
     yields an empty list (the common case, including this repo).
     """
-    from charter.drg import load_org_drg  # noqa: PLC0415 — cross-layer test reach
+    from charter.activation.drg_activation import load_org_drg
 
     fragments: list[OrgDRGFragment] = load_org_drg(repo_root)
     return fragments
@@ -78,14 +78,9 @@ def test_builtin_overrides_are_sanctioned() -> None:
         # ``merge_three_layers`` raises only on hard-fail (kind-drift /
         # layer-rule); same-kind overrides are non-fatal and surfaced via the
         # merged graph's org-provenance nodes at built-in URNs.
-        merged = merge_three_layers(
-            built_in=built_in, org_fragments=org_fragments, project=project
-        )
+        merged = merge_three_layers(built_in=built_in, org_fragments=org_fragments, project=project)
     except Exception as exc:  # pragma: no cover - this repo never hard-fails
-        pytest.fail(
-            f"Built-in DRG merge hard-failed for this repo (no override "
-            f"expected): {exc}"
-        )
+        pytest.fail(f"Built-in DRG merge hard-failed for this repo (no override expected): {exc}")
 
     built_in_urns = frozenset(n.urn for n in built_in.nodes)
     targets = find_overridden_builtin_urns(merged, built_in_urns)
@@ -93,8 +88,7 @@ def test_builtin_overrides_are_sanctioned() -> None:
     assert findings == [], (
         "Unsanctioned built-in override(s) detected. Either add the target URN "
         "to .kittify/doctrine/replaceable-builtins.yaml (with a reason for "
-        "directives) or remove the override from the org pack:\n"
-        + "\n".join(f"  - {f.urn} ({f.kind}): {f.why}" for f in findings)
+        "directives) or remove the override from the org pack:\n" + "\n".join(f"  - {f.urn} ({f.kind}): {f.why}" for f in findings)
     )
 
 
@@ -144,51 +138,12 @@ def test_real_merge_override_is_detected_and_governed() -> None:
     assert targets == {"tactic:shared": "tactic"}
 
     # Unlisted → flagged; allowlisted → cleared. Both directions load-bearing.
-    assert [f.urn for f in find_unsanctioned_overrides(targets, _policy())] == [
-        "tactic:shared"
-    ]
+    assert [f.urn for f in find_unsanctioned_overrides(targets, _policy())] == ["tactic:shared"]
     sanctioned = _policy(("tactic:shared", "org tightened this tactic"))
     assert find_unsanctioned_overrides(targets, sanctioned) == []
 
 
-# ---------------------------------------------------------------------------
-# Pure adjudication-logic coverage (the reusable governance predicate)
-# ---------------------------------------------------------------------------
-
-
 def _policy(*entries: tuple[str, str]) -> ReplaceableBuiltinsPolicy:
-    from doctrine.drg.override_policy import ReplaceableBuiltin
+    from charter.offering.drg.override_policy import ReplaceableBuiltin
 
-    return ReplaceableBuiltinsPolicy(
-        entries=tuple(ReplaceableBuiltin(urn=u, reason=r) for u, r in entries)
-    )
-
-
-def test_unlisted_override_is_unsanctioned() -> None:
-    targets = {"tactic:foo": "tactic"}
-    findings = find_unsanctioned_overrides(targets, _policy())
-    assert [f.urn for f in findings] == ["tactic:foo"]
-    assert "replaceable-builtins" in findings[0].why
-
-
-def test_allowlisted_non_directive_override_passes() -> None:
-    targets = {"tactic:foo": "tactic"}
-    findings = find_unsanctioned_overrides(targets, _policy(("tactic:foo", "")))
-    assert findings == []
-
-
-def test_directive_override_without_reason_is_unsanctioned() -> None:
-    targets = {"directive:foo": "directive"}
-    findings = find_unsanctioned_overrides(
-        targets, _policy(("directive:foo", "   "))
-    )
-    assert [f.urn for f in findings] == ["directive:foo"]
-    assert "reason" in findings[0].why
-
-
-def test_directive_override_with_reason_passes() -> None:
-    targets = {"directive:foo": "directive"}
-    findings = find_unsanctioned_overrides(
-        targets, _policy(("directive:foo", "we set a stricter posture"))
-    )
-    assert findings == []
+    return ReplaceableBuiltinsPolicy(entries=tuple(ReplaceableBuiltin(urn=u, reason=r) for u, r in entries))

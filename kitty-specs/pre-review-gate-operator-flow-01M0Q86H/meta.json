@@ -1,0 +1,60 @@
+{
+  "accept_commit": "c8d4a2d8d8f13035ed41ceb02d3f358f204dd350",
+  "acceptance_history": [
+    {
+      "accept_commit": "aee0377e433018786abc90a804ea5e9be1b5f431",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-23T19:10:45.886200+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "61e7fc508b25002005657b55c8a50cfa1f6be606"
+    },
+    {
+      "accept_commit": "26cb75fafb3a6490faa40d77a90b6258314ea8da",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-23T20:04:13.179410+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "ef0ffd66f0dd2b71645c0dff5247f3e79debfc0c"
+    },
+    {
+      "accept_commit": "a25db9709df926277ce5b5af9df9c6d32d8677e6",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-23T20:12:37.777249+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "aeab9b0637c559a1e727453d610eb838af5b2787"
+    },
+    {
+      "accept_commit": "1a72aec92c7f4c4c45fed91dcbcd2af715ee3dd5",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-24T04:38:59.774351+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "5e0df3814ed1c2d7422e2469ea7bd8b4f66d7056"
+    },
+    {
+      "accept_commit": "c8d4a2d8d8f13035ed41ceb02d3f358f204dd350",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-24T04:52:49.610751+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "fa55cddd0e35b2ec33628eebb9c27132ff906ab7"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-08-24T04:52:49.610751+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "fa55cddd0e35b2ec33628eebb9c27132ff906ab7",
+  "baseline_merge_commit": "4d48ae91a46820c0da7cb17573779f9b72c7d077",
+  "created_at": "2026-08-23T12:05:49.844865+00:00",
+  "flattened": true,
+  "friendly_name": "Responsive Pre-Review Gate Operator Flow",
+  "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+  "mission_number": 196,
+  "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators and orchestrators need review submission to remain observable and recoverable while pre-review checks run, and they need configured sync-daemon disable controls to be honored consistently.",
+  "purpose_tldr": "Prevent review submissions from appearing hung or leaving workflow transitions half-applied.",
+  "slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "status_phase": "1",
+  "target_branch": "fix/pre-review-gate-operator-flow",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-23T16:11:22.634854+00:00"
+}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 
 import pytest
 
@@ -18,7 +18,7 @@ def test_windows_file_store_round_trip(tmp_path):
     """Round-trip: store → load → delete using a temp directory."""
     store = WindowsFileStorage(store_path=tmp_path / "auth")
 
-    now = datetime.now(UTC)
+    now = now_utc()
     session = StoredSession(
         user_id="user-1",
         email="user@example.com",

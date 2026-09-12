@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      Grounding Correction 3, FR-007, and the §108 Edge Case bullet now name all five sites
+      verbatim (test_analysis_report.py:238,260 and test_analysis_report_charter_yaml_staleness.py:52,94,137),
+      each line-number and assertion text confirmed against the live checkout, and a tree-wide
+      grep for hashes["charter"]["path"] / input_artifacts["charter"]["path"] finds exactly
+      these five sites with no sixth.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      §106 now lists both test files in its touched-file set and its closing sentence reads "No
+      other file is touched, beyond the six files named above" (no longer a flat, contradicting
+      claim), and SC-007's ruff/mypy file list now enumerates all six files including both test
+      files, matching §106 exactly.
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >
+      §106 now states definitively "commitlint.config.cjs is not touched by this mission" with
+      no "possibly" hedge, consistent with Grounding Correction 4 and C-004.

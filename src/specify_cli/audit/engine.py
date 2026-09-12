@@ -21,6 +21,7 @@ Determinism contract (D4):
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -86,7 +87,7 @@ def _resolve_mission_filter(
 
     resolved = resolve_mission(handle, repo_root)
     candidate = scan_root / resolved.mission_slug
-    if candidate.is_dir():
+    if safe_is_dir(candidate):
         return frozenset({candidate})
     # Candidate not found under scan_root (fixture-dir mismatch).
     return frozenset()
@@ -117,18 +118,35 @@ def _scan_missions(
         directory, in lexicographic order of directory name.  Each result's
         findings are sorted by ``(artifact_path, code)``.
     """
-    if not scan_root.exists():
-        return []
-
     try:
+        if not safe_is_dir(scan_root):
+            return []
         candidates = sorted(scan_root.iterdir(), key=lambda p: p.name)
     except OSError:
+        # This audit engine is read-only and best-effort: an unreadable
+        # ancestor of `scan_root` (or of `scan_root` itself) must not be
+        # silently reported as "no missions" via the EACCES-divergent
+        # `Path.exists()` (raises on 3.11-3.13, returns False on 3.14 — see
+        # `specify_cli.core.utils.safe_is_dir`), but it also should not crash
+        # the whole audit for a permission hiccup on one repo. Folding the
+        # `safe_is_dir` probe into the same `except OSError` this function
+        # already used for `iterdir()` failures keeps both failure sources on
+        # one fail-soft path instead of adding a second, differently-shaped one.
         return []
 
     results: list[MissionAuditResult] = []
 
     for candidate in candidates:
-        if not candidate.is_dir():
+        try:
+            is_mission_dir = safe_is_dir(candidate)
+        except OSError:
+            # Same fail-soft posture as the `scan_root` probe above: one
+            # unreadable candidate must not abort the audit for every other
+            # mission in the corpus, and must not silently swap "unreadable"
+            # for "not a directory" the way the bare `Path.is_dir()` this
+            # replaces did on 3.14 (see `safe_is_dir`'s docstring).
+            continue
+        if not is_mission_dir:
             continue
 
         if allowed_dirs is not None and candidate not in allowed_dirs:
@@ -277,6 +295,60 @@ def _compute_repo_findings_by_slug(
                 attributed.setdefault(state.slug, []).append(finding)
 
     return attributed
+
+
+def _merge_checkout_disagreements(
+    mission_results: list[MissionAuditResult],
+    resolved_root: Path,
+    invoking_cwd: Path,
+    allowed_dirs: frozenset[Path] | None,
+) -> None:
+    """Fold invoking-checkout-vs-primary disagreement into per-mission findings.
+
+    From a foreign lane worktree, reading only ``resolved_root`` (the
+    re-anchored primary) at both ends would report a false green even when
+    the invoking checkout's own mission state disagrees with it.
+    ``audit_invocation_disagreement`` (``migration.mission_state``'s
+    ``--audit`` counterpart of ``enforce_primary_write_ownership``'s
+    ``--fix`` refusal) is itself a no-op unless ``invoking_cwd`` really is a
+    linked worktree of ``resolved_root``, so calling it from an owner
+    invocation (the common case) never adds a finding.
+
+    ``allowed_dirs`` is the already-resolved ``--mission`` scoping from
+    :func:`_resolve_mission_filter` (a slug-named directory, or ``None`` for
+    "scan everything") — never the raw ``--mission`` handle, which may be a
+    ``mission_id``/``mid8`` that would never string-match a directory slug in
+    ``_compare_checkout_mission_state``.
+    """
+    from specify_cli.migration.mission_state import audit_invocation_disagreement
+
+    from .models import Severity
+
+    mission_slug = next(iter(allowed_dirs)).name if allowed_dirs else None
+    disagreements = audit_invocation_disagreement(
+        invoking_cwd, resolved_root, mission=mission_slug
+    )
+    if not disagreements:
+        return
+
+    by_slug = {r.mission_slug: r for r in mission_results}
+    for disagreement in disagreements:
+        result = by_slug.get(disagreement.mission_slug)
+        if result is None:
+            continue
+        result.findings.append(
+            MissionFinding(
+                code="CHECKOUT_DISAGREEMENT",
+                severity=Severity.ERROR,
+                artifact_path=disagreement.artifact,
+                detail=(
+                    f"{disagreement.artifact} disagrees with primary "
+                    f"(invoking sha256 {disagreement.invoking_sha256 or 'missing'}, "
+                    f"primary sha256 {disagreement.primary_sha256 or 'missing'})"
+                ),
+            )
+        )
+        result.findings.sort(key=lambda f: (f.artifact_path, f.code))
 
 
 def _slug_to_finding_severity(code: str) -> Any:
@@ -452,6 +524,13 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
             if slug in by_slug:
                 by_slug[slug].findings.extend(findings)
                 by_slug[slug].findings.sort(key=lambda f: (f.artifact_path, f.code))
+
+    # Invoking-checkout-vs-primary disagreement (no-op unless invoking_cwd
+    # is set and really is a linked worktree of repo_root).
+    if options.invoking_cwd is not None:
+        _merge_checkout_disagreements(
+            mission_results, options.repo_root, options.invoking_cwd, allowed_dirs
+        )
 
     # Build and return the final report
     return _build_report(mission_results)

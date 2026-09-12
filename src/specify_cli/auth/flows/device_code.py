@@ -24,17 +24,19 @@ refresh-token expiry directly from the server response — it never hardcodes a
 TTL and never computes the expiry locally. The ``_resolve_refresh_expiry``
 helper mirrors the one in :class:`AuthorizationCodeFlow` exactly.
 
-Per D-5 the SaaS base URL is never hardcoded here; callers must pass it in via
-the constructor, typically from
-:func:`specify_cli.auth.config.get_saas_base_url`.
+Per D-5 (revised #3980) the SaaS base URL is resolved, never hardcoded here:
+callers pass it in via the constructor, typically from
+:func:`specify_cli.auth.config.get_saas_base_url` (env override or the
+packaged default).
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, UTC
 from typing import Any, cast
+
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 
 import httpx
 
@@ -81,9 +83,8 @@ class DeviceCodeFlow:
         Args:
             saas_base_url: Base URL of the spec-kitty SaaS (no trailing slash).
                 When ``None``, the flow calls
-                :func:`specify_cli.auth.config.get_saas_base_url` itself, so
-                operators must set ``SPEC_KITTY_SAAS_URL`` in the environment
-                (per D-5, no hardcoded URL exists anywhere in the CLI).
+                :func:`specify_cli.auth.config.get_saas_base_url` itself
+                (env override or the packaged default, #3980).
                 Callers that already have the URL in hand (such as
                 ``_auth_login.py``) pass it in directly to avoid two env-var
                 reads per login.
@@ -201,10 +202,19 @@ class DeviceCodeFlow:
         (400) responses are JSON bodies; the poller distinguishes them via
         the presence of the ``error`` key.
 
+        An HTTP 429 is the server asking the client to slow down expressed
+        at the HTTP layer rather than in an OAuth error body (there is no
+        RFC 8628 status for this). It is translated to the same
+        ``{"error": "slow_down"}`` shape the poller already handles, so a
+        rate limit feeds the poller's existing backoff instead of aborting
+        the flow. A ``Retry-After`` header, if present, is passed through as
+        a hint; the poller still enforces its own interval ceiling (FR-018).
+
         Raises:
             NetworkError: On httpx transport errors, so the poller can log
                 and retry on the next tick.
-            AuthenticationError: On unexpected HTTP status codes (not 200/400).
+            AuthenticationError: On unexpected HTTP status codes (not
+                200/400/429).
         """
         url = f"{self._saas_base_url}/oauth/token"
         data = {
@@ -230,6 +240,12 @@ class DeviceCodeFlow:
                 raise AuthenticationError(
                     f"Token poll response was not JSON: {exc}"
                 ) from exc
+
+        if response.status_code == 429:
+            return {
+                "error": "slow_down",
+                "retry_after": _parse_retry_after(response.headers),
+            }
 
         raise AuthenticationError(
             f"Unexpected response from /oauth/token: HTTP {response.status_code}"
@@ -284,7 +300,7 @@ class DeviceCodeFlow:
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
@@ -310,6 +326,7 @@ class DeviceCodeFlow:
             storage_backend=self._storage_backend,
             last_used_at=now,
             auth_method="device_code",
+            issuer_url=self._saas_base_url,
         )
 
     @staticmethod
@@ -352,6 +369,23 @@ class DeviceCodeFlow:
         return None
 
 
+def _parse_retry_after(headers: httpx.Headers) -> int | None:
+    """Parse a ``Retry-After`` header as whole seconds, if present and valid.
+
+    RFC 7231 §7.1.3 also allows an HTTP-date form; we only support the
+    delay-seconds form here since that is what a rate limiter on a
+    short-lived polling endpoint would send. An unparseable or missing
+    header yields ``None`` and the poller falls back to its flat backoff.
+    """
+    value = headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 def _parse_iso_utc(value: str) -> datetime:
     """Parse an ISO-8601 UTC timestamp, accepting the ``Z`` suffix.
 
@@ -360,4 +394,4 @@ def _parse_iso_utc(value: str) -> datetime:
     remain independently owned by different WPs.
     """
     normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
-    return datetime.fromisoformat(normalized)
+    return parse_iso(normalized)

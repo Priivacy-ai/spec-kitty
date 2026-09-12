@@ -1,0 +1,67 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: final-reduction-verify
+results:
+  - id: BEHAVIORAL-PRESERVATION
+    status: resolved
+    reason: >-
+      git diff bf98fdaeb..aababbdfb confirms FR-006 still requires deriving required
+      fields from the mission type's OWN resolved plan template and still explicitly
+      rejects the mission_type != "software-dev" name-based guard. The primary-plus-peer
+      AND/OR combination rule is retained verbatim as behavioral content. NFR-005's
+      non-vacuity requirement (every type, including custom ones, must be able to both
+      pass and fail, no structural exemption, no neutral pass) is intact. User Story 3's
+      Acceptance Scenarios (now 1-8) cover software-dev, documentation, research, and
+      plan, each with an explicit pass outcome (faithful plan.md -> True) and fail outcome
+      (unfilled scaffold -> False) — AC5 was split into AC7 (research) and AC8 (plan),
+      actually making the fail-case coverage more explicit than before rather than losing
+      it. FR-007 (call-site routing) was folded into FR-006's closing sentence
+      ("every call site ... must route through this same check") rather than dropped, and
+      the corrected-scope statement (#3832 as filed understates its own scope) is present
+      unchanged at line 142.
+  - id: NO-MECHANISM-PRESCRIPTION
+    status: resolved
+    reason: >-
+      Grepped FR-006, FR-008, NFR-003/004/005, Decision 3, and Edge Cases: no occurrence
+      of "table-row detector", "_has_substantive_fr_row" as a prescribed mechanism,
+      "parameterized heading", "nested-heading-scan", or "bold-field-peer-scan" as
+      forward-looking design language remains. Decision 3's "Detection mechanism" note is
+      now the one-line pointer required by the ruling. The single surviving line-range
+      citation is Deferred-to-Plan-Phase item #2 (`_substantive.py:158-195`), which is the
+      one citation the ruling requires kept; re-read the function directly and confirmed
+      the range is exact (def at line 158, closing `return False` at line 195) and that it
+      hardcodes both the `## Technical Context` heading (re.search literal) and the
+      `**Language/Version**` primary-field label (a second, independent re.search that
+      returns False before any peer scan) — the ruling's stated fact is accurate.
+      Remaining references to `_has_substantive_technical_context` in FR-006/NFR-003 cite
+      its EXISTING behavior as the analogy for the primary-plus-peer rule, not an
+      instruction to generalize its implementation, which is the distinction the ruling
+      draws.
+  - id: DEFERRED-LIST-GENUINE
+    status: resolved
+    reason: >-
+      A "### Deferred to Plan Phase" section exists (spec.md ~line 163) with exactly the
+      5 named open questions from the ruling: template-section designation, primary-field-
+      label sourcing per type (with the required dual-hardcode citation), per-shape
+      detection, placeholder-vocabulary coverage for research/plan, and call-site routing
+      in mission_setup_plan.py. None is answered elsewhere in the spec — FR-006, NFR-004,
+      and NFR-005 each end with a pointer back to this section rather than restating an
+      answer, and the old per-field shape enumeration (table-row detector for Problem
+      Decomposition/Sequencing, bold-field-scan generalization for Scope-MoSCoW,
+      nested-heading-scan for Decisions) was deleted, not relocated under a new label.
+  - id: SETTLED-MATERIAL-UNTOUCHED
+    status: resolved
+    reason: >-
+      git diff bf98fdaeb..aababbdfb touches only 6 hunks, all inside User Story 3 ACs,
+      Edge Cases' research/plan question, the FR table (FR-006/007/008), the NFR table
+      (NFR-003/004/005), two single-line consequential edits to C-004/C-006 (removing now-
+      dangling "FR-007"/"FR-006-FR-008" references after FR-007's merge into FR-006), and
+      the Decision 3 detection-mechanism paragraph plus the new Deferred-to-Plan-Phase
+      section. Decision 1's core (name-based guard rejected), Decision 2 (#3831 go/split
+      checkpoint), the four-mission-type Technical Context template table, and the
+      corrected-scope statement are byte-for-byte outside every diff hunk. The companion
+      tracer-design-decisions.md change is purely additive (a new log entry recording the
+      reduction and ruling #1's admitted error) and does not alter any prior decision
+      entry.
+overall_verdict: pass

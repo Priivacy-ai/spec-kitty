@@ -18,8 +18,13 @@ import pytest
 pytestmark = pytest.mark.upgrade
 from ruamel.yaml import YAML
 
-from charter.drg import DRGGraph, DRGNode, NodeKind, filter_graph_by_activation
-from charter.pack_context import PackContext
+from charter.drg import (
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+)
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from specify_cli.upgrade.migrations import m_3_2_0rc35_default_charter_pack
 from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
     DefaultCharterPackMigration,
@@ -145,7 +150,11 @@ def test_apply_writes_activation_kinds_that_keep_builtin_nodes_visible(
         generated_by="test",
         nodes=[
             DRGNode(
-                urn="directive:001-architectural-integrity-standard",
+                # Canonical directive URN form is ``directive:DIRECTIVE_NNN`` —
+                # config stems (``001-architectural-integrity-standard``) resolve
+                # to it via ``resolve_artifact_urn``. The activation filter
+                # compares on the canonical node URN, never the config slug.
+                urn="directive:DIRECTIVE_001",
                 kind=NodeKind.DIRECTIVE,
             )
         ],
@@ -153,9 +162,7 @@ def test_apply_writes_activation_kinds_that_keep_builtin_nodes_visible(
     )
 
     filtered = filter_graph_by_activation(graph, ctx)
-    assert [node.urn for node in filtered.nodes] == [
-        "directive:001-architectural-integrity-standard"
-    ]
+    assert [node.urn for node in filtered.nodes] == ["directive:DIRECTIVE_001"]
 
 
 @pytest.mark.fast
@@ -226,6 +233,62 @@ def test_apply_creates_backup_when_charter_md_exists(tmp_path: Path) -> None:
         f"Expected exactly one backup file, found: {backup_files}"
     )
     assert Path(backup_files[0]).read_text(encoding="utf-8") == "# My Charter"
+
+
+@pytest.mark.fast
+def test_apply_backup_filename_timestamp_is_utc_not_local(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-011 (kernel-clock-single-door, WP13c): the backup filename's
+    timestamp suffix is derived from the door's aware-UTC ``now_utc()``, not
+    a naive local-time ``datetime.now()``.
+
+    Byte-changing: the pre-migration site called naive ``datetime.now()``
+    (interpreted in the host's local timezone); it now reads
+    ``format_stamp(now_utc(), "%Y-%m-%dT%H-%M-%S")``. Under a frozen clock,
+    this test pins the EXACT backup filename to the UTC-derived value.
+
+    C-009 mutation verified: reverting the site to
+    ``datetime.now().strftime(...)`` (local time) would produce a different
+    filename whenever the test runner's local timezone differs from UTC --
+    this assertion, pinned against a fixed frozen instant, fails under that
+    reversion in any non-UTC timezone.
+    """
+    import kernel.clock as clock_module
+    from kernel.clock import UTC, FrozenClock, datetime
+
+    frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    config = kittify / "config.yaml"
+    config.write_text("agents:\n  available: []\n", encoding="utf-8")
+
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir()
+    charter_md = charter_dir / "charter.md"
+    charter_md.write_text("# My Charter", encoding="utf-8")
+
+    fixture_pack = tmp_path / "fixture_default.yaml"
+    fixture_data = {key: [] for key in _PER_KIND_KEYS}
+    fixture_data["activated_kinds"] = []
+    fixture_data["mission_type_activations"] = ["software-dev"]
+    dump_yaml = YAML()
+    with fixture_pack.open("w", encoding="utf-8") as fh:
+        dump_yaml.dump(fixture_data, fh)
+
+    m = DefaultCharterPackMigration()
+    with patch.object(m_3_2_0rc35_default_charter_pack, "_DEFAULT_YAML_PATH", fixture_pack):
+        result = m.apply(tmp_path)
+
+    assert result.success is True
+
+    expected_backup = charter_dir / "backups" / "charter-2026-03-04T05-06-07.md"
+    assert expected_backup.exists(), (
+        f"Expected backup at {expected_backup}, found: "
+        f"{glob.glob(str(charter_dir / 'backups' / 'charter-*.md'))}"
+    )
 
 
 @pytest.mark.fast

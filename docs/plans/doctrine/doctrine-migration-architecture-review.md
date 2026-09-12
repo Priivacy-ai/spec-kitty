@@ -1,10 +1,12 @@
 ---
 title: 'Doctrine Migration: Architecture Alignment Review'
 description: 'Architecture-alignment review of the doctrine migration: how the migration fits the target architecture and the open concerns, in a field-table record.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-04-04'
 ---
 # Doctrine Migration: Architecture Alignment Review
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 | Field | Value |
 |---|---|

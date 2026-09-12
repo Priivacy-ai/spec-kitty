@@ -12,7 +12,7 @@ related:
 
 Spec Kitty currently exposes **16 agent surfaces**: 12 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
 
-Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local Agent Skills under `.agents/skills/spec-kitty.<command>/`.
+Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local agent skills under `.agents/skills/spec-kitty.<command>/`.
 
 ---
 
@@ -57,9 +57,9 @@ To manage which agents are active in your project:
 - **Add agents**: `spec-kitty agent config add <agents>`
 - **Remove agents**: `spec-kitty agent config remove <agents>`
 
-See [Managing AI Agents](../guides/manage-agents.md) for complete documentation on agent management workflows.
+See [Managing AI Agents](../guides/how-to/collaboration/manage-agents.md) for complete documentation on agent management workflows.
 
-For per-harness usage guides, see [Codex](../guides/harnesses/codex.md), [Pi TUI](../guides/harnesses/pi-tui.md), and [Letta Code](../guides/harnesses/letta.md).
+For per-harness usage guides, see [Codex](../guides/how-to/harnesses/codex.md), [Pi TUI](../guides/how-to/harnesses/pi-tui.md), and [Letta Code](../guides/how-to/harnesses/letta.md).
 
 ---
 
@@ -201,7 +201,7 @@ spec-kitty init my-project --ai windsurf
 | CLI flag | `--ai codex` |
 | Status | Supported |
 
-Codex uses project-local Agent Skills. Spec Kitty installs one `SKILL.md`
+Codex uses project-local agent skills. Spec Kitty installs one `SKILL.md`
 package per command under `.agents/skills/spec-kitty.<command>/`.
 
 **Usage**:
@@ -389,7 +389,7 @@ Command-skill hosts use the same Spec Kitty workflow commands but expose them th
 
 **Kiro / Amazon Q**: Slash-command arguments only pass through when the full invocation is shell-quoted (e.g. `kiro '@speckit.specify <description>'`). Without quoting, the trailing text is not forwarded to `$ARGUMENTS`. See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141).
 
-**Codex**: Confirm project-local Agent Skills exist:
+**Codex**: Confirm project-local agent skills exist:
 ```bash
 ls .agents/skills/spec-kitty.specify/SKILL.md
 spec-kitty agent config sync
@@ -402,16 +402,16 @@ spec-kitty agent config sync
 - [Slash Commands](slash-commands.md) — Complete command reference
 - [Supported Harnesses](supported-harnesses.md) — Support matrix for every agent surface
 - [CLI Commands](cli-commands.md) — `spec-kitty` command reference
-- [Install & Upgrade](../guides/install-spec-kitty.md) — Installation guide
+- [Install & Upgrade](../guides/how-to/installation/install-spec-kitty.md) — Installation guide
 
 ## Getting Started
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Use the Dashboard](../guides/use-dashboard.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Background
 

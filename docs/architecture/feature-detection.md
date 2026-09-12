@@ -2,7 +2,7 @@
 title: 'Architecture: Centralized Feature Detection'
 description: Architecture of centralized feature detection (v0.14.0), partly superseded by mission 083's canonical mission_id identity model; kept as the prior-design record.
 doc_status: active
-updated: '2026-04-12'
+updated: '2026-09-08'
 related:
 - docs/migrations/mission-id-canonical-identity.md
 ---
@@ -357,9 +357,12 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 
 ## References
 
-- **Implementation**: `src/specify_cli/core/feature_detection.py`
-- **Unit Tests**: `tests/specify_cli/core/test_feature_detection.py`
-- **Integration Tests**: `tests/specify_cli/test_feature_detection_integration.py`
+This page is the prior-design record of v0.14.0's centralized feature detection. The runtime
+module and its test files (`src/specify_cli/core/feature_detection.py`,
+`tests/specify_cli/core/test_feature_detection.py`,
+`tests/specify_cli/test_feature_detection_integration.py`) were removed in the Canonical
+Context Architecture Cleanup (#347); the surfaces that survive today are:
+
 - **Migration**: `src/specify_cli/upgrade/migrations/m_0_14_0_centralized_feature_detection.py`
 - **Original Issue**: #025-cli-event-log-integration (Feature 025, WP01)
 

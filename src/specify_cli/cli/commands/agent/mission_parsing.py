@@ -13,7 +13,6 @@ INV-8: imports lower layers only (``core``, ``status``, ``requirement_mapping``,
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
 from pathlib import Path
 
@@ -22,8 +21,11 @@ from specify_cli.cli.console import console
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.ownership.models import WorkProductKind
+from specify_cli.ownership.validation import _PLANNING_PREFIXES
 from specify_cli.status import WPMetadata
-from specify_cli.task_utils import TIMESTAMP_FORMAT
+from kernel.clock import now_utc_stamp
+from kernel.paths import to_posix
 
 
 
@@ -137,6 +139,20 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
     return parse_requirement_ids_from_spec_md(spec_content)
 
 
+def _find_undeclared_requirement_citations(spec_content: str) -> list[str]:
+    """#3394 review F1: soft, non-blocking diagnostic for the declared-shape-miss case.
+
+    Returns human-readable warning message(s) when spec.md contains raw
+    FR-/NFR-/C-NNN-shaped tokens that matched none of the four recognized
+    declared shapes (see ``requirement_mapping._declared_ids``) -- empty when
+    there is nothing to warn about. Never raises, never blocks; callers
+    surface the result as a console warning + a JSON field, not a gate.
+    """
+    from specify_cli.requirement_mapping import find_undeclared_requirement_citations
+
+    return find_undeclared_requirement_citations(spec_content)
+
+
 # ---------------------------------------------------------------------------
 # Owned-files validators
 # ---------------------------------------------------------------------------
@@ -144,7 +160,7 @@ def _parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str
 
 def _normalize_owned_file_path(path: str) -> str:
     """Normalize a WP owned_files entry for repository-relative validation."""
-    normalized = path.strip().replace("\\", "/")
+    normalized = to_posix(path.strip())
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return normalized
@@ -203,12 +219,51 @@ def _raw_frontmatter_has_field(wp_raw_content: str, field_name: str) -> bool:
     )
 
 
+def _is_confined_planning_wp(metadata: WPMetadata) -> bool:
+    """Return True when a WP is a ``planning_artifact`` confined to planning surfaces.
+
+    The kitty-specs owned-files ban is lifted for such a WP (#3222 / #2643): a
+    planning checkpoint whose only deliverables live under ``kitty-specs/``/``docs/``
+    routes to the repo-root planning lane and may legitimately own its mission-specs
+    artifacts. The exemption is granted **iff both**:
+
+    1. ``execution_mode`` equals :data:`WorkProductKind.PLANNING_ARTIFACT` — compared
+       against the enum ``.value`` (a normalized string compare) rather than relying
+       on incidental ``StrEnum`` equality, so an unset/``None`` mode is never exempt.
+    2. **Every** ``owned_files`` entry, normalized via
+       :func:`_normalize_owned_file_path`, is under a prefix in
+       :data:`_PLANNING_PREFIXES` (imported from ``ownership.validation`` — the single
+       authority, not re-derived here).
+
+    Condition 2 is the confinement guard (FR-004): a ``planning_artifact`` WP that
+    also owns ``src/``/``tests/`` (or any other non-planning path) is **not** exempted,
+    so mislabeling cannot become a backdoor to owning code on the planning lane. The
+    check normalizes each entry first so confinement is symmetric with the ban
+    predicate ``_is_mission_specs_owned_file``, which also matches on the normalized
+    path (a ``./kitty-specs/…`` entry trips the ban yet must still count as confined).
+    """
+    if str(metadata.execution_mode) != WorkProductKind.PLANNING_ARTIFACT.value:
+        return False
+    return all(
+        _normalize_owned_file_path(owned_file).startswith(_PLANNING_PREFIXES)
+        for owned_file in metadata.owned_files
+    )
+
+
 def _invalid_mission_specs_owned_files(
     frontmatter_by_wp: dict[str, WPMetadata],
 ) -> list[dict[str, str]]:
-    """Return structured invalid owned_files entries for finalize-tasks errors."""
+    """Return structured invalid owned_files entries for finalize-tasks errors.
+
+    A ``planning_artifact`` WP confined to planning surfaces is exempt from the
+    kitty-specs ban (see :func:`_is_confined_planning_wp`); every other WP —
+    including a ``code_change`` WP and a mislabeled planning WP that also owns a
+    non-planning path — stays fail-closed (INV-1).
+    """
     invalid: list[dict[str, str]] = []
     for wp_id, metadata in sorted(frontmatter_by_wp.items()):
+        if _is_confined_planning_wp(metadata):
+            continue
         for owned_file in metadata.owned_files:
             if _is_mission_specs_owned_file(owned_file):
                 invalid.append({"wp_id": wp_id, "path": owned_file})
@@ -257,10 +312,11 @@ def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
 def _utc_now_iso() -> str:
     """Return deterministic UTC timestamp string for prompt/runtime variables.
 
-    Uses the shared ``TIMESTAMP_FORMAT`` stamp constant (SAFE Sonar campsite
-    fold, mission-resolver-port-01KX1C05 T026) rather than a hardcoded
-    literal. Serialized output is byte-identical to before (NFR-004): this
-    is the same ``%Y-%m-%dT%H:%M:%SZ`` format `task_utils.support.now_utc`
-    already uses.
+    Delegates to the door's ``now_utc_stamp()`` (kernel-clock-single-door
+    WP12, FR-010) rather than reading the wall clock directly. Serialized
+    output is byte-identical to before (NFR-004): ``now_utc_stamp()`` is
+    defined as exactly ``DEFAULT_CLOCK.now().strftime(
+    UTC_SECOND_TIMESTAMP_FORMAT)`` -- the same ``%Y-%m-%dT%H:%M:%SZ`` format
+    `task_utils.support.now_utc` also delegates to.
     """
-    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    return now_utc_stamp()

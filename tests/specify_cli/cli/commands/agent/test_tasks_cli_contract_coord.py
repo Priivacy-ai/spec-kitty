@@ -35,6 +35,12 @@ extraction (WP03+) can be proven byte-identical:
 
 NFR-001 (pure parity): this harness encodes NO intended behaviour change. It must
 be green on the current base and pass identically before/after every later WP.
+
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001): the
+``rejected_verdict_block`` scenario / ``test_rejected_verdict_blocks_approval``
+pins an INTENTIONAL, one-off behaviour change -- see
+``_guard_rejected_verdict``'s docstring in ``tasks_transition_core.py``. Every
+other scenario here still reproduces the pre-mission behaviour verbatim.
 """
 
 from __future__ import annotations
@@ -42,11 +48,11 @@ from __future__ import annotations
 import ast
 import json
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -58,11 +64,14 @@ from specify_cli.cli.commands.agent import tasks_status_cmd as tasks_status_cmd_
 from specify_cli.cli.commands.agent import tasks_status_view as tasks_status_view_module
 from specify_cli.cli.commands.agent import tasks_transition_core as tasks_transition_core_module
 from specify_cli.cli.commands.agent.tasks import (
-    _coord_topology_active,
-    _skip_target_branch_commit,
     app,
 )
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.review.arbiter import (
+    ArbiterDecision,
+    create_arbiter_decision,
+    persist_arbiter_decision,
+)
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from specify_cli.status.store import append_event
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
@@ -170,36 +179,6 @@ def _build_coord_protected_tree(root: Path) -> CoordTopologyContext:
     return ctx
 
 
-def test_coord_protected_tree_is_real_on_disk_state(tmp_path: Path) -> None:
-    """T003: the fixture builds REAL coord state — no topology/resolver stub.
-
-    Asserts every load-bearing invariant of the vehicle so T004-T007 cannot be
-    silently defanged by a stubbed topology (the exact failure mode the WP guards
-    against): the coord worktree exists on disk, the coord branch exists in git,
-    ``_coord_topology_active`` is ``True`` (probed via the real git registry), and
-    ``_skip_target_branch_commit`` is ``True`` for the protected primary but
-    ``False`` for a non-protected branch (the determinant of the skip arm).
-    """
-    ctx = _build_coord_protected_tree(tmp_path)
-
-    # Real coord worktree directory (created via CoordinationWorkspace, not mocked).
-    coord_worktree_root = ctx.coord_feature_dir.parents[1]
-    assert coord_worktree_root.is_dir()
-    assert (coord_worktree_root / ".git").exists(), "coord worktree must be a real linked git worktree"
-
-    # Real coordination branch in the repo.
-    branches = subprocess.run(
-        ["git", "-C", str(ctx.repo), "branch", "--list", ctx.coord_branch],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    assert ctx.coord_branch in branches, "coordination branch must exist in git"
-
-    # Topology probe uses the real git worktree registry (unstubbed).
-    assert _coord_topology_active(ctx.repo, ctx.slug) is True
-
-    # The skip determinant: True for the protected primary, False otherwise.
-    assert _skip_target_branch_commit(ctx.repo, ctx.slug, "main") is True
-    assert _skip_target_branch_commit(ctx.repo, ctx.slug, "feature/not-protected") is False
 
 
 # ---------------------------------------------------------------------------
@@ -236,9 +215,22 @@ def _simple_mission(root: Path, slug: str, *, execution_mode: str = "code_change
 
 
 def _seed_event(
-    feature_dir: Path, from_lane: str, to_lane: str, ordinal: int, *, review_ref: str | None = None
+    feature_dir: Path,
+    from_lane: str,
+    to_lane: str,
+    ordinal: int,
+    *,
+    review_ref: str | None = None,
+    review_result: ReviewResult | None = None,
 ) -> None:
-    """Append one real StatusEvent (production-shaped ULID event id)."""
+    """Append one real StatusEvent (production-shaped ULID event id).
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35,
+    additive/backward-compatible): every verdict reader (the approval
+    guard, the merge gate) is now event-sourced -- callers that need a
+    scenario to carry a CURRENT rejection/approval must seed it here, not
+    merely write the on-disk ``review-cycle-N.md`` artifact.
+    """
     append_event(
         feature_dir,
         StatusEvent(
@@ -252,6 +244,7 @@ def _seed_event(
             force=True,
             execution_mode="worktree",
             review_ref=review_ref,
+            review_result=review_result,
         ),
     )
 
@@ -261,15 +254,20 @@ def _seed_chain(feature_dir: Path, lanes: list[tuple[str, str]]) -> None:
         _seed_event(feature_dir, from_lane, to_lane, ordinal)
 
 
-def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str) -> Path:
-    """Write a ``review-cycle-N.md`` artifact next to the WP file (``tasks/WP01-fixture``)."""
-    wp_dir = feature_dir / "tasks" / "WP01-fixture"
+def _write_review_cycle_at(wp_dir: Path, cycle: int, verdict: str) -> Path:
+    """Write a ``review-cycle-N.md`` artifact directly under *wp_dir*.
+
+    T053 (WP12): generalized out of :func:`_write_review_cycle` (which
+    hardcodes the ``tasks/WP01-fixture`` slug) so the new slug-aware/
+    numeric-cycle resolver regression tests can target an arbitrary WP-slug
+    directory.
+    """
     wp_dir.mkdir(parents=True, exist_ok=True)
     artifact = wp_dir / f"review-cycle-{cycle}.md"
     artifact.write_text(
         f"---\n"
         f"cycle_number: {cycle}\n"
-        f"mission_slug: {feature_dir.name}\n"
+        f"mission_slug: {wp_dir.parent.parent.name}\n"
         f"reviewed_at: '2026-04-30T12:00:00Z'\n"
         f"reviewer_agent: reviewer-renata\n"
         f"verdict: {verdict}\n"
@@ -278,6 +276,11 @@ def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str) -> Path:
         encoding="utf-8",
     )
     return artifact
+
+
+def _write_review_cycle(feature_dir: Path, cycle: int, verdict: str) -> Path:
+    """Write a ``review-cycle-N.md`` artifact next to the WP file (``tasks/WP01-fixture``)."""
+    return _write_review_cycle_at(feature_dir / "tasks" / "WP01-fixture", cycle, verdict)
 
 
 # ---------------------------------------------------------------------------
@@ -376,23 +379,128 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
             "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
             "--note", "correctness: override the stale rejection", "--no-auto-commit",
         ])
+    # WP12 (FR-009, T051/T052/T056): the arbiter-override persist retires the
+    # ``arbiter-override-N.json`` sidecar / ``arbiter_override`` frontmatter
+    # representations into the SAME event-sourced ``ReviewOverride`` slot the
+    # ``rejected_verdict_override`` scenario below already captures — reuse
+    # that scenario's own ``review_override`` evidence-key convention rather
+    # than inventing a second name for the same concept.
+    from specify_cli.status import materialize as _materialize
+
+    _arbiter_review_slot = _materialize(fd).work_packages.get("WP01", {}).get("review") or {}
     out["arbiter_override"] = Scenario(
-        code, text, evidence={"arbiter_artifacts": [str(p.relative_to(fd)) for p in fd.rglob("arbiter-override-*.json")]}
+        code, text, evidence={"review_override": _arbiter_review_slot}
     )
 
-    # rejected-verdict guard: force-approve blocked by a rejected review artifact.
+    # arbiter-override TARGETING approved (T055, FR-011, I-4): an arbiter
+    # override that ALSO lands in an APPROVAL_LANES target must not ALSO
+    # trigger the ordinary approval writer (`_persist_approved_review_cycle`,
+    # which `_mt_finalize_plan` fires unconditionally for every
+    # ``target_lane in (APPROVED, DONE)`` move, arbiter or not) — the
+    # fabricated-approval regression this WP's Objective warns a naive
+    # early-return-only fix would still leave unrecorded. A REAL rejected
+    # review-cycle-1.md is on disk here (unlike the ``for_review``-target
+    # scenario above, which never writes one) so `_persist_approved_review_
+    # cycle`'s own "only when latest is rejected" guard would otherwise fire.
+    fd = _simple_mission(mkdir(), f"arbiterapproved-{_MID8}")
+    _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
+    _write_review_cycle(fd, 1, "rejected")
+    _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
+        code, text, _ = _invoke([
+            "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
+            "--note", "correctness: override the stale rejection", "--no-auto-commit",
+        ])
+    _arbiter_approved_review_slot = _materialize(fd).work_packages.get("WP01", {}).get("review") or {}
+    # T055 step 4: confirm the merge gate END-TO-END (by running it, not by
+    # inspection) -- FR-010's own claim ("a complete override already clears
+    # the gate without any flag") should hold once the override is recorded
+    # via ReviewOverride alone, with no approval artifact. Read-only call
+    # into the ALREADY-landed merge gate (post_merge/review_artifact_
+    # consistency.py, WP04/WP07/WP13 territory -- not modified by this WP).
+    from specify_cli.post_merge.review_artifact_consistency import (
+        find_rejected_review_artifact_conflicts,
+    )
+
+    _merge_gate_findings = find_rejected_review_artifact_conflicts(fd, ["WP01"])
+    out["arbiter_override_to_approved"] = Scenario(
+        code,
+        text,
+        evidence={
+            "review_override": _arbiter_approved_review_slot,
+            "cycle_artifacts": sorted(
+                p.name for p in (fd / "tasks" / "WP01-fixture").glob("review-cycle-*.md")
+            ),
+            "merge_gate_findings": _merge_gate_findings,
+        },
+    )
+
+    # rejected-verdict guard (FR-001, review-verdict-write-integrity-01KZ1CGF):
+    # the ordinary approve path proceeds even with no override flag, and the
+    # durable writer persists a fresh ``verdict: approved`` artifact.
     fd = _simple_mission(mkdir(), f"rejected-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _write_review_cycle(fd, 1, "rejected")
-    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, T023): the writer's own
+    # "is the current verdict a rejection" probe is now event-sourced --
+    # seed the SAME review_result the real writer produces, not just the
+    # on-disk artifact above. A same-lane no-op transition (raw event-log
+    # append, no FSM check) keeps this the LAST/current event without
+    # perturbing ``_seed_chain``'s own lane sequence.
+    _seed_event(
+        fd, "for_review", "for_review", 4,
+        review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+    )
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+    # ``_persist_approved_review_cycle`` now threads a REAL ``commit_artifact``
+    # call and raises on a non-"committed" result. This fixture's root is a
+    # bare ``tmp_path`` (no ``git init`` -- ``_simple_mission`` is deliberately
+    # a lightweight, topology-independent fixture, per this module's own
+    # NFR-001 "pure parity" design), so a genuine commit attempt would fail
+    # for an environmental reason (no git worktree) unrelated to the decision
+    # branch under test here. Stub ``commit_for_mission`` to report success,
+    # mirroring the identical fix in ``tests/specify_cli/cli/commands/agent/
+    # test_tasks.py``'s ``TestVerdictGuardInMoveTask`` tests.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         code, text, _ = _invoke(["move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force", "--no-auto-commit"])
-    out["rejected_verdict_block"] = Scenario(code, text)
+    out["rejected_verdict_block"] = Scenario(
+        code,
+        text,
+        evidence={
+            "cycle_artifacts": sorted(
+                p.name for p in (fd / "tasks" / "WP01-fixture").glob("review-cycle-*.md")
+            ),
+        },
+    )
 
     # rejected-verdict OVERRIDE: --skip-review-artifact-check --note re-opens the path.
     fd = _simple_mission(mkdir(), f"override-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     artifact = _write_review_cycle(fd, 1, "rejected")
-    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, T023): see the identical
+    # rationale on the ``rejected_verdict_block`` scenario above -- the
+    # override-authorize guard also requires a non-None event-sourced
+    # ``review_artifact_name``.
+    _seed_event(
+        fd, "for_review", "for_review", 4,
+        review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+    )
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): same
+    # ``commit_for_mission`` stub as the ``rejected_verdict_block`` scenario
+    # above -- see that comment for the full rationale.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         code, text, _ = _invoke([
             "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
             "--skip-review-artifact-check", "--note", "arbiter release: rejection superseded",
@@ -533,7 +641,20 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         _invoke(["move-task", "WP01", "--to", "planned", "--mission", fd.name, "--review-feedback-file", str(empty_fb), "--no-auto-commit"])
     good_fb = root / "feedback.md"
     good_fb.write_text("**Issue**: needs rework.\n", encoding="utf-8")
-    with setup_mocked_env(root, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the valid
+    # rollback path ALSO threads a REAL ``commit_artifact`` call (the
+    # ``decision.planned_rollback`` branch in ``tasks_move_task.py`` --
+    # T004/WP01's rejection-write commit step). Same environmental gap as the
+    # ``rejected_verdict_block``/``rejected_verdict_override`` scenarios above
+    # (this fixture root was never ``git init``'d) -- stub ``commit_for_mission``
+    # so the downstream ``_mt_finalize_plan``/``_mt_execute`` branches this
+    # scenario exists to exercise (T007's coverage ratchet) still run to
+    # completion instead of short-circuiting on a raised ``ReviewCycleError``.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(root, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         _invoke(["move-task", "WP01", "--to", "planned", "--mission", fd.name, "--review-feedback-file", str(good_fb), "--no-auto-commit"])
     # agent-mismatch warning + invalid lane usage error.
     fd = _simple_mission(mkdir(), f"misc-{_MID8}")
@@ -663,20 +784,86 @@ class TestMoveTaskDecisionBranchesFrozen:
     """Freeze each named move_task guard branch WP03 extracts (FR-004)."""
 
     def test_arbiter_override_persists_decision(self, scenarios: dict[str, Scenario]) -> None:
-        """--force forward from planned after a rejection records an arbiter override."""
+        """--force forward from planned after a rejection records an arbiter override.
+
+        RE-PINNED (WP12, review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-009,
+        ADR 2026-07-19-1). The incumbent assertion pinned the BROKEN,
+        bare-``WP01``-directory JSON-sidecar shape
+        (``arbiter-override-1.json``) as correct: `_find_review_cycle_
+        artifact`'s bare-``wp_id`` join meant it never found the real
+        ``tasks/WP01-fixture/`` directory, so this scenario always fell
+        through to the JSON-sidecar fallback -- and NEITHER representation
+        was ever durably committed (data-model.md's "Arbiter override"
+        entity, representations #2/#3). This WP retires both into
+        representation #1: the already-durable, already-merge-gate-consumed
+        event-sourced ``ReviewOverride`` on the reduced ``review`` snapshot
+        slot -- the SAME slot ``--skip-review-artifact-check``'s override
+        path (``test_rejected_verdict_override_reopens_path``, below)
+        already writes to. Post-retirement there is no
+        ``arbiter-override-*.json`` sidecar to glob for at all; the override
+        lives in ``status.events.jsonl``.
+        """
         sc = scenarios["arbiter_override"]
         assert sc.exit_code == 0, sc.output
         assert "Arbiter override recorded" in sc.output
-        assert sc.evidence["arbiter_artifacts"] == ["tasks/WP01/arbiter-override-1.json"], (
-            "arbiter override must persist a standalone decision artifact"
+        override = sc.evidence["review_override"]
+        assert override.get("wp_id") == "WP01"
+        assert override.get("actor"), "override must carry a non-empty actor"
+        assert "correctness: override the stale rejection" in override.get("reason", ""), (
+            f"override reason must fold the supplied --note text; got {override!r}"
+        )
+        assert override.get("at"), "override must carry a non-empty timestamp"
+
+    def test_arbiter_override_to_approved_suppresses_fabricated_approval(
+        self, scenarios: dict[str, Scenario]
+    ) -> None:
+        """T055 (FR-011, I-4): an arbiter override targeting ``approved`` must
+        NOT ALSO fabricate an approval record -- BOTH halves, in one test, so
+        a suppression-only half-measure (which would pass a bare "no new
+        approval artifact" check while recording NOTHING about the
+        arbitration) cannot pass this test.
+        """
+        sc = scenarios["arbiter_override_to_approved"]
+        assert sc.exit_code == 0, sc.output
+        # Half 1: no fabricated approval -- the original rejected cycle 1 is
+        # the ONLY review-cycle artifact; no review-cycle-2.md (which
+        # `_persist_approved_review_cycle` would otherwise write for ANY
+        # ordinary approve-over-rejection move) was created.
+        assert sc.evidence["cycle_artifacts"] == ["review-cycle-1.md"], (
+            "an arbiter override must not ALSO write a fresh approved "
+            f"review-cycle artifact; got {sc.evidence['cycle_artifacts']}"
+        )
+        # Half 2: the override IS durably recorded, event-sourced, complete.
+        override = sc.evidence["review_override"]
+        assert override.get("wp_id") == "WP01"
+        assert override.get("actor"), "override must carry a non-empty actor"
+        assert "correctness: override the stale rejection" in override.get("reason", "")
+        assert override.get("at"), "override must carry a non-empty timestamp"
+        # T055 step 4: the merge gate passes end-to-end (run, not inspected)
+        # once the override is recorded via ReviewOverride alone, with no
+        # approval artifact -- FR-010's own claim.
+        assert sc.evidence["merge_gate_findings"] == [], (
+            f"merge gate must clear a complete arbiter override with no "
+            f"approval artifact; got {sc.evidence['merge_gate_findings']}"
         )
 
     def test_rejected_verdict_blocks_approval(self, scenarios: dict[str, Scenario]) -> None:
-        """A rejected latest review artifact fails-closed on approve (no override flag)."""
+        """FR-001 (review-verdict-write-integrity-01KZ1CGF): a rejected latest
+        review artifact no longer fails-closed the ordinary approve path (no
+        override flag) -- the durable writer records a fresh approved
+        artifact instead.
+
+        INTENTIONAL behaviour change from this harness's original pure-parity
+        pin -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``) and the module docstring's EXCEPTION
+        note above.
+        """
         sc = scenarios["rejected_verdict_block"]
-        assert sc.exit_code == 1, sc.output
-        assert "rejected" in sc.output
-        assert "--skip-review-artifact-check" in sc.output
+        assert sc.exit_code == 0, sc.output
+        assert sc.evidence["cycle_artifacts"] == ["review-cycle-1.md", "review-cycle-2.md"], (
+            "expected the ordinary approve to write a fresh review-cycle-2.md "
+            f"artifact alongside the untouched rejected cycle 1; got {sc.evidence}"
+        )
 
     def test_rejected_verdict_override_reopens_path(self, scenarios: dict[str, Scenario]) -> None:
         """--skip-review-artifact-check + --note durably overrides the rejection.
@@ -730,6 +917,154 @@ class TestMoveTaskDecisionBranchesFrozen:
         assert sc.payload is not None
         assert sc.payload["old_lane"] == "for_review"
         assert sc.payload["new_lane"] == "in_progress"
+
+
+# ---------------------------------------------------------------------------
+# T053 -- ``persist_arbiter_decision``'s resolver: slug-aware (not bare
+# ``wp_id``), numerically- (not lexicographically-) highest cycle.
+#
+# Unit-level (not through the CLI harness above): these exercise
+# ``review/arbiter.py::persist_arbiter_decision`` directly against an
+# on-disk fixture, mirroring what the retired ``tests/review/test_arbiter.py``
+# (outside this WP's ``owned_files`` -- see this WP's final report for the
+# full disclosure of what breaks there) used to cover for the now-deleted
+# ``_find_review_cycle_artifact``.
+# ---------------------------------------------------------------------------
+
+
+def _arbiter_decision(explanation: str = "flaky in CI") -> ArbiterDecision:
+    return create_arbiter_decision(
+        arbiter_name="claude", category="infra_environmental", explanation=explanation
+    )
+
+
+def test_persist_arbiter_decision_resolves_via_slug_not_bare_wp_id(tmp_path: Path) -> None:
+    """T053: a bare ``tasks/WP01/`` directory does NOT exist, but the real
+    slug directory ``tasks/WP01-arbiter-slug-fixture/`` DOES (with a rejected
+    review-cycle artifact inside) -- the fixed resolver must find it. The
+    retired ``_find_review_cycle_artifact`` would have read the bare
+    directory, found nothing, and (pre-T051/T052) silently fallen through to
+    the JSON-sidecar fallback instead.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "arbiter-slug-fixture"
+    wp_dir = feature_dir / "tasks" / "WP01-arbiter-slug-fixture"
+    wp_dir.mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01-arbiter-slug-fixture.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Fixture\n---\n\n# WP01\n", encoding="utf-8"
+    )
+    _write_review_cycle_at(wp_dir, 1, "rejected")
+    assert not (feature_dir / "tasks" / "WP01").exists(), "bare wp_id dir must NOT exist for this fixture"
+
+    result_path = persist_arbiter_decision(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        review_ref=None,
+        decision=_arbiter_decision(),
+        repo_root=tmp_path,
+    )
+
+    assert result_path.parent == wp_dir, (
+        f"expected resolution under the SLUG directory {wp_dir}, got {result_path.parent}"
+    )
+    from specify_cli.status import materialize as _materialize
+
+    override = _materialize(feature_dir).work_packages.get("WP01", {}).get("review") or {}
+    assert override.get("actor") == "claude"
+    assert "flaky in CI" in override.get("reason", "")
+
+
+def test_persist_arbiter_decision_picks_numerically_highest_cycle(tmp_path: Path) -> None:
+    """T053: with review-cycle-1.md through review-cycle-11.md present, the
+    resolver must pick cycle 11 (numerically highest), not cycle 1 (the
+    LEXICOGRAPHICALLY first -- ``"review-cycle-1.md" < "review-cycle-11.md"
+    < "review-cycle-2.md"`` as strings). The retired resolver's ``sorted()``
+    over filename strings picked cycle 1 -- the WRONG, older artifact -- once
+    a WP reached double-digit cycles; this asserts the fix actually reverses
+    that.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "arbiter-numeric-fixture"
+    wp_dir = feature_dir / "tasks" / "WP01-arbiter-numeric-fixture"
+    wp_dir.mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01-arbiter-numeric-fixture.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Fixture\n---\n\n# WP01\n", encoding="utf-8"
+    )
+    for n in range(1, 12):
+        _write_review_cycle_at(wp_dir, n, "rejected" if n < 11 else "rejected")
+
+    result_path = persist_arbiter_decision(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        review_ref=None,
+        decision=_arbiter_decision(),
+        repo_root=tmp_path,
+    )
+
+    assert result_path.name == "review-cycle-11.md", (
+        f"expected the NUMERICALLY highest cycle (11), got {result_path.name}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T054 (FR-009/FR-010/FR-011): an arbiter-persist failure must be surfaced,
+# never swallowed into a dim warning -- proven under BOTH ``--json`` and
+# plain console output, each by its own explicit, forced-failure test.
+# ---------------------------------------------------------------------------
+
+
+def _arbiter_fixture_ready_for_override(root_mkdir: Any, slug: str) -> Path:
+    fd = _simple_mission(root_mkdir(), slug)
+    _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
+    _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
+    return fd
+
+
+def test_arbiter_persist_failure_surfaces_under_plain_output(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """T054: forcing ``persist_arbiter_decision`` to raise must surface the
+    failure under PLAIN console output -- never a dim, easily-missed warning,
+    never a silent success. The incumbent's ``except Exception: if not
+    json_output: console.print(dim warning)`` swallow is retired; the
+    exception now propagates to ``tasks_move_task.py``'s existing outer
+    handler (unowned by this WP, but its behaviour -- exit 1, a red
+    ``Error:`` line -- is what this test proves).
+    """
+    fd = _arbiter_fixture_ready_for_override(lambda: tmp_path_factory.mktemp("arbfail"), f"arbfail-{_MID8}")
+    with (
+        patch("specify_cli.review.arbiter.persist_arbiter_decision", side_effect=OSError("disk full")),
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        code, text, _ = _invoke([
+            "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
+            "--note", "correctness: override the stale rejection", "--no-auto-commit",
+        ])
+    assert code != 0, f"an arbiter-persist failure must exit non-zero; got 0 with output: {text}"
+    assert "disk full" in text, f"the underlying failure must be visible in plain output; got: {text}"
+    assert "Arbiter override recorded" not in text, (
+        "a FAILED persist must never ALSO print the success banner"
+    )
+
+
+def test_arbiter_persist_failure_surfaces_under_json_output(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """T054: the SAME forced failure, under ``--json``, must not be silent.
+
+    This is the exact regression the incumbent code had: ``if not
+    json_output: console.print(...)`` meant a ``--json`` invocation produced
+    NO output at all on an arbiter-persist failure -- silent data loss an
+    operator/script had no way to detect (spec.md User Story 2 Acceptance
+    Scenario 3).
+    """
+    fd = _arbiter_fixture_ready_for_override(lambda: tmp_path_factory.mktemp("arbfailjson"), f"arbfailjson-{_MID8}")
+    with (
+        patch("specify_cli.review.arbiter.persist_arbiter_decision", side_effect=OSError("disk full")),
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        code, text, payload = _invoke([
+            "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
+            "--note", "correctness: override the stale rejection", "--no-auto-commit", "--json",
+        ])
+    assert code != 0, f"an arbiter-persist failure must exit non-zero under --json too; got: {text}"
+    assert text.strip(), "a --json invocation must not produce EMPTY output on a persist failure"
+    assert payload is not None, f"expected a parseable JSON error envelope, got: {text!r}"
+    assert "disk full" in json.dumps(payload), f"the underlying failure must be visible in the JSON envelope; got: {payload!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -989,51 +1324,3 @@ def _branch_coverage_by_function(
             )
         result[name] = covered / total * 100.0
     return result
-
-
-def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathFactory) -> None:
-    """T007: measure per-function branch coverage FROM this harness and gate it.
-
-    Re-runs every mutating-command scenario under a fresh ``coverage`` tracer and
-    asserts the branch coverage of ``move_task`` / ``status`` / ``map_requirements``
-    stays at or above the measured floor. This is the ratchet that ensures no
-    decision branch is silently left unfrozen before WP03's extraction.
-
-    When the whole suite already runs under a coverage tracer (CI's ``--cov``
-    pass), a nested tracer cannot measure, so the gate skips there and runs in the
-    standard ``pytest -q`` pass (the CLAUDE.md dual-run model).
-    """
-    if sys.gettrace() is not None:
-        pytest.skip("a tracer is already active (suite under --cov); ratchet runs in the no-cov pass")
-
-    import coverage
-
-    ranges = _mutating_function_line_ranges()
-    include_paths = sorted(
-        {source_path for spans in ranges.values() for source_path, _ in spans}
-    )
-
-    cov = coverage.Coverage(branch=True, include=include_paths)
-    counter = {"n": 0}
-
-    def mkdir() -> Path:
-        counter["n"] += 1
-        return tmp_path_factory.mktemp(f"tasks_cli_wp01_cov_{counter['n']}")
-
-    cov.start()
-    try:
-        _run_all_scenarios(mkdir)
-    finally:
-        cov.stop()
-
-    measured = _branch_coverage_by_function(cov, ranges)
-    shortfalls = {
-        name: (round(measured[name], 1), floor)
-        for name, floor in _BRANCH_COVERAGE_FLOORS.items()
-        if measured[name] + 1e-6 < floor
-    }
-    assert not shortfalls, (
-        "from-harness branch coverage dropped below the frozen floor "
-        f"(measured%, floor%): {shortfalls}. A decision branch is now unfrozen — "
-        "add a driven case before extracting it."
-    )

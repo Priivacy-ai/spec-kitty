@@ -108,7 +108,7 @@ def test_charter_decision_triple_coherence(tmp_path: Path) -> None:
     """
     _setup_repo(tmp_path)
 
-    from charter.interview import MINIMAL_QUESTION_ORDER, apply_answer_overrides, default_interview
+    from charter.activation.interview import MINIMAL_QUESTION_ORDER, apply_answer_overrides, default_interview
 
     n_questions = len(MINIMAL_QUESTION_ORDER)
     assert n_questions >= 2, "need at least 2 questions for this test"

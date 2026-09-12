@@ -54,6 +54,15 @@ def _pre30_repo(tmp_path: Path) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     fd = repo / "kitty-specs" / _SLUG
     (fd / "tasks" / "planned").mkdir(parents=True)
+    # A ``.kittify/`` marker gives ``locate_project_root`` a definite project
+    # boundary at ``repo`` (WP04 C-A1 fixture hardening): without one,
+    # repo-root detection falls back to a bare ``.git`` walk-up that can
+    # escape past this fixture into an unrelated ancestor project.
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(parents=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     (fd / "tasks" / "planned" / "WP01.md").write_text(
         "---\nwork_package_id: WP01\nagent: claude\nshell_pid: '12345'\n"

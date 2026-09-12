@@ -8,7 +8,7 @@ import pytest
 
 pytestmark = [pytest.mark.integration]
 
-LEGACY_SDIST_SEGMENT = "/src/doctrine/" + "agent" + "-" + "profiles"
+LEGACY_SDIST_SEGMENT = "/src/charter/offering/" + "agent" + "-" + "profiles"
 
 
 def test_command_templates_not_bundled():
@@ -33,7 +33,7 @@ def test_command_templates_not_bundled():
     found = []
     for base in [
         spec_kitty_root / "src" / "specify_cli",
-        spec_kitty_root / "src" / "doctrine",
+        spec_kitty_root / "src" / "charter" / "offering",
     ]:
         if base.exists():
             for d in base.rglob("command-templates"):
@@ -113,7 +113,7 @@ def test_wheel_bundles_templates_correctly(installed_wheel_venv: dict[str, Path]
             str(python),
             "-c",
             "from importlib.resources import files; "
-            "skill = files('doctrine').joinpath('skills', 'spec-kitty-setup-doctor', 'SKILL.md'); "
+            "skill = files('charter.offering').joinpath('skills', 'spec-kitty-setup-doctor', 'SKILL.md'); "
             "print(skill.is_file())",
         ],
         capture_output=True,

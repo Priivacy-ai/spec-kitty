@@ -14,7 +14,7 @@ from __future__ import annotations
 import random
 import string
 import time
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------

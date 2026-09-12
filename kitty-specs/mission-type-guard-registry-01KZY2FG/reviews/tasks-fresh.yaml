@@ -1,0 +1,46 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-reference-verification
+    severity: 3
+    title: T001's User Story 2 Acceptance-Scenario citations over-claim spec coverage for the plan-step and fail-closed-else branches
+    evidence:
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T001 heading + Purpose"
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T001 step 3 (TASKS-VERIFY-003 fix)"
+      - artifact: "tasks.md § Subtask Index, T001 row"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/spec.md:109-124 (User Story 2 Acceptance Scenarios 1-3)"
+    claim: >
+      This revision (TASKS-VERIFY-003's fix) added coverage for two branches of
+      `_evaluate_plan_guards`'s 5-way dispatch — the `plan`-step artifact-presence
+      branch and the fail-closed-else branch — that spec.md's User Story 2 never
+      names as an Acceptance Scenario. Spec.md defines exactly three Acceptance
+      Scenarios for User Story 2: AC1 = `review` step returns `[]`, AC2 = `specify`
+      step reports the missing artifact, AC3 = `research` step reports missing
+      `research.md`. Neither the `plan`-step branch nor the fail-closed-else
+      default appears in any of the three. Despite that, the revised text cites
+      spec coverage inconsistently and over-broadly in three places: (1) T001's
+      heading says "User Story 2 AC2/AC3" (correctly implying only specify+research
+      are AC-derived); (2) T001's Purpose paragraph says the full 5-way branch set
+      (specify/research/plan/review/fail-closed-else) is covered by "User Story 2
+      Acceptance Scenarios 1-3" — which is not true, since 1-3 only cover 3 of the
+      5 branches; (3) T001 step 3 itself attributes the specify+plan+fail-closed-else
+      trio to "User Story 2 Acceptance Scenario 2" singular — but Scenario 2 only
+      describes the `specify` branch, not `plan` or fail-closed-else. The same
+      AC2-only-but-treated-as-AC2+plan+fail-closed drift is repeated in tasks.md's
+      Subtask Index T001 row. The added test coverage itself is correct and a good
+      addition (it closes a real gap), but the citations misattribute it to spec
+      Acceptance Scenarios that don't actually mandate it — exactly the class of
+      broken/inflated cross-reference this fix commit was elsewhere careful to
+      correct (see TASKS-VERIFY-001/003's own emphasis on empirical, not prose,
+      claims).
+    remediation: >
+      Reword the three citation sites so they attribute the `plan`-step and
+      fail-closed-else pins to "hardening beyond spec.md's literal User Story 2
+      Acceptance Scenarios" (or similar), and reserve "Acceptance Scenario 2/3"
+      citations for only the `specify`/`research` branches they actually describe.
+      Keep the test coverage as-is — only the citation wording needs correcting.

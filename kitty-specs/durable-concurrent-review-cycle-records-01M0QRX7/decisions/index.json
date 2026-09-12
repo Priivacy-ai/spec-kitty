@@ -1,0 +1,150 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-23T18:09:55.361155Z",
+      "decision_id": "01M0QX16N1VRWH7HDKP6W6W8WG",
+      "final_answer": "Wait in line; the second verdict save waits for the first.",
+      "input_key": "queue_behavior",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "wait in line",
+        "retry on collision",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "When two reviewers save verdicts concurrently, should the second wait or should colliding saves retry?",
+      "rationale": "The operator chose the simpler serialized behavior over collision retry.",
+      "resolved_at": "2026-08-23T18:10:20.363650Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.architecture.queue-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T18:10:21.555174Z",
+      "decision_id": "01M0QX207K3381ES9W9JJ80PT2",
+      "final_answer": "Verdict saves only.",
+      "input_key": "serialization_scope",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "verdict saves only",
+        "all Spec Kitty commits",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should serialization cover every Spec Kitty commit or only verdict saves?",
+      "rationale": "This keeps the P0 fix local to issue #3235 and avoids broad safe_commit lock-order risk.",
+      "resolved_at": "2026-08-23T18:10:22.662884Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.architecture.serialization-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T18:10:23.927172Z",
+      "decision_id": "01M0QX22HQV6BVC0HJA90J530N",
+      "final_answer": "Checkout-wide across missions sharing the same Git checkout.",
+      "input_key": "queue_granularity",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "checkout-wide across missions",
+        "per mission",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the verdict queue cover all missions using the same Git checkout?",
+      "rationale": "All such verdict commits share one staging area, even though cross-mission collisions are unlikely.",
+      "resolved_at": "2026-08-23T18:10:25.034823Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.architecture.queue-granularity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T18:10:26.300131Z",
+      "decision_id": "01M0QX24VWSNDC9M44ASPPE4WT",
+      "final_answer": "Wait at most 10 seconds, then return an explicit busy failure with no automatic command retry.",
+      "input_key": "queue_timeout",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "10 seconds",
+        "30 seconds",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How long should a verdict save wait for the queue before refusing?",
+      "rationale": "Ten seconds is sufficient for ordinary verdict commits while bounding a stuck holder.",
+      "resolved_at": "2026-08-23T18:10:27.589155Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.reliability.queue-timeout",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T18:10:29.063868Z",
+      "decision_id": "01M0QX27J7MJB0WG7JP8Y1TZ5G",
+      "final_answer": "Preserve --no-auto-commit as an explicit local-only, non-durable mode.",
+      "input_key": "no_auto_commit_policy",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "preserve local-only mode",
+        "refuse the mode",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should --no-auto-commit remain available for verdict recording?",
+      "rationale": "The operator chose backward compatibility while requiring truthful durability reporting.",
+      "resolved_at": "2026-08-23T18:10:30.401149Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.compatibility.no-auto-commit",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T18:10:31.784531Z",
+      "decision_id": "01M0QX2A78SP9CG4JFRS07KERZ",
+      "final_answer": "Leave the generated uncommitted artifact in place.",
+      "input_key": "failed_commit_artifact_policy",
+      "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+      "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+      "opened_by": "codex",
+      "options": [
+        "retain for retry",
+        "remove before error",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "If an automatic verdict commit fails, should the generated review-cycle file be removed or retained?",
+      "rationale": "A later identical retry must safely recognize and adopt the retained artifact rather than deleting evidence or creating a misleading duplicate.",
+      "resolved_at": "2026-08-23T18:10:33.082643Z",
+      "resolved_by": "operator",
+      "slot_key": "plan.recovery.failed-commit-artifact",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M0QRX7P0NHMCMXPS547JDVWM",
+  "version": 1
+}

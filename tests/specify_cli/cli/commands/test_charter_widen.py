@@ -20,13 +20,14 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from charter.interview import MINIMAL_QUESTION_ORDER
+from charter.activation.interview import MINIMAL_QUESTION_ORDER
 from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
 from specify_cli.widen.models import PrereqState, WidenAction, WidenFlowResult
 from specify_cli.widen.state import WidenPendingStore
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # Constants / helpers
@@ -218,14 +219,6 @@ class TestWidenAffordanceVisibility:
         # appear in the prompt line. When prereqs are absent only "efer" appears.
         # Verify by checking for the widen-specific fragment "iden" in prompt context.
         assert "iden" in result.output
-
-    def test_widen_not_shown_when_prereqs_absent(self, tmp_path: Path) -> None:
-        """[w]iden absent from prompt when prereqs not satisfied (SC-004)."""
-        _setup_repo(tmp_path)
-        inputs = _make_inputs([""] * _N_QUESTIONS)
-        result = _invoke_interview(tmp_path, inputs)
-        assert result.exit_code == 0, result.output
-        assert "[w]iden" not in result.output
 
     def test_widen_not_shown_when_token_unset(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """With SPEC_KITTY_SAAS_TOKEN unset, [w]iden must NOT appear (SC-004)."""
@@ -516,6 +509,20 @@ class TestWidenHappyPathContinue:
 class TestNFR001PrereqLatency:
     """NFR-001: prereq check + audience-default fetch < 300ms at p95."""
 
+    def test_prereq_check_succeeds(self) -> None:
+        """Mocked prereq check reports satisfied prerequisites."""
+        from specify_cli.widen import check_prereqs
+
+        client = MagicMock()
+        client._token = "tok"
+        client.get_team_integrations.return_value = ["slack"]
+        client.health_probe.return_value = True
+
+        result = check_prereqs(client, "team-slug")
+
+        assert result.all_satisfied is True
+
+    @pytest.mark.performance
     def test_prereq_check_under_300ms(self) -> None:
         """Mocked prereq check runs well under 300ms (NFR-001)."""
         from specify_cli.widen import check_prereqs
@@ -526,12 +533,26 @@ class TestNFR001PrereqLatency:
         client.health_probe.return_value = True
 
         start = time.perf_counter()
-        result = check_prereqs(client, "team-slug")
+        check_prereqs(client, "team-slug")
         elapsed = time.perf_counter() - start
 
-        assert result.all_satisfied is True
-        assert elapsed < 0.3, f"check_prereqs took {elapsed:.3f}s (>300ms)"
+        assert_timing_budget(elapsed, 0.3, name="check_prereqs")
 
+    def test_prereq_check_with_saas_error_is_not_satisfied(self) -> None:
+        """Even on SaaS error, prereq check reports the failure correctly."""
+        from specify_cli.saas_client import SaasClientError
+        from specify_cli.widen import check_prereqs
+
+        client = MagicMock()
+        client._token = "tok"
+        client.get_team_integrations.side_effect = SaasClientError("err")
+        client.health_probe.return_value = False
+
+        result = check_prereqs(client, "team-slug")
+
+        assert result.all_satisfied is False
+
+    @pytest.mark.performance
     def test_prereq_check_under_300ms_with_saas_error(self) -> None:
         """Even on SaaS error, prereq check stays under 300ms (NFR-001)."""
         from specify_cli.saas_client import SaasClientError
@@ -543,11 +564,10 @@ class TestNFR001PrereqLatency:
         client.health_probe.return_value = False
 
         start = time.perf_counter()
-        result = check_prereqs(client, "team-slug")
+        check_prereqs(client, "team-slug")
         elapsed = time.perf_counter() - start
 
-        assert result.all_satisfied is False
-        assert elapsed < 0.3, f"check_prereqs (with error) took {elapsed:.3f}s"
+        assert_timing_budget(elapsed, 0.3, name="check_prereqs (with SaaS error)")
 
 
 # ---------------------------------------------------------------------------

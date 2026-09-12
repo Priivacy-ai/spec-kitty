@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import io
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Final
 
 from ruamel.yaml import YAML
 
@@ -26,6 +28,126 @@ class TrackerConfigError(RuntimeError):
     """Raised when tracker configuration is invalid."""
 
 
+# ---------------------------------------------------------------------------
+# CR-03 (mission `charter-code-topology-01M152G1` S4): tracker mode key
+# `doctrine` -> `ownership` (NOT `charter` -- this surface names field
+# OWNERSHIP, a distinct concept from the charter/doctrine topology rename).
+# Precedent for the read-both/canonical-wins/warn-once shape: `charter.activation.sync`
+# CR-01 (`src/charter/activation/sync.py:245-311`).
+# ---------------------------------------------------------------------------
+_CANONICAL_OWNERSHIP_KEY: Final = "ownership"
+_LEGACY_OWNERSHIP_KEY: Final = "doctrine"
+
+
+class LegacyTrackerOwnershipKeyWarning(UserWarning):
+    """Emitted once per process when a project's ``tracker:`` block still
+    carries the retired ``doctrine`` ownership surface instead of the
+    canonical ``ownership`` surface (CR-03)."""
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_legacy_ownership_key_once() -> None:
+    """Emit the CR-03 compat warning exactly once per process.
+
+    Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
+    filter (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``,
+    CR-01) -- a caller running under a stricter ``filterwarnings``
+    configuration could otherwise turn a *repeated* warning into a hard
+    failure. Tests reset this gate via
+    ``_warn_legacy_ownership_key_once.cache_clear()``.
+    """
+    warnings.warn(
+        "tracker: the legacy 'doctrine' ownership key/option was used; "
+        "reading it as 'ownership'. Use the canonical config key or "
+        "`--ownership-mode`.",
+        LegacyTrackerOwnershipKeyWarning,
+        stacklevel=3,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Channel-2 tracker egress: key shape (#3108 FR-002, FR-006, C-001)
+# ---------------------------------------------------------------------------
+_EGRESS_KEY: Final = "egress"
+
+#: The closed two-string consent vocabulary (FR-002, FR-006). Public and named
+#: -- not module-private -- because WP03's `tracker_egress_verdict` resolver
+#: (`tracker/egress_verdict.py`) maps `EGRESS_REFUSED` to a deny and
+#: `EGRESS_PERMITTED` to a grant, and must import the single canonical
+#: spelling rather than hardcoding the two strings a second time. Two
+#: independent spellings of one closed consent vocabulary is the exact drift
+#: class this Mission's own thesis is about; a third spelling introduced only
+#: here, with WP03's polarity map left unaware of it, would make
+#: `egress_fault` report "not a fault" for a value nothing grants or
+#: refuses -- a fault that no longer refuses.
+EGRESS_REFUSED: Final = "refused"
+EGRESS_PERMITTED: Final = "permitted"
+_EGRESS_LEGAL_VALUES: Final[frozenset[str]] = frozenset({EGRESS_REFUSED, EGRESS_PERMITTED})
+
+
+class _EgressAbsentType:
+    """Sentinel type marking that no ``egress`` key was present in the loaded config.
+
+    ``dict.get(key, default)`` collapses two distinct situations into one: "the
+    key is not there" and "the key is there and holds ``None``" (a present
+    ``null``, which FR-006 treats as a *fault*, not as absence). This sentinel
+    is what tells them apart: a *missing* key stays absent so the egress
+    resolver (`tracker/egress_verdict.py`) can apply its own no-key rule per
+    destination, while a key present with nothing after it is a recorded fault,
+    and a recorded fault refuses at every destination.
+
+    Public and named ``EGRESS_ABSENT`` (module-level, no leading underscore)
+    because WP03's ``tracker_egress_verdict`` resolver, in a different module,
+    must be able to tell "absent" apart from "a present fault" without
+    reaching for a private name.
+
+    **Trap for callers, stated rather than left implicit:** ``bool(EGRESS_ABSENT)
+    is True`` (no ``__bool__``/``__len__`` override -- it is a plain object).
+    So ``if not cfg.egress:`` is *wrong* for detecting absence -- it would only
+    ever be false for falsy recorded values (``""``, ``0``, ``False``), never
+    true for the sentinel itself. The documented, correct contract is the
+    identity check: ``cfg.egress is EGRESS_ABSENT``.
+
+    A singleton (``__new__`` always returns the same instance) with
+    ``__copy__``/``__deepcopy__``/``__reduce__`` all returning that same
+    instance. Unlike a bare ``object()`` sentinel, which would never sit on a
+    dataclass field, this sentinel *is* stored on a
+    ``TrackerProjectConfig`` field, which makes it reachable by
+    ``copy.deepcopy``/``dataclasses.replace`` on a config instance -- without
+    these overrides, a deep copy would mint a distinct object for which
+    ``is EGRESS_ABSENT`` is ``False``, silently turning "absent" into "present"
+    and (via ``to_dict``'s ``is not EGRESS_ABSENT`` check) planting a
+    ``RepresenterError`` on the next save. No production call site currently
+    deep-copies a ``TrackerProjectConfig``; this closes the latent trap before
+    one does.
+    """
+
+    _instance: _EgressAbsentType | None = None
+
+    def __new__(cls) -> _EgressAbsentType:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:
+        return "EGRESS_ABSENT"
+
+    def __copy__(self) -> _EgressAbsentType:
+        return self
+
+    def __deepcopy__(self, memo: dict[int, object]) -> _EgressAbsentType:
+        return self
+
+    def __reduce__(self) -> tuple[type[_EgressAbsentType], tuple[()]]:
+        return (self.__class__, ())
+
+
+#: Sentinel value of ``TrackerProjectConfig.egress`` when Channel 2's ``egress``
+#: key was missing entirely from the loaded ``tracker:`` block. Do not rename:
+#: WP03 imports this exact name from this exact module.
+EGRESS_ABSENT: Final = _EgressAbsentType()
+
+
 @dataclass(slots=True)
 class TrackerProjectConfig:
     """Tracker configuration stored inside .kittify/config.yaml."""
@@ -36,8 +158,17 @@ class TrackerProjectConfig:
     display_label: str | None = None
     provider_context: dict[str, str] | None = None
     workspace: str | None = None
-    doctrine_mode: str = "external_authoritative"
-    doctrine_field_owners: dict[str, str] = field(default_factory=dict)
+    ownership_mode: str = "external_authoritative"
+    ownership_field_owners: dict[str, str] = field(default_factory=dict)
+    #: Channel-2 tracker egress (#3108 FR-002). Holds the **raw loaded value**,
+    #: never a narrowed ``enum | None`` or ``bool | None`` -- measured on the
+    #: ``ownership_mode`` precedent above: a known field whose value the parser
+    #: cannot use is silently replaced by its default on round trip, which
+    #: would let a `bind` convert a recorded ``refused`` into a permitting
+    #: absence. ``EGRESS_ABSENT`` means the key was missing; any other value
+    #: (including ``None`` from a present ``null``) is what was actually
+    #: recorded, legal or not -- see ``egress_fault`` below.
+    egress: object = EGRESS_ABSENT
     _extra: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
@@ -50,6 +181,27 @@ class TrackerProjectConfig:
             return bool(self.workspace)
         return False  # Unknown or removed provider
 
+    @property
+    def egress_fault(self) -> bool:
+        """Derived fault flag for Channel 2 (#3108 FR-006, C-020).
+
+        ``False`` when ``egress`` is ``EGRESS_ABSENT`` (the key was missing --
+        absence is not a fault; Channel 1 is retired, so for
+        ``EgressDestination.HOSTED_SERVICE`` this now falls through to permit
+        directly, with no Channel 1 to defer to) or holds one of the
+        exactly two legal strings. ``True`` for anything else present at the
+        key -- a present ``null``, the wrong type, or a near-miss string such
+        as ``Refused`` or ``refuse`` -- and a fault refuses at both
+        destinations. The ``isinstance`` guard comes **first**: a bare
+        ``raw in _EGRESS_LEGAL_VALUES`` raises ``TypeError: unhashable type``
+        for a mapping or a list, both of which this property must classify as
+        a fault, not raise out of.
+        """
+        raw = self.egress
+        if raw is EGRESS_ABSENT:
+            return False
+        return not (isinstance(raw, str) and raw in _EGRESS_LEGAL_VALUES)
+
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
             **self._extra,  # Unknown fields first (known fields override)
@@ -59,37 +211,79 @@ class TrackerProjectConfig:
             "display_label": self.display_label,
             "provider_context": dict(self.provider_context) if self.provider_context else None,
             "workspace": self.workspace,
-            "doctrine": {
-                "mode": self.doctrine_mode,
-                "field_owners": dict(self.doctrine_field_owners),
+            # CR-03: writes only ever emit the canonical `ownership` key now.
+            # A stale `doctrine` key already on disk (a KNOWN key, per
+            # `_KNOWN_KEYS` below -- never captured into `_extra`) is dropped
+            # on save, same as CR-04's `save_pack_registry`: an operator who
+            # binds again adopts the canonical key by construction.
+            _CANONICAL_OWNERSHIP_KEY: {
+                "mode": self.ownership_mode,
+                "field_owners": dict(self.ownership_field_owners),
             },
         }
+        # FR-009: a write must never plant a decision. Omit `egress` entirely
+        # when nothing is recorded, rather than emitting a written-out null the
+        # way every other known field is emitted unconditionally above --
+        # `spec-kitty tracker bind` into a project with no tracker key must not
+        # write `egress:` with a null, which FR-006 would read as a fault.
+        if self.egress is not EGRESS_ABSENT:
+            result[_EGRESS_KEY] = self.egress
         return result
 
     _KNOWN_KEYS: ClassVar[frozenset[str]] = frozenset({
         "provider", "binding_ref", "project_slug", "display_label",
-        "provider_context", "workspace", "doctrine",
+        "provider_context", "workspace",
+        _CANONICAL_OWNERSHIP_KEY, _LEGACY_OWNERSHIP_KEY, _EGRESS_KEY,
     })
+
+    @staticmethod
+    def _parse_ownership_block(block: object) -> tuple[str, dict[str, str]] | None:
+        """Parse an ``ownership``- or ``doctrine``-shaped mode/field_owners block.
+
+        Returns ``None`` when *block* is not a mapping (the caller's "this
+        key wasn't a usable block" signal), else the parsed
+        ``(mode, field_owners)`` pair -- shared by both the canonical and
+        legacy readers below since the two keys carry an identical shape
+        (CR-03).
+        """
+        if not isinstance(block, dict):
+            return None
+        mode = "external_authoritative"
+        mode_value = block.get("mode")
+        if isinstance(mode_value, str) and mode_value.strip():
+            mode = mode_value.strip()
+        field_owners: dict[str, str] = {}
+        raw_field_owners = block.get("field_owners")
+        if isinstance(raw_field_owners, dict):
+            field_owners = {
+                str(key): str(value)
+                for key, value in raw_field_owners.items()
+                if str(key).strip() and str(value).strip()
+            }
+        return mode, field_owners
 
     @classmethod
     def from_dict(cls, data: dict[str, object] | None) -> TrackerProjectConfig:
         if not isinstance(data, dict):
             return cls()
 
-        doctrine = data.get("doctrine")
-        doctrine_mode = "external_authoritative"
-        doctrine_field_owners: dict[str, str] = {}
-        if isinstance(doctrine, dict):
-            mode_value = doctrine.get("mode")
-            if isinstance(mode_value, str) and mode_value.strip():
-                doctrine_mode = mode_value.strip()
-            field_owners = doctrine.get("field_owners")
-            if isinstance(field_owners, dict):
-                doctrine_field_owners = {
-                    str(key): str(value)
-                    for key, value in field_owners.items()
-                    if str(key).strip() and str(value).strip()
-                }
+        # CR-03 (mission `charter-code-topology-01M152G1` S4): canonical
+        # `ownership` key wins outright when present -- silently, no warning,
+        # even if a stale legacy `doctrine` key is also there (CR-01
+        # precedent: an operator who already carries the canonical key is
+        # never nagged about a legacy value nothing reads any more). Only
+        # when `ownership` is entirely absent does the legacy `doctrine` key
+        # get read, with a one-shot deprecation notice.
+        ownership_mode = "external_authoritative"
+        ownership_field_owners: dict[str, str] = {}
+        canonical_parsed = cls._parse_ownership_block(data.get(_CANONICAL_OWNERSHIP_KEY))
+        if canonical_parsed is not None:
+            ownership_mode, ownership_field_owners = canonical_parsed
+        else:
+            legacy_parsed = cls._parse_ownership_block(data.get(_LEGACY_OWNERSHIP_KEY))
+            if legacy_parsed is not None:
+                _warn_legacy_ownership_key_once()
+                ownership_mode, ownership_field_owners = legacy_parsed
 
         provider = data.get("provider")
         binding_ref = data.get("binding_ref")
@@ -104,6 +298,16 @@ class TrackerProjectConfig:
                 str(k): str(v) for k, v in provider_context_raw.items()
             }
 
+        # Channel 2 (#3108): the raw value is carried unchanged -- no strip(),
+        # no str() coercion, unlike every field above. Coercing it would lose
+        # the ruamel scalar-string subclass FR-010's byte-identity pin needs,
+        # and would collapse the wrong-type probed values (a bool, an int, a
+        # mapping, a list) into strings, hiding exactly the faults FR-006 must
+        # classify. `data.get` with the sentinel default is what distinguishes
+        # "key missing" (EGRESS_ABSENT) from "key present and holds `null`"
+        # (None) -- a plain `.get(key)` would collapse the two.
+        egress = data.get(_EGRESS_KEY, EGRESS_ABSENT)
+
         extra = {k: v for k, v in data.items() if k not in cls._KNOWN_KEYS}
 
         return cls(
@@ -117,8 +321,9 @@ class TrackerProjectConfig:
             ),
             provider_context=provider_context,
             workspace=str(workspace).strip() if isinstance(workspace, str) and workspace.strip() else None,
-            doctrine_mode=doctrine_mode,
-            doctrine_field_owners=doctrine_field_owners,
+            ownership_mode=ownership_mode,
+            ownership_field_owners=ownership_field_owners,
+            egress=egress,
             _extra=extra,
         )
 
@@ -128,7 +333,8 @@ def require_repo_root() -> Path:
     repo_root = locate_project_root(Path.cwd())
     if repo_root is None:
         raise TrackerConfigError("Not inside a spec-kitty project. Run this command from a project with .kittify/.")
-    return repo_root
+    root: Path = repo_root
+    return root
 
 
 def _config_path(repo_root: Path) -> Path:
@@ -142,6 +348,12 @@ def load_tracker_config(repo_root: Path) -> TrackerProjectConfig:
         return TrackerProjectConfig()
 
     yaml = YAML()
+    # FR-010: matches `save_tracker_config` below. Without this, a quoted
+    # `egress: "refused"` loses its quote style on load, so re-saving renders
+    # it unquoted -- measured: `from_dict` `str()`-coerces every other known
+    # string field, so only `_extra` values and the raw `egress` value ever
+    # retain the ruamel scalar-string subclass this flag preserves.
+    yaml.preserve_quotes = True
     try:
         with config_path.open("r", encoding="utf-8") as handle:
             payload = yaml.load(handle) or {}
@@ -176,19 +388,40 @@ def save_tracker_config(repo_root: Path, config: TrackerProjectConfig) -> None:
 
 
 def clear_tracker_config(repo_root: Path) -> None:
-    """Remove tracker config from .kittify/config.yaml if present."""
+    """Remove tracker config from .kittify/config.yaml if present.
+
+    FR-011 site C: a recorded Channel-2 ``egress`` decision must outlive its
+    binding -- deleting a ``refused`` on ``unbind`` would be a silent
+    fail-open, and deleting a ``permitted`` would silently withdraw a working
+    local binding. So the ``tracker:`` block is retained, holding *only* the
+    recorded ``egress`` value, when one is recorded; it is deleted entirely
+    only when no Channel-2 decision exists at all (the pre-#3108 behaviour).
+    """
     config_path = _config_path(repo_root)
     if not config_path.exists():
         return
 
     yaml = YAML()
+    # FR-010: matches `save_tracker_config` / `load_tracker_config` above --
+    # without it this third `YAML()` destroys quoting in sibling blocks (e.g.
+    # `sync:`) on every `unbind`, not only in the `tracker:` block this WP
+    # touches.
+    yaml.preserve_quotes = True
     with config_path.open("r", encoding="utf-8") as handle:
         payload = yaml.load(handle) or {}
 
     if not isinstance(payload, dict) or "tracker" not in payload:
         return
 
-    del payload["tracker"]
+    tracker_block = payload["tracker"]
+    recorded_egress = TrackerProjectConfig.from_dict(
+        tracker_block if isinstance(tracker_block, dict) else None
+    ).egress
+
+    if recorded_egress is EGRESS_ABSENT:
+        del payload["tracker"]
+    else:
+        payload["tracker"] = {_EGRESS_KEY: recorded_egress}
 
     with config_path.open("w", encoding="utf-8") as handle:
         yaml.dump(payload, handle)

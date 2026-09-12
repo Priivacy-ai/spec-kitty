@@ -11,6 +11,7 @@ from typing import Any
 
 _BOOTSTRAP_MODULE = "specify_cli.runtime.bootstrap"
 _HOME_MODULE = "specify_cli.runtime.home"
+_KERNEL_PATHS_MODULE = "kernel.paths"
 _MIGRATE_MODULE = "specify_cli.runtime.migrate"
 _RESOLVER_MODULE = "specify_cli.runtime.resolver"
 _SHOW_ORIGIN_MODULE = "specify_cli.runtime.show_origin"
@@ -27,7 +28,9 @@ _EXPORT_MODULES = {
     "ensure_runtime": _BOOTSTRAP_MODULE,
     "execute_migration": _MIGRATE_MODULE,
     "get_kittify_home": _HOME_MODULE,
-    "get_package_asset_root": _HOME_MODULE,
+    # Single authority (FR-005/DR-1): the package asset root resolves through
+    # the canonical kernel door, not the (now thin-delegate) runtime.home shim.
+    "get_package_asset_root": _KERNEL_PATHS_MODULE,
     "resolve_command": _RESOLVER_MODULE,
     "resolve_mission": _RESOLVER_MODULE,
     "resolve_template": _RESOLVER_MODULE,

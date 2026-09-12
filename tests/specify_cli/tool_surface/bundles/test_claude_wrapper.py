@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import stat
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -72,6 +75,21 @@ class TestWriteWrappers:
         with pytest.raises(ValueError, match="non-empty"):
             write_wrappers(tmp_path, "")
 
+    def test_retained_wrapper_apply_does_not_render(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.tool_surface.bundles import claude_wrapper
+
+        def forbidden(*args: object, **kwargs: object) -> str:
+            raise AssertionError("Retained wrapper rendered again")
+        monkeypatch.setattr(claude_wrapper, "wrapper_bash_content", forbidden)
+        monkeypatch.setattr(claude_wrapper, "wrapper_cmd_content", forbidden)
+        (tmp_path / "bin").mkdir()
+        path = tmp_path / "bin/spec-kitty-wrapper"
+        write_wrappers(tmp_path, prepared=(path, b"retained bytes", 0o700))
+        assert path.read_bytes() == b"retained bytes"
+        assert stat.S_IMODE(path.stat().st_mode) == 0o700
+        with pytest.raises(ValueError, match="outside the wrapper layout"):
+            write_wrappers(tmp_path, prepared=(tmp_path / "other", b"invalid", 0o644))
+
     def test_idempotent_second_write(self, tmp_path: Path) -> None:
         write_wrappers(tmp_path, "3.2.0")
         first = (tmp_path / "bin" / "spec-kitty-wrapper").read_bytes()
@@ -110,6 +128,13 @@ class TestWrapperBashContent:
         content = wrapper_bash_content("1.0.0")
         assert "command -v spec-kitty" in content
 
+    def test_path_match_must_be_reachable(self) -> None:
+        content = wrapper_bash_content("1.0.0")
+        assert (
+            "command -v spec-kitty >/dev/null 2>&1 "
+            "&& spec-kitty --version >/dev/null 2>&1"
+        ) in content
+
     def test_uvx_fallback_present(self) -> None:
         content = wrapper_bash_content("1.0.0")
         assert "command -v uvx" in content
@@ -142,6 +167,10 @@ class TestWrapperCmdContent:
         content = wrapper_cmd_content("1.0.0")
         assert "where spec-kitty" in content
 
+    def test_where_match_must_be_reachable(self) -> None:
+        content = wrapper_cmd_content("1.0.0")
+        assert "CALL spec-kitty --version >nul 2>&1" in content
+
     def test_uvx_fallback_present(self) -> None:
         content = wrapper_cmd_content("1.0.0")
         assert "where uvx" in content
@@ -155,6 +184,76 @@ class TestWrapperCmdContent:
         """Windows CMD uses %* to forward arguments."""
         content = wrapper_cmd_content("1.0.0")
         assert "%*" in content
+
+    def test_exit_b_errorlevel_not_inside_parenthesized_block(self) -> None:
+        """EXIT /B %ERRORLEVEL% must never be nested inside `IF ... ( ... )`.
+
+        cmd.exe expands %VAR% in a parenthesized compound statement at parse
+        time, so an EXIT /B %ERRORLEVEL% written inside one always reports the
+        errorlevel current when the block was entered (the preceding `where`
+        probe's 0) rather than the real exit code of the delegated command.
+        """
+        content = wrapper_cmd_content("1.0.0")
+        lines = content.splitlines()
+        depth = 0
+        for line in lines:
+            stripped = line.strip()
+            if "EXIT /B %ERRORLEVEL%" in stripped:
+                assert depth == 0, (
+                    f"EXIT /B %ERRORLEVEL% is nested inside a parenthesized "
+                    f"block (depth={depth}): {stripped!r}"
+                )
+            depth += stripped.count("(") - stripped.count(")")
+
+    def test_no_parenthesized_if_blocks(self) -> None:
+        """The wrapper uses GOTO, not `IF ... ( ... )`, around EXIT /B.
+
+        A parenthesized IF block is exactly the construct that causes
+        cmd.exe's parse-time %ERRORLEVEL% expansion bug; asserting it is
+        gone (rather than only asserting EXIT /B's depth above) prevents a
+        future edit from reintroducing it around some other guarded exit.
+        """
+        content = wrapper_cmd_content("1.0.0")
+        assert "IF NOT ERRORLEVEL 1 (" not in content
+        assert ") (" not in content
+
+    def test_goto_labels_defined_and_referenced(self) -> None:
+        content = wrapper_cmd_content("1.0.0")
+        assert "GOTO try_uvx" in content
+        assert ":try_uvx" in content
+        assert "GOTO no_runtime" in content
+        assert ":no_runtime" in content
+
+
+class TestWrapperRuntimeFallback:
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_falls_back_to_uvx_when_path_shim_is_unreachable(
+        self, tmp_path: Path
+    ) -> None:
+        write_wrappers(tmp_path, "9.9.9")
+        fake_bin = tmp_path / "fake-bin"
+        fake_bin.mkdir()
+
+        stale_spec_kitty = fake_bin / "spec-kitty"
+        stale_spec_kitty.write_text("#!/bin/sh\nexit 127\n")
+        stale_spec_kitty.chmod(stale_spec_kitty.stat().st_mode | stat.S_IEXEC)
+
+        fake_uvx = fake_bin / "uvx"
+        fake_uvx.write_text("#!/bin/sh\nprintf 'uvx %s\\n' \"$*\"\n")
+        fake_uvx.chmod(fake_uvx.stat().st_mode | stat.S_IEXEC)
+
+        wrapper = tmp_path / "bin" / "spec-kitty-wrapper"
+        bash_path = shutil.which("bash")
+        assert bash_path is not None
+        result = subprocess.run(
+            [bash_path, str(wrapper), "mission", "list"],
+            capture_output=True,
+            text=True,
+            env={"PATH": str(fake_bin)},
+        )
+
+        assert result.returncode == 0
+        assert result.stdout == "uvx spec-kitty-cli==9.9.9 mission list\n"
 
 
 # ---------------------------------------------------------------------------
@@ -181,12 +280,16 @@ class TestMarketplaceJson:
             (tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8")
         )
         assert payload["name"] == "spec-kitty-plugins"
+        assert payload.get("owner") == {"name": "Spec Kitty"}
+        assert payload.get("description") == "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code."
+        assert "interface" not in payload
         assert "plugins" in payload
         assert len(payload["plugins"]) == 1
         plugin = payload["plugins"][0]
         assert plugin["name"] == "spec-kitty"
+        assert "policy" not in plugin
         assert plugin["source"]["source"] == "git-subdir"
-        assert "spec-kitty.git" in plugin["source"]["url"]
+        assert plugin["source"]["url"] == "https://github.com/spec-kitty/spec-kitty.git"
 
     def test_marketplace_json_not_inside_bundle(self, tmp_path: Path) -> None:
         """marketplace.json lives alongside the bundle dir, not inside it."""
@@ -224,6 +327,10 @@ class TestBuildIncludesWrappers:
         plugin_json = json.loads(
             (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
+        assert plugin_json["author"] == {
+            "name": "Spec Kitty",
+            "url": "https://github.com/spec-kitty/spec-kitty",
+        }
         version = plugin_json["version"]
         bash_content = (bundle_dir / "bin" / "spec-kitty-wrapper").read_text(encoding="utf-8")
         assert version in bash_content

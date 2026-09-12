@@ -28,4 +28,4 @@ def _disable_saas_sync_for_integration_tests(monkeypatch: pytest.MonkeyPatch) ->
     being tested can run. These tests don't intentionally test the boundary
     preflight, so we disable the gate here.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")

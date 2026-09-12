@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Generate YAML JSON-Schema files from Pydantic models.
 
-The Pydantic models in ``src/doctrine/*/models.py`` are the **single source
-of truth**. This script derives the YAML schema files that live in
-``src/doctrine/schemas/`` and are used by ``jsonschema`` validators at
-runtime and in tests.
+The Pydantic models in ``src/charter/offering/*/models.py`` are the **single
+source of truth**. This script derives the YAML schema files that live in
+``src/charter/offering/schemas/`` and are used by ``jsonschema`` validators
+at runtime and in tests.
 
 Usage::
 
@@ -31,11 +31,46 @@ from ruamel.yaml import YAML
 # Registry: maps schema filename stem → (model class path, metadata, overrides)
 # ---------------------------------------------------------------------------
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "doctrine" / "schemas"
+SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "charter" / "offering" / "schemas"
 
-# Subset of ArtifactKind values used in cross-reference enums.
-# The full ArtifactKind includes agent_profile, mission_step_contract, template
-# which are not valid in reference "type" fields.
+# ---------------------------------------------------------------------------
+# The four `<kind>_reference.type` enums.
+#
+# All four models annotate the SAME type (`type: ArtifactKind`), so nothing in
+# the models explains why the four generated enums differ. They differ because
+# the enum is FROZEN per kind, deliberately, and the four were frozen at
+# different moments.
+#
+# WHY FROZEN AND NOT DERIVED FROM ArtifactKind. ADR
+# `docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md`
+# decision 3: "The four `<kind>_reference.type` enums are frozen, not fixed. A
+# kind that cannot be named inline is *correct* behaviour, not a defect.
+# Specifically: do not add `asset` (or any kind) to those enums." Inline
+# `references:` blocks are pre-DRG residue being migrated to DRG edges;
+# widening them entrenches a second relationship authority. Deriving these
+# lists from `ArtifactKind` is the ADR's rejected Option 2. Do not do it, and
+# do not "fix" the asymmetry by levelling the four up -- levelling them up is
+# the change the ADR exists to refuse.
+#
+# WHY A PER-SCHEMA TABLE. Before this table the freeze was incidental and
+# leaky: `generate_schema`'s `enum_defs - {"ArtifactKind"}` branch sent a model
+# that happens to declare some unrelated `StrEnum` (Directive/Enforcement,
+# Procedure/ActorRole) through `_inline_all_enum_refs`, which inlines the LIVE
+# `ArtifactKind`, while a model declaring none (Tactic, Paradigm) fell to
+# `_inline_artifact_kind_refs` and a frozen list. So every new `ArtifactKind`
+# member silently entered two of the four enums on the next regeneration --
+# which is how `asset`, `glossary_pack` and `anti_pattern` reached
+# `directive_reference` and `procedure_reference`, the exact three kinds the
+# ADR names. Routing all four through this table makes the freeze structural:
+# `ArtifactKind` can grow without touching any reference enum.
+#
+# Whether the 9-vs-7 asymmetry SHOULD persist is open (#2976) and is not
+# settled here. Each list is pinned where the ADR measured it on 2026-07-26.
+# Shrink-only, ratcheted by tests/architectural/test_reference_enum_ratchet.py.
+# ---------------------------------------------------------------------------
+
+#: The widest frozen set: what `directive`/`procedure`/`paradigm` carried when
+#: the ADR measured the surface. Order is the historical emission order.
 _REFERENCE_KINDS = [
     "directive",
     "tactic",
@@ -43,8 +78,27 @@ _REFERENCE_KINDS = [
     "toolguide",
     "paradigm",
     "procedure",
+    "agent_profile",
+    "mission_step_contract",
     "template",
 ]
+
+#: The two kinds `tactic_reference` had already dropped by then ("the tactic
+#: copy has drifted further still" -- ADR, Context). No shipped artefact names
+#: either from ANY reference block, so the asymmetry is dormant, not a live
+#: capability difference. Reconciling it in either direction is #2976's call.
+_TACTIC_OMITTED_KINDS = frozenset({"agent_profile", "mission_step_contract"})
+
+#: Schema stem -> the frozen `ArtifactKind` member list for that schema's
+#: `<kind>_reference.type`. A stem absent here does NOT fall back to the live
+#: enum: both inlining passes raise, because a silent default is what produced
+#: the drift. Adding a reference-bearing schema means adding it here.
+_REFERENCE_KINDS_BY_SCHEMA: dict[str, list[str]] = {
+    "directive": list(_REFERENCE_KINDS),
+    "procedure": list(_REFERENCE_KINDS),
+    "paradigm": list(_REFERENCE_KINDS),
+    "tactic": [k for k in _REFERENCE_KINDS if k not in _TACTIC_OMITTED_KINDS],
+}
 
 _CONTRADICTION_KINDS = ["directive", "tactic", "paradigm"]
 
@@ -83,7 +137,7 @@ def register_custom(stem: str, generator: Any) -> None:
 # --- Paradigm ---
 register(
     "paradigm",
-    "doctrine.paradigms.models",
+    "charter.offering.paradigms.models",
     "Paradigm",
     "Paradigm",
     "Minimal schema for doctrine paradigms.",
@@ -130,7 +184,7 @@ def _tactic_fixups(schema: dict) -> dict:
 
 register(
     "tactic",
-    "doctrine.tactics.models",
+    "charter.offering.tactics.models",
     "Tactic",
     "Tactic",
     "Minimal schema for reusable behavior tactics.",
@@ -159,7 +213,7 @@ def _directive_fixups(schema: dict) -> dict:
 
 register(
     "directive",
-    "doctrine.directives.models",
+    "charter.offering.directives.models",
     "Directive",
     "Directive",
     "Schema for governance directives with optional enrichment fields.",
@@ -192,7 +246,7 @@ def _procedure_fixups(schema: dict) -> dict:
 
 register(
     "procedure",
-    "doctrine.procedures.models",
+    "charter.offering.procedures.models",
     "Procedure",
     "Procedure",
     "Schema for doctrine procedures — reusable orchestrated workflows.",
@@ -201,6 +255,83 @@ register(
 
 
 # --- Styleguide ---
+
+# T025 adjudication (WP05, FR-005, mission doctrine-silence-guards-01KYFV7Q).
+#
+# `Styleguide.structural_lint_config` (styleguides/models.py:92) is typed
+# `dict[str, Any] | None` — a deliberately generic escape hatch; the model does
+# not want to know the shape of every lint's config. Left to the standard
+# pipeline, `model_json_schema()` renders that as a bare `type: object` with no
+# named properties, which is what made `--check` report this schema stale: the
+# committed schema instead pins the *specific* structural contract the
+# common-docs styleguide's block must satisfy
+# (`src/charter/offering/styleguides/built-in/common-docs.styleguide.yaml`), because the
+# `docs_structural_lint.py` asset that reads it (`_require_markers`,
+# `assets/built-in/docs_structural_lint.py`) parses `point_in_time_markers` as a
+# list of `{frontmatter_field, frontmatter_value}` objects and raises
+# `ConfigError` on anything else. That per-field object shape
+# (`point_in_time_marker`) is declared in **no** Pydantic model — there is no
+# model to declare it in, since the field above it is untyped by design — but it
+# IS used, structurally, by a shipped artefact.
+#
+# Naively regenerating from the model alone collapses both definitions to a
+# permissive `type: object`, silently widening what `common-docs.styleguide.yaml`
+# — and any future styleguide reusing this asset — is allowed to declare under
+# this key. Adjudication: keep the JSON-Schema-level contract below, pinned
+# independently of the deliberately-permissive Pydantic type. The fixup, not the
+# model, is the second, narrower source of strictness for this one field; it
+# fails loudly (a schema validation error) if the asset's contract and this
+# definition ever drift apart, rather than silently accepting whatever a future
+# lint config author writes.
+_POINT_IN_TIME_MARKER_DEF: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["frontmatter_field", "frontmatter_value"],
+    "properties": {
+        "frontmatter_field": {"type": "string", "minLength": 1},
+        "frontmatter_value": {"type": "string", "minLength": 1},
+    },
+}
+
+_STRUCTURAL_LINT_CONFIG_DEF: dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "Machine-parseable policy block a companion lint script LOADS as its "
+        "single source of truth (e.g. common-docs' docs_structural_lint.py "
+        "config, FR-011). Plain scalars/lists/mappings only."
+    ),
+    "additionalProperties": False,
+    "properties": {
+        "curated_complete_sections": {"type": "array", "items": {"type": "string"}},
+        "concern_bucket_to_section": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+        "point_in_time_patterns": {"type": "array", "items": {"type": "string"}},
+        "point_in_time_markers": {
+            "type": "array",
+            "items": {"$ref": "#/definitions/point_in_time_marker"},
+        },
+        "point_in_time_allowlist": {"type": "array", "items": {"type": "string"}},
+        "frontmatter_required_fields": {"type": "array", "items": {"type": "string"}},
+        "frontmatter_in_scope_exclusions": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "shadow_tree_nav_exemptions": {"type": "array", "items": {"type": "string"}},
+        "guides_boundary": {"type": "string"},
+        "redirect_stub_description_prefix": {"type": "string"},
+        # T004 invariant fields (common-docs-convergence WP04): the closed
+        # section/dir/root allowlists + the one-index toggle the extended
+        # structural-lint check-fns and the root-allowlist gate consume.
+        "sanctioned_content_sections": {"type": "array", "items": {"type": "string"}},
+        "non_content_dirs": {"type": "array", "items": {"type": "string"}},
+        "root_allowlist": {"type": "array", "items": {"type": "string"}},
+        "one_index_per_dir": {"type": "boolean"},
+    },
+}
+
+
 def _styleguide_fixups(schema: dict) -> dict:
     props = schema.get("properties", {})
     # anti_patterns: minItems 1 when present
@@ -218,12 +349,22 @@ def _styleguide_fixups(schema: dict) -> dict:
             "Recommended tools for enforcing the styleguide (formatters, linters, "
             "type checkers, test runners, etc.)."
         )
+    # T024/T025: restore the structural_lint_config / point_in_time_marker
+    # contract the standard pipeline cannot derive from `dict[str, Any]` alone.
+    # See the adjudication comment above the constants.
+    if "structural_lint_config" in props:
+        defs = schema.setdefault("definitions", {})
+        defs["point_in_time_marker"] = _POINT_IN_TIME_MARKER_DEF
+        defs["structural_lint_config"] = _STRUCTURAL_LINT_CONFIG_DEF
+        props["structural_lint_config"] = {
+            "$ref": "#/definitions/structural_lint_config"
+        }
     return schema
 
 
 register(
     "styleguide",
-    "doctrine.styleguides.models",
+    "charter.offering.styleguides.models",
     "Styleguide",
     "Styleguide",
     "Minimal schema for doctrine styleguides.",
@@ -233,7 +374,7 @@ register(
 # --- Toolguide ---
 register(
     "toolguide",
-    "doctrine.toolguides.models",
+    "charter.offering.toolguides.models",
     "Toolguide",
     "Toolguide",
     "Minimal schema for doctrine toolguides.",
@@ -241,27 +382,15 @@ register(
 
 
 # --- Mission ---
-def _mission_fixups(schema: dict) -> dict:
-    """Convert anyOf → oneOf for state items (string | object union)."""
-    defs = schema.get("definitions", {})
-    orch = defs.get("mission_orchestration", {})
-    orch_props = orch.get("properties", {})
-    if "states" in orch_props:
-        states = orch_props["states"]
-        items = states.get("items", {})
-        # Pydantic generates anyOf for str | MissionStateObject; schema uses oneOf
-        if "anyOf" in items:
-            items["oneOf"] = items.pop("anyOf")
-    return schema
-
-
+# No fixup: the former `_mission_fixups` (anyOf -> oneOf on the orchestration
+# `states` union) went with the MissionOrchestration family
+# (dead-port-disposition-01M1TZVN, T014b).
 register(
     "mission",
-    "doctrine.missions.models",
+    "charter.offering.missions.models",
     "Mission",
     "Mission",
     "Minimal schema for doctrine mission definitions.",
-    extra=_mission_fixups,
     by_alias=True,
 )
 
@@ -297,7 +426,7 @@ def _model_task_fixups(schema: dict) -> dict:
 
 register(
     "model-to-task_type",
-    "doctrine.model_task_routing.models",
+    "charter.offering.model_task_routing.models",
     "ModelToTaskType",
     "Model-to-Task Type Mapping",
     "Catalog of model capabilities, costs, and routing policy for task assignment.",
@@ -341,14 +470,9 @@ def _agent_profile_fixups(schema: dict) -> dict:
             srp["description"] = "Self-review checklist the agent runs before handing off work"
 
     defs = schema.get("definitions", {})
-    _annotate_def(defs, "agent_context_sources", {
-        "doctrine-layers": "Doctrine layers this agent consults",
-        "directives": "Directive IDs this agent references",
-        "tactics": "Tactic IDs this agent references",
-        "toolguides": "Toolguide IDs this agent references",
-        "styleguides": "Styleguide IDs this agent references",
-        "additional": "Additional context sources",
-    })
+    # The retired ``agent_context_sources`` definition was removed in mission
+    # doctrine-drg-silent-drop-boundary-01M0PE7E; references now live solely on
+    # the top-level ``*-references`` surface.
     _annotate_def(defs, "agent_specialization", {
         "primary-focus": "Primary area of specialization",
         "secondary-awareness": "Secondary areas agent is aware of",
@@ -401,7 +525,7 @@ def _agent_profile_fixups(schema: dict) -> dict:
 
 register(
     "agent-profile",
-    "doctrine.agent_profiles.schema_models",
+    "charter.offering.agent_profiles.schema_models",
     "AgentProfileSchema",
     "Agent Profile",
     "Rich agent profile schema with 6-section structure for spec-kitty doctrine framework",
@@ -422,7 +546,7 @@ def _generate_import_candidate_schema() -> dict:
     """
     import importlib
 
-    mod = importlib.import_module("doctrine.import_candidates.models")
+    mod = importlib.import_module("charter.offering.import_candidates.models")
     legacy_cls = mod.LegacyImportCandidate
     curation_cls = mod.CurationImportCandidate
 
@@ -610,21 +734,38 @@ def _remove_defaults_for_empty_collections(obj: Any) -> Any:
     return obj
 
 
-def _inline_artifact_kind_refs(obj: Any, defs: dict) -> Any:
-    """Replace $ref to ArtifactKind with inline enum restricted to reference kinds."""
+#: ``ValueError`` message for a schema that inlines ``ArtifactKind`` with no
+#: frozen list. Fail-closed on purpose: silently defaulting to one set or the
+#: other is how the four enums drifted apart unnoticed in the first place.
+_UNMAPPED_ARTIFACT_KIND = (
+    "this schema inlines ArtifactKind but has no entry in "
+    "_REFERENCE_KINDS_BY_SCHEMA. Reference enums are frozen per kind (ADR "
+    "2026-07-26-1, decision 3) and must never track the live ArtifactKind. Add "
+    "the schema stem with the member list it is meant to carry."
+)
+
+
+def _inline_artifact_kind_refs(
+    obj: Any, defs: dict, reference_kinds: list[str] | None = None
+) -> Any:
+    """Replace $ref to ArtifactKind with the frozen reference-kind enum."""
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref = obj["$ref"]
             # Match both old ($defs) and new (definitions) paths
             if "ArtifactKind" in ref or "artifact_kind" in ref:
+                if reference_kinds is None:
+                    raise ValueError(_UNMAPPED_ARTIFACT_KIND)
                 return {
                     "type": "string",
-                    "enum": _REFERENCE_KINDS,
+                    "enum": list(reference_kinds),
                     "description": obj.get("description", "Doctrine artifact type being referenced."),
                 }
-        return {k: _inline_artifact_kind_refs(v, defs) for k, v in obj.items()}
+        return {
+            k: _inline_artifact_kind_refs(v, defs, reference_kinds) for k, v in obj.items()
+        }
     elif isinstance(obj, list):
-        return [_inline_artifact_kind_refs(item, defs) for item in obj]
+        return [_inline_artifact_kind_refs(item, defs, reference_kinds) for item in obj]
     return obj
 
 
@@ -633,38 +774,47 @@ def _is_enum_def(defn: dict) -> bool:
     return isinstance(defn, dict) and "enum" in defn and defn.get("type") == "string"
 
 
-def _inline_all_enum_refs(obj: Any, defs: dict) -> Any:
+def _inline_all_enum_refs(
+    obj: Any, defs: dict, reference_kinds: list[str] | None = None
+) -> Any:
     """Replace all $ref to StrEnum definitions with inline enum values.
 
     Unlike ``_inline_artifact_kind_refs`` which only handles ArtifactKind,
     this function inlines *all* StrEnum references found in ``$defs``.
     Used for schemas like model-to-task_type that have many enums.
+
+    ``reference_kinds`` supplies the members emitted for ``ArtifactKind``
+    specifically; every other enum is inlined from ``defs`` as declared. Omitting
+    it for a schema that references ``ArtifactKind`` raises rather than falling
+    back to the live enum. That fallback is what this pass used to do
+    unconditionally, so a schema routed here tracked every ``ArtifactKind``
+    addition while a schema routed through :func:`_inline_artifact_kind_refs`
+    stayed frozen -- the two paths disagreeing about the same annotation is what
+    let `asset`, `glossary_pack` and `anti_pattern` into two of the four
+    reference enums.
     """
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref = obj["$ref"]
-            if ref.startswith("#/$defs/"):
-                def_name = ref[len("#/$defs/"):]
+            for prefix in ("#/$defs/", "#/definitions/"):
+                if not ref.startswith(prefix):
+                    continue
+                def_name = ref[len(prefix):]
                 if def_name in defs and _is_enum_def(defs[def_name]):
-                    enum_def = defs[def_name]
-                    result: dict[str, Any] = {"type": "string", "enum": enum_def["enum"]}
+                    members = defs[def_name]["enum"]
+                    if def_name == "ArtifactKind":
+                        if reference_kinds is None:
+                            raise ValueError(_UNMAPPED_ARTIFACT_KIND)
+                        members = list(reference_kinds)
+                    result: dict[str, Any] = {"type": "string", "enum": members}
                     # Preserve sibling keys like description
                     for k, v in obj.items():
                         if k != "$ref":
                             result[k] = v
                     return result
-            elif ref.startswith("#/definitions/"):
-                def_name = ref[len("#/definitions/"):]
-                if def_name in defs and _is_enum_def(defs[def_name]):
-                    enum_def = defs[def_name]
-                    result = {"type": "string", "enum": enum_def["enum"]}
-                    for k, v in obj.items():
-                        if k != "$ref":
-                            result[k] = v
-                    return result
-        return {k: _inline_all_enum_refs(v, defs) for k, v in obj.items()}
+        return {k: _inline_all_enum_refs(v, defs, reference_kinds) for k, v in obj.items()}
     elif isinstance(obj, list):
-        return [_inline_all_enum_refs(item, defs) for item in obj]
+        return [_inline_all_enum_refs(item, defs, reference_kinds) for item in obj]
     return obj
 
 
@@ -898,8 +1048,18 @@ def generate_schema(stem: str) -> dict:
     # Phase 1: inline enum refs
     # For schemas with many enums (model-to-task_type), inline ALL enum refs.
     # For others, only inline ArtifactKind.
+    #
+    # Either way `ArtifactKind` emits this schema's FROZEN reference-kind list
+    # when it has one, so which branch a model takes -- an implementation
+    # detail of whether it declares some unrelated StrEnum -- can no longer
+    # decide whether the reference enum tracks the live vocabulary.
+    reference_kinds = _REFERENCE_KINDS_BY_SCHEMA.get(stem)
     enum_defs = {k for k, v in defs.items() if _is_enum_def(v)}
-    schema = _inline_all_enum_refs(raw, defs) if enum_defs - {"ArtifactKind"} else _inline_artifact_kind_refs(raw, defs)
+    schema = (
+        _inline_all_enum_refs(raw, defs, reference_kinds)
+        if enum_defs - {"ArtifactKind"}
+        else _inline_artifact_kind_refs(raw, defs, reference_kinds)
+    )
 
     # Phase 2: rename $defs → definitions, rewrite $ref paths
     if "$defs" in schema:

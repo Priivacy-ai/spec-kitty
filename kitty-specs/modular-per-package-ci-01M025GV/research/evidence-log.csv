@@ -1,0 +1,23 @@
+evidence_id,claim,evidence,source_id,decision
+E1,Coverage aggregation is glob/pattern-based and per-run scoped,diff-coverage downloads pattern:'*-reports' then find coverage-*.xml (ci-quality.yml:3467-3519); sonarcloud builds report_paths same way (:3815-3870),S1,D1
+E2,Sonar is one scan in one run,Single sonarqube-scan-action invocation ci-quality.yml:4022-4032,S1,D1
+E3,quality-gate absorbs required-check-name churn,Consumes toJSON(needs) wholesale ci-quality.yml:4361/:4438,S1,D1
+E4,Option (b) cross-run tax already exists and is a documented gap,ui-e2e coverage fetched cross-workflow by head-SHA ci-quality.yml:3768-3813 (FR-013/#2623),S1,D1
+E5,kernel-tests is the clean first slice,needs:[changes] only; single non-sharded job; own 90% floor; coverage-kernel.xml ci-quality.yml:1077-1133,S1,D1
+E6,No workflow_call/workflow_run exists in repo today,grep over .github/workflows returns only REST-API listWorkflowRuns hits,S1,D1
+E7,doctrine-charter-tests is a standalone module workflow with no coverage,paths-filtered; runs tests/doctrine|charter; disclaims coverage (doctrine-charter-tests.yml:44-49/:204-225),S2,D1
+E8,Per-package pyprojects are dormant groundwork,DORMANT header 'not yet built/consumed by CI' src/kernel/pyproject.toml:1-5 and src/doctrine/pyproject.toml:1-5,S5,D1
+E9,Root ships all 7 packages as one distribution,pyproject.toml:147 packages list; CI uses uv sync --frozen --all-extras,S7,D1
+E10,Wheel cutover is a separate governed follow-on,ADR 2026-08-02-1 kernel->doctrine->charter as ONE no-partial cutover,S8,D1
+E11,Sonar does not decorate PRs today,sonarcloud gated if schedule||workflow_dispatch ci-quality.yml:3648; no sonar.pullrequest.*,S1,D2
+E12,PR-time coverage gate is diff-coverage not Sonar,diff-coverage if pull_request --fail-under=90 includes kernel/doctrine/charter ci-quality.yml:3429/:3491-3514,S1,D2
+E13,Drifting assets are committed fixtures not .claude/commands,git ls-files .claude/commands and .agents/skills return 0; fixtures under tests/specify_cli/... (144+24),S15,D2
+E14,#3379 maps to one specify prompt edit,12 baseline files + 2 snapshots = 12 parity + 2 snapshot failures,S19,D2
+E15,Auto-commit precedent gated to same-repo,all-contributors-normalize.yml:18 head.repo.full_name==github.repository; bot push :63-74,S3,D2
+E16,Fork PR token is read-only cannot push to fork,base-context GITHUB_TOKEN; existing fork PRs degrade-to-skip ci-quality.yml:4247/:4292,S1,D2
+E17,Standalone regen can model on existing dual-mode command,doctrine regenerate-graph --check renders to tempdir + byte compare + exit1 doctrine.py:211-294,S12,D2
+E18,Two render entrypoints exist to reuse,render_command_template asset_generator.py:117; command_renderer.render().to_skill_md command_renderer.py:384/124,S9,D2
+E19,Version pins differ between suites,twelve-agent 3.1.2a3 test_twelve_agent_parity.py:80; skills 3.0.0 test_command_renderer.py:72,S13,D2
+E20,Gate tests already carry TODOs to narrow byte-grid,test_twelve_agent_parity.py:26-37 and test_command_renderer.py:19-30,S13,D2
+E21,Architectural CI-model guards may assume inline steps,test_ci_collection_completeness/test_ci_quality_path_filters/_gate_coverage parse job graph,S20,D1
+E22,Marker completeness trap on test relocation,test_marker_job_completeness.py enforces every test resolves to one CI home,S17,D2

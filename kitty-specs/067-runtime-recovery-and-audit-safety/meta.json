@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-06T18:24:11.789013+00:00",
+  "flattened": false,
   "friendly_name": "Runtime Recovery And Audit Safety",
   "mission_id": "01KQ47E813PE1WDF9CF3G8K447",
   "mission_number": 67,
@@ -9,5 +10,6 @@
   "source_description": "P1 stabilization: merge/implementation crash recovery, canonical execution surface cleanup, audit-mode WPs, bulk-edit safety, truthful progress reporting",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

@@ -1,0 +1,149 @@
+{
+  "mission_slug": "verdict-seam-boundary-hardening-01KZG179",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: full verdict bridge on status.__all__ (13 symbols); reviewer-verified, 52 tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:31.115922+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: 8 verdict_vocab consumers migrated to facade; reviewer-verified, 1296 pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:32.915730+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: 4 collateral submodule imports migrated (emit/store x2/lane_reader)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:34.737483+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: dup decode retired -> review_result_from_state; 5-case parity tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:36.548198+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: boundary guard widened (submodule-name check) + two-way teeth",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:38.359419+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: two drifted reducer tests renamed (assertions unchanged)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:40.154263+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: census function-level exclusion; _legacy_frontmatter_verdict surfaces (#3236)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:41.959548+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: 3 wholesale-exclusion tests flipped to fn-level shape; fixture reconciled",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:43.763963+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: red-first arbiter crash regression (RED->GREEN), 521 pass (#3244)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:45.576092+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: filename-only latest_cycle_number; .latest/from_file untouched (C-004)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:47.386614+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: advisories[] on 4 non-error accept --json payloads (#3255)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:49.209985+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved: dedicated -m stress serial CI lane; durability test off fast pool (#3256)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:51.012707+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: helper-construction classifier + two-way teeth (#3217)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:52.831883+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "Descoped: #3216 already resolved by prior mission #3245/WP05 (reader retired FR-003); single-canonical-reader invariant holds, no duplicate to collapse",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-08T12:27:54.644913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

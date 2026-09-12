@@ -1,0 +1,17 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: Verified FR-006 appears only in wps.yaml/WP01 frontmatter requirement_refs (grep for "FR-006" and "test_runtime_seam" in the WP body returns nothing) while the DoD's 8-file targeted surface and Reviewer Guidance never mention it, unlike every other requirement_ref which is traced in-body.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: Verified WP01 has no "Activity Log" heading at all (511-line file, full heading list checked) and neither T001's instructions nor DoD item 1 name tracer-approach.md or any other durable location for the recorded baseline, even though plan.md's Documentation section establishes tracer-*.md as the mission's existing authoring-note convention.
+  - id: TASKS-VERIFY-001
+    verdict: refuted
+    reason: "The cited quote (\"covered by FR-004's own regression suite\") is real but the citation misattributes it — it is the file's sole occurrence of \"regression suite\" (line 331) and sits inside Subtask T004 describing the internal _resolve_action_slot refactor's own test coverage, not in \"§ Context\" and not addressing User Story 2/AC1 or the `mission-type list` CLI surface at all, so the evidence does not support the claim that WP01 \"waves through\" AC1 with that prose."
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: Verified SC-004 is absent from wps.yaml and WP01 frontmatter requirement_refs, confirmed the precedent file/lines (isolated-home-pin-guard-r1a-01KZNMA3/wps.yaml:12-15) say exactly what's quoted, and confirmed requirement_mapping.py:16's _REF_FIND_PATTERN matches only (FR|NFR|C)-\d+ with the module's own docstring documenting SC-### as deliberately dropped (upstream #2991) — and no such acknowledgment exists anywhere in this mission's artifacts.

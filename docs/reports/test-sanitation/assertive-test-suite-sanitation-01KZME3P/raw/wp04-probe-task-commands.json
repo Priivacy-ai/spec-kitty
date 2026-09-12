@@ -1,0 +1,37 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "--tb=line",
+    "-p",
+    "no:cacheprovider",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded",
+    "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker"
+  ],
+  "configured_timeout_seconds": 120.0,
+  "cwd": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d",
+  "elapsed_seconds": 103.874,
+  "ended_at": "2026-08-10T10:58:54.921561+00:00",
+  "environment": {
+    "PWHEADLESS": null,
+    "PYTHONHASHSEED": null,
+    "PYTHONPATH": null,
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "exit_code": 1,
+  "schema_version": "wp04-command-receipt/v1",
+  "started_at": "2026-08-10T10:57:11.024187+00:00",
+  "stderr": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout": "FFFFFFF                                                                  [100%]\n=================================== FAILURES ===================================\nE   AssertionError: assert {'broken': 0} == {}\n      \n      Left contains 1 more item:\n      {'broken': 0}\n      Use -v to get more diff\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_outline.py:134: AssertionError: assert {'broken': 0} == {}\nE   AssertionError: assert False is True\n     +  where False = _is_pipe_table_task_row('| T001 | description | WP01 | No |', 'T001')\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_outline.py:79: AssertionError: assert False is True\nE   AssertionError: assert False is True\n     +  where False = _is_pipe_table_task_row('|  T001  | desc |', 'T001')\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_outline.py:83: AssertionError: assert False is True\nE   assert None is not None\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py:154: assert None is not None\nE   AssertionError: assert '[D]' in '| T001 | do thing | WP01 | [ ] |'\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_materialization.py:50: AssertionError: assert '[D]' in '| T001 | do thing | WP01 | [ ] |'\nE   AssertionError: assert '[D]' in '| T001 | do thing | WP01 | [P] |'\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_materialization.py:66: AssertionError: assert '[D]' in '| T001 | do thing | WP01 | [P] |'\nE   AssertionError: assert '[ ]' in '| T001 | do thing | WP01 | [D] |'\n/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/tests/specify_cli/cli/commands/agent/test_tasks_materialization.py:85: AssertionError: assert '[ ]' in '| T001 | do thing | WP01 | [D] |'\n=========================== short test summary info ============================\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker\n7 failed in 102.54s (0:01:42)\n",
+  "stdout_sha256": "187b4a89357c4af11bf2bf9c83cb15c320e0f44d08c606ac9a6c72d7d4a75760",
+  "timed_out": false
+}

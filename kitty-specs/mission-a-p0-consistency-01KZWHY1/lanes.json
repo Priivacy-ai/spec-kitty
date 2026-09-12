@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "mission_slug": "mission-a-p0-consistency-01KZWHY1",
+  "mission_id": "01KZWHY1R99Z8EV2ZATBNSCKWK",
+  "mission_branch": "kitty/mission-mission-a-p0-consistency-01KZWHY1",
+  "target_branch": "fix/mission-a-p0-consistency",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/retrospect.py",
+        "tests/cli/commands/test_retrospect_update_persisted.py",
+        "tests/regression/test_issue_3320_retrospect_update_reports_stale_findings.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/matrix.py",
+        "tests/acceptance/test_overall_verdict_scaffold.py",
+        "tests/regression/test_issue_3231_scaffold_pending_poisons_acceptance.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/metadata.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/regression/test_issue_3334_failed_upgrade_wedges_repair.py",
+        "tests/upgrade/test_failed_upgrade_recoverable.py",
+        "tests/upgrade/test_metadata_schema_roundtrip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "tests/regression/test_issue_3311_finalize_rewrites_active_lanes.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-13T04:18:39.719756+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f5d544686fc1a92384f2ebd7437f1093861d291c"
+}

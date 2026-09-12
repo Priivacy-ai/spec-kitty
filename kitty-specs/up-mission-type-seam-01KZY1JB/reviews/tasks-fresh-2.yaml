@@ -1,0 +1,40 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh2
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: TASKS-FRESH2-001
+    lens: canonical-sources-and-workspace-resolution
+    severity: 2
+    title: WP07's lane-cycle verification command uses unresolved placeholders (`<lane-b tip commit>`, `<lane-c tip>`) with no stated method to obtain them
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Branch Strategy — \"confirm inside the resulting worktree that `git merge-base --is-ancestor <lane-b tip commit> HEAD` and the equivalent for `lane-c`'s tip both hold\""
+      - artifact: "tracer-tooling-friction.md § \"Friction discovered during the TASKS-phase adversarial fix round\" — Correction paragraph, which paraphrases the same check as `git merge-base --is-ancestor <lane-b tip> HEAD` (note the placeholder text itself drifts slightly between the two artifacts: \"tip commit\" vs \"tip\")"
+      - artifact: "wps.yaml header comment — points to WP07's prompt for the check but does not itself state a resolution method either"
+    claim: >
+      Both the WP07 prompt and the tracer's paraphrase of it tell the implementer to run
+      `git merge-base --is-ancestor <lane-b tip commit> HEAD` (and the lane-c equivalent) as a
+      post-`spec-kitty implement WP07` sanity check, but neither artifact — nor `wps.yaml`'s header,
+      which merely points back to WP07's prompt — states how to resolve the placeholder into an
+      actual ref. `lanes.json` (verified live) carries no per-lane branch field, so the branch name
+      is not visible there; it is only derivable via the `lane_branch_name(mission_slug, lane_id)`
+      naming grammar inside `src/specify_cli/lanes/branch_naming.py`, or via CLAUDE.md's
+      general "Branch: `kitty/mission-<slug>-<mid8>-lane-<id>`" convention (Mission Identity Model
+      section) plus a manual `git branch -a | grep lane-b` in the worktree — neither of which is
+      cited at the point of instruction. This is low-stakes (the check is explicitly a
+      "verification-only sanity check, not a substitute for th[e] guarantee," is not part of the
+      Gate Set / Definition of Done, and a competent implementer would resolve it via `git branch -a`
+      in under a minute), so the four CLI fixes this WP actually delivers are unaffected — but as
+      written the instruction is not fully self-contained/copy-pasteable, which is exactly the kind
+      of small friction this mission's own tracer file is meant to catch when it appears elsewhere in
+      the toolchain.
+    remediation: >
+      In WP07's Branch Strategy paragraph, replace the bare `<lane-b tip commit>` / `<lane-c tip>`
+      placeholders with either (a) the concrete command to resolve them, e.g. `git rev-parse
+      $(python3 -c "from specify_cli.lanes.branch_naming import lane_branch_name; print(lane_branch_name(MISSION_SLUG, 'lane-b'))")`
+      or the simpler `git branch -a --list '*lane-b*'` / `*lane-c*` in the worktree, or (b) at minimum
+      a one-line pointer to CLAUDE.md's branch-naming convention so the reader knows where to look.
+      Align the tracer's paraphrase ("tip" vs "tip commit") to match once reworded, so both artifacts
+      state identically resolvable guidance.

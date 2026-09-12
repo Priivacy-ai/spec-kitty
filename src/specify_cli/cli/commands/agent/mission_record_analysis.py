@@ -28,11 +28,10 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
-    is_coordination_artifact_residue_path,
-    is_self_bookkeeping_path,
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.core.paths import (
@@ -57,6 +56,24 @@ _PAYLOAD_KEY_SUCCESS = "success"
 _PAYLOAD_KEY_ERROR = "error"
 
 
+
+
+def _emit_record_analysis_error(message: str, *, json_output: bool) -> None:
+    """Emit a record-analysis error to JSON or console (S3776/S1192 campsite).
+
+    The single error-emit path for the string-message failure branches
+    (project-root-missing, empty-body, unexpected-exception): each restated the
+    same ``if json_output: _emit_json(...) else console.print(...)`` two-arm
+    branch, inflating :func:`record_analysis`'s cyclomatic complexity and
+    duplicating the ``{error, success}`` payload shape. Hoisting it keeps the
+    command under the complexity ceiling and gives ONE spelling of the shape.
+    Branches that carry a richer JSON payload (error_code / remediation) keep
+    their own emit — this helper is only for the bare-message failures.
+    """
+    if json_output:
+        _emit_json({_PAYLOAD_KEY_ERROR: message, _PAYLOAD_KEY_SUCCESS: False})
+    else:
+        console.print(f"{_RED_ERROR_PREFIX}{message}")
 
 
 def _git_dirty_paths(repo_root: Path) -> list[str]:
@@ -161,7 +178,12 @@ def _enforce_analysis_report_write_preflight(
     # This runs regardless of topology because these files are spec-kitty's own
     # metadata, not coordination residue. The G-5 invariant holds: a stale primary
     # ``spec.md`` is NOT in the allowlist, so it survives this filter as "real dirt".
-    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_path(path)]
+    # WP11 retired the former ``mission_runtime`` self-bookkeeping predicate onto
+    # the canonical owner's self-bookkeeping-only leg (deliberately NOT the full
+    # ``is_toolchain_generated_churn`` union — the residue leg below is already
+    # applied separately, topology-gated; folding it in here would unconditionally
+    # widen the residue drop).
+    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_churn(path)]
     # FR-005 / FR-001b: drop coord-owned residue only under a coordination
     # topology, read from the WP02 STORED topology via the ONE canonical predicate
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
@@ -175,7 +197,7 @@ def _enforce_analysis_report_write_preflight(
         dirty_paths = [
             path
             for path in dirty_paths
-            if not is_coordination_artifact_residue_path(path, mission_slug=mission_slug)
+            if not is_coord_residue_churn(path, mission_slug=mission_slug)
         ]
     if dirty_paths:
         payload = {
@@ -219,11 +241,7 @@ def record_analysis(
     try:
         repo_root = locate_project_root()
         if repo_root is None:
-            error_msg = PROJECT_ROOT_NOT_FOUND
-            if json_output:
-                _emit_json({_PAYLOAD_KEY_ERROR: error_msg, _PAYLOAD_KEY_SUCCESS: False})
-            else:
-                console.print(f"{_RED_ERROR_PREFIX}{error_msg}")
+            _emit_record_analysis_error(PROJECT_ROOT_NOT_FOUND, json_output=json_output)
             raise typer.Exit(1)
         cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
@@ -272,11 +290,7 @@ def record_analysis(
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
         if not body.strip():
-            error_msg = "Analysis report body is empty"
-            if json_output:
-                _emit_json({_PAYLOAD_KEY_ERROR: error_msg, _PAYLOAD_KEY_SUCCESS: False})
-            else:
-                console.print(f"{_RED_ERROR_PREFIX}{error_msg}")
+            _emit_record_analysis_error("Analysis report body is empty", json_output=json_output)
             raise typer.Exit(1)
 
         from specify_cli.analysis_report import write_analysis_report
@@ -301,11 +315,17 @@ def record_analysis(
         # resolution. The analysis-report WRITE target stays primary (data-model.md
         # KEEP); the dirty-tree allowlist / ANALYSIS_REPORT placement is WP05's
         # concern and is untouched here.
+        #
+        # read-side-placement-seam-migration WP07: the planning-read leg above
+        # now routes through ``placement_seam`` (fail-loud on a deleted-coord
+        # mismatch, NFR-002) instead of the kind-blind
+        # ``resolve_planning_read_dir`` — behavior-neutral since SPEC is
+        # PRIMARY-partition.
         from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
-        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+        from mission_runtime import placement_seam
 
-        write_feature_dir = resolve_planning_read_dir(
-            repo_root, feature_dir.name, kind=_kind_for_artifact("spec")
+        write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(
+            _kind_for_artifact("spec")
         )
 
         result = write_analysis_report(
@@ -315,13 +335,24 @@ def record_analysis(
             analyzer_agent=analyzer_agent,
         )
 
-        # T014 / WP02 / FR-001: commit the analysis report via the canonical
-        # commit router (materialize-then-retry). On a protected primary this
-        # routes the commit to the coordination worktree, materialising it on
-        # demand if needed. On an unprotected or flattened primary the commit
-        # is direct. Best-effort: a commit failure does not abort the write
+        # FR-003 (coord-commit-integrity): commit the analysis report via the
+        # canonical commit router. ANALYSIS_REPORT was re-homed COORD→PRIMARY, so
+        # ``commit_for_mission`` now resolves its placement to the PRIMARY
+        # ``target_branch`` for every topology and commits DIRECTLY there — it NO
+        # LONGER stages a second (coord) copy on the coordination worktree (the
+        # dropped best-effort coord copy). The report lands where its
+        # freshness-hash siblings (spec/plan/tasks) already live. Best-effort: a
+        # commit failure (e.g. a protected target ref) does not abort the write
         # (the report is already on disk; the operator can commit separately).
-        with contextlib.suppress(Exception):
+        # WP03 / T017 (#3128): NARROWED from ``suppress(Exception)`` to the
+        # concrete commit-failure set. The former blanket catch would have
+        # swallowed a Seam-B ``CheckoutIdentityError`` (a distinct
+        # ``Exception``-direct refusal, deliberately outside this tuple), which
+        # this record-analysis path is out of scope for. Best-effort semantics
+        # for genuine commit failures (e.g. a protected target ref) are preserved.
+        with contextlib.suppress(
+            subprocess.CalledProcessError, OSError, RuntimeError, ValueError
+        ):
             from specify_cli.coordination.commit_router import commit_for_mission
             from specify_cli.git.protection_policy import ProtectionPolicy
 
@@ -331,25 +362,23 @@ def record_analysis(
                 repo_root=repo_root,
                 mission_slug=_analysis_mission_slug,
                 files=(result.path,),
-                message=f"Add analysis report for mission {_analysis_mission_slug}",
+                # #3678 (FR-006): conventional-commit-compliant subject —
+                # commitlint.config.cjs's `type-enum`/`type-case` rules require a
+                # recognized `type(scope): subject` prefix; the prior
+                # "Add analysis report for mission {slug}" shape had none and
+                # failed `type-empty`/`subject-empty` outright. `type` is pinned
+                # to `docs` per this repo's own convention for tool-authored
+                # analyze/review commits (spec.md Grounding Correction 4 /
+                # ledger SK-64's option (1): fix the emitted subject, not
+                # commitlint.config.cjs's ignore regex — C-004).
+                message=f"docs(record-analysis): record analysis report for mission {_analysis_mission_slug}",
                 policy=_analysis_policy,
-                # ANALYSIS_REPORT is a COORD kind (write-surface-coherence WP02 /
-                # T008): the analysis report STAYS on the coordination branch under
-                # coord topology (C-001) — the explicit COORD caller proving the
-                # bifurcation. It must NOT be re-kinded to a primary kind.
+                # ANALYSIS_REPORT is a PRIMARY kind (FR-003, coord-commit-integrity):
+                # the report lands on the primary ``target_branch`` under every
+                # topology and NEVER transits the coordination branch. No coord copy
+                # is made — the write surface equals the read surface.
                 kind=MissionArtifactKind.ANALYSIS_REPORT,
                 target_branch=get_feature_target_branch(repo_root, _analysis_mission_slug),
-            )
-
-        with contextlib.suppress(Exception):
-            from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
-            )
-
-            trigger_feature_dossier_sync_if_enabled(
-                write_feature_dir,
-                result.mission_slug,
-                repo_root,
             )
 
         payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}

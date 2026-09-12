@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: 'Plan now states validate_activatable_mission_type sorts as the LAST __all__ entry (after resolve_mission_type_key, before the closing bracket) under the file''s case-sensitive sorted() convention, independently reproduced here via python3 sorted() against the live 11-entry list at src/charter/mission_type_profiles.py:71-83 plus the new symbol, confirming last-position placement; a repo-wide grep for the old "immediately after UnknownMissionTypeError" / "inserted alphabetically between" claim found zero remaining stale references in plan.md.'
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: Commit 2 in the ATDD Sequencing section now adds a genuine CliRunner-driven test in tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py that declares an org-pack candidate <T> with empty own action_sequence extending a parent with a non-empty sequence, invokes `charter activate mission-type <T>`, and asserts exit code 0 plus <T>'s presence in .kittify/config.yaml's mission_type_activations, closing the prior unit-test-only gap for AC4.
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: Commit 2 now carries a bolded "**Verify RED**" checkpoint naming the exact expected AttributeError (module 'charter.mission_type_profiles' has no attribute 'validate_activatable_mission_type') and explicitly distinguishing the already-GREEN CLI test from the RED unit test, and the ATDD Sequencing lead-in now states explicitly that commits 1 and 2 are each diffed against planning_base_branch for RED while commit 3 is diffed for GREEN.

@@ -5,6 +5,7 @@ doc_status: active
 updated: '2026-07-18'
 related:
 - docs/context/charter-overview.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # Governance Files Reference
 
@@ -64,7 +65,7 @@ Use this ownership model instead:
 | Document | Role |
 |---|---|
 | Public governance document outside `.kittify/` | Human-facing policy, historical record, or public project constitution. |
-| `.kittify/charter/charter.yaml` | Runtime charter consumed by Spec Kitty. Its `governance`/`directives` sections should contain the operative policy agents need, plus `governance.doctrine.governance_references` pointers to external authority when useful. |
+| `.kittify/charter/charter.yaml` | Runtime charter consumed by Spec Kitty. Its `governance`/`directives` sections should contain the operative policy agents need, plus `governance.charter.governance_references` pointers to external authority when useful. |
 | `.kittify/charter/charter.md` | Human-facing narrative companion. Useful for onboarding and review; not consumed by the runtime. |
 
 Recommended pattern:
@@ -72,13 +73,13 @@ Recommended pattern:
 1. Keep the external constitution as the public source for long-form governance.
 2. Keep `.kittify/charter/charter.yaml`'s `governance`/`directives` sections concise and
    runtime-oriented: encode the binding directives, and reference the public constitution through
-   `governance.doctrine.governance_references`.
+   `governance.charter.governance_references`.
 3. If agents should inspect a directory of supporting policy, declare that directory under
-   `governance.doctrine.authority_paths`:
+   `governance.charter.authority_paths`:
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     authority_paths:
       - spec/
     governance_references:
@@ -122,7 +123,7 @@ from `charter.yaml`:
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```
@@ -190,7 +191,7 @@ Projects upgraded from early Spec Kitty layouts may still have stale governance 
 
 If the old constitution file is still useful as public or organizational context, put it in a
 normal project path such as `spec/constitution.md` and list that path under
-`governance.doctrine.governance_references` in `charter.yaml`.
+`governance.charter.governance_references` in `charter.yaml`.
 
 ---
 
@@ -232,4 +233,6 @@ Edit `charter.yaml`'s `governance`/`directives` sections directly for policy cha
 ## See Also
 
 - [How Charter Works](charter-overview.md) — mental model and synthesis flow
-- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis workflow
+- [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md) — day-to-day synthesis workflow
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — why `charter pack
+  apply` alone leaves the compiled bundle absent, and the `generate` follow-up that produces it

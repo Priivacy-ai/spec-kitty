@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 
 from ..registry import MigrationRegistry
+from ..autocommit import record_upgrade_mutation
 from .base import BaseMigration, MigrationResult
 from specify_cli.frontmatter import normalize_file, FrontmatterError
 from specify_cli.agent_utils.directories import (
@@ -182,9 +183,7 @@ class CompleteLaneMigration(BaseMigration):
             total_dirs_removed = 0
 
             for feature_dir, location_label in features_found:
-                feature_changes, feature_warnings, feature_errors, migrated, dirs_removed = (
-                    self._migrate_remaining_files(feature_dir, location_label, dry_run)
-                )
+                feature_changes, feature_warnings, feature_errors, migrated, dirs_removed = self._migrate_remaining_files(feature_dir, location_label, dry_run)
                 changes.extend(feature_changes)
                 warnings.extend(feature_warnings)
                 errors.extend(feature_errors)
@@ -288,6 +287,7 @@ class CompleteLaneMigration(BaseMigration):
                         if dry_run:
                             changes.append(f"  Would move: {lane}/{item.name} → tasks/{item.name}")
                         else:
+                            record_upgrade_mutation(item, target, is_move=True)
                             # For .md files, ensure lane in frontmatter
                             if item.suffix == ".md":
                                 content = item.read_text(encoding="utf-8-sig")
@@ -420,9 +420,7 @@ class CompleteLaneMigration(BaseMigration):
                             # Check if it's a symlink - handle differently
                             if commands_dir.is_symlink():
                                 commands_dir.unlink()
-                                changes.append(
-                                    f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)"
-                                )
+                                changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)")
                             elif commands_dir.is_dir():
                                 shutil.rmtree(commands_dir)
                                 changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)")

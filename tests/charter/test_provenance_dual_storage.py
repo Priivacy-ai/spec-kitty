@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from charter._io import load_charter_file, _route_provenance_path
+from charter.activation._io import load_charter_file, _route_provenance_path
 
 pytestmark = pytest.mark.fast
 
@@ -82,7 +82,7 @@ def test_per_mission_routing_writes_to_mission_file(tmp_path: Path) -> None:
     per_mission_prov = mission_dir / ".encoding-provenance.jsonl"
     global_prov = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -132,7 +132,7 @@ def test_centralized_routing_writes_to_global_file(tmp_path: Path) -> None:
 
     global_prov = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -173,7 +173,7 @@ def test_no_duplication_single_ingest_one_record(tmp_path: Path) -> None:
     per_mission_prov = tmp_path / "per_mission.jsonl"
     global_prov = tmp_path / "global.jsonl"
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
     original_write = _io_mod._write_provenance
 

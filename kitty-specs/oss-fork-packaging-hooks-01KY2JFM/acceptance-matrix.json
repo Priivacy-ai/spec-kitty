@@ -1,0 +1,209 @@
+{
+  "mission_slug": "oss-fork-packaging-hooks-01KY2JFM",
+  "mission_number": "185",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Satisfied: FR-001",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_package_name.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Satisfied: FR-002",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_package_name.py \u2014 no env-var package name path",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Satisfied: FR-003",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_upgrade_provider.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Satisfied: FR-004",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_upgrade_provider.py \u2014 multi + SPEC_KITTY_UPGRADE_PROVIDER",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Satisfied: FR-005",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/session_presence/test_upgrade_checker.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Satisfied: FR-006",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_resolve_cli_package_name.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Satisfied: FR-007",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/__init__.py version_callback uses resolve_cli_package_name()",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Satisfied: FR-008",
+      "proof_type": "manual_qa",
+      "evidence": "docs/guides/fork-packaging-hooks.md Phase 1 section",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Satisfied: FR-009",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_profile.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Satisfied: FR-010",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_profile.py \u2014 DistributionProfile fields",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Satisfied: FR-011",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/compat/test_planner_distribution_profile.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Satisfied: FR-012",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/compat/test_planner_distribution_profile.py \u2014 data_freshness vs display throttle",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Satisfied: FR-013",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/compat/test_remediation_index_url.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Satisfied: FR-014",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/compat/test_upgrade_hint_chk028.py + COMMAND_ALLOWLIST_MAX_LEN=512",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Satisfied: FR-015",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/compat/test_notifier_profile_gate.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Satisfied: FR-016",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_simple_index.py",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Satisfied: FR-017",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/distribution/test_profile.py \u2014 synthesize from Phase 1",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Satisfied: FR-018",
+      "proof_type": "manual_qa",
+      "evidence": "docs/guides/fork-packaging-hooks.md \u2014 End-state publish flow",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Satisfied: FR-019",
+      "proof_type": "manual_qa",
+      "evidence": "docs/guides/fork-packaging-hooks.md \u2014 thin module + entry points, no src/specify_cli overlays",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Satisfied: FR-020",
+      "proof_type": "manual_qa",
+      "evidence": "docs/guides/fork-packaging-hooks.md \u2014 What Spec Kitty owns vs what you own",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-21T16:42:21Z",
+      "notes": "Verified against merged feat/oss-fork-packaging-hooks implementation"
+    }
+  ],
+  "negative_invariants": []
+}

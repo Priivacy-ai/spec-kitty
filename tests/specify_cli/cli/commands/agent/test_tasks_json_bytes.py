@@ -217,7 +217,7 @@ _SPARSE = "_emit_sparse_session_warning"
 _CASE_SETUP: dict[str, _CaseSetup] = {
     "missing_mission_flag_error": _CaseSetup("bare_project", resolve_mission=False),
     "add_history_success": _CaseSetup(
-        "mission", null_patches=(_SPARSE, "emit_history_added")
+        "mission", null_patches=(_SPARSE,)
     ),
     "generic_error_invalid_mark_status": _CaseSetup("mission"),
     "status_success_indent2": _CaseSetup("mission", workspace=True),

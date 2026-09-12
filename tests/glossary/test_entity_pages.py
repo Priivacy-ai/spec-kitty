@@ -23,6 +23,7 @@ from glossary.entity_pages import (
     GlossaryEntityPageRenderer,
     TermNotFoundError,
 )
+from tests._perf_helpers import assert_timing_budget
 
 # ---------------------------------------------------------------------------
 # Helpers: build fixture DRGs that work with or without the real package
@@ -259,17 +260,33 @@ def test_no_tmp_files_left_behind(repo_root, three_term_drg):
 # ---------------------------------------------------------------------------
 
 
+def test_generate_all_writes_a_page_per_term_for_500_terms(repo_root):
+    """Functional companion to test_generate_all_500_terms_under_10_seconds
+    (split, #4015): generate_all() writes exactly one page per term. Timing
+    budget lives in the @performance sibling below."""
+    urns = [f"glossary:term-{i:04d}" for i in range(500)]
+    drg = _make_drg_fixture(term_urns=urns)
+    renderer = _FixtureRenderer(repo_root, drg)
+
+    written = renderer.generate_all()
+
+    assert len(written) == 500  # golden-count: cardinality-is-contract
+
+
+@pytest.mark.performance
 def test_generate_all_500_terms_under_10_seconds(repo_root):
+    """NFR timing budget only (split, #4015): generate_all() completes in
+    under 10 seconds for 500 terms. Functional coverage moved to
+    test_generate_all_writes_a_page_per_term_for_500_terms, above."""
     urns = [f"glossary:term-{i:04d}" for i in range(500)]
     drg = _make_drg_fixture(term_urns=urns)
     renderer = _FixtureRenderer(repo_root, drg)
 
     start = time.monotonic()
-    written = renderer.generate_all()
+    renderer.generate_all()
     elapsed = time.monotonic() - start
 
-    assert len(written) == 500  # golden-count: cardinality-is-contract
-    assert elapsed < 10.0, f"generate_all() took {elapsed:.2f}s for 500 terms (limit: 10s)"
+    assert_timing_budget(elapsed, 10.0, name="generate_all_500_terms")
 
 
 # ---------------------------------------------------------------------------

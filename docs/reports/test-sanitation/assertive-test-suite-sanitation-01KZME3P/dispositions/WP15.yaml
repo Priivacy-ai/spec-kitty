@@ -1,0 +1,915 @@
+schema_version: test-sanitation/v1
+mission: assertive-test-suite-sanitation-01KZME3P
+work_package: WP15
+profile: architect-alphonso
+generated_at: '2026-08-10T17:46:42Z'
+planning_base: 28ae75ea998c898aba57364db7a06d2088bd2af2
+census_sha256: c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b
+dispositions:
+- candidate:
+    id: WP15-specify-cli-cli-commands-test-command-surface-doctor
+    members:
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_assemble_skills_payload_fix_reloads
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_assemble_skills_payload_no_fix
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_assemble_skills_payload_post_fix_verify_failure
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_command_surface_does_not_import_doctor
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_install_command_skill_agents_error_path
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_load_skills_state_or_exit_config_error
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_load_skills_state_or_exit_manifest_error
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_command_files_table
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_command_skill_paths_empty_and_nonempty
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_command_skill_report_issues
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_command_skill_report_ok
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_slash_command_payload_error_branch
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_slash_command_payload_gaps_branch
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_slash_command_report_branches
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_print_tool_surface_human_rejects_non_outcome
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_command_skill_state_installs
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_command_skill_state_noop_when_clean
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_command_skill_state_refuses_on_drift
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_refusal_clean
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_refusal_drift
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_refusal_orphans
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_repair_refusal_unsafe
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_resolve_or_exit_not_in_project
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_resolve_or_exit_raises
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_resolve_tool_surfaces_project_none_json
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_resolve_tool_surfaces_project_raises_human
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_command_files_healthy
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_command_files_issues_human
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_command_files_json
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_skills_audit_human_unhealthy
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_skills_audit_json_happy
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_skills_audit_not_in_project_json
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_tool_surfaces_audit_json_ok
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_run_tool_surfaces_audit_unknown_kind
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_slash_gap_for_path_healthy
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_slash_gap_for_path_missing
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_slash_gap_for_path_stale
+    granularity: function
+    source_paths:
+    - tests/specify_cli/cli/commands/test_command_surface_doctor.py
+    production_paths:
+    - src/specify_cli/cli/commands/_command_surface_doctor.py
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events: &id001
+      - local
+      selector: &id002
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/specify_cli/cli/commands/test_command_surface_doctor.py::test_assemble_skills_payload_fix_reloads
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Rename or refactor command-surface helpers while preserving live doctor CLI outcomes.
+      authority_violated: 'No unique authority: live doctor CLI and integration tests own the incompatible outcomes.'
+      act_reached: true
+      intended_oracle: Deleted direct mocks reject harmless helper changes or duplicate failures already caught by live CLI
+        owners.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete shallow per-helper mocks, render smoke, assertion guards, and source-import shape; retain deeper live CLI/integration
+    owners.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-specify-cli-cli-commands-test-doctor-shared
+    members:
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_console_is_single_shared_instance_across_import_sites
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_constants_are_stable
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_doctor_shared_does_not_import_orchestrator_or_siblings
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_ci_veto_beats_force_interactive
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_false_under_ci
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_false_when_not_a_tty
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_force_interactive_overrides_non_tty
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_honors_non_interactive_env_on_a_tty
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_is_interactive_environment_true_when_tty_and_no_ci
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_json_error_envelope_shape
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_json_output_guard_disabled_is_passthrough
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_json_output_guard_enabled_suppresses_logging_then_restores
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_json_output_guard_restores_on_exception
+    - tests/specify_cli/cli/commands/test_doctor_shared.py::test_no_unexpected_public_symbols
+    granularity: function
+    source_paths:
+    - tests/specify_cli/cli/commands/test_doctor_shared.py
+    production_paths:
+    - src/specify_cli/cli/commands/_doctor_shared.py
+    - src/specify_cli/core/env.py
+    oracle: CI never prompts and JSON logging suppression always restores process state.
+    contract_claim: Interactive overrides remain usable locally but cannot override a CI veto, and JSON output guards never
+      leak logging state.
+    authority:
+    - src/specify_cli/cli/commands/_doctor_shared.py
+    - '#2912'
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events: *id001
+      selector: *id002
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/specify_cli/cli/commands/test_doctor_shared.py::test_console_is_single_shared_instance_across_import_sites
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: src/specify_cli/cli/commands/_doctor_shared.py
+      result: Adjudicated against current consumed authority.
+    - reference: '#2912'
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Let force-interactive override CI, or omit logging restoration after an exception.
+      authority_violated: The live CI-prompt veto and exception-safe process-state contract.
+      act_reached: true
+      intended_oracle: The retained helper tests fail on unsafe precedence or leaked logging state.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep two outcome-bearing safety tests; delete constants, public-symbol, exact-import, singleton-identity, and redundant
+    truthy-spelling pins.
+  survivor: tests/specify_cli/cli/commands/test_doctor_shared.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-specify-cli-tool-surface-providers-test-plugin-bundle
+    members:
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_can_handle_only_plugin_manifest
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_expand_only_fires_for_synthetic_bundle_key
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_no_install_or_publish_tokens_in_source
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_probe_detects_missing_bundle
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_probe_incomplete_bundle_is_error
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_probe_present_when_bundle_complete
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_probe_unknown_target_is_stale_warning
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_provider_satisfies_reporting_protocol
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_repair_dry_run_reports_without_writing
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_repair_noop_when_nothing_actionable
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_repair_projects_inert_staging_only_no_side_channels
+    granularity: function
+    source_paths:
+    - tests/specify_cli/tool_surface/providers/test_plugin_bundle.py
+    production_paths:
+    - src/specify_cli/tool_surface/providers/plugin_bundle.py
+    - src/specify_cli/tool_surface/bundles/
+    oracle: Dry-run is inert and real repair writes only staged plugin artifacts under dist.
+    contract_claim: Plugin projection is a staging operation, never installation or publication.
+    authority:
+    - docs/adr/3.x/2026-06-15-1-marketplace-descriptor-vs-publish.md
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events: *id001
+      selector: *id002
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/specify_cli/tool_surface/providers/test_plugin_bundle.py::test_can_handle_only_plugin_manifest
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-06-15-1-marketplace-descriptor-vs-publish.md
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Write outside dist during repair or mutate files during dry-run.
+      authority_violated: The marketplace descriptor staging-only ADR.
+      act_reached: true
+      intended_oracle: The retained repair test rejects writes outside staging and any dry-run mutation.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep one full missing-to-dry-run-to-repair-to-present path; delete protocol identity, token scans, projector duplication,
+    and synthetic branches.
+  survivor: tests/specify_cli/tool_surface/providers/test_plugin_bundle.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-artifact-selection-completeness
+    members:
+    - tests/architectural/test_artifact_selection_completeness.py::test_every_doctrine_kind_has_a_charter_selected_field
+    - tests/architectural/test_artifact_selection_completeness.py::test_every_doctrine_kind_has_an_org_required_field
+    - tests/architectural/test_artifact_selection_completeness.py::test_selection_and_required_field_names_are_consistent
+    granularity: function
+    source_paths:
+    - tests/architectural/test_artifact_selection_completeness.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: &id003
+      - local
+      selector: &id004
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_artifact_selection_completeness.py::test_every_doctrine_kind_has_a_charter_selected_field
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-006
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Rename current model fields while preserving artifact selection behavior.
+      authority_violated: No consumed external authority; only mirrored current structure changes.
+      act_reached: true
+      intended_oracle: The deleted parity test rejects a behavior-preserving model refactor.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete historical expected-red Mission B field-name parity and current-code-to-current-code schema mirroring.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-cli-console-render-width
+    members:
+    - tests/architectural/test_cli_console_render_width.py::test_no_named_singleton_renders_narrower_than_the_longest_asserted_identifier
+    - tests/architectural/test_cli_console_render_width.py::test_render_identifier_survives_discriminates_width_80_from_240
+    - tests/architectural/test_cli_console_render_width.py::test_rot_control_bites_on_a_planted_rotted_module
+    granularity: function
+    source_paths:
+    - tests/architectural/test_cli_console_render_width.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_cli_console_render_width.py::test_no_named_singleton_renders_narrower_than_the_longest_asserted_identifier
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Change widths, table layout, or singleton roster while preserving readable live output.
+      authority_violated: No distinct consumed width authority.
+      act_reached: true
+      intended_oracle: The deleted tests reject harmless rendering and roster changes accepted by live CLI consumers.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete exact width, singleton-roster, and advisory rendering pins; keep the canonical console seam only.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-cli-console-single-seam
+    members:
+    - tests/architectural/test_cli_console_single_seam.py::test_cli_layer_constructs_no_raw_console
+    - tests/architectural/test_cli_console_single_seam.py::test_detector_bites_on_a_planted_raw_console
+    granularity: function
+    source_paths:
+    - tests/architectural/test_cli_console_single_seam.py
+    production_paths:
+    - src/specify_cli/cli/
+    oracle: Every live CLI module routes console construction through the canonical seam.
+    contract_claim: Raw Rich Console construction inside the CLI layer bypasses shared output policy.
+    authority:
+    - docs/adr/3.x/2026-07-14-1-canonical-cli-console-seam.md
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_cli_console_single_seam.py::test_cli_layer_constructs_no_raw_console
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: docs/adr/3.x/2026-07-14-1-canonical-cli-console-seam.md
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Construct rich.console.Console directly in a live CLI module.
+      authority_violated: The canonical CLI console seam ADR.
+      act_reached: true
+      intended_oracle: The retained AST boundary rejects the planted raw Console constructor.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep one nonzero live-corpus boundary test with a planted raw-Console fault; delete positive singleton-shape pins.
+  survivor: tests/architectural/test_cli_console_single_seam.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-pyproject-shape
+    members:
+    - tests/architectural/test_pyproject_shape.py::test_pyproject_does_not_list_spec_kitty_runtime
+    - tests/architectural/test_pyproject_shape.py::test_pyproject_file_exists_and_parses
+    - tests/architectural/test_pyproject_shape.py::test_pyproject_has_no_committed_editable_sources_for_shared_packages
+    - tests/architectural/test_pyproject_shape.py::test_pyproject_uses_compatible_ranges_for_shared_packages
+    - tests/architectural/test_pyproject_shape.py::test_wheel_packages_include_every_imported_first_party_package
+    granularity: function
+    source_paths:
+    - tests/architectural/test_pyproject_shape.py
+    production_paths:
+    - pyproject.toml
+    - src/specify_cli/
+    - src/spec_kitty_events/
+    - src/spec_kitty_tracker/
+    oracle: Published dependencies are public-compatible and every shipped first-party import is present in the wheel.
+    contract_claim: Clean PyPI installs must not depend on local sources, exact application pins, or omitted first-party packages.
+    authority:
+    - Public PyPI dependency metadata
+    - wheel import closure
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_pyproject_shape.py::test_pyproject_does_not_list_spec_kitty_runtime
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: Public PyPI dependency metadata
+      result: Adjudicated against current consumed authority.
+    - reference: wheel import closure
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Add an exact/local dependency pin or omit an imported first-party package from the wheel.
+      authority_violated: Clean public installation and wheel import-closure contracts.
+      act_reached: true
+      intended_oracle: The retained metadata gates reject incompatible public-install or wheel omissions.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep public-dependency and wheel-import-closure negatives; delete exact metadata spelling, tool configuration, and
+    current-shape pins.
+  survivor: tests/architectural/test_pyproject_shape.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-shared-package-boundary
+    members:
+    - tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfSpecKittyRuntime.test_ast_scan_catches_lazy_imports
+    - tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfSpecKittyRuntime.test_injection_proves_rule_is_real
+    - tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfSpecKittyRuntime.test_pytestarch_rule
+    - tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfVendoredEvents.test_ast_scan_catches_vendored_imports
+    - tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfVendoredEvents.test_injection_proves_rule_is_real
+    - tests/architectural/test_shared_package_boundary.py::TestPytestArchCanScanInjectedTree.test_pytestarch_detects_injected_runtime_import
+    - tests/architectural/test_shared_package_boundary.py::TestSpecifyCliTrackerDoesNotReexportTrackerSurface.test_specify_cli_tracker_init_does_not_alias_tracker_attributes
+    - tests/architectural/test_shared_package_boundary.py::TestSpecifyCliTrackerDoesNotReexportTrackerSurface.test_specify_cli_tracker_init_has_no_overlap_with_tracker_public_surface
+    granularity: function
+    source_paths:
+    - tests/architectural/test_shared_package_boundary.py
+    production_paths:
+    - src/specify_cli/
+    - src/spec_kitty_events/
+    - src/spec_kitty_tracker/
+    oracle: Production imports use canonical shared packages and tracker SDK public symbols are not re-exported by the CLI
+      adapter.
+    contract_claim: Retired runtime and vendored-event namespaces must not return, and CLI adapters must not impersonate the
+      tracker SDK.
+    authority:
+    - tests/contract/spec_kitty_events_consumer/
+    - tests/contract/spec_kitty_tracker_consumer/
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_shared_package_boundary.py::TestNoProductionImportsOfSpecKittyRuntime::test_ast_scan_catches_lazy_imports
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: tests/contract/spec_kitty_events_consumer/
+      result: Adjudicated against current consumed authority.
+    - reference: tests/contract/spec_kitty_tracker_consumer/
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Import a retired runtime or vendored-events namespace, or re-export a tracker SDK public symbol from the CLI
+        adapter.
+      authority_violated: The events and tracker external-consumer package boundaries.
+      act_reached: true
+      intended_oracle: The retained boundaries reject each incompatible namespace regression across live production roots.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep three nonzero negative namespace boundaries; delete redundant method-specific, alias-shape, and positive re-export
+    pins.
+  survivor: tests/architectural/test_shared_package_boundary.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-template-governance-payload-contract
+    members:
+    - tests/architectural/test_template_governance_payload_contract.py::TestGovernancePayloadPlantAndCatch.test_consistent_wording_rename_does_not_red
+    - tests/architectural/test_template_governance_payload_contract.py::TestGovernancePayloadPlantAndCatch.test_missing_promised_surface_is_flagged
+    - tests/architectural/test_template_governance_payload_contract.py::TestImplementTemplateGovernancePayloadContract.test_fetch_command_forms_are_listed_in_template
+    - tests/architectural/test_template_governance_payload_contract.py::TestImplementTemplateGovernancePayloadContract.test_guaranteed_authority_pointers_appear_in_resolver
+    - tests/architectural/test_template_governance_payload_contract.py::TestImplementTemplateGovernancePayloadContract.test_guaranteed_bodies_listed_in_template_appear_in_resolver
+    - tests/architectural/test_template_governance_payload_contract.py::TestImplementTemplateGovernancePayloadContract.test_section_is_present_in_implement_template
+    - tests/architectural/test_template_governance_payload_contract.py::TestReviewTemplateGovernancePayloadContract.test_guaranteed_authority_pointers_appear_in_resolver
+    - tests/architectural/test_template_governance_payload_contract.py::TestReviewTemplateGovernancePayloadContract.test_guaranteed_bodies_listed_in_template_appear_in_resolver
+    - tests/architectural/test_template_governance_payload_contract.py::TestReviewTemplateGovernancePayloadContract.test_review_contract_cites_directive_032
+    - tests/architectural/test_template_governance_payload_contract.py::TestReviewTemplateGovernancePayloadContract.test_section_is_present_in_review_template
+    granularity: function
+    source_paths:
+    - tests/architectural/test_template_governance_payload_contract.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_template_governance_payload_contract.py::TestGovernancePayloadPlantAndCatch::test_consistent_wording_rename_does_not_red
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Reword governance prompts consistently while preserving rendered meaning and resolver behavior.
+      authority_violated: No independently consumed exact-prose authority.
+      act_reached: true
+      intended_oracle: The deleted tests reject semantically equivalent prose and current payload refactors.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete exact template/resolver prose, duplicate wording, and current payload-field shape pins.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-typer-compat-ci
+    members:
+    - tests/architectural/test_typer_compat_ci.py::test_ci_exercises_typer_026_json_error_surface
+    granularity: function
+    source_paths:
+    - tests/architectural/test_typer_compat_ci.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_typer_compat_ci.py::test_ci_exercises_typer_026_json_error_surface
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-007
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Refactor workflow YAML while retaining the live JSON CLI compatibility gate.
+      authority_violated: No product authority; workflow prose alone changes.
+      act_reached: true
+      intended_oracle: The deleted test rejects equivalent CI organization rather than a product incompatibility.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete CI-YAML substring inspection already dominated by live JSON CLI behavior.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-test-uv-lock-pin-drift
+    members:
+    - tests/architectural/test_uv_lock_pin_drift.py::test_uv_lock_file_exists_and_parses
+    - tests/architectural/test_uv_lock_pin_drift.py::test_uv_lock_matches_installed_versions
+    granularity: function
+    source_paths:
+    - tests/architectural/test_uv_lock_pin_drift.py
+    production_paths: []
+    oracle: null
+    contract_claim: null
+    authority:
+    - uv sync --frozen
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/test_uv_lock_pin_drift.py::test_uv_lock_file_exists_and_parses
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: uv sync --frozen
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: behavior-preserving-structural-change
+      fault: Regenerate a valid lockfile or change dependency constraints while uv sync --frozen remains successful.
+      authority_violated: No distinct product contract beyond the package manager's frozen-install gate.
+      act_reached: true
+      intended_oracle: The deleted metadata restatement catches no incompatible state beyond uv sync --frozen.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: DELETE
+  state: terminal
+  action: Delete lockfile existence/parsing and pyproject-to-lock pin-shape restatement; frozen installation owns environment
+    consistency.
+  survivor: null
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'
+- candidate:
+    id: WP15-architectural-tool-artifact-enrolment-test-enrolment-inventory
+    members:
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_discovered_sinks_non_empty
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_every_row_has_a_valid_disposition
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_no_discovered_sink_is_unenrolled
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_no_inventory_row_is_a_ghost
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_theater_undercount_and_overcount_seams
+    granularity: function
+    source_paths:
+    - tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py
+    production_paths:
+    - src/specify_cli/
+    - tests/architectural/tool_artifact_enrolment/enrolment_inventory.py
+    oracle: The nonempty AST-discovered generated-write sink set exactly matches inventory rows with valid dispositions.
+    contract_claim: Every generated-write sink needs exactly one governance disposition, with neither unenrolled sinks nor
+      ghost rows.
+    authority:
+    - Tool-artifact generated-write sink owner contract
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events: *id003
+      selector: *id004
+    platforms:
+    - linux
+    - macOS
+    - windows
+    observations:
+    - environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      nodeid: tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py::test_discovered_sinks_non_empty
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers: []
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: fast
+      artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  evidence:
+    profile: structural
+    authority_evidence:
+    - reference: Tool-artifact generated-write sink owner contract
+      result: Adjudicated against current consumed authority.
+    causal_probe:
+      kind: realistic-incompatible-change
+      fault: Add an unenrolled live sink or a ghost inventory row.
+      authority_violated: The generated-write sink enrolment owner contract.
+      act_reached: true
+      intended_oracle: The retained bijection gate rejects both missing and surplus inventory identities.
+      intended_oracle_failed: true
+      command: .venv/bin/pytest -q -p no:cacheprovider <WP15 focused and overlap gates>
+      environment: CPython 3.11.15, Darwin arm64, pytest cache disabled
+      raw_artifact_hash: 5667beb4092c3578981b5cf5c7c5b9dbb6eac0309387fdbb68814e38b588dcd7
+  verdict: KEEP
+  state: terminal
+  action: Keep one nonzero exact-bijection gate with under- and over-enrolment controls; delete decomposed positive-shape
+    duplicates.
+  survivor: tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py
+  issue: '#1931'
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: architect-alphonso/WP15
+    independent_reviewer: pending-WP15-review
+    verdict: implementation-complete-awaiting-review
+    timestamp: '2026-08-10T17:46:42Z'

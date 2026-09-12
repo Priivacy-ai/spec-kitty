@@ -1,0 +1,52 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: confirmed
+mission: event-push-watch-channel-01M1K6W2
+source: analyze.merged.yaml findings whose reviews/analyze-refute-1.yaml verdict is 'confirmed'
+findings:
+  - id: ANALYZE-ARCH-001
+    lens: "Bounded core / infinite shell split"
+    severity: 3
+    title: "Spec/plan narrative says the shell owns the while-True/time.sleep loop; the actual designed core (tail_events, WP03) owns it — analysis-report.md's coherence check missed this"
+    evidence:
+      - artifact: "spec.md:334 (FR-011): \"a pure, finite generator/iterator core (terminable via itertools.islice, a max_events cap, or a --once flag) wrapped by a while True polling Typer CLI shell\""
+      - artifact: "plan.md:19-23 (Summary): \"a pure, finite core (tail_reader.py) that does one reopen-stat-read-parse pass per call with zero internal sleeping, and a thin, infinite CLI shell (events.py) that owns the while True + time.sleep polling loop\""
+      - artifact: "plan.md:176 (Architectural Seam code snippet, inside the CORE section): \"sleep_fn: Callable[[float], None] = time.sleep\" — a default parameter value defined on tail_events(), which lives in tail_reader.py, requiring tail_reader.py itself to import time and reference time.sleep"
+      - artifact: "plan.md:566 (Gate Set / patch() target validator row): \"the patch target must be the importing module's path (specify_cli.status.tail_reader.time.sleep, ...) never the defining module's path\" — plan.md's own words confirm tail_reader.py, not events.py, is \"the module that actually calls\" time.sleep"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md:79: \"if time.sleep needs patching anywhere in a WP04 test that exercises the underlying poll loop, the target is specify_cli.status.tail_reader.time.sleep (the module that actually calls it)\""
+      - artifact: "tasks/WP04-cli-shell-events-tail.md:159-160 (T026, the actual dispatch design): events.py's \"otherwise\" branch is \"iterate tail_events(path, cursor, ...), wrapped in itertools.islice(..., max_events) when --max-events is given\" — a plain for-loop consuming a generator, with no explicit while True and no explicit time.sleep call anywhere in events.py's own designed code"
+      - code: ".worktrees/event-push-watch-channel-01M1K6W2-lane-a/src/specify_cli/status/tail_reader.py:6-7 (already-shipped WP01 module docstring): \"The shell (WP04's src/specify_cli/cli/commands/events.py) is the thin, infinite while True + time.sleep polling wrapper that owns Typer flags, mission-slug resolution, and stdout/stderr JSON rendering.\""
+      - artifact: "analysis-report.md § Cross-Artifact Consistency Checks, item 3: \"the while True/time.sleep loop is correctly deferred to the not-yet-built src/specify_cli/cli/commands/events.py (WP04). Coherent and consistent across plan.md and tasks.md.\""
+    claim: >
+      spec.md's FR-011, plan.md's Summary section, and the already-shipped tail_reader.py module
+      docstring (committed by WP01) all describe the architecture as: core = single bounded pass,
+      zero internal sleeping; shell (events.py) = owns an explicit while True + time.sleep()
+      loop that repeatedly drives the core. That is not what WP03/WP04 actually design and will
+      build: tail_events() — a generator that itself loops (poll, yield, and conditionally
+      sleep_fn(poll_interval), defaulting to the real time.sleep) — lives INSIDE tail_reader.py
+      (the declared "core"), and events.py merely does a plain for-loop over tail_events(...)
+      with no explicit while-loop or direct time.sleep call of its own. plan.md's own Architectural
+      Seam section (line 176) and Gate Set table (line 566), plus WP04's own patch-target guidance
+      (line 79), all independently confirm that time.sleep is called FROM tail_reader.py, not
+      events.py — directly contradicting the Summary's "zero internal sleeping" claim for the core
+      and the shipped docstring's claim that the shell "owns" the while-True/time.sleep construct.
+      analysis-report.md's Cross-Artifact Consistency Check #3 takes the narrative-level framing
+      at face value and asserts the split is "coherent and consistent," missing this drift.
+      Practical implementation risk is contained today because the WP03/WP04 task files carry the
+      correct, detailed, mutually-consistent design — but the shipped tail_reader.py docstring is
+      about to become self-contradictory the moment WP03 lands tail_events() in the same file, and
+      nothing in the mission's artifacts flags or schedules a fix for that.
+    remediation: >
+      Before or during WP03: (1) reword spec.md FR-011 and plan.md's Summary (and Architectural
+      Seam intro) to describe the loop/sleep construct as living in tail_events() (core), with the
+      shell (events.py) merely iterating it — not "the shell owns the while True + time.sleep
+      loop." (2) Have WP03's T017 subtask update tail_reader.py's own module docstring (shipped by
+      WP01) to match, since WP03 edits this same file and the docstring's current claim becomes
+      false the instant tail_events()/sleep_fn=time.sleep lands beside it. (3) Either drop FR-011's
+      "wrapped by a while True polling Typer CLI shell" clause or explicitly note that the "while
+      True" is realized as a generator's internal loop rather than a literal while-statement in the
+      CLI shell, so a future reader (or WP04 implementer working from FR-011 alone) isn't misled
+      into writing an explicit while-loop in events.py that duplicates tail_events()'s own polling.
+    refute_verdict: confirmed
+    refute_reason: "All citations verified verbatim against live files; the drift is real, substantive, and uncaught by analysis-report.md's own consistency check."

@@ -1,0 +1,104 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: SPEC-VERIFY-001
+    lens: silent-success / falsifiability
+    severity: 3
+    title: "FR-002's own named edge case (agent_profiles/ absent) has no corresponding Acceptance Criterion"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullet 2) and § FR-002 Acceptance Criteria"
+      - code: "src/doctrine/agent_profiles/repository.py:392-393 (_load_layer: `if not directory.exists(): return loaded`), :324-363 (_load: always loads the built-in layer first, then iterates self._org_dirs)"
+    claim: >
+      The Edge Cases section states, verbatim, "An org-pack whose agent_profiles/
+      directory is entirely absent: FR-002's new check must not attempt to instantiate
+      AgentProfileRepository in a way that raises for a missing directory — absent
+      directory means zero skips, not an error." This is exactly the class of
+      precondition-missing scenario the mission's silent-success lens exists to catch
+      (a check that "ran and found nothing" must be distinguishable from a check that
+      "never ran"). Yet none of FR-002's four ACs test this scenario: AC-1 tests a
+      populated-and-skipping fixture, AC-2 tests a schema-invalid dedup case, AC-3
+      tests "a pack with no profile issues" (which reads as a populated, all-valid
+      directory, not an absent one), and AC-4 tests non-duplication of the skip
+      heuristic. A regression where the new pack_validator.py wiring wraps
+      AgentProfileRepository construction in a broad try/except that silently
+      swallows a real construction failure for a missing directory (rather than
+      relying on the repository's own already-safe `if not directory.exists()`
+      guard) would pass every existing AC while reintroducing the exact "passed
+      because the check never ran" failure mode named in the Problem statement.
+      Verified: `_load_layer` (repository.py:392-393) already returns an empty dict
+      gracefully for a non-existent directory — so the underlying repository is
+      safe today — but the spec's own ACs do not require the new pack_validator.py
+      call site to preserve that safety under test, only under prose.
+    remediation: >
+      Add an explicit AC to FR-002 (e.g. AC-5): "Given a pack whose agent_profiles/
+      directory does not exist at all, when `pack validate` runs, then it exits
+      without raising, `skipped_profiles` is empty/absent, and a regression test
+      asserts the check path actually executed (e.g. by asserting the same
+      AgentProfileRepository call is reached, via a spy, or by asserting the
+      built-in-only profile set still loads) rather than being short-circuited
+      before construction" — mirroring the coverage FR-004/AC-3 already gives its
+      own analogous "neither shape present" case.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 3
+    title: "FR-001's own named edge case (stray *.contract.yaml co-existing with a correct *.step-contract.yaml sibling) has no corresponding Acceptance Criterion"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullet 1) and § FR-001 Acceptance Criteria (AC-1 through AC-4)"
+      - code: "src/specify_cli/doctrine/pack_validator.py:181 (_artifact_schema_registry mission_step_contracts entry), :202-206 (_scan_files)"
+    claim: >
+      The Edge Cases section states: "A pack with both foo.contract.yaml and
+      foo.step-contract.yaml for what is clearly the same intended contract... FR-001's
+      diagnostic still fires for the stray *.contract.yaml file; it is a distinct file
+      from the validator's perspective and the author needs to know it is dead
+      weight, not a working duplicate." This is a specific, named, falsifiable
+      behavior — but none of FR-001's ACs test it. AC-1 tests only the single-file
+      case (no sibling); AC-2 tests only the renamed-file case; AC-3 is a doc
+      check; AC-4 is a regression test for the guide's old suffix, again without a
+      sibling present. A plausible-looking but wrong implementation — e.g. "only
+      emit the near-miss diagnostic when no correctly-suffixed sibling with the
+      same stem exists, since the pair is presumably already fixed" — would pass
+      every stated AC while directly contradicting the edge case's own stated
+      intent, and nothing in the spec would catch the regression.
+    remediation: >
+      Add an explicit AC to FR-001 (e.g. AC-5): "Given a pack with both
+      mission_step_contracts/foo.contract.yaml and foo.step-contract.yaml present
+      simultaneously, when `pack validate` runs, then the near-miss diagnostic still
+      fires for foo.contract.yaml (the diagnostic is per-file, not suppressed by a
+      same-stem sibling's presence)" and add the corresponding regression test to
+      FR-001's targeted test surface.
+
+  - id: SPEC-VERIFY-003
+    lens: falsifiability
+    severity: 2
+    title: "FR-003's and FR-004's own named 'absent directory' / 'near-miss filename' edge cases lack a dedicated regression test in the ACs"
+    evidence:
+      - artifact: "spec.md § Edge Cases (bullets 3 and 4) and § FR-003 / FR-004 Acceptance Criteria"
+      - code: "src/specify_cli/doctrine/pack_validator.py:373 (existing `if not type_dir.is_dir(): continue` guard cited by the spec itself for FR-003), :505-506 (_validate_drg's `drg_dir.glob(\"*.graph.yaml\")`, same exact glob FR-004 reuses per the spec's own claim)"
+      - artifact: "spec.md § FR-004 AC-3 (covers the 'neither pack-root graph nor drg/ directory' shape, but not the distinct 'drg/ exists yet is empty of fragments' shape, nor the near-miss-filename shape from Edge Cases bullet 4)"
+    claim: >
+      Edge Cases bullet 3 (assets/ directory absent entirely — FR-003 "must not
+      change behavior") and bullet 4 (a pack-root file named e.g.
+      `notes.graph.yaml.bak` must not satisfy FR-004's pack-root-graph check) are
+      both named in prose as scenarios the spec explicitly reasons about, but
+      neither has a matching AC anywhere in FR-003 or FR-004. This is lower risk
+      than SPEC-VERIFY-001/002 because both are argued (correctly, on verification)
+      to be safe "by construction" — FR-003 reuses an already-existing directory
+      guard, and FR-004 reuses the exact same `*.graph.yaml` glob the runtime and
+      `_validate_drg` already use — so an implementer following the requirement
+      text literally is unlikely to get either wrong. But "by construction" is an
+      argument for why a bug is unlikely, not a substitute for a regression test
+      that would catch one, and the mission's own charter mandates a regression
+      test alongside every new branch/helper.
+    remediation: >
+      Add one AC each: FR-003 — "Given a pack whose assets/ directory does not
+      exist at all, when `pack validate` runs, then it passes with no error and no
+      change from today's behavior (regression test asserting no exception and no
+      new diagnostic)." FR-004 — "Given a pack-root file named
+      `notes.graph.yaml.bak` (or another near-miss) and drg/ fragments present with
+      no genuine pack-root `*.graph.yaml`, when `pack validate` runs, then the new
+      diagnostic still fires (the near-miss file does not satisfy the check)."

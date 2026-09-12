@@ -38,6 +38,7 @@ import pytest
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.state import MergeState, save_state
+from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_mission_meta
 
 
@@ -168,9 +169,6 @@ def _patches(
         patch("specify_cli.merge.executor.cleanup_merge_workspace"),
         patch("specify_cli.merge.executor.clear_state"),
         patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         # WP10 (#2057): mission-branch preflight moved to the preflight seam;
         # appended last to keep positional mock indices stable.
         patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
@@ -348,69 +346,83 @@ class TestMergeResumeAfterInterruption:
         assert "lane-b" in lane_merge_calls and "lane-c" in lane_merge_calls
 
 
-class TestMergeResumeBounded:
-    """NFR-005: resumed merge of a 10-lane fixture is fast."""
+def _run_bounded_merge_fixture(tmp_path: Path) -> tuple[float, list[str], list[str]]:
+    """Shared #4015-split fixture: resumed merge of a 10-lane fixture.
 
-    def test_resume_completes_within_30s_budget(self, tmp_path: Path) -> None:
-        slug = "test-resume-bounded"
-        _init_git_repo(tmp_path)
-        feature_dir = tmp_path / "kitty-specs" / slug
-        feature_dir.mkdir(parents=True)
-        # Modernize the mission (3.2.x identity) so the mark-done coordination
-        # write resolves a non-empty mid8 instead of tripping the #2091 guard.
-        write_mission_meta(feature_dir)
+    Returns ``(elapsed_seconds, mark_done_calls, wp_ids)`` so the functional
+    (all WPs marked done) and timing (NFR-005 30s budget) halves of the
+    original mixed test can each assert their own concern without
+    duplicating the mocked merge run's setup semantics.
+    """
+    slug = "test-resume-bounded"
+    _init_git_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    # Modernize the mission (3.2.x identity) so the mark-done coordination
+    # write resolves a non-empty mid8 instead of tripping the #2091 guard.
+    write_mission_meta(feature_dir)
 
-        manifest = _make_manifest(slug, lane_count=10)
-        wp_ids = [f"WP{i+1:02d}" for i in range(10)]
+    manifest = _make_manifest(slug, lane_count=10)
+    wp_ids = [f"WP{i+1:02d}" for i in range(10)]
 
-        existing = MergeState(
-            mission_id=slug,
+    existing = MergeState(
+        mission_id=slug,
+        mission_slug=slug,
+        target_branch="main",
+        wp_order=wp_ids,
+        completed_wps=[],  # full re-run
+    )
+
+    mark_done_calls: list[str] = []
+    lane_merge_calls: list[str] = []
+
+    patches = _patches(
+        tmp_path=tmp_path,
+        manifest=manifest,
+        initial_state=existing,
+        mark_done_calls=mark_done_calls,
+        lane_merge_calls=lane_merge_calls,
+    )
+
+    start = time.monotonic()
+    with contextlib.ExitStack() as stack:
+        mocks = [stack.enter_context(p) for p in patches]
+        stale_report = MagicMock()
+        stale_report.findings = []
+        mocks[10].return_value = stale_report
+
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        mocks[11].return_value = gate_eval
+
+        policy = MagicMock()
+        policy.merge_gates = []
+        mocks[12].return_value = policy
+
+        _run_lane_based_merge(
+            repo_root=tmp_path,
             mission_slug=slug,
-            target_branch="main",
-            wp_order=wp_ids,
-            completed_wps=[],  # full re-run
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
         )
+    elapsed = time.monotonic() - start
 
-        mark_done_calls: list[str] = []
-        lane_merge_calls: list[str] = []
+    return elapsed, mark_done_calls, wp_ids
 
-        patches = _patches(
-            tmp_path=tmp_path,
-            manifest=manifest,
-            initial_state=existing,
-            mark_done_calls=mark_done_calls,
-            lane_merge_calls=lane_merge_calls,
-        )
 
-        start = time.monotonic()
-        with contextlib.ExitStack() as stack:
-            mocks = [stack.enter_context(p) for p in patches]
-            stale_report = MagicMock()
-            stale_report.findings = []
-            mocks[10].return_value = stale_report
+class TestMergeResumeBounded:
+    """NFR-005: resumed merge of a 10-lane fixture is fast and completes all WPs."""
 
-            gate_eval = MagicMock()
-            gate_eval.overall_pass = True
-            gate_eval.gates = []
-            mocks[11].return_value = gate_eval
-
-            policy = MagicMock()
-            policy.merge_gates = []
-            mocks[12].return_value = policy
-
-            _run_lane_based_merge(
-                repo_root=tmp_path,
-                mission_slug=slug,
-                push=False,
-                delete_branch=False,
-                remove_worktree=False,
-                strategy=MergeStrategy.SQUASH,
-            )
-        elapsed = time.monotonic() - start
-
-        assert elapsed < 30.0, (
-            f"NFR-005 budget regression: 10-lane resume took {elapsed:.2f}s "
-            "(budget 30s). The merge code path is doing pathological work."
-        )
-        # All 10 WPs eventually marked done.
+    def test_resume_completes_all_wps(self, tmp_path: Path) -> None:
+        """Functional half of the #4015 split: all 10 WPs eventually marked done."""
+        _elapsed, mark_done_calls, wp_ids = _run_bounded_merge_fixture(tmp_path)
         assert set(mark_done_calls) == set(wp_ids)
+
+    @pytest.mark.performance
+    def test_resume_completes_within_30s_budget(self, tmp_path: Path) -> None:
+        """NFR-005 (#4015 split): resumed merge stays within the 30s budget."""
+        elapsed, _mark_done_calls, _wp_ids = _run_bounded_merge_fixture(tmp_path)
+        assert_timing_budget(elapsed, 30.0, name="elapsed")

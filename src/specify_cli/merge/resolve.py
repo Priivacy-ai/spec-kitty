@@ -27,11 +27,7 @@ from specify_cli.merge.state import (
 )
 from specify_cli.merge.workspace import cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 
 
 def _extract_mission_slug(branch_name: str) -> str | None:
@@ -64,9 +60,9 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | No
         from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
         try:
-            candidate: Path = candidate_feature_dir_for_mission(
+            candidate: Path = placement_seam(
                 get_main_repo_root(repo_root), mission_slug
-            )
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         except StatusReadPathNotFound:
             # Fail-closed coordination window (coord worktree root
             # materialized, mission dir absent): fall back to the raw handle —
@@ -104,13 +100,22 @@ def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> li
         # PRIMARY checkout post-#2106. The kind-blind resolver lands on the
         # STATUS-only ``-coord`` husk for a coord-topology mission, where reading
         # identity yields a missing/sentinel id → the wrong merge-state key. Route by
-        # kind. (The ``:63`` handle→dir-name canonicalization in ``_resolve_mission_slug``
-        # stays on ``candidate_`` — that is the no-silent-fallback boundary.)
-        feature_dir = resolve_planning_read_dir(
-            get_main_repo_root(repo_root),
-            mission_slug,
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-        )
+        # kind. This deliberately overturns the earlier documented carve-out that
+        # kept the ``:63`` handle→dir-name canonicalization in
+        # ``_resolve_mission_slug`` on the kind-blind ``candidate_`` resolver as the
+        # no-silent-fallback boundary: that call now also routes through
+        # PRIMARY_METADATA. It is safe because PRIMARY_METADATA never routes coord —
+        # the old kind-blind call could land on the coord husk for a
+        # coord-topology mission, this one always lands on primary — and the
+        # ``.exists()`` check plus raw-handle fallback in ``_resolve_mission_slug``
+        # preserve the non-raising ``merge --abort`` contract. Note for the next
+        # reader: the surviving ``except StatusReadPathNotFound`` arm there is
+        # currently unreachable for this kind (PRIMARY_METADATA never raises
+        # CoordinationBranchDeleted); it would become live again if the kind
+        # this call resolves against ever changed.
+        feature_dir = placement_seam(
+            get_main_repo_root(repo_root), mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if feature_dir.exists():
             identity = resolve_mission_identity(feature_dir)
             if identity.mission_id:
@@ -269,7 +274,6 @@ def _resolve_target_branch(
 __all__ = [
     "_extract_mission_slug",
     "_resolve_mission_slug",
-    "_merge_state_key_candidates",
     "_iter_merge_states_for_slug",
     "_load_merge_state_for_mission",
     "_load_merge_state_entry_for_mission",

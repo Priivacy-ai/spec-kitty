@@ -8,6 +8,7 @@ from specify_cli.cli.console import err_console
 from rich.panel import Panel
 from rich.text import Text
 
+from charter.activation.evidence.orchestrator import ConfigShapeError
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
@@ -86,7 +87,7 @@ def charter_resynthesize(  # noqa: C901
 
         spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
     """
-    from charter.synthesizer.errors import (
+    from charter.activation.synthesizer.errors import (
         SynthesisError,
         TopicSelectorUnresolvedError,
         render_error_panel,
@@ -145,7 +146,7 @@ def charter_resynthesize(  # noqa: C901
         if topic is None:
             raise TaskCliError("Pass --topic <selector> or use --list-topics.")
 
-        from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+        from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
         result = resynthesize_run(
             request=request,
@@ -153,6 +154,15 @@ def charter_resynthesize(  # noqa: C901
             topic=topic,
             repo_root=repo_root,
         )
+
+        # #4121 (MAJOR 2): surface the run's unresolved project-profile
+        # reference warnings on the CLI / in the --json envelope rather than
+        # leaving them in logging output only.
+        reference_warnings = list(getattr(result, "reference_warnings", ()))
+        warnings_collected.extend(reference_warnings)
+        if not json_output:
+            for warning in reference_warnings:
+                console.print(f"[yellow]⚠ {warning}[/yellow]")
 
         if result.is_noop:
             if json_output:
@@ -222,7 +232,11 @@ def charter_resynthesize(  # noqa: C901
     except FileNotFoundError as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
-    except TaskCliError as e:
+    except (TaskCliError, ConfigShapeError) as e:
+        # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
+        # SK-16) is a controlled, expected diagnostic -- treated the same as
+        # TaskCliError, not routed through the generic "Unexpected error"
+        # branch below.
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:

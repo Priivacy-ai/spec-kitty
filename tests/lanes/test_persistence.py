@@ -104,13 +104,17 @@ def test_resolve_lanes_dir_joins_filename_under_feature_dir(tmp_path: Path) -> N
 
 
 def test_resolve_lanes_dir_coord_path_differs_from_primary_path(tmp_path: Path) -> None:
-    """C-LANES-1 / FR-008: coord feature dir and primary feature dir produce
-    DISTINCT lanes-json paths — routing to the wrong surface is detectable.
+    """FR-008: a coord feature dir and a primary feature dir produce DISTINCT
+    ``lanes.json`` paths — pure composition, so the caller's surface choice is
+    observable.
 
-    This is the unit-level placement oracle: the two paths MUST differ so the
-    implement.py routing decision (``_lanes_feature_dir = _status_feature_dir``
-    vs. ``= feature_dir``) is observable. A test that accepts both would be
-    vacuous — this one rejects the primary path when the coord path is correct.
+    ``resolve_lanes_dir`` is a pure path-join (feature_dir → feature_dir /
+    ``lanes.json``); it does NOT decide the partition. The PARTITION decision
+    for ``lanes.json`` (LANE_STATE) is PRIMARY with INV-5 symmetry and lives in
+    the kind-aware placement seam (``implement._resolve_lanes_dir`` →
+    ``placement_seam(...).read_dir(LANE_STATE)``), not here. This oracle only
+    proves the two composed paths differ, so a caller that passes the wrong
+    surface dir is detectable.
     """
     # Simulate a coord topology: primary in the main checkout, coord in .worktrees.
     primary_feature_dir = tmp_path / "kitty-specs" / "write-side-coord-01kv9w0x"
@@ -138,9 +142,10 @@ def test_resolve_lanes_dir_coord_path_differs_from_primary_path(tmp_path: Path) 
 def test_require_lanes_json_raises_missing_on_absent_file(tmp_path: Path) -> None:
     """require_lanes_json raises MissingLanesError when no lanes.json exists.
 
-    Regression-lock: the C-LANES-1 routing depends on require_lanes_json
-    reading from the coord surface. If the coord feature dir does not carry
-    lanes.json, a clear MissingLanesError is raised — never a silent fallback.
+    Regression-lock: ``require_lanes_json`` never silently falls back. If the
+    resolved feature dir does not carry ``lanes.json``, a clear
+    MissingLanesError is raised (topology-agnostic — the caller resolves the
+    partition via the placement seam before calling this).
     """
     with pytest.raises(MissingLanesError, match="lanes.json is required"):
         require_lanes_json(tmp_path)

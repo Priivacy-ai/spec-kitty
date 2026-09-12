@@ -9,11 +9,11 @@ These tests verify the execution context correctly handles:
 The PrimitiveExecutionContext is the data carrier for mission primitives.
 It flows through the glossary middleware pipeline, accumulating state
 (extracted_terms, conflicts) at each stage. See:
-- src/doctrine/missions/primitives.py for data model
+- src/charter/offering/missions/primitives.py for data model
 - src/specify_cli/glossary/attachment.py for pipeline integration
 """
 
-from doctrine.missions.primitives import PrimitiveExecutionContext
+from charter.offering.missions.primitives import PrimitiveExecutionContext
 from glossary.strictness import Strictness
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -68,6 +68,14 @@ class TestGlossaryEnablementContract:
         ctx = _make_context(metadata={"glossary_check": False})
         assert ctx.is_glossary_enabled() is False
 
+    def test_bool_true_enables(self):
+        ctx = _make_context(metadata={"glossary_check": True})
+        assert ctx.is_glossary_enabled() is True
+
+    def test_string_disable_is_case_insensitive(self):
+        ctx = _make_context(metadata={"glossary_check": "DISABLED"})
+        assert ctx.is_glossary_enabled() is False
+
     def test_null_falls_through_to_mission_config(self):
         """Given: step metadata=null, mission config=disabled
         When: checking if glossary enabled
@@ -112,6 +120,11 @@ class TestStrictnessResolution:
         """
         ctx = _make_context(config={"glossary": {"strictness": "invalid"}})
         assert ctx.mission_strictness is None
+
+    def test_absent_levels_return_none(self):
+        ctx = _make_context()
+        assert ctx.mission_strictness is None
+        assert ctx.step_strictness is None
 
     def test_both_levels_coexist(self):
         """Given: both mission and step strictness set
@@ -171,3 +184,11 @@ class TestStepInputPopulation:
         """
         ctx = _make_context(inputs={})
         assert ctx.step_input == {}
+
+    def test_mutable_defaults_are_instance_local(self):
+        first = _make_context()
+        second = _make_context()
+
+        first.extracted_terms.append(object())  # type: ignore[arg-type]
+
+        assert second.extracted_terms == []

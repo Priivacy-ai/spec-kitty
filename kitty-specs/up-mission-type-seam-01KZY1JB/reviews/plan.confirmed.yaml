@@ -1,0 +1,129 @@
+# review-findings/v1 — confirmed set (R3 output), orchestrator-authored bookkeeping.
+# = merged findings whose refute-batch verdict is `confirmed`. All 7 non-duplicate findings
+# from plan.merged.yaml were confirmed by reviews/plan-refute-1.yaml. PLAN-VERIFY-003 excluded
+# (marked duplicate_of: PLAN-GOV-001 in plan.merged.yaml; never sent to the refuter separately).
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: confirmed
+mission: up-mission-type-seam-01KZY1JB
+source: reviews/plan.merged.yaml + reviews/plan-refute-1.yaml
+findings:
+  - id: PLAN-GOV-001
+    severity: 4
+    title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
+    evidence:
+      - artifact: "plan.md § Summary, paragraph 1"
+      - code: "src/charter/mission_type_profiles.py:788-799 (guard + raise)"
+      - code: "src/charter/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
+    claim: >
+      The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
+      execution "falls through to `list(mission.action_sequence or [])` at line 807, and
+      `mission` is `None` today." Live code raises `UnknownMissionTypeError` at line 799 when
+      `mission is None` — it never reaches line 807. Today's actual behavior is a loud raise, not
+      a silent `[]` degrade. The real CL-003 risk is prospective: only reachable once this
+      mission's own IC-01/IC-02 make `mission` resolvable for a non-built-in type.
+    remediation: >
+      Rewrite the Summary's second paragraph to state the risk prospectively: today, an activated
+      non-built-in type hard-fails via UnknownMissionTypeError (mission_type_profiles.py:799).
+      The actual CL-003 risk is that once IC-01/IC-02 land, line 807 would newly silently degrade
+      to `[]` for a type whose YAML omits `action_sequence` — align with IC-05's own correct
+      framing.
+
+  - id: PLAN-ARCH-001
+    severity: 3
+    title: >-
+      Plan mischaracterizes _resolve_action_slot as "hardcoding pack_context=None" —
+      it has no pack_context parameter at all, so the stated fix mechanism is wrong
+      for one of the seam's two twin functions
+    evidence:
+      - artifact: "plan.md § Summary; plan.md § IC-02"
+      - code: "src/charter/mission_type_profiles.py:762-767 (_resolve_action_slot signature — no pack_context parameter)"
+      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default())"
+      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot genuinely hardcodes pack_context=None)"
+    claim: >
+      "Both hardcode pack_context=None" is only true for _resolve_template_set_slot.
+      _resolve_action_slot's builtin-only-ness comes from calling the zero-arg
+      MissionTypeRepository.default(), not from a hardcoded parameter default.
+    remediation: >
+      Replace the blanket statement with a per-function description: _resolve_template_set_slot
+      needs its pack_context argument threaded through; _resolve_action_slot needs its repository
+      call swapped to IC-01's new factory — a structurally different edit.
+
+  - id: PLAN-ARCH-002
+    severity: 3
+    title: >-
+      "The Seam" section asserts as verified fact that a new charter.missions
+      facade-table entry IS needed, but this depends on a design choice IC-01
+      explicitly leaves open — and the sibling module's own precedent suggests
+      it may not be needed at all
+    evidence:
+      - artifact: "plan.md § The Seam, 'Facade re-export decision'"
+      - artifact: "plan.md § IC-01, Risks"
+      - code: "src/charter/missions.py:24-42 (MissionTypeRepository already re-exported by identity)"
+      - code: "src/doctrine/missions/mission_step_repository.py:63-66,446-470 (sibling module's analogous cache function is private, not in __all__)"
+    claim: >
+      IC-01's own Risks bullet leaves the new factory's shape undecided, including a shape that
+      reuses the already-exported MissionTypeRepository with no new facade row — but "The Seam"
+      section asserts the facade edit as settled fact.
+    remediation: >
+      Either resolve IC-01's open design question before asserting the facade conclusion, or
+      soften "The Seam" section to state the need is conditional on that still-open choice.
+
+  - id: PLAN-ARCH-003
+    severity: 2
+    title: >-
+      IC-04's stated risk narrative overstates how much protection the CL-004a
+      deletion actually buys against the `.kittify/missions/mission_types/`
+      collision it describes
+    evidence:
+      - artifact: "plan.md § IC-04, Risks"
+      - code: "src/specify_cli/mission.py:78 (_mission_dir_if_valid: mission.yaml-presence check, independent of caller existence)"
+    claim: >
+      The real protection against the collision is the pre-existing mission.yaml-presence check,
+      not the CL-004a/IC-06 dead-code deletion the plan credits.
+    remediation: >
+      Rewrite IC-04's Risks bullet to cite `_mission_dir_if_valid`'s mission.yaml check as the
+      true safeguard; keep noting CL-004a as good hygiene, not as the operative protection.
+
+  - id: PLAN-VERIFY-001
+    severity: 4
+    title: "Gate Set omits the enforced `diff-coverage` (critical-path, 90%) gate that directly targets this mission's own touched files"
+    evidence:
+      - artifact: "plan.md § Gate Set"
+      - code: ".github/workflows/ci-quality.yml:3403-3406,3456-3516 (diff-coverage job; critical_paths includes src/doctrine/*, src/charter/*; --fail-under=90)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (quality-gate's needs: includes diff-coverage)"
+    claim: >
+      plan.md's Gate Set never mentions `diff-coverage`, an enforced, blocking, PR-scoped 90%
+      new-code-coverage gate that applies directly to this mission's touched directories.
+    remediation: >
+      Add `diff-coverage` to the Included table, citing ci-quality.yml:3456-3516, with the reason
+      that src/doctrine/* and src/charter/* are both in its critical_paths list.
+
+  - id: PLAN-VERIFY-002
+    severity: 3
+    title: "SonarCloud Quality Gate is listed as an included/enforced PR gate, but the live workflow never runs it on `pull_request` or `push`, and it is not a `quality-gate` dependency"
+    evidence:
+      - artifact: "plan.md § Gate Set, Included table, row \"SonarCloud Quality Gate\""
+      - code: ".github/workflows/ci-quality.yml:3568-3573,3625,4011 (job restricted to schedule/workflow_dispatch; actual gate step at line 4011, not the cited 3568)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (quality-gate's needs: omits sonarcloud)"
+    claim: >
+      The cited line is the job header, not the gate step; the job never runs on pull_request or
+      push and is not a quality-gate dependency, so it provides zero enforcement on this PR.
+    remediation: >
+      Move SonarCloud Quality Gate to the Excluded table with the reason it never runs on PR/push;
+      credit `diff-coverage` (PLAN-VERIFY-001) for the new-code-coverage concern instead.
+
+  - id: PLAN-VERIFY-004
+    severity: 3
+    title: "Project Structure's touched-test-file list names a test file that does not exist, for the FR-006–FR-009/CL-004a test surface"
+    evidence:
+      - artifact: "plan.md § Project Structure (Source Code); plan.md § IC-06 Test surface"
+      - code: "tests/specify_cli/cli/commands/ (no test_mission_type.py; only test_mission_type_rendering.py, test_mission_type_force_delete_branch.py, test_mission_type_template_set_cli.py exist)"
+    claim: >
+      plan.md names `tests/specify_cli/cli/commands/test_mission_type.py` with an "EXTEND" verb
+      implying it exists; it does not.
+    remediation: >
+      Name the actual existing file(s) to extend (test_mission_type_rendering.py plus
+      tests/cli/test_charter_mission_type_commands.py), or relabel as "NEW" if a new file is
+      genuinely intended.

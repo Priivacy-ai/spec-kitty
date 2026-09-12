@@ -7,7 +7,15 @@ command surface.
 
 Output layout (spec 080 §2.4, FR-015):
 
-- Authenticated banner + email / name / user_id
+- Authenticated banner
+- SaaS endpoint the CLI is pointed at, with its provenance, plus a plain
+  warning when the stored session was minted against a *different*
+  endpoint (#176 — after a hostname move this is the line that explains
+  why every call suddenly 401s); or, when ``SPEC_KITTY_SAAS_URL`` and
+  ``config.toml [sync].server_url`` genuinely disagree, a split-brain line
+  naming both values instead of silently picking the env one (#193)
+- SaaS endpoint the stored session was minted against, when known
+- email / name / user_id
 - Team list with the default team marked
 - Access token remaining time (human-readable)
 - Refresh token remaining time (human-readable) — or a defensive
@@ -18,6 +26,12 @@ Output layout (spec 080 §2.4, FR-015):
 - Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
 
+The not-authenticated and session-expired early returns also print the
+``SaaS:`` endpoint line — the expired case additionally gets the session
+issuer + mismatch warning, since that is exactly the post-hostname-move
+symptom #176 exists to diagnose (#189). ``whoami``'s separate exit-1/no-output
+contract when unauthenticated is untouched.
+
 Exit code is 0 in both authenticated and not-authenticated cases per
 FR-015: ``auth status`` is purely informational and must never surface
 as a failure to shells / scripts.
@@ -25,12 +39,26 @@ as a failure to shells / scripts.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from rich.markup import escape
 
-from specify_cli.cli.console import console
+from kernel.clock import UTC, datetime, now_utc
+
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
+from specify_cli.cli.commands._auth_saas_target import (
+    print_saas_endpoint,
+    print_saas_target,
+)
+
+
+_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "ok": ("green", "+"),
+    "unknown": ("yellow", "?"),
+    "fail": ("red", "X"),
+}
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -58,23 +86,27 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
+    assessment = getattr(tm, "session_assessment", None)
+    verdict = evaluate_auth_verdict(
+        session,
+        now_utc(),
+        session_assessment_reason=getattr(assessment, "reason", None),
+    )
+    _print_banner(verdict)
+
     if session is None:
-        console.print("[red]X Not authenticated[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to authenticate."
-        )
+        print_saas_endpoint()
+        console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
-    if session.is_refresh_token_expired():
-        console.print("[red]X Session expired (refresh token expired)[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-        )
+    if verdict.state == "fail":
+        print_saas_target(session)
+        console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
-    console.print("[green]+ Authenticated[/green]")
     console.print()
 
+    print_saas_target(session)
     _print_identity(session)
     console.print()
 
@@ -85,9 +117,9 @@ def status_impl() -> None:
     console.print()
 
     _print_storage_backend(session)
-    console.print(f"  Session ID:     {session.session_id}")
+    console.print(f"  Session ID:     {escape(sanitize_terminal_text(session.session_id))}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
+    console.print(f"  Auth method:    {escape(sanitize_terminal_text(format_auth_method(session.auth_method)))}")
 
 
 # ---------------------------------------------------------------------------
@@ -95,13 +127,19 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _print_banner(verdict: HealthVerdict) -> None:
+    """Print the verdict-derived headline and its evidence."""
+    color, glyph = _VERDICT_STYLE[verdict.state]
+    console.print(f"[{color}]{glyph} {verdict.headline}[/{color}] ({verdict.evidence})")
+
+
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))} ({escape(sanitize_terminal_text(session.name))})")
     else:
-        console.print(f"  User:           {session.email}")
-    console.print(f"  User ID:        {session.user_id}")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))}")
+    console.print(f"  User ID:        {escape(sanitize_terminal_text(session.user_id))}")
 
 
 def _print_teams(session: StoredSession) -> None:
@@ -118,7 +156,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(sanitize_terminal_text(team.name))} ({escape(sanitize_terminal_text(team.role))}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -130,26 +168,21 @@ def _print_token_expiry(session: StoredSession) -> None:
     replayed/legacy sessions written before the amendment — re-login
     populates the field.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     access_remaining = (session.access_token_expires_at - now).total_seconds()
     console.print(f"  Access token:   {format_duration(access_remaining)}")
 
     if session.refresh_token_expires_at is None:
-        console.print(
-            "  Refresh token:  [dim]server-managed "
-            "(legacy session - re-login to populate refresh expiry)[/dim]"
-        )
+        console.print("  Refresh token:  [dim]server-managed (legacy session - re-login to populate refresh expiry)[/dim]")
     else:
-        refresh_remaining = (
-            session.refresh_token_expires_at - now
-        ).total_seconds()
+        refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()
         console.print(f"  Refresh token:  {format_duration(refresh_remaining)}")
 
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
     label = format_storage_backend(session.storage_backend)
-    console.print(f"  Storage:        {label}")
+    console.print(f"  Storage:        {escape(sanitize_terminal_text(label))}")
 
 
 # ---------------------------------------------------------------------------
@@ -214,4 +247,7 @@ __all__ = [
     "format_duration",
     "format_storage_backend",
     # format_auth_method: demoted — no cross-module src/ callers (WP01).
+    # print_saas_target / format_saas_mismatch_warning / format_saas_provenance /
+    # saas_source_name: moved to _auth_saas_target (#192) — shared by status
+    # and whoami, so neither imports the other's private helper.
 ]

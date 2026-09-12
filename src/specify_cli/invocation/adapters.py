@@ -1,13 +1,13 @@
-"""Invocation adapter registry for sync-routing and SaaS-client seams.
+"""Invocation adapter registry for the SaaS-client seam.
 
-Provides a decoupled resolver boundary so that invocation/propagator.py
-does not need to depend on the sync package.  The sync package registers
-its concrete implementations at startup; sync -> invocation.adapters is
-the clean dependency direction.
+Provides a decoupled factory boundary so that invocation/propagator.py does
+not need to depend on any concrete transport. The dispatch function is
+non-raising, and its degradation is safe by construction: :func:`get_saas_client`
+degrades to ``None``, which means "no transport" — nothing can leave, so
+absence is safe.
 
-All dispatch functions are non-raising: when no implementation is
-registered, or when a registered implementation raises, the function
-returns ``None`` (safe-degrade).  An unregistered registry is a no-op.
+(The former egress-consent seam here retired with the sync transport,
+issue #5: its only production registrant was the deleted consent chain.)
 
 Mirrors the ``status/adapters.py`` idiom (C-007, FR-008).
 """
@@ -21,11 +21,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 # Single-slot registries — the sync package registers one concrete
 # implementation per slot at startup.  Using ``None`` as the sentinel
 # means "no implementation registered" which is the correct initial
 # state for CORE modules that are loaded before INTEGRATION packages.
-_sync_routing_resolver: Callable[[Path], bool | None] | None = None
 _saas_client_factory: Callable[[Path], Any | None] | None = None
 
 
@@ -46,36 +46,61 @@ def _callable_key(fn: Callable[..., Any]) -> str:
     return repr(fn)
 
 
-def register_sync_routing_resolver(
-    fn: Callable[[Path], bool | None],
-) -> None:
-    """Register the sync-routing resolver (idempotent by qualified name).
-
-    Called once at sync package startup.  Re-registration of a callable
-    with the same ``__qualname__`` replaces the existing entry, so that
-    re-importing or reloading ``specify_cli.sync`` (e.g. in test
-    processes) is safe and does not stack multiple resolvers.
-    Not thread-safe by design (registration runs before concurrent
-    access begins).
-    """
-    global _sync_routing_resolver  # noqa: PLW0603
-    new_key = _callable_key(fn)
-    if _sync_routing_resolver is not None:
-        existing_key = _callable_key(_sync_routing_resolver)
-        if existing_key == new_key:
-            _sync_routing_resolver = fn
-            return
-    _sync_routing_resolver = fn
-
-
 def register_saas_client_factory(
     fn: Callable[[Path], Any | None],
+    *,
+    confirms_request_text_admission_gate: bool,
 ) -> None:
     """Register the SaaS-client factory (idempotent by qualified name).
 
-    Called once at sync package startup.  Re-registration replaces the
-    existing factory when the qualified name matches.
+    Nothing registers a factory today (#3030 FR-032) — the seam exists but
+    is never called in production. See :func:`propagator._get_saas_client`
+    for the canonical record of why this stays empty and the ``request_text``
+    hazard a future registration would open. (No line range: the symbol is the
+    durable anchor. An earlier draft cited ``propagator.py:70-83``, but the
+    function begins at ``:58`` and nothing pins those numbers.)
+    **Re-registration replaces the existing factory unconditionally.** Not "when
+    the qualified name matches" — that was this docstring's last remaining false
+    sentence, and FR-018 is precisely about not leaving one here. Both arms of the
+    ``existing_key == new_key`` branch below assign ``fn``, so the comparison
+    changes nothing but the control flow taken to reach the same assignment; a
+    callable with a *different* ``__qualname__`` replaces the entry just as
+    completely. The invariant that does hold is the one that matters: at most one
+    factory is ever registered, so re-registering cannot stack
+    several.
+
+    The dead comparison itself is left in place: it is pre-existing, identical in
+    the sibling registrar above, and removing it from both is a behaviour-preserving
+    simplification outside this mission's scope. Filed rather than folded — see the
+    mission's follow-up record.
+
+    Args:
+        fn: The factory. Called with the repo root; returns a connected client
+            or ``None``.
+        confirms_request_text_admission_gate: Mandatory, no default. Registering
+            a factory here is what opens the propagator's egress path carrying
+            ``request_text`` — the verbatim agent prompt — off-machine (see
+            :func:`propagator._get_saas_client`). Passing anything but ``True``
+            raises: the caller must affirmatively assert that *fn* (or whatever
+            constructs the client it returns) enforces the auth/admission gate
+            before ``request_text`` can leave the machine. This does not, by
+            itself, prove the gate exists — it makes registering a factory that
+            skips that proof a deliberate, reviewable act instead of a default
+            no one had to opt into (issue #117).
+
+    Raises:
+        ValueError: If ``confirms_request_text_admission_gate`` is not ``True``.
     """
+    if confirms_request_text_admission_gate is not True:
+        raise ValueError(
+            "register_saas_client_factory requires "
+            "confirms_request_text_admission_gate=True: registering a factory "
+            "here opens the invocation propagator's egress path, which carries "
+            "request_text (the verbatim agent prompt) off-machine. Pass True "
+            "only once the registrant owns and enforces the auth/admission gate "
+            "ahead of that send — see specify_cli.invocation.propagator."
+            "_get_saas_client for what that gate must cover."
+        )
     global _saas_client_factory  # noqa: PLW0603
     new_key = _callable_key(fn)
     if _saas_client_factory is not None:
@@ -86,27 +111,6 @@ def register_saas_client_factory(
     _saas_client_factory = fn
 
 
-def resolve_sync_routing(path: Path) -> bool | None:
-    """Dispatch to the registered sync-routing resolver.
-
-    Returns the resolver's result, or ``None`` when:
-    - no resolver has been registered (safe-degrade on missing sync package), or
-    - the registered resolver raises any exception.
-
-    Never raises.
-    """
-    if _sync_routing_resolver is None:
-        return None
-    try:
-        return _sync_routing_resolver(path)
-    except Exception:  # noqa: BLE001
-        logger.debug(
-            "sync-routing resolver raised; safe-degrading to None",
-            exc_info=True,
-        )
-        return None
-
-
 def get_saas_client(path: Path) -> Any | None:
     """Dispatch to the registered SaaS-client factory.
 
@@ -115,6 +119,15 @@ def get_saas_client(path: Path) -> Any | None:
     - the registered factory raises any exception.
 
     Never raises.
+
+    **No production code registers a factory today** (#3030 FR-032), so in a real
+    process this is the first branch, every time. The ``sync`` package used to
+    register one whose entire body read ``token_manager._ws_client`` — an attribute
+    nothing in ``src/`` assigns — making it a ``None``-returning phantom; it was
+    deleted rather than wired up, because wiring it would have turned three egress
+    paths live at once in the middle of a confidentiality incident. The slot survives
+    as the seam a real transport would be registered into; whoever does that owns
+    proving the consent gate above each consumer holds.
     """
     if _saas_client_factory is None:
         return None
@@ -129,11 +142,10 @@ def get_saas_client(path: Path) -> Any | None:
 
 
 def reset_adapters() -> None:
-    """Clear both registered slots (test-only utility).
+    """Clear the registered slot (test-only utility).
 
     Call only from test teardown to prevent state bleed between tests.
     Production code must never call this.
     """
-    global _sync_routing_resolver, _saas_client_factory  # noqa: PLW0603
-    _sync_routing_resolver = None
+    global _saas_client_factory  # noqa: PLW0603
     _saas_client_factory = None

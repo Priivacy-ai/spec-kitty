@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-05T13:29:15.078495+00:00",
+  "flattened": false,
   "friendly_name": "Auth Local Trust And Multi-Process Hardening",
   "mission_id": "01KQW587256P0CCDN2GT9WAXNC",
   "mission_number": 114,
@@ -11,5 +12,6 @@
   "source_description": "CLI auth-adjacent trust, diagnostics, and local multi-process hardening from workspace start-here.md. Scope covers CLI #829, #907, #889, #977, and the CLI side of SaaS #77 without reopening shipped Tranche 2 or Tranche 2.5 auth.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

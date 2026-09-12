@@ -1,0 +1,55 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PLAN-ARCH-001
+    lens: Guard-ordering fix (FR-002) regression risk
+    severity: 3
+    title: "Guard-ordering fix crashes tests/runtime/test_bridge_cores.py's shared _snapshot() fixture with KeyError, and plan.md never flags the needed test-helper update"
+    evidence:
+      - artifact: "plan.md § Story 3 / FR-002 / FR-003 — reaching spec-kitty next's actual decision (code sketch, ~lines 337-347)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:484-489 (_evaluate_tasks_packages_guard), :515-521 (_evaluate_composed_tasks_packages_guard), :524-534 (_evaluate_composed_tasks_terminal_guard), :492-504 (_evaluate_tasks_finalize_guard) — current bodies confirmed to match plan's characterization"
+      - code: "tests/runtime/test_bridge_cores.py:229-259 (_snapshot() helper's base_status_facts dict — no 'bare_prose_requirement_failures' key)"
+      - code: "tests/runtime/test_bridge_cores.py:279-282 (test_cli_native_tasks_packages_missing_files_message), :306-308 (test_cli_native_tasks_finalize_empty_wp_files_message) — existing exact-equality assertions on the single-element MISSING_TASK_FILES_MESSAGE list when _tasks_dir_ready is False"
+      - code: "src/runtime/next/runtime_bridge_io.py:745-746 (ArtifactPresenceSnapshot.status_facts: Mapping[str, Any] — a plain dict, subscripted with '[]' not '.get()')"
+    claim: >
+      Plan.md's own code sketch for the FR-002 ordering fix reads
+      `snapshot.status_facts["bare_prose_requirement_failures"]` via direct dict
+      subscript, unconditionally, at the top of every guard it touches (four guards
+      total, per Story 3's scope decision). `status_facts` is a plain `Mapping`
+      constructed either by production `gather_artifact_presence` (which the plan does
+      correctly update to add the new key) or, in tests, by the shared `_snapshot()`
+      helper in `tests/runtime/test_bridge_cores.py` (lines 229-259), whose
+      `base_status_facts` dict plan.md never mentions updating. As written today, that
+      helper does not populate `bare_prose_requirement_failures`, so every existing
+      `evaluate_guards` test in that file that reaches one of the four wired guards
+      (confirmed: at minimum `test_cli_native_tasks_packages_missing_files_message`,
+      `test_cli_native_tasks_packages_extends_requirement_mapping_failures`,
+      `test_cli_native_tasks_finalize_dir_missing_message_distinct_from_packages`,
+      `test_cli_native_tasks_finalize_empty_wp_files_message`,
+      `test_cli_native_tasks_finalize_missing_dependency_uses_full_stem_breaks_on_first`,
+      `test_cli_native_tasks_finalize_occurrence_gate_always_appended`, and the
+      composed-vocabulary equivalents) will raise `KeyError` at the moment the
+      implementation lands, rather than continuing to pass with an unchanged single-element
+      list (which is what would happen if the new key defaulted to an empty tuple).
+      `tests/runtime/test_bridge_cores.py` is explicitly named in plan.md's own "Targeted
+      Test Surface" and is one of the three files Story 2 AC2 / SC-002 require to keep
+      "every pre-existing assertion... passing unmodified" — so this is exactly the kind
+      of consequence those requirements were meant to force plan.md to account for, and
+      it does not.
+    remediation: >
+      Add an explicit line to plan.md's IC-02 (or the FR-002 code sketch itself) stating
+      that `tests/runtime/test_bridge_cores.py`'s `_snapshot()` helper (and any equivalent
+      snapshot-construction helper in `tests/next/test_runtime_bridge_unit.py` /
+      `tests/specify_cli/next/test_runtime_bridge_composition.py`) must have
+      `"bare_prose_requirement_failures": ()` added to its default `status_facts` dict in
+      the SAME commit that adds the new guard reads — before any guard touches the new
+      key — so the ~10 existing exact-equality assertions in that file continue to pass
+      (their list *content* is unaffected by an empty prepend) instead of crashing with
+      KeyError. Alternatively, have the guard code read via
+      `snapshot.status_facts.get("bare_prose_requirement_failures", ())` so a missing key
+      degrades to "no bare-prose failures" rather than crashing — but the plan should pick
+      one of these explicitly rather than leaving it for the implementer to discover via a
+      test failure.

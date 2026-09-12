@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 from charter.bundle import validate_synthesis_state
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
 pytestmark = [pytest.mark.fast]
 

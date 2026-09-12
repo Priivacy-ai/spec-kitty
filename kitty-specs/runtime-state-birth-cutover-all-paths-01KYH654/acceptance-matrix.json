@@ -1,0 +1,99 @@
+{
+  "mission_slug": "runtime-state-birth-cutover-all-paths-01KYH654",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Birth-cutover is stamped at the terminal accept seam and committed into the branch (rides through any landing path).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 28cb8670a; test_accept_birth_cutover.py::test_squash_merge_after_accept_lands_cut_over_corpus (plain git merge --squash, no spec-kitty merge).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Fail-closed pre-merge guard rejects any change set leaving an un-cut-over mission.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 30d5cb23e; test_cutover_guard.py (12 passed); live exit 1 on un-cut-over slug.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Guard names offending mission(s) and prints the exact remedy command.",
+      "proof_type": "automated_test",
+      "evidence": "WP03; test_cutover_guard.py::test_remedy_command_is_exact -> 'spec-kitty migrate backfill-runtime-state --mission <slug>'.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Stamp fires only when runtime state is final (all WPs approved/done via accept summary.ok).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 28cb8670a; accept() gated on summary.ok + commit_required + no exc before the stamp.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Single cutover authority: accept-time stamp and merge-time stamp both call cutover_mission.",
+      "proof_type": "automated_test",
+      "evidence": "WP02; stamp_accept_cutover -> cutover_mission (same fn as merge/executor._run_birth_cutover).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Stamp and guard are idempotent no-ops on already-cut-over missions.",
+      "proof_type": "automated_test",
+      "evidence": "WP02; test_accept_stamp_idempotent_rerun_is_byte_identical (seeds 0, byte-identical).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "On-demand audit lists every mission's cut-over status.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 8f38928ee; spec-kitty doctor cutover [--json]; test_cutover_doctor.py (8 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Guard fires on corpus-only PRs and is a required, non-skippable check.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 51fd2ef9d; release-readiness.yml kitty-specs/** trigger + unconditional cutover-guard job; local sim green; GitHub live-verify at mission-PR closeout.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Guard keys on event-log evidence + non-empty snapshot + status_phase, not bare verify_backfill (native-mission vacuity).",
+      "proof_type": "automated_test",
+      "evidence": "WP03; cutover_eligibility.is_cut_over; test_native_un_cut_over_mission_is_flagged.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP review) + orchestrator",
+      "verified_at": "2026-07-27T08:50:16Z",
+      "notes": "Verified via approved WP review + automated tests."
+    }
+  ],
+  "negative_invariants": []
+}

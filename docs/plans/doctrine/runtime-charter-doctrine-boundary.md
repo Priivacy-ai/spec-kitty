@@ -1,12 +1,14 @@
 ---
 title: Runtime → Charter → Doctrine — boundary audit and recommendations
 description: Architect Alphonso's audit (2026-05-17) of the runtime to charter to doctrine boundary, with recommendations for tightening the seams.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-19'
 related:
 - docs/plans/doctrine/doctrine-artifact-selection-preflight.md
 ---
 # Runtime → Charter → Doctrine — boundary audit and recommendations
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Author:** Architect Alphonso
 **Date:** 2026-05-17
@@ -54,7 +56,7 @@ Counted via `rg "^from doctrine|^import doctrine"` against `src/specify_cli/`.
 | **Mission step contracts** | `mission_loader/registry.py` | `MissionStepContract`, `MissionStepContractRepository` | `charter.mission_steps.*` (new facade — charter already template-resolves these via `template_resolver.py`) |
 | | `mission_loader/contract_synthesis.py` | `MissionStepContract` models | Same |
 | | `mission_step_contracts/executor.py` | `MissionStep`, `MissionStepContract`, `MissionStepContractRepository`, `ArtifactKind`, DRG models, DRG query | Same + DRG via charter (below) |
-| **DRG (Doctrine Reference Graph)** | `calibration/walker.py` | `DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `load_graph`, `merge_layers`, `NodeKind`, `resolve_context` | `charter.drg.*` (new facade — charter already loads DRG via `_drg_helpers.load_validated_graph`) |
+| **DRG (doctrine reference graph)** | `calibration/walker.py` | `DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `load_graph`, `merge_layers`, `NodeKind`, `resolve_context` | `charter.drg.*` (new facade — charter already loads DRG via `_drg_helpers.load_validated_graph`) |
 | | `glossary/drg_builder.py` | `DRGEdge`, `DRGGraph`, `DRGNode`, `NodeKind`, `Relation` | Same |
 | | `mission_step_contracts/executor.py` | `DRGGraph`, `NodeKind`, `ResolvedContext`, `resolve_context` | Same |
 | **Primitives** | `missions/__init__.py` | `PrimitiveExecutionContext`, `execute_with_glossary` from `doctrine.missions` | `charter.primitives.*` (new facade) |

@@ -1,0 +1,24 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: Read WP01's Branch Strategy (line 123, "see tasks.md's PR-shape section") and the full 81-line tasks.md, which is confirmed to be a pure finalize-tasks-generated WP manifest with no PR-shape prose section, and grepping plan.md for "this PR"/"single PR" finds only the Gate Set table's incidental "this PR" mentions (lines 497/503/526), never a dedicated reasoned single-PR-shape section, exactly as the finding claims.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: WP07-cli-surface-fixes.md defines T020 (capstone, lines 225-242) and cites it again at 246/254/305, but wps.yaml's WP07 subtasks list (lines 221-225) and tasks.md's WP07 summary (line 78) both list only T016-T019, and WP07's own frontmatter subtasks field (lines 18-22) also stops at T019 — T020 is confirmed absent from all three structured registries.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: Read lanes.json directly and confirmed the raw cycle (lane-a depends_on_lanes:[lane-b,lane-c,lane-planning]; lane-b and lane-c each depends_on_lanes:[lane-a]); read _compute_lane_depths in compute.py (lines 615-653) which confirms its own docstring's "cycle detection is best-effort... callers that need cycle-accurate depths should validate the lane graph before invoking," and confirmed no caller (mission_finalize.py's lane-compute phase or the --validate-only dry-run path) performs that validation before writing lanes.json; separately read worktree_allocator.py's _merge_dependency_lane_tips (lines 419-514) and confirmed it does mechanically consume depends_on_lanes for real `git merge` operations at allocation time, with fail-closed-and-atomic conflict handling, exactly as cited; grep of WP07's prompt and wps.yaml's header confirms neither flags this lane-graph shape.
+  - id: TASKS-SEQ-002
+    verdict: confirmed
+    reason: Live `gh pr list --state open --json number,title,headRefName,files` plus `gh pr view` confirm PR #3166 (OPEN, non-draft, updated 2026-08-11) and PR #2719 (OPEN, non-draft, updated 2026-08-11) both modify src/specify_cli/cli/commands/doctrine.py, which wps.yaml's WP07 owned_files (lines 203-211) also claims, and a grep across the mission directory for gh-pr/collision-related terms returns zero hits, matching the finding's evidence exactly.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP04-pack-context-projection.md's T010 subtask is explicitly labeled "Sequenced after T008/T009 (needs the threading in place to test against)" (line 173) with zero red/green ordering statement anywhere in its Test Strategy section (lines 175-186), directly contradicting charter.md's binding C-011 ATDD-First Discipline text (lines 591-597, verbatim-verified) that requires a failing-first test committed BEFORE implementation commits, while sibling WPs (WP03/T005 "Red-first", explicitly confirmed) do carry that instruction.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: Read WP07's full T016-T019 Steps blocks directly (lines 163-224) — T016 and T018 give no test-before-fix instruction at all, T017's steps 1-3 are fixes with test-writing appearing only at step 4, and T019 literally orders "1. Replace the bare except... 2. Add the edge-case test" — fix-then-test in every case — and the Review Guidance section (lines 295-309) asks the reviewer to re-verify specific behaviors but never asks for red-first/commit-ordering evidence, matching the finding's claim precisely.

@@ -7,10 +7,10 @@ from types import SimpleNamespace
 
 import pytest
 
-import charter.template_resolver as template_resolver_module
-from charter.template_resolver import CharterTemplateResolver
-from doctrine.missions.repository import TemplateResult
-from doctrine.resolver import ResolutionResult, ResolutionTier
+from charter.activation.resolver import DoctrineService
+from charter.activation.template_resolver import CharterTemplateResolver
+from charter.offering.missions.repository import TemplateResult
+from charter.offering.resolver import ResolutionResult, ResolutionTier
 
 pytestmark = pytest.mark.fast
 
@@ -21,9 +21,12 @@ def test_resolve_command_template_with_project_context_uses_runtime_chain(
 ) -> None:
     path = tmp_path / "plan.md"
     path.write_text("override command", encoding="utf-8")
+    # FR-003 (WP05): the tier-chain seam moved from a module-level
+    # ``charter.offering.resolver`` re-export in charter.activation.template_resolver onto the
+    # canonical factory, so the patch target moved with it.
     monkeypatch.setattr(
-        template_resolver_module,
-        "resolve_command",
+        DoctrineService,
+        "resolve_command_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.OVERRIDE, mission="software-dev"),
     )
 
@@ -41,9 +44,10 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
 ) -> None:
     path = tmp_path / "spec-template.md"
     path.write_text("legacy content", encoding="utf-8")
+    # FR-003 (WP05): see the sibling test — patch target follows the seam.
     monkeypatch.setattr(
-        template_resolver_module,
-        "resolve_template",
+        DoctrineService,
+        "resolve_content_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.LEGACY, mission="software-dev"),
     )
 
@@ -109,3 +113,16 @@ def test_from_missions_root_resolves_package_default_paths(tmp_path: Path) -> No
 def test_tier_to_origin_falls_back_to_unknown_prefix() -> None:
     origin = CharterTemplateResolver._tier_to_origin(object(), "software-dev", "templates", "spec-template.md")
     assert origin == "unknown/software-dev/templates/spec-template.md"
+
+
+def test_tier_to_origin_reports_org_prefix_not_unknown() -> None:
+    """T008/FR-012 (DEC-008): a real ``ResolutionTier.ORG`` member is a known
+    tier, distinct from the generic ``object()`` sentinel used above to test
+    the fallback path in general. Before the ``ORG`` entry is added to
+    ``_tier_to_origin``'s ``tier_prefix`` dict, this renders
+    ``"unknown/..."`` -- the exact silent-degradation defect FR-012 fixes.
+    """
+    origin = CharterTemplateResolver._tier_to_origin(
+        ResolutionTier.ORG, "software-dev", "templates", "spec-template.md"
+    )
+    assert origin == "org/software-dev/templates/spec-template.md"

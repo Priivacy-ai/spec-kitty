@@ -1,0 +1,198 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: SPEC-ARCH-001
+    lens: Four-type blast-radius / non-regression coverage
+    severity: 4
+    severity_reasoning: >
+      Rubric #4 ("high") applies as "FR/NFR without coverage": NFR-001's own
+      text is the ONLY place `plan` is mentioned for the #3830 fix, phrased as
+      "must likewise be unaffected wherever it currently traverses this path"
+      — no Acceptance Scenario, Independent Test, or Success Criterion is
+      tied to it, so it is untestable as written. Verified against the
+      checkout, `plan` DOES currently traverse this exact hot path and is
+      ALREADY broken there by a distinct, adjacent defect the spec never
+      surfaces — silence here risks the fix landing with zero evidence that
+      the pre-existing `plan`-type failure mode is preserved rather than
+      subtly changed.
+    title: "plan (4th built-in type) composition-dispatch non-regression is untestable prose, and the spec is silent that plan is ALREADY broken on this exact hot path by a different, adjacent defect"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3 (only tests software-dev/research/documentation)"
+      - artifact: "spec.md § NFR-001 (\"plan ... must likewise be unaffected wherever it currently traverses this path\")"
+      - artifact: "spec.md § C-003 (\"every FR above must state (via its paired NFR) what must NOT regress for each built-in type\")"
+      - code: "src/charter/activation/mission_type_profiles.py:16-20 (\"The four canonical mission types are: software-dev, documentation, research, plan\") and :283-289 (action_sequence is non-empty by construction for all four, locked by golden-parity suite)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:150-197 (_should_dispatch_via_composition: the first branch returns True whenever the normalized step_id is in `resolve_mission_type_context(...).action_sequence` — for ANY mission type, not gated to software-dev, despite this module's own header comment at :96-108 and runtime_bridge.py:1774-1780 both stating dispatch is \"hard-guarded on mission == 'software-dev'\" (C-008) — that comment is stale/contradicted by the live code)"
+      - code: "src/specify_cli/mission_step_contracts/executor.py:72-87 (_ACTION_PROFILE_DEFAULTS has entries for software-dev/research/documentation only — zero entries for mission type 'plan')"
+      - code: "packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml — grep for 'mission:' shows only software-dev, research, documentation; no file declares 'mission: plan'"
+      - code: "src/specify_cli/mission_step_contracts/executor.py:207 (\"No step contract found for mission/action {context.mission}/{context.action}\" — the failure StepContractExecutor.execute() raises today for mission=plan, BEFORE _resolve_profile_hint is ever reached)"
+    claim: >
+      Composition dispatch (`_should_dispatch_via_composition` in
+      runtime_bridge_composition.py) is NOT actually hard-guarded to
+      `mission == "software-dev"` as its own header comment and C-008 claim —
+      it fires for any mission type whose dispatched action is a member of
+      that type's `action_sequence`, and `action_sequence` is populated for
+      all four built-in types including `plan`. Because no
+      `built_in_step_contracts/*.yaml` declares `mission: plan` and
+      `_ACTION_PROFILE_DEFAULTS` has no `plan` entries, the built-in `plan`
+      mission type ALREADY fails composition dispatch today with
+      `StepContractExecutionError("No step contract found for mission/action
+      plan/<action>")` — a different, adjacent defect from #3830's
+      `profile_hint is required` symptom, on the exact same hot path C-003
+      says every fix must state non-regression for. The spec's own
+      Acceptance Scenario 3 (User Story 1) tests only software-dev/research/
+      documentation; `plan` is mentioned nowhere except NFR-001's untestable
+      hedge. An implementer has no spec-derived signal that `plan` is already
+      broken here, and no AC forces them to verify the fix leaves that
+      failure mode unchanged (rather than, say, silently "fixing" it into a
+      different failure, or accidentally routing `plan` through
+      `_resolve_step_agent_profile`/a newly-reachable code path that behaves
+      unpredictably for a type with no registered contracts).
+    remediation: >
+      Add an explicit Acceptance Scenario to User Story 1 (or a dedicated
+      edge case) covering `plan`: given a `plan`-type mission dispatching an
+      action in its own `action_sequence`, confirm the fix does not change
+      the failure mode away from "no step contract found for mission/action
+      plan/<action>" (or, if the plan/research phase decides to also register
+      step contracts for `plan` as part of this mission, state that
+      explicitly as new scope). Tie NFR-001's `plan` clause to a concrete,
+      testable AC/SC entry instead of leaving it as untestable prose, and
+      correct or flag the stale "hard-guarded on mission == software-dev"
+      comment in runtime_bridge_composition.py/runtime_bridge.py as drift
+      the implementer should not trust.
+
+  - id: SPEC-ARCH-002
+    lens: Four-type blast-radius / non-regression coverage
+    severity: 4
+    severity_reasoning: >
+      Rubric #4 "FR/NFR without coverage": NFR-004 explicitly promises tested
+      behavior for `documentation`, `research`, and `plan` under the
+      corrected #3832 scope, but zero Acceptance Scenario in User Story 3
+      exercises any of those three types — only `qa` (custom) and
+      `software-dev` are tested. An implementer following only the
+      Acceptance Scenarios (the concrete, testable contract) could ship a
+      fix that happens to work for qa/software-dev while `documentation`'s
+      distinct peer-field shape (Documentation Framework / Languages
+      Detected / Output Format / Hosting Platform / Build Commands) is never
+      exercised — exactly the "corrected scope" defect class Decision 1
+      itself calls out.
+    title: "User Story 3's Acceptance Scenarios never test documentation, research, or plan, despite NFR-004 and Decision 1 naming them as in-scope, corrected-scope built-in types"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenarios 1-3 (AC1: qa custom type; AC2: software-dev; AC3: mission_check_prerequisites.py:364 reconciliation) — none reference documentation/research/plan"
+      - artifact: "spec.md § NFR-004 (\"documentation-type plans must be checked against documentation's own template fields ... research/plan-type plans must be checked against the fact that their own templates scaffold neither Technical Context nor a peer field\")"
+      - artifact: "spec.md § Decision 1 (\"the live, verified evidence above shows the defect ALSO breaks three of the four BUILT-IN mission types — documentation, research, and plan\")"
+      - code: "packs/built-in/missions/documentation/templates/documentation-plan-template.md:12-24 (## Technical Context present with Documentation Framework/Languages Detected/Output Format/Hosting Platform/Build Commands — confirmed via grep, matches spec's own table)"
+    claim: >
+      Decision 1's corrected-scope table and NFR-004 both assert that this
+      mission fixes `documentation`/`research`/`plan` too, not just `qa`, but
+      the only place that gets turned into a testable AC is the NFR text
+      itself — User Story 3's Independent Test and Acceptance Scenarios
+      (the artifact's actual testable contract) stop at `qa` and
+      `software-dev`. This is the same class of gap the mission's own
+      mission-derived lens exists to catch: a corrected-scope claim without
+      a corresponding testable AC is functionally equivalent to not having
+      made the claim, since nothing forces an implementer or reviewer to
+      verify it.
+    remediation: >
+      Add at least one Acceptance Scenario to User Story 3 exercising
+      `documentation` (its own distinct peer fields, no Language/Version)
+      end-to-end through `is_substantive(plan_file, "plan")`, and either an
+      Acceptance Scenario or an explicitly-scoped follow-on for
+      `research`/`plan` once Decision 1's Edge Case (see SPEC-ARCH-003) is
+      resolved. Mirror SC-003's phrasing ("verified for at least qa and
+      documentation") into a concrete AC, not just a Success Criterion.
+
+  - id: SPEC-ARCH-003
+    lens: Four-type blast-radius / non-regression coverage
+    severity: 4
+    severity_reasoning: >
+      Rubric #4 "untestable/vacuous AC" and "contradicts existing code/spec":
+      the spec's own Edge Cases section offers "a documented neutral pass"
+      (i.e., research/plan plans are always substantive) as an acceptable
+      resolution, but NFR-005 requires the gate to be able to fail for EVERY
+      mission type it applies to ("no mission type may be structurally
+      exempted from ever having its plan checked"). Verified against the
+      checkout, research and plan plan templates are NOT empty of
+      substantive content (Research Context/Methodology/Data Sources for
+      research; Problem Decomposition/Scope-MoSCoW/Sequencing/Decisions for
+      plan) — only Technical-Context-shaped fields are absent. A "neutral
+      pass" resolution would leave those two built-in types with a gate that
+      can never fail, directly contradicting NFR-005, yet the spec offers
+      "neutral pass" as a live option without flagging the conflict, and the
+      one place that requires a decision (NFR-004: "must be an explicit,
+      tested decision") never states what that decision is — a load-bearing
+      behavioral fork left unresolved at spec time on the FR-006 fix shape
+      that Decision 1 declares BINDING.
+    title: "Edge Cases offer a 'neutral pass' resolution for research/plan that would violate the spec's own NFR-005 non-vacuity requirement, and the actual behavioral decision is never made"
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens for research and plan mission types ... treat plan.md as substantive by a different, template-declared criterion, or a documented neutral pass ... this must not silently resolve to ... 'always passes' without an explicit decision recorded during planning\")"
+      - artifact: "spec.md § NFR-005 (\"the fixed is_substantive plan check ... must be a gate that CAN fail for every mission type it applies to — no mission type may be structurally exempted\")"
+      - artifact: "spec.md § NFR-004 (\"behavior for this case must be an explicit, tested decision ... not an accidental always-pass/always-fail\") — states a requirement but not the decision itself"
+      - code: "packs/built-in/missions/research/templates/research-plan-template.md:1-60 (Research Context, Methodology phases, Data Sources — substantive content exists, just not Technical-Context-shaped)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:1-60 (Problem Decomposition, Scope — MoSCoW, Sequencing & Prioritisation, Decisions — same pattern)"
+    claim: >
+      FR-006 requires the check to "check for the fields that mission type's
+      OWN resolved plan template declares" — a general mechanism that, applied
+      uniformly, would derive required fields from whatever `research`/`plan`
+      templates DO scaffold (Methodology, Problem Decomposition, Decisions,
+      etc.), not treat the absence of a Technical-Context-shaped section as
+      "nothing to check." But the Edge Cases text explicitly leaves
+      "documented neutral pass" (always-substantive) on the table as an
+      acceptable outcome for these two types, which is exactly the
+      structural-exemption pattern NFR-005 forbids, and does so without
+      naming the conflict. This is a spec self-contradiction on a fix shape
+      Decision 1 marks BINDING, not merely an implementation detail properly
+      deferred to plan phase — it determines whether `research`/`plan`
+      mission authors can ship an empty plan.md and have it accepted, which
+      is directly the correctness property this mission exists to fix.
+    remediation: >
+      Resolve the fork in the spec itself: either (a) state that a
+      "neutral pass" is explicitly REJECTED as a resolution for
+      research/plan (consistent with NFR-005), and require FR-006's
+      template-derived mechanism to check research/plan's own actual
+      template fields (Methodology/Decisions/etc.) the same way it does for
+      documentation's peer fields, or (b) if a neutral pass is genuinely
+      intended for types with no Technical-Context-shaped section, add an
+      explicit NFR-005 carve-out naming research/plan so the two NFRs do not
+      read as contradictory. Either way, state the decision in Clarifications
+      (mirroring Decision 1/2's format) rather than leaving it as an
+      Edge Case with two unresolved options.
+
+  - id: SPEC-ARCH-004
+    lens: Reflexivity
+    severity: 3
+    title: "Spec is silent on what happens to missions already mid-flight (blocked by #3830, mis-substituted by #3831, or gated by #3832) when this fix lands"
+    evidence:
+      - artifact: "spec.md § Summary (\"spec-kitty's own runtime machinery — the tooling every downstream mission (including this one) depends on\")"
+      - artifact: "spec.md § Edge Cases / Clarifications — no entry addresses in-flight mission state"
+      - artifact: "spec.md § C-007 (addresses the pre-existing RED test baseline, but not pre-existing mission run state)"
+    claim: >
+      All three defects are in spec-kitty's own control-loop machinery, which
+      every currently-running mission (including this one, and including any
+      real qa-type mission such as int-e2e-qa-run-01M1F2N8 cited as the
+      original repro) depends on. The spec never states what should happen
+      to a mission that is currently: (a) blocked with a recorded
+      `StepContractExecutionError`/`profile_hint is required` Decision from
+      #3830 — does re-running `spec-kitty next` after the fix simply
+      succeed, or does stale `run/state.json` need any reconciliation? (b)
+      already silently evaluated (and possibly had artifacts/commits made)
+      against `software-dev`'s path conventions and required-artifact set
+      per #3831 — once `_mission_path_by_name` starts resolving the org tier
+      correctly, does re-evaluation against the CORRECT mission type's
+      conventions retroactively flag previously-accepted artifacts as
+      missing/misplaced? (c) had a plan.md manually contorted to satisfy the
+      old software-dev-shaped gate (e.g. a fake Technical Context section
+      added just to pass #3832's check) — does the corrected, type-aware
+      check now reject that plan.md differently than before? None of these
+      are addressed by an FR, NFR, or Edge Case.
+    remediation: >
+      Add an Edge Case (or a short "Landing this fix" note) stating the
+      expected behavior for missions already in-flight when the PR merges:
+      confirm re-running `spec-kitty next` on a previously-blocked mission is
+      the expected recovery path with no state migration needed, and note
+      explicitly whether a mission already mis-evaluated under #3831's
+      software-dev substitution needs any operator-visible re-validation
+      step (this is a natural place to point at FR-005's "loud fallback"
+      signal as the operator's cue to re-check affected missions).

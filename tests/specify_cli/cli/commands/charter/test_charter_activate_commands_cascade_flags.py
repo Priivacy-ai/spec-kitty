@@ -41,10 +41,17 @@ pytestmark = [pytest.mark.fast]
 
 @pytest.fixture()
 def project_root(tmp_path: Path) -> Path:
-    """A minimal project with .kittify/config.yaml."""
+    """A minimal project with .kittify/config.yaml.
+
+    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned
+    charter is the sole mission-type activation authority, so
+    ``PackContext.from_config`` fails closed when the key is absent.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("# empty config\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     return tmp_path
 
 
@@ -98,10 +105,10 @@ class TestActivateCommand:
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:
         """--cascade flag passes cascade=True to CharterPackManager.activate (DD-4: parameter kept for stability)."""
         from unittest.mock import patch
-        from charter.pack_manager import ActivationResult
+        from charter.activation.pack_manager import ActivationResult
 
         mock_result = ActivationResult(activated=["my-directive"], warnings=[])
-        with patch("charter.pack_manager.CharterPackManager.activate", return_value=mock_result) as mock_activate:
+        with patch("charter.activation.pack_manager.CharterPackManager.activate", return_value=mock_result) as mock_activate:
             runner.invoke(
                 charter_app,
                 [

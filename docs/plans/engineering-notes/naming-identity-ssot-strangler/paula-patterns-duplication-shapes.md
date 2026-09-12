@@ -1,7 +1,7 @@
 ---
 title: Paula Patterns — Logical-Duplication Shapes for the Naming/Identity SSOT Strangler (3.2.1)
 description: "Paula Patterns' logical-duplication shapes for the naming/identity SSOT strangler: naming each duplication shape and its canonical pattern (3.2.1)."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Paula Patterns — Logical-Duplication Shapes for the Naming/Identity SSOT Strangler (3.2.1)

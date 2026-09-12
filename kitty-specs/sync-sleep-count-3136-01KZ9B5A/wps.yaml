@@ -1,0 +1,855 @@
+# Work-package manifest — mission sync-sleep-count-3136-01KZ9B5A
+# "Sleep-count assertions survive concurrent sleepers"
+#
+# TRANSCRIBED, NOT DERIVED. The 7-WP graph, its edges, its lane split
+# (A = WP01->WP02->WP04, B = WP03, C = WP06; WP05 joins A and B; WP07 terminal)
+# and the IC->WP mapping come verbatim from plan.md
+# "### The resulting work-package graph — 7 WPs, acyclic, no lane-gated inversion"
+# (plan.md:1249-1282) and analysis-report.md:494-508. Nothing here re-plans.
+#
+# IC-05 is MERGED INTO IC-02 (plan.md:857-864, BLOCKER-4: a WP whose final commit
+# is red by construction can never reach `approved`, and
+# `_SATISFYING_DEPENDENCY_LANES` is `(APPROVED, DONE)` — verified at
+# src/specify_cli/core/dependency_graph.py). IC-09 is FOLDED INTO IC-08
+# (plan.md:1113-1119). Neither IC-05 nor IC-09 is cited below; citing a merged
+# concern would misreport ownership.
+#
+# ---------------------------------------------------------------------------
+# owned_files — why the notes are NOT in it
+# ---------------------------------------------------------------------------
+# plan.md's "### Source and test surfaces — one owner per path" map assigns five
+# note files under `kitty-specs/<mission>/notes/`. Those CANNOT appear in
+# owned_files: `_invalid_mission_specs_owned_files`
+# (src/specify_cli/cli/commands/agent/mission_parsing.py:207) hard-rejects any
+# entry equal to or under `kitty-specs/`, and finalize-tasks exits 1 with
+# error_code INVALID_WP_OWNED_FILES_KITTY_SPECS. `owned_files: []` is not an
+# escape either: `build_wp_manifests`
+# (src/specify_cli/ownership/validation.py:356) skips WPs with falsy
+# owned_files, and `compute_lanes` (src/specify_cli/lanes/compute.py:331-336)
+# then raises `Executable WP 'WPnn' has no ownership manifest`.
+# So every note file below is a DECLARED OUT-OF-MAP PLANNING WRITE, named in the
+# owning WP's comment block. Each WP additionally owns at least one real
+# non-kitty-specs path, which is what the mechanism requires.
+#
+# ---------------------------------------------------------------------------
+# authoritative_surface — set explicitly on every WP, never inferred
+# ---------------------------------------------------------------------------
+# `infer_authoritative_surface` (src/specify_cli/ownership/inference.py:154-200)
+# has two shapes that break here, both read this session:
+#   (a) multi-entry -> longest common path prefix, which is "" for any WP owning
+#       both `src/` and `tests/` (WP02), and `validate_authoritative_surface`
+#       rejects an empty surface (validation.py:241-243);
+#   (b) single-entry -> `stripped[0].rstrip("/") + "/"`, i.e. a file path gains a
+#       spurious trailing slash (`docs/.../x.md/`), which is then not a prefix of
+#       the owned_files entry it came from.
+# Every value below is a literal prefix of at least one owned_files entry
+# (`pattern == surface or pattern.startswith(surface)`, validation.py:245-247).
+#
+# ---------------------------------------------------------------------------
+# No directory glob over `tests/architectural/`
+# ---------------------------------------------------------------------------
+# WP03 owns the census control + its fixture; WP05 owns the gate, the
+# `_baselines.yaml` key and `test_ratchet_baselines.py`; WP07 owns the C-010
+# terminology guard. All are file-level. A `tests/architectural/**` glob would
+# make `_globs_overlap` (validation.py:93-124) union those three lanes.
+# The single glob used — `tests/architectural/_fixtures/patch_seam_control/**` —
+# is scoped strictly below `_fixtures/` and its prefix is a path-prefix of
+# nothing any other WP owns. It is a glob, so a zero-match is a soft warning
+# (validation.py:423-428), not an error; that is deliberate, because plan.md
+# does not name the fixture module filenames. See [UNVERIFIED-A].
+#
+# ---------------------------------------------------------------------------
+# Concurrent-pair overlap — computed, not asserted
+# ---------------------------------------------------------------------------
+# `validate_no_overlap` exempts a pair joined by a directed dependency path
+# (validation.py:200-207, via `_dependency_reachability`). Ancestor sets:
+#   WP01 {} | WP02 {WP01} | WP03 {WP01} | WP04 {WP01,WP02}
+#   WP05 {WP01,WP02,WP03} | WP06 {WP01} | WP07 {WP01,WP02,WP03,WP04,WP05}
+# 21 unordered pairs; 13 are sequential; the 8 CONCURRENT pairs are
+#   02-03, 02-06, 03-04, 03-06, 04-05, 04-06, 05-06, 06-07
+# and every one of the 8 is file-disjoint (worked through in the report).
+# 04-06 is the plan's one named cross-lane hazard (plan.md:1272-1277): it is NOT
+# a glob overlap — WP04 owns `docs/development/3-2-page-inventory.yaml`, WP06
+# owns `docs/development/process-global-inventory-3115.md` — but WP04's
+# regeneration reads EVERY docs page's frontmatter, so WP06 staying BODY-ONLY is
+# a hard constraint on WP06, recorded in IC-07 (plan.md:1050-1055), not a
+# coincidence.
+#
+# ---------------------------------------------------------------------------
+# execution_mode
+# ---------------------------------------------------------------------------
+# All seven are `code_change` so lane computation reproduces the plan's stated
+# lane split. A `planning_artifact` WP is collected into the single canonical
+# `lane-planning` lane (compute.py:297-301, 320-344), which would pull WP01 and
+# WP04 out of Lane A and contradict plan.md:1272. Consequence: WP01, WP04 and
+# WP06 each own no path under `src/` or `tests/`, so
+# `validate_execution_mode_consistency` (validation.py:287-296) emits the
+# WARNING "code_change WP does not own any files under src/ or tests/" for those
+# three. Warnings, not errors — accepted deliberately, recorded here so no
+# successor "fixes" it by flipping the mode.
+
+work_packages:
+
+  # =========================================================================
+  # WP01 — IC-01. Lane A head. deps: none.
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/environment-3136.md
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/c001-window-3136.md   (ACQUIRE half)
+  # Real owned paths: the two environment-provisioning facts the plan proves
+  # things about and that must leave this mission UNCHANGED —
+  # `.python-version` (reads `3.11.15`, verified this session; plan.md:126 and
+  # IC-01 risk (c) at plan.md:574-576 say record the divergence, do NOT fix it,
+  # it is outside C-004's permitted set) and `uv.lock` (the frozen lockfile the
+  # `uv sync --dry-run` proof at plan.md:136-149 resolves against). See
+  # [UNVERIFIED-B] — plan.md names NO non-kitty-specs surface for IC-01 at all.
+  # Subtasks:
+  #   T001 Verify the toolchain before any arm: prepend `<repo>/.venv/bin` to
+  #        PATH, record `command -v python pytest ruff mypy` AND the four
+  #        `--version` lines (3.12.13 / 9.0.3 / 0.15.12 / 1.20.2), and record the
+  #        `.python-version` 3.11.15 vs venv/CI 3.12 divergence without fixing
+  #        it. Use only the two sanctioned command forms (plan.md:163-170); a
+  #        bare `uv run` is a defect, not a style preference — it honours
+  #        `.python-version` and recreates `.venv` at 3.11.15 without pytest.
+  #        A transcript with no `command -v` line is not evidence.
+  #   T002 ACQUIRE the C-001 `tests/sync` window and record the handshake: who
+  #        holds it, acquisition timestamp, the sibling mission checked against.
+  #        This is a real deliverable, not a note (plan.md:558-565).
+  #   T003 Capture the NFR-005 baseline arm ON `98198e980`, in the same session
+  #        as the comparison: `./.venv/bin/python -m pytest tests/sync/tracker/
+  #        -m "fast and not windows_ci" -n0 -q -p no:cacheprovider`, reporting
+  #        wall clock AND the resolved `python -V` (SC-014: both arms, one
+  #        interpreter).
+  #   T004 Record the window's scope: which WPs take arms inside it (WP02's
+  #        guard arms, WP07's transcripts), which do not (WP03/WP04/WP05/WP06 are
+  #        static readers), and that the RELEASE half is WP07's (T043).
+  # =========================================================================
+- id: WP01
+  title: "Interpreter provisioning, the C-001 tests/sync window handshake, and the NFR-005 baseline"
+  dependencies: []
+  owned_files:
+  - ".python-version"
+  - "uv.lock"
+  authoritative_surface: ".python-version"
+  execution_mode: code_change
+  requirement_refs:
+  - NFR-005
+  - C-001
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+
+  # =========================================================================
+  # WP02 — IC-02 (IC-05 merged in). Lane A. deps: WP01 (interpreter AND window).
+  # THE LARGEST UNIT, AND IT MUST NOT BE SPLIT. Splitting the guard off
+  # re-creates BLOCKER-4's deadlock: the guard-only WP's final commit is red by
+  # construction, a red final commit cannot pass review, so that WP never
+  # reaches `approved`, and `_SATISFYING_DEPENDENCY_LANES` is
+  # `(Lane.APPROVED, Lane.DONE)` — the alias WP could never be claimed
+  # (plan.md:599-620). The guard is this WP's FIRST COMMIT (coupling E,
+  # plan.md:1223-1234 — the one genuine commit-level constraint in the mission,
+  # verified by a human reading `git log`). Couplings A and B are
+  # same-WORK-PACKAGE, enforced at the WP's final commit, because coupling A's
+  # instrument is a file WP05 authors afterwards.
+  # 9 subtasks — at the 3-7 target's upper edge and one below the hard max of 10.
+  # Honest sizing note: the WP carries 3 module-scope aliases, 5 call-site
+  # reroutes, the jitter resolution, a docstring correction, a new multi-arm
+  # guard module AND 24 patch-target retargets. It is not packed to fit; it is
+  # indivisible.
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/alias-seam-3136.md
+  # WP02 needs a notes path OF ITS OWN. An earlier revision routed its T012
+  # determinism transcripts into WP07's notes/constraint-enforcement-3136.md,
+  # which "has exactly one writer" — and WP07 runs AFTER WP02 (deps: WP02, WP03,
+  # WP04, WP05). So WP02's determinism evidence had no home at WP02 time. It
+  # writes alias-seam-3136.md; WP07 T037 reads it and may quote it into the
+  # constraint register, but WP02 never writes into WP07's file.
+  # Subtasks:
+  #   T005 FIRST COMMIT — author <guard>
+  #        `tests/sync/tracker/test_sleep_attribution_guard_3136.py` with
+  #        module-level `pytestmark = pytest.mark.fast`. The marker is
+  #        load-bearing twice: without `fast` the guard never runs in CI's
+  #        `fast-tests-sync` (`-m "fast and not windows_ci"`) AND it becomes a
+  #        gate-coverage orphan against `_gate_coverage_baseline.json`, whose
+  #        `orphan_files` is `[]` (plan.md:346). Arms: (a) invariance x 5 census
+  #        rows; (b) the LITERAL pre-fix expression against a deliberately
+  #        polluted recorder, diffable against `98198e980`, not a paraphrase —
+  #        including row 2 `assert delays == [0.9, 2.0, 4.4]`, the row R1 omitted;
+  #        SC-005's binding TWO-MOCK construction in ONE window (stdlib
+  #        `time.sleep` AND `…saas_client._sleep`), asserting
+  #        `stdlib_mock.call_count >= 100` and `alias_mock.call_count ==` 3/1/1/1;
+  #        a `threading.Event` spawn gate set after the probe's first recorded
+  #        call; every probe joined in a `finally`. Record it RED on `98198e980`
+  #        on BOTH counts: the sync shard, and `scripts/check_patch_targets.py`
+  #        ([ENFORCED] at ci-quality.yml:883-884, no args, so it scans all of
+  #        `tests/`) reporting `no attribute '_sleep'` for all three targets.
+  #   T006 Add the three module-scope names to `saas_client.py` BY ASSIGNMENT
+  #        (`_sleep = time.sleep`, `_monotonic = time.monotonic`,
+  #        `_randbelow = secrets.randbelow`) — never a wrapper `def`. The
+  #        assignment form is self-enforcing: under assignment, skipping the
+  #        retargets is impossible to ship (assertions see 0); under a wrapper it
+  #        is invisible and the defect stays 100% intact (plan.md:663-668).
+  #   T007 Reroute the five call sites — `:439`, `:481`, `:484`, `:515`, `:518`
+  #        (every line opened in plan.md:412-418) — as ONE indivisible edit, and
+  #        state the POST-FIX line numbers alongside the pre-fix ones: three new
+  #        module-scope definitions shift every later line, so C-004's
+  #        line-enumerated permitted-hunk set must be read semantically.
+  #   T008 Resolve `_poll_jitter_multiplier` (`:104-106`, 1 occurrence measured,
+  #        zero callers, max multiplier 1.2 against the live inline 1.1999 at
+  #        `:515-516`). SC-013 sub-3 names exactly `1` as the FAILING value; the
+  #        acceptable outcomes are 0 (deleted, recommended) or >= 2 (promoted to
+  #        sole authority with the inline duplicate gone). If promoted, show
+  #        `:786` and `:787` passing with ZERO diff to those lines.
+  #   T009 Retarget the 23 live patch targets in `test_saas_client.py`: 13
+  #        `time.sleep` (`:385`, `:412`, `:467`, `:502`, `:789`, `:809`, `:899`,
+  #        `:939`, `:959`, `:1087`, `:1128`, `:1152`, `:1319`), 9
+  #        `time.monotonic` (`:386`, `:413`, `:468`, `:503`, `:790`, `:810`,
+  #        `:1088`, `:1129`, `:1153`), 1 `secrets.randbelow` at `:499` (the
+  #        TARGET STRING is on `:499`; the `@patch(` spans `:498-501` — the
+  #        distinction matters to any line-anchored check), plus the 1 prose
+  #        occurrence at `:559` inside the `:513-762` docstring. No assertion
+  #        EXPRESSION may change.
+  #   T010 Retarget the 1 patch target in `test_saas_client_origin.py:229`. This
+  #        file was absent from R2's map entirely while carrying census assertion
+  #        #5 at `:261` — a plan that does not own it cannot deliver the fix.
+  #   T011 Correct the false docstring claim at `test_saas_client.py:55-57`
+  #        ("there the second value *is* the assertion" — false; `:804` is a
+  #        `side_effect` stimulus, the only assertion is the `pytest.raises` at
+  #        `:806` with the call at `:807`). SC-013 sub-4 pins
+  #        `grep -cE 'is\*? the assertion' …` -> 0 (verified 1 at HEAD and 1 at
+  #        `98198e980`) with the twin `grep -c 'side_effect stimulus'` -> >= 1
+  #        naming `:806` (verified 0 pre-fix, so it genuinely moves).
+  #   T012 Turn both reds GREEN, then take the determinism arms inside WP01's
+  #        window: NFR-002 10-of-10 consecutive `pytest <guard> -q`; NFR-003
+  #        identical verdicts across 3x `-n0` and 3x `-n auto --dist loadfile`
+  #        (6 runs, per-run counts reported, never a summary verdict); NFR-004 /
+  #        SC-008 with `-n0` PINNED (under xdist the controller prints a
+  #        different line and a real `-n 4` run printed `inspected 0 test(s)` —
+  #        do not "fix" that false red), `^ERROR tests/` = 0, `_PinnedLeak(`
+  #        elements = 12 AST-measured, and reconcile that 12 against C-003's
+  #        "11 confirmed leaks" by naming which reading is wrong.
+  #   T013 FR-004 / SC-003: apply a named production-schedule mutation, show the
+  #        hardened assertions catch it, and REVERT it (C-004: mutations are
+  #        never committed) — including SC-003 Arm 3's mutation of the CARDINALITY,
+  #        which is what refuses `assert 3.0 in [c.args[0] for c in …]`. Then
+  #        `ruff check` (0 findings, 0 added `# noqa` / `# type: ignore`) and
+  #        `mypy --strict` on the changed files explicitly — CI's mypy is
+  #        advisory and its `[[tool.mypy.overrides]]` sets
+  #        `follow_imports = "skip"` for `specify_cli.*`, so CI will not catch a
+  #        typing regression in the alias signatures. Produce the diff-shape
+  #        acceptance arm: every changed line in the two test files is either the
+  #        `:55-57` docstring correction, a `patch()` target string moving from
+  #        one of the three pre-fix strings to its post-fix counterpart, or the
+  #        `:559` docstring occurrence — any other changed line FAILS.
+  # requirement_refs note: FR-006 and FR-007 are RETIRED as work items under R-1
+  # (spec.md:448-449) but their SUBSTANCE folds into FR-010, which this WP
+  # delivers, so they are cited here rather than left unmapped. FR-004 is cited
+  # here because plan.md owns it NOWHERE — see the report's coverage table.
+  # NFR-003 likewise appears zero times in plan.md and is placed here because its
+  # four census nodes only exist in post-fix form.
+  # =========================================================================
+  prompt_file: tasks/WP01-environment-and-window.md
+  agent_profile: debugger-debbie
+  role: investigator
+  agent: claude
+- id: WP02
+  title: "Guard first (red), then the module-local alias seam, the 24 patch-target retargets, the dead seam and the false docstring"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/specify_cli/tracker/saas_client.py"
+  - "tests/sync/tracker/test_saas_client.py"
+  - "tests/sync/tracker/test_saas_client_origin.py"
+  - "tests/sync/tracker/test_sleep_attribution_guard_3136.py"
+  create_intent:
+  - "tests/sync/tracker/test_sleep_attribution_guard_3136.py"
+  authoritative_surface: "src/specify_cli/tracker/saas_client.py"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-001
+  - FR-003
+  - FR-004
+  - FR-006
+  - FR-007
+  - FR-010
+  - FR-012
+  - NFR-001
+  - NFR-002
+  - NFR-003
+  - NFR-004
+  - C-004
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T005
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  - T011
+  - T012
+  - T013
+
+  # =========================================================================
+  # WP03 — IC-04. Lane B (its own lane; shares no file with A or C).
+  # deps: WP01 ONLY — deliberately NOT WP02. The analyzer is written against the
+  # PRE-FIX tree so its pre-fix numbers are measurable, which is what makes the
+  # post-fix delta meaningful (plan.md:830-831).
+  # Coupling C is same-work-package: SC-015's census self-mutation arm (narrow
+  # the analyzer to today's five forms, the control fixture must FAIL) is only
+  # expressible when analyzer and fixture both exist (plan.md:1203-1211).
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/census-3136.md
+  # WP03's DoD grades transcripts, bucket frozensets and the T020 ratification
+  # flags "in the WP notes". An unnamed notes path is an ungradeable DoD, so the
+  # path is declared here.
+  # Subtasks:
+  #   T014 Export `_mock_importer` from `scripts/check_patch_targets.py` as a
+  #        public helper — NO behaviour change. It already performs exactly the
+  #        progressive-import-plus-`getattr` resolution the R-2 predicate needs
+  #        (`:80-106`); it is [ENFORCED] in CI at ci-quality.yml:884 and is
+  #        mentioned in neither spec.md nor analysis-report.md. Consume it; do not
+  #        reimplement it (single canonical authority).
+  #   T015 Build `scripts/patch_seam_census.py`'s target classifier as a
+  #        lookup-then-classify PAIR, not one nested `if` (ceiling 15,
+  #        pyproject.toml:287): five outcomes — unresolvable / not-a-module /
+  #        own-module / reach-through / foreign. The discriminator is NOT
+  #        "penultimate segment is a ModuleType" (that is 649 of 664 sites,
+  #        97.7%, including 356 ORDINARY own-module patches) but "resolved module
+  #        `__name__` differs from the dotted module path (reach-through) OR the
+  #        resolved module is not first-party (direct foreign)". Building to
+  #        R-2's literal wording is unshippable, and the natural reaction —
+  #        hardcoding an exclusion list — is the vacuity the gate exists to
+  #        prevent.
+  #   T016 Build the read-side matcher as per-form recognisers, never one growing
+  #        `visit_Compare`: `assert_called*`, `.call_count`,
+  #        `len(.call_args_list)`, `.call_args`, whole-list equality, ONE LEVEL
+  #        OF ALIAS (`sleep_calls = mock.call_args_list` then
+  #        `delays = [c.args[0] for c in sleep_calls]`) and `side_effect=` sinks.
+  #        Without alias resolution a probe misses `:784` and `:786` entirely and
+  #        without sink tracking it misses `:309` — measured, the planner's own
+  #        probe did exactly that. `n=` must read the CARDINALITY EXPRESSION, not
+  #        the printed delay list's length, or `assert 3.0 in [...]` reports
+  #        `n=1` honestly while asserting no cardinality.
+  #   T017 Build the CLI (`--json` / `--contract` / `--siblings`) as three front
+  #        doors over ONE analysis pass, dispatched via a dict, not a chain.
+  #        `python <census> tests/sync --json` must run (SC-001).
+  #   T018 Author the control fixture modules under
+  #        `tests/architectural/_fixtures/patch_seam_control/` — the directory is
+  #        `_fixtures/`, which EXISTS (`fixtures/` does not; R2 wrote the
+  #        non-existent one). Module names must NOT start with `test_`: they are
+  #        INPUT to the analyzer, and a collected fixture full of deliberately
+  #        corruptible assertions would both fail and pollute the gate-coverage
+  #        baseline. Note the enforced `check_patch_targets.py` lint scans ALL of
+  #        `tests/` for `patch()` strings, so the fixture's targets must resolve.
+  #        Positive cases include the context-manager `patch()` form, the
+  #        `side_effect=` kwarg sink and the one-level alias form; the
+  #        `assert <value> in [...]` form is a NEGATIVE case that must report
+  #        `n=0`.
+  #   T019 Author `tests/architectural/test_patch_seam_census_control.py` with
+  #        `pytestmark = [pytest.mark.architectural]` (165 siblings;
+  #        `test_no_inert_schema_slots.py:53` is the precedent form) and the
+  #        ground truth pinned IN-TEST, never in prose. Pin the three bucket
+  #        counts 356 / 286 / 7 so a regression toward the literal predicate
+  #        shows up as a NUMBER rather than a flood. Add the SC-015 self-mutation
+  #        arm and the cross-check arm asserting the AST site set over
+  #        `tests/sync/` is a SUPERSET of `check_patch_targets.py`'s regex set
+  #        with the difference printed (the two extractors coexist by design and
+  #        can silently disagree). Import the script via the canonical in-repo
+  #        `sys.path` insertion at `test_docs_cli_reference_parity.py:52-56`.
+  #   T020 Run the census on `98198e980` and on the pre-fix head. Report
+  #        `files_scanned` PER SCOPE — 141 for `tests/sync/` recursive, with 22
+  #        kept as an explicitly labelled `tests/sync/tracker/` sub-denominator —
+  #        and FLAG SC-001's `files_scanned: 22` for operator ratification rather
+  #        than picking a number silently: the criterion as written is
+  #        unsatisfiable by a `tests/sync/` scan. Same ratification covers
+  #        `sleep_patch_sites: 14`, which cannot survive the retargets (post-fix,
+  #        0 sites match the pre-fix string) and is restated as
+  #        `sleep_seam_patch_sites`.
+  # =========================================================================
+  prompt_file: tasks/WP02-alias-seam-and-retargets.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP03
+  title: "The AST patch-seam census, the shared resolver export, and the committed control fixture"
+  dependencies:
+  - WP01
+  owned_files:
+  - "scripts/patch_seam_census.py"
+  - "scripts/check_patch_targets.py"
+  - "tests/architectural/test_patch_seam_census_control.py"
+  - "tests/architectural/_fixtures/patch_seam_control/**"
+  create_intent:
+  - "scripts/patch_seam_census.py"
+  - "tests/architectural/test_patch_seam_census_control.py"
+  authoritative_surface: "scripts/"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-005
+  - NFR-007
+  - C-009
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T014
+  - T015
+  - T016
+  - T017
+  - T018
+  - T019
+  - T020
+
+  # =========================================================================
+  # WP04 — IC-03. Lane A tail. deps: WP02 (the ADR describes the shape that
+  # landed, including which `_poll_jitter_multiplier` outcome was chosen).
+  # Coupling F is same-work-package: an ADR without its regenerated index row and
+  # lockfile reds `docs-freshness` on EVERY PR (plan.md:1236-1242).
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/adr-and-lockfile-3136.md
+  # WP04's DoD grades every command's quoted output "in the WP notes", plus the
+  # 3.11-vs-3.12 interpreter split and the WP06 body-only dependency. An unnamed
+  # notes path is an ungradeable DoD, so the path is declared here.
+  # Subtasks:
+  #   T021 Author `docs/adr/3.x/2026-08-06-1-module-local-stdlib-alias-seam.md`
+  #        from `docs/architecture/adr-template.md` (verified present). Because
+  #        the page-inventory lockfile is generated FROM FRONTMATTER, the
+  #        frontmatter is the real input and a missing field fails the gate
+  #        rather than the file: `title`, `date`, description length
+  #        (`description_length_check --strict`), related-links validity
+  #        (`related_validator --strict`), relative links
+  #        (`relative_link_fixer --check`).
+  #   T022 State FR-011 as a RULE with two worked examples, not as a description
+  #        of what landed: "where a module already exposes a call-site injection
+  #        point, thread it; introduce a module-local alias only where the stdlib
+  #        call has no threadable caller." `saas_client.py` EARNS an alias (its
+  #        calls are internal to `_request_with_retry` / `_poll_operation`, no
+  #        injectable caller); `batch.py` does NOT — it already exposes
+  #        `run_final_sync_with_retries(…, *, sleep=None)` at `:628-631`,
+  #        `sleeper = time.sleep if sleep is None else sleep` at `:641`, threaded
+  #        `:648`-`:700`, with three tests already using it
+  #        (`test_final_sync_diagnostics.py:180`, `:207`, `:239`). Relate
+  #        EXPLICITLY to
+  #        `docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md`
+  #        (verified present), which already decided seam + AST call-site gate +
+  #        curated allowlist AGAINST full DI — this mission is a second
+  #        application, not a new decision. State that the three `_`-prefixed
+  #        names are LOAD-BEARING in the words a dead-symbol-sweep author would
+  #        grep, and cite WP05's gate node-id so a reader who believes the ADR can
+  #        run it.
+  #   T023 Regenerate BOTH index updates with the single canonical command —
+  #        `./.venv/bin/python scripts/docs/freshen_adr_inventory.py
+  #        docs/adr/3.x/2026-08-06-1-module-local-stdlib-alias-seam.md` — then
+  #        commit the `docs/development/3-2-page-inventory.yaml` and
+  #        `docs/adr/3.x/README.md` diffs and report `git diff --stat` for both.
+  #        NEVER hand-edit the lockfile: it is regenerated from frontmatter, so a
+  #        hand-edit drifts on the next run. This file was UNOWNED in R2's map
+  #        while `docs-freshness.yml` reds every PR without it (BLOCKER-5):
+  #        `on: pull_request` with NO path filter, `INVENTORY-LOCKFILE-DRIFT` is
+  #        error-severity and blocking. The `pr:deferred` / `pr:skip-ci` label
+  #        escape is not a path filter and must not be used to dodge it.
+  #   T024 Run the docs checks the way the JOB does — `check_docs_freshness.py
+  #        --ci` on Python 3.11 (`docs-freshness.yml:17`), not 3.12. Record that
+  #        a 3.12-local pass does not transfer, and do not "fix" a 3.11-only
+  #        result by forcing 3.12.
+  # =========================================================================
+  prompt_file: tasks/WP03-census-and-control-fixture.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP04
+  title: "The ADR that adjudicates the idiom, its era index row, and the generated page-inventory lockfile"
+  dependencies:
+  - WP02
+  owned_files:
+  - "docs/adr/3.x/2026-08-06-1-module-local-stdlib-alias-seam.md"
+  - "docs/adr/3.x/README.md"
+  - "docs/development/3-2-page-inventory.yaml"
+  create_intent:
+  - "docs/adr/3.x/2026-08-06-1-module-local-stdlib-alias-seam.md"
+  authoritative_surface: "docs/adr/3.x/"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-010
+  - FR-011
+  - C-010
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T021
+  - T022
+  - T023
+  - T024
+
+  # =========================================================================
+  # WP05 — IC-06. Joins lanes A and B. deps: WP02 AND WP03.
+  # WP02 because arm 4 asserts the post-fix routing AND the post-fix test-side
+  # target strings — it cannot be authored before both the shape it must refuse
+  # and the shape it must confirm exist. WP03 because it CONSUMES the analyzer; a
+  # second implementation here would be the duplicate authority the charter
+  # forbids (plan.md:916-919).
+  # Coupling D is same-work-package, and R2's justification for it was FALSE: the
+  # ratchet does NOT fail on an orphan key (`:214` checks MISSING keys only, both
+  # comparisons run off HARDCODED lists at `:274` / `:420`, and
+  # `test_no_dead_symbols` is exactly such an orphan with the suite GREEN). The
+  # four edits in T030/T031 are what make gate + key atomic (plan.md:1213-1219).
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/mechanism-gate-3136.md
+  # WP05's DoD item 11 previously graded a literal `<wp-notes>` placeholder, and
+  # items 7 and 12 grade dispositions "recorded in the WP notes". An unnamed
+  # notes path is an ungradeable DoD, so the path is declared here.
+  # Subtasks:
+  #   T025 Author `tests/architectural/test_shared_module_object_patches.py` with
+  #        `pytestmark = [pytest.mark.architectural]`, consuming WP03's analyzer.
+  #        Its docstring must state, in ONE sentence, the split from
+  #        `tests/sync/_leak_guard.py`: that module snapshots a global's VALUE
+  #        across a test node and reports TEARDOWN RESIDUE, this gate is a STATIC
+  #        AST reader over test SOURCE that never runs a test. Without that
+  #        sentence the next author adds `time.sleep` to `_WATCHED_GLOBALS`
+  #        (17 `_WatchedGlobal(` elements at `:101`) and gets a guard that cannot
+  #        fire — `time.sleep` is correctly absent there because `patch`'s own
+  #        teardown restores it.
+  #   T026 Arm 4a + 4b, built as separate functions (the arm has four parts, so
+  #        four functions, not one — ceiling 15). 4a: ZERO calls in
+  #        `saas_client.py` whose callee RESOLVES to `time.sleep` /
+  #        `time.monotonic` / `secrets.randbelow`, resolved against the module's
+  #        own `ast.Import` / `ast.ImportFrom` bindings INCLUDING `asname`, with
+  #        R2's carve-out STRUCK — under the wrapper form the only `time.sleep(`
+  #        IS inside the alias definition, so the carve-out excluded it and the
+  #        arm passed with the defect intact; the alias evasions
+  #        `import time as t; t.sleep(x)`, `from time import sleep` and
+  #        `getattr(time, "sleep")(x)` all left the negative true. Shape copied
+  #        from `test_protection_resolver_call_sites.py:93-110`. 4b: each of the
+  #        three module-scope names is an `ast.Assign` resolving to the stdlib
+  #        attribute, NOT an `ast.FunctionDef` — this is the only defence against
+  #        a fully-retargeted wrapper, which is runtime-immune and passes SC-005.
+  #   T027 Arm 4c + 4d. 4c: the TEST-SIDE target strings, counted from AST
+  #        `patch()` nodes and NEVER from grep — `test_saas_client.py:559` carries
+  #        the pre-fix string inside a docstring, and a grep-based arm would
+  #        demand a prose edit to satisfy a numeric gate. 0 pre-fix and
+  #        14 / 9 / 1 post-fix; without 4c the gate passed on a tree where NOT ONE
+  #        DECORATOR MOVED (BLOCKER-1), and SC-005 alone does not catch a
+  #        fully-retargeted wrapper. 4d, the positive twin: report the 3 alias
+  #        definitions BY NAME and the 5 rerouted call sites BY LINE, so a checker
+  #        that parses nothing fails loudly.
+  #   T028 Non-vacuity, per SC-007 items 1-3: NAME the files and patch sites
+  #        scanned, not just count them (a glob at `tests/**` reporting a count
+  #        floor that never opens `tests/sync/tracker/` is the named cheat); carry
+  #        the `13 + 1 = 14` split and the four node-ids VERBATIM; three
+  #        self-mutation arms on forms ABSENT from the tree today. Prefer
+  #        frozenset EQUALITY over `len(x) == N` anywhere a collection is pinned —
+  #        a length check passes when one member is swapped for another and names
+  #        nothing when it fails.
+  #   T029 Add ONE new top-level key to `tests/architectural/_baselines.yaml`
+  #        holding the frozen, SHRINK-ONLY residue baseline. Every entry is a
+  #        `file:line` + patch target + assertion-form TRIPLE so it cannot be
+  #        widened by restatement, reusing `_leak_guard.py`'s
+  #        `(module_path, attr_path, description)` vocabulary plus the inventory
+  #        row-id column where one exists. Per-row `owner:` and `disposition:`
+  #        with disposition restricted to exactly three values and deliberately
+  #        NO `accepted` / `wont-fix` / `by-design`. A `# justification:` comment
+  #        per the per-PR policy at `_baselines.yaml:12-18`, citing the charter's
+  #        Burn-down Policy (a) and the `frozen-baseline-shrink-only-ratchet`
+  #        tactic BY NAME. This is a DOCUMENTED EXCEPTION against R2's SC-007
+  #        item 5 ("empty at merge"), which is incompatible with the measured
+  #        >= 22 in-class instances outside R-1's seam; narrowing the enforced
+  #        scope instead is verbatim BLOCKER-2.
+  #   T030 REGISTER the key, without which it governs nothing and joins two
+  #        already-inert keys: add it to `_REQUIRED_TOP_LEVEL_KEYS`
+  #        (`test_ratchet_baselines.py:123-136`, a hand-written frozenset), to the
+  #        GROWTH `single_baselines` list (`:274`) AND to the SHRINKAGE
+  #        `single_baselines` list (`:420`) — two lists, therefore two edits.
+  #        Measured: 12 YAML keys, 11 required, only 10 read by any comparison.
+  #   T031 Add the fourth edit — a REVERSE-CONTAINMENT arm
+  #        (`set(data) - _REQUIRED_TOP_LEVEL_KEYS == the empty set`) so the next
+  #        unregistered key fails immediately instead of sitting inert — plus the
+  #        owner-completion arm copied from `test_no_inert_schema_slots.py:680`
+  #        and the owner-resolution arm from `:871` (a `WP42` or `mission:typo`
+  #        owner reads as "never complete" exactly like `unassigned`). The
+  #        reverse-containment arm is RED on today's tree because of
+  #        `test_no_dead_symbols`, which is the proof it is non-vacuous. Pick a
+  #        disposition EXPLICITLY rather than deleting the arm: register that key
+  #        in BOTH comparison lists, or remove it from the YAML — adding it to
+  #        `_REQUIRED` alone is NOT an option, it reproduces
+  #        `test_all_declarations_required`'s defect (required, never read). If
+  #        unresolvable in-mission, scope the arm to keys added from this mission
+  #        forward and file the pre-existing pair. See [UNVERIFIED-C].
+  #   T032 Run the gate and report whether it correctly EXCLUDES the 130
+  #        `patch("specify_cli.tracker.saas_client.httpx.Client")` reach-through
+  #        sites under `tests/sync/` — 0 of which are read by a count-or-equality
+  #        assertion — rather than flagging them and forcing a 130-row baseline.
+  #        plan.md calls this the largest single unmeasured risk to the gate's
+  #        shippability, and it is why the read-side condition must be ENFORCED
+  #        rather than documented. See [UNVERIFIED-D].
+  # =========================================================================
+  prompt_file: tasks/WP04-adr-and-lockfile.md
+  agent_profile: curator-carla
+  role: curator
+  agent: claude
+- id: WP05
+  title: "The mechanism-keyed gate, its two-sided seam arm, and the frozen baseline made non-inert"
+  dependencies:
+  - WP02
+  - WP03
+  owned_files:
+  - "tests/architectural/test_shared_module_object_patches.py"
+  - "tests/architectural/_baselines.yaml"
+  - "tests/architectural/test_ratchet_baselines.py"
+  create_intent:
+  - "tests/architectural/test_shared_module_object_patches.py"
+  authoritative_surface: "tests/architectural/"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-005
+  - FR-010
+  - FR-012
+  - C-009
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T025
+  - T026
+  - T027
+  - T028
+  - T029
+  - T030
+  - T031
+  - T032
+
+  # =========================================================================
+  # WP06 — IC-07. Lane C, alone. deps: WP01 only; runs parallel with WP02..WP05
+  # and may land in any order. Coupling it would serialise a prose edit behind a
+  # code change for no gate reason (plan.md:1244-1247).
+  # BODY-ONLY IS A HARD CONSTRAINT, NOT AN INCIDENTAL PROPERTY. WP04 regenerates
+  # `docs/development/3-2-page-inventory.yaml` from EVERY docs page's
+  # frontmatter, and this WP edits a page under `docs/`. If it touched
+  # frontmatter the two docs lanes would race on a generated lockfile across lane
+  # boundaries. A verdict-column stamp is body-only by nature — that is the ONLY
+  # reason the 04-06 concurrent pair is safe. If a stamp turns out to need a
+  # frontmatter field, this WP GAINS a dependency on WP04 and loses its
+  # parallelism; it does not silently edit frontmatter.
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/non-goals-3136.md
+  # Subtasks:
+  #   T033 Stamp the verdict column of
+  #        `docs/development/process-global-inventory-3115.md` — BODY ONLY, no
+  #        frontmatter. The verdicts were derived against
+  #        `test_429_respects_retry_after`, which the PR #3209 shard shows
+  #        FAILING, so they are FALSIFIED, not merely unverified, and a stamp
+  #        reading "unverified" understates it: SC-010 sub-2 requires the stamp to
+  #        name the falsification and the node. Measured today the doc has 0
+  #        occurrences of `unverified` and 0 of `3136`.
+  #   T034 Scope the stamp to the VERDICT column and say so. `_leak_guard.py`'s
+  #        `_WatchedGlobal` entries carry the inventory's row-id column as their
+  #        `inventory_id` field, so the inventory is LIVE INPUT to a running
+  #        guard, not dead documentation. Name the depended-on row set — with
+  #        reasoning if it is empty — so the stamp cannot invalidate rows the leak
+  #        guard consumes.
+  #   T035 Author `notes/non-goals-3136.md` recording C-005's CPU-contention
+  #        non-goal with all THREE reasons: the producer is already named
+  #        (`subprocess.Popen._wait`'s capped doubling loop) and a contention
+  #        reproduction cannot name a producer; for a narrow-window race a local
+  #        pass is the DEFAULT outcome so a negative result is uninformative by
+  #        construction; and the operator decision is that the lever is the
+  #        assertion class, not the intruder.
+  #   T036 Run SC-010's four commands. Sub-3 requires ZERO row-id tokens in
+  #        `plan.md` AND in `notes/non-goals-3136.md` — as TWO single-value
+  #        commands, because `grep -cE … file1 file2` prints one count per file
+  #        and has no single value to compare. Sub-4's positive twin runs the
+  #        identical pattern against the inventory itself and must return 53
+  #        (measured), so the negative cannot be satisfied by a grep that matches
+  #        nothing.
+  # =========================================================================
+  prompt_file: tasks/WP05-mechanism-gate-and-baseline.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP06
+  title: "The inventory verdict stamp (body-only) and the recorded CPU-contention non-goal"
+  dependencies:
+  - WP01
+  owned_files:
+  - "docs/development/process-global-inventory-3115.md"
+  authoritative_surface: "docs/development/process-global-inventory-3115.md"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-008
+  - FR-009
+  - C-005
+  - C-007
+  plan_concern_refs:
+  - IC-07
+  subtasks:
+  - T033
+  - T034
+  - T035
+  - T036
+
+  # =========================================================================
+  # WP07 — IC-08 (IC-09 folded in). Terminal. deps: WP02, WP03, WP04, WP05 —
+  # it reports on what they landed, and the filed gaps are defined relative to
+  # what the shipped predicate covers (plan.md:1087-1088).
+  # Real owned paths: the four EXISTING files whose INVARIANCE (or green exit) is
+  # this WP's deliverable, each named by plan.md's "Paths deliberately NOT
+  # changed" table (plan.md:358-367) or by Charter row 5:
+  #   .github/workflows/ci-quality.yml   C-008 — must produce NO diff
+  #   ruff.toml, pyproject.toml          NFR-006 / SC-012 — no added
+  #                                      `per-file-ignores` entry, no widened
+  #                                      `exclude`; both already carry a
+  #                                      `per-file-ignores` block, so the check
+  #                                      must be diff-shaped, not existence-shaped
+  #   tests/architectural/test_no_legacy_terminology.py
+  #                                      C-010 — the terminology guard, an owned
+  #                                      deliverable per Charter row 5
+  # See [UNVERIFIED-B]: plan.md names NO non-kitty-specs surface for IC-08 either.
+  # Out-of-map planning writes (kitty-specs/, cannot be owned):
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/constraint-enforcement-3136.md
+  #     (exactly ONE writer now — IC-01's transcript moved to
+  #      notes/environment-3136.md; IC-09 folded in here)
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/ci-observation-3136.md
+  #   kitty-specs/sync-sleep-count-3136-01KZ9B5A/notes/c001-window-3136.md  (RELEASE half only)
+  # Subtasks:
+  #   T037 Record the C-002 / C-004 / C-008 / SC-016 transcripts.
+  #        `git diff 98198e980 -- .github/workflows/ci-quality.yml` -> NO OUTPUT,
+  #        reported FROM THE SAME INVOCATION as its LOUD positive twin
+  #        `git diff --stat 98198e980 -- src/specify_cli/tracker/saas_client.py`,
+  #        because an empty diff is also what a bad ref or a wrong working
+  #        directory produces. Enumerate C-004's permitted hunks and fail on any
+  #        other changed line, reading them SEMANTICALLY — three new module-scope
+  #        definitions shift every later line. `grep -rc 'ruff format' <wp-notes>`
+  #        = 0, non-vacuous because the same file carries the other transcripts.
+  #   T038 NFR-006 / SC-012: report `git diff 98198e980 -- ruff.toml
+  #        pyproject.toml` AS DIFF TEXT, not as a count; 0 added lines containing
+  #        `# noqa` or `# type: ignore`; no added `per-file-ignores` entry and no
+  #        widened `exclude`. `ruff check .` is green repo-wide at HEAD
+  #        (`All checks passed!`, EXIT=0), so the baseline is clean and these
+  #        diff-shaped checks are meaningful.
+  #   T039 C-010: `./.venv/bin/python -m pytest
+  #        tests/architectural/test_no_legacy_terminology.py -q` -> EXIT=0,
+  #        recorded. Run it BEFORE PUSH, not at acceptance: the terminology guard
+  #        runs only in CI's `integration-tests-core-misc` job, so a
+  #        forbidden-term regression in WP04's ADR passes every local doctrine run.
+  #   T040 Open the DRAFT PR (charter: draft-PR-first, the operator merges) and
+  #        record its number and head SHA in `notes/ci-observation-3136.md`. This
+  #        WP is the only one that may mark it ready for review, and it NEVER
+  #        merges. R2 left the PR unowned while the CI observation is DEFINED in
+  #        terms of its head SHA.
+  #   T041 Record the non-gating CI observation and label it correctly. SC-006 is
+  #        RETIRED; "the assertion class can no longer be corrupted" is measured
+  #        by SC-001/004/005/007, but "the CI red is gone" is measured by NOTHING
+  #        and cannot be — a clean full shard is the pre-fix outcome ~39% of the
+  #        time, so no repetition count on another machine transfers from CI's
+  #        4-vCPU topology. The note's FIRST LINE must say it is not evidence, it
+  #        must carry the pre-fix 11/18 rate alongside, labelled
+  #        non-discriminating, and it must NOT appear among the acceptance arms.
+  #   T042 File the carried gaps so the next reader inherits a filed gap rather
+  #        than a silent one: (a) SEAM DISPLACEMENT — in-body
+  #        `mock.side_effect` reassignment, with the reason the predecessor's
+  #        `grep -rn 'sleep\.side_effect\s*=' tests/sync/` -> 0 was inert (it
+  #        matches attribute assignment only) and the reason R-2's predicate,
+  #        which reads the `patch()` call's ARGUMENTS, does not reach it; carry a
+  #        reproduction shape or it will be re-derived as "already closed".
+  #        (b) The `[R2-open]` residual — a direct `time.sleep` added to a
+  #        DIFFERENT module in the cone is outside arm 4's `saas_client.py` scope;
+  #        name widening the seam check to all of `src/specify_cli/` as the
+  #        follow-up. (c) ONE ISSUE PER FROZEN PRODUCT MODULE, each naming its
+  #        `file:line` set and the seam shape that would close it —
+  #        `sync/git_metadata.py`, `sync/body_transport.py`, the `asyncio` reach
+  #        under `test_runtime.py`, and `sync/batch.py` whose text MUST say
+  #        "THREAD THE EXISTING PARAMETER" (pass `sleep=` at `background.py:467`
+  #        into the parameter `batch.py:628-631` already exposes) and NOT "add an
+  #        alias seam" — R2's wording was false for that module and would
+  #        institutionalise a redundant second seam in a module that already has
+  #        one, against FR-011. (d) The exact-list clock stimuli
+  #        (`test_git_metadata.py:218`, `:242`, `:274`, `:522`) as a NAMED
+  #        SUB-CLASS with its own read-side form: they are a `StopIteration`
+  #        exposure, not a count or equality assertion, so the R-2 predicate does
+  #        not reach them and a successor must not read
+  #        `corruptible_assertions: 0` as covering them. (e) The newly-found
+  #        instances with no ticket (`requests.post` x9,
+  #        `asyncio.run_coroutine_threadsafe`, `test_git_metadata.py:398`) —
+  #        required by the charter's Pre-existing Failure Reporting Rule before
+  #        the >= 22 residue counts as accepted baseline.
+  #   T043 RELEASE the C-001 `tests/sync` window in `notes/c001-window-3136.md`,
+  #        after the last arm taken inside it. WP01 acquires, this WP releases, so
+  #        the window spans the whole critical path WP01 -> WP02 -> WP05 -> WP07.
+  #        A WP that reports a `tests/sync` result with no corresponding
+  #        acquisition record has not produced evidence.
+  # requirement_refs note: C-006 ("do not re-litigate the root cause") is cited
+  # here because it is owned by no IC in plan.md and this is the WP that files
+  # what is and is not re-opened.
+  # =========================================================================
+  prompt_file: tasks/WP06-inventory-stamp-and-non-goal.md
+  agent_profile: curator-carla
+  role: curator
+  agent: claude
+- id: WP07
+  title: "Constraint-enforcement transcripts, the draft PR and its non-gating CI observation, the filed gaps, and the window release"
+  dependencies:
+  - WP02
+  - WP03
+  - WP04
+  - WP05
+  owned_files:
+  - ".github/workflows/ci-quality.yml"
+  - "ruff.toml"
+  - "pyproject.toml"
+  - "tests/architectural/test_no_legacy_terminology.py"
+  authoritative_surface: "pyproject.toml"
+  execution_mode: code_change
+  requirement_refs:
+  - FR-005
+  - NFR-006
+  - C-002
+  - C-003
+  - C-004
+  - C-006
+  - C-008
+  - C-010
+  plan_concern_refs:
+  - IC-08
+  subtasks:
+  - T037
+  - T038
+  - T039
+  - T040
+  - T041
+  - T042
+  - T043
+
+# ===========================================================================
+# [UNVERIFIED] items introduced by THIS manifest (plan.md's own list is at
+# plan.md:1286-1348 and is not repeated here)
+# ===========================================================================
+# [UNVERIFIED-A] The fixture module FILENAMES under
+#   `tests/architectural/_fixtures/patch_seam_control/`. plan.md names the
+#   directory and the constraint (non-`test_` names) but no filename, so the
+#   entry is a glob. A glob zero-match is a soft warning, so this does not need
+#   `create_intent`; when WP03 chooses the names, the glob may be replaced with
+#   exact filenames per C-009's preference.
+# [UNVERIFIED-B] WP01's and WP07's non-kitty-specs owned paths. plan.md's
+#   "one owner per path" map gives IC-01 and IC-08 ONLY note files under
+#   `kitty-specs/`, which the ownership mechanism cannot represent. The paths
+#   chosen here (`.python-version` + `uv.lock` for WP01; `ci-quality.yml`,
+#   `ruff.toml`, `pyproject.toml`, `test_no_legacy_terminology.py` for WP07) are
+#   all real, all verified present, all named by plan.md as those concerns'
+#   guarded-or-verified surfaces, and owned by no other WP — but plan.md does not
+#   assign them as SURFACES, so the assignment is this manifest's, not the plan's.
+#   Every one of them is expected to leave the mission UNCHANGED (or, for the
+#   terminology guard, green and unchanged); that invariance IS the deliverable.
+# [UNVERIFIED-C] The correct disposition of `test_no_dead_symbols` in
+#   `_baselines.yaml` (T031). Inherited from plan.md item 10; it needs the owner
+#   of whatever gate that key was meant to govern and is out of this mission's
+#   scope to decide unilaterally.
+# [UNVERIFIED-D] Whether the shipped gate excludes all 130 `httpx.Client`
+#   reach-through sites (T032). Inherited from plan.md item 12.
+  prompt_file: tasks/WP07-transcripts-pr-and-filings.md
+  agent_profile: debugger-debbie
+  role: investigator
+  agent: claude

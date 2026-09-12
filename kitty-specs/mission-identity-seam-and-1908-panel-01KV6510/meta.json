@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "81c8337b6bcde4d32f0148614a7f88b5cfe1479c",
-  "coordination_branch": "kitty/mission-mission-identity-seam-and-1908-panel-01KV6510",
   "created_at": "2026-06-15T17:24:49.245861+00:00",
+  "flattened": true,
   "friendly_name": "Mission-identity naming seam & #1908 panel hardening",
   "mission_id": "01KV6510YXX3HM222Y0YG5JY3M",
   "mission_number": 138,
@@ -14,5 +14,6 @@
   "source_description": "Cluster A (mid8 identity seam): #1978/#1949/#1918/#1899 under epic #1868. Cluster B (rest of post-#1908 panel, meta-tracker #1929): #1915/#1917/#1916. NOT a bulk edit.",
   "status_phase": "1",
   "target_branch": "mission/mission-identity-seam-and-1908-panel",
+  "topology": "lanes",
   "vcs": "git"
 }

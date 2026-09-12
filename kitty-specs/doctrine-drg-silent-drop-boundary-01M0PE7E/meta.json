@@ -1,0 +1,32 @@
+{
+  "accept_commit": "423ca71df604f9d435b5d6ea85d5df6605c252d4",
+  "acceptance_history": [
+    {
+      "accept_commit": "423ca71df604f9d435b5d6ea85d5df6605c252d4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-23T08:35:06.900028+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "847a13b41d6955b08261a64871d83fd6889db0d7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-23T08:35:06.900028+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "847a13b41d6955b08261a64871d83fd6889db0d7",
+  "baseline_merge_commit": "f068aa189a8dd46cd8eb67144808e3575aa74be4",
+  "created_at": "2026-08-23T04:31:56.514845+00:00",
+  "flattened": true,
+  "friendly_name": "Doctrine DRG Silent-Drop Boundary Fix",
+  "mission_id": "01M0PE7E326XKYV2MCFP62X241",
+  "mission_number": null,
+  "mission_slug": "doctrine-drg-silent-drop-boundary-01M0PE7E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Several doctrine/DRG artifacts are authored, schema-validated, and reported healthy yet never take effect at runtime because the boundary between declaration and consumption is neither derived from a single source, fail-loud, nor test-pinned. This mission derives the DRG node-kind set from its canonical enum, makes profile context-sources and governance-profile selections either projected through DRG relationships or fail loud, and verifies a chain of organisation packs delivers every declared artifact kind.",
+  "purpose_tldr": "Stop the doctrine/DRG system from silently dropping declared artifacts at the declaration-to-consumption boundary.",
+  "slug": "doctrine-drg-silent-drop-boundary-01M0PE7E",
+  "status_phase": "1",
+  "target_branch": "fix/doctrine-drg-silent-drop-boundary",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-23T06:45:54.057476+00:00"
+}

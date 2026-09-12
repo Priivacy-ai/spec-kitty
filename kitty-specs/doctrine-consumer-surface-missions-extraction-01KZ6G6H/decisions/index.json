@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-04T14:23:36.750437Z",
+      "decision_id": "01KZ6JH59EX075ZTZ0ECA4A7ZV",
+      "final_answer": "Converge now: doctrine's pack_paths.py::_resolve_built_in will delegate to the new kernel-owned primitive as part of this mission, one canonical implementation.",
+      "input_key": "kernel_primitive_convergence",
+      "mission_id": "01KZ6G6HPTMWKK5EHGDHG9BJA5",
+      "mission_slug": "doctrine-consumer-surface-missions-extraction-01KZ6G6H",
+      "opened_by": "cli",
+      "options": [
+        "Converge now (doctrine delegates to kernel)",
+        "Standalone now, converge later (named follow-up)"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-004's new kernel-owned sibling-path-resolution primitive and doctrine's existing pack_paths.py::_resolve_built_in implement a near-identical algorithm. Should this mission make doctrine's pack_paths.py delegate to the new kernel primitive (one canonical implementation, more surface area touched now), or ship the kernel primitive standalone and leave the convergence as a named follow-up (smaller diff now, two implementations survive a bit longer)?",
+      "rationale": null,
+      "resolved_at": "2026-08-04T14:25:03.702360Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.kernel-primitive-convergence",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KZ6G6HPTMWKK5EHGDHG9BJA5",
+  "version": 1
+}

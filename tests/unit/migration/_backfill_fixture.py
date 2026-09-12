@@ -21,6 +21,30 @@ SLUG = "042-demo"
 CLAIMED_AT = "2026-01-02T03:04:05+00:00"
 IN_PROGRESS_AT = "2026-01-02T04:00:00+00:00"
 
+#: The two ISO-8601 UTC designators real corpora use interchangeably. Tests that
+#: touch the seed-ordering seam MUST run under both: the ordering helpers compare
+#: event ``at`` strings *lexically* (mirroring ``reducer.reduce``'s raw
+#: ``(at, event_id)`` sort), and ``'.'`` (0x2E) sorts BELOW ``'Z'`` (0x5A) — so a
+#: whole-second ``...:36Z`` stamp re-encoded as ``...:36.000001+00:00`` is
+#: lexically *smaller* than its own input despite being chronologically later
+#: (#2990 follow-up). Fixtures that only ever emit ``+00:00`` cannot see that.
+AT_ENCODINGS: tuple[str, ...] = ("offset", "zulu")
+
+
+def encode_at(raw: str, encoding: str) -> str:
+    """Re-encode a ``+00:00``-suffixed UTC stamp in *encoding*.
+
+    ``"offset"`` returns *raw* untouched; ``"zulu"`` swaps the trailing
+    ``+00:00`` for ``Z``. Any other value is a fixture bug, not a skip.
+    """
+    if encoding == "offset":
+        return raw
+    if encoding == "zulu":
+        if not raw.endswith("+00:00"):
+            raise ValueError(f"cannot re-encode non-UTC stamp {raw!r} as Zulu")
+        return raw[: -len("+00:00")] + "Z"
+    raise ValueError(f"unknown at-encoding {encoding!r}")
+
 
 def corrupt_seed_value(
     feature_dir: Path,
@@ -84,8 +108,10 @@ def build_mission(
     with_history: bool = True,
     with_transitions: bool = True,
     with_claim: bool = True,
+    with_subtasks: bool = True,
     meta_created_at: str | None = None,
     claimed_at: str = CLAIMED_AT,
+    at_encoding: str = "offset",
 ) -> Path:
     """Materialise a mission corpus and return its feature directory.
 
@@ -95,6 +121,18 @@ def build_mission(
     ``backfill_runtime_state._resolve_anchor``). ``meta_created_at`` optionally
     seeds ``meta.json``'s ``created_at`` (the claim-anchor synthesis fallback
     when ``shell_pid_created_at`` itself is absent/unparseable).
+
+    ``with_subtasks=False`` writes ``tasks.md`` with the WP heading but no
+    checklist — combined with ``with_claim=False`` / ``with_review=False`` /
+    ``with_history=False`` / empty ``assignee`` / ``tracker_refs`` it produces
+    the #3212 shape: a mission with event-log runtime evidence (transitions)
+    but NO seedable legacy frontmatter state, so a cutover run seeds zero
+    events and still flips.
+
+    ``at_encoding`` selects the ISO-8601 UTC designator the seeded transition
+    ``at`` values carry (see :data:`AT_ENCODINGS`). Real corpora use both, and
+    the seed-ordering seam is encoding-sensitive, so ordering tests parametrise
+    over it rather than trusting the ``"offset"`` default.
     """
     feature_dir = tmp_path / "kitty-specs" / slug
     tasks = feature_dir / "tasks"
@@ -134,8 +172,11 @@ def build_mission(
     fm += ["---", "", "# WP01 body", ""]
     (tasks / "WP01-demo.md").write_text("\n".join(fm), encoding="utf-8")
 
+    subtask_lines = (
+        "- [x] T001 first subtask\n- [ ] T002 second subtask\n" if with_subtasks else ""
+    )
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01 Demo\n- [x] T001 first subtask\n- [ ] T002 second subtask\n",
+        f"# Tasks\n\n## WP01 Demo\n{subtask_lines}",
         encoding="utf-8",
     )
 
@@ -148,7 +189,7 @@ def build_mission(
                 wp="WP01",
                 frm="planned",
                 to="claimed",
-                at=claimed_at,
+                at=encode_at(claimed_at, at_encoding),
             ),
             _transition(
                 event_id="01AAAAAAAAAAAAAAAAAAAAAAA2",
@@ -157,7 +198,7 @@ def build_mission(
                 wp="WP01",
                 frm="claimed",
                 to="in_progress",
-                at=IN_PROGRESS_AT,
+                at=encode_at(IN_PROGRESS_AT, at_encoding),
             ),
         ]
         (feature_dir / "status.events.jsonl").write_text(

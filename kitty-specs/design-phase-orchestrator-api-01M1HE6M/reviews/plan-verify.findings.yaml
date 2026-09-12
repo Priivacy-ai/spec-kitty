@@ -1,0 +1,140 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 3
+    title: "Gate Set item 13 wrongly disclaims a patch()-target-validation gate that actually exists and is ENFORCED"
+    evidence:
+      - artifact: "plan.md § (e) Gate Set, item 13"
+      - code: ".github/workflows/ci-quality.yml:943 — name: \"[ENFORCED] Validate patch() target strings (closes #394)\", run: uv run python scripts/check_patch_targets.py"
+    claim: >
+      Plan.md item 13 states: "patch() target validation — no dedicated named gate found in
+      this repo (searched tests/architectural/ and pyproject.toml for a patch-target-validation
+      rule by name; found only unrelated patch_seam_control fixtures under a different test)...
+      this is unconfirmed as an automated gate." This is factually wrong. The `lint` job in
+      `.github/workflows/ci-quality.yml` has an ENFORCED step at line 943, "Validate patch()
+      target strings (closes #394)", which runs `scripts/check_patch_targets.py` — a real,
+      automated CI gate over exactly this concern. It sits in the SAME `lint` job, only a few
+      lines away from the TID251 (line 886), Bandit (line 917), and pip-audit (line 932) steps
+      that plan.md's own items 11/14/15 correctly cite from that job. The plan searched only
+      `tests/architectural/` and `pyproject.toml` and missed the workflow-level step, even
+      though it was reading that exact workflow file for the adjacent gates.
+    remediation: >
+      Replace item 13 with a positive gate statement: "patch() target validation — ENFORCED,
+      `.github/workflows/ci-quality.yml`'s `lint` job step 'Validate patch() target strings
+      (closes #394)' runs `scripts/check_patch_targets.py` over the full diff. Any new test
+      code in WP02–WP08 using `unittest.mock.patch(...)` must use a resolvable dotted target
+      string (patch at point of use, not at definition site) to pass this gate."
+
+  - id: PLAN-VERIFY-002
+    lens: "SK-93/NFR-004 mechanism concreteness"
+    severity: 2
+    title: "NFR-004 mechanism-choice paragraph names WP08 as the decider, contradicting the WP Breakdown table which assigns record-analysis/NFR-004 to WP04"
+    evidence:
+      - artifact: "plan.md § (j) SK-93 Implementation Approach, point 2"
+      - artifact: "plan.md § Work Package Breakdown table (WP04 row: \"FR-004/FR-005 ... including the NFR-004 artifact-verification mechanism (j)\"; WP08 row: \"FR-013 — answer-decision (Mechanism B)\")"
+    claim: >
+      Section (j) point 2 reads: "The WP08-adjacent implementer decides between (a) and (b)
+      based on how much of record_analysis's preflight logic is reusable without the
+      dossier-sync tail; either satisfies NFR-004(b). This plan does not pre-decide between
+      them — that is an implementation-detail call for WP04..." The same sentence pair names
+      two different WPs (WP08, then WP04) as the owner of one decision. WP08 is `answer-decision`
+      (FR-013) — an unrelated verb with no connection to `record-analysis`/NFR-004, which the
+      WP Breakdown table unambiguously assigns to WP04 (FR-004/FR-005). An agent implementing
+      WP08 reading only this paragraph in isolation could believe they must make this call for
+      `record-analysis`, which is not their WP's scope at all.
+    remediation: >
+      Change "The WP08-adjacent implementer decides" to "The WP04 implementer decides" so the
+      paragraph is internally consistent with itself and with the WP Breakdown table.
+
+  - id: PLAN-VERIFY-003
+    lens: "SC-008 shared regression test concreteness"
+    severity: 3
+    title: "The SC-008 shared fixture/helper's own call contract is never named, only the extracted seam functions' signatures are"
+    evidence:
+      - artifact: "plan.md § (a) \"Extracted function names\" (exact signatures for pair_previous_lifecycle_record / emit_mission_next_invoked / write_issuance_lifecycle_record)"
+      - artifact: "plan.md § Parallel Work Analysis, \"Integration tests\": \"...both paths exercised by the same shared fixture/helper, so a regression in EITHER caller fails the same test file.\""
+      - artifact: "plan.md § (e) Gate Set, item 3: \"A NEW shared regression test module (WP02 authors first, WP08 extends...)\""
+    claim: >
+      The plan is exact about the three extracted seam FUNCTIONS' signatures (module, name,
+      parameters) that WP02 creates and WP08 later imports. It never names the shared TEST
+      fixture/helper's own signature or assertion contract — e.g., whether it is a pytest
+      fixture or a plain assertion function, what it takes as its "caller under test" parameter
+      (a CLI-invocation callable for WP02's path vs. an orchestrator-api-verb callable for
+      WP08's path), or exactly what state it reads to verify the three side effects (which file/
+      function for the mission-event-log entry, which file/function for the paired-completion
+      lifecycle record, which for the new issuance `started` record). WP02 authors this fixture
+      first; WP08 is a different, potentially later, potentially different-session implementer
+      who must "extend, not rewrite" it. Without a named contract for the shared helper itself,
+      WP02 is free to build test scaffolding shaped only for its own CLI-subprocess-invocation
+      case, which WP08 may then be unable to cleanly parametrize for an in-process orchestrator-
+      api call — forcing a WP08-time rewrite of WP02's test infrastructure rather than a true
+      extension, and risking two tests that check similar things but can silently drift apart
+      (the exact SC-008 failure mode this test exists to prevent).
+    remediation: >
+      Name the shared helper's contract explicitly in the plan (or require the tasks-phase
+      author to do so before WP02 starts), e.g.: "a module-level
+      `assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action) -> None`
+      helper, where `run_action` is a zero-arg callable performing the action under test (a
+      `next_cmd` invocation in WP02, an `answer-decision` orchestrator-api call in WP08); the
+      helper reads `mission-events.jsonl` via `mission_v1.events.read_events` for the new
+      `MissionNextInvoked` entry and `invocation.lifecycle.read_lifecycle_records` for the
+      paired-completion and new `started` records." Pin this in plan.md or explicitly hand it
+      to the tasks phase as a WP02 deliverable that WP08 is contractually bound to reuse
+      unmodified in shape.
+
+  - id: PLAN-VERIFY-004
+    lens: "Coverage floors"
+    severity: 4
+    title: "Plan's Gate Set omits the enforced diff-coverage critical-path gate (90% on src/runtime/next/*), and its own proposed WP02 test-file location sits outside the test paths that job scans"
+    evidence:
+      - artifact: "plan.md § (e) Gate Set (16 numbered items + 1 explicit exclusion; diff-coverage is named nowhere)"
+      - artifact: "plan.md § (e) Gate Set item 3, bullet 2: proposed location `tests/specify_cli/cli/commands/test_next_invocation_lifecycle_seam.py`"
+      - artifact: "plan.md § Project Structure, Source Code tree: same proposed path for the new test module"
+      - code: ".github/workflows/ci-quality.yml:3305-3308 (job comment: \"diff-coverage: PR-only diff coverage gate (90% on critical-path changed lines)\")"
+      - code: ".github/workflows/ci-quality.yml:3391 — critical_paths array entry `'src/runtime/next/*'`"
+      - code: ".github/workflows/ci-quality.yml:3422-3425 — `uv run diff-cover ... --fail-under=90 --include \"${critical_paths[@]}\"`"
+      - code: ".github/workflows/ci-quality.yml:4276-4281 — `quality-gate.needs` includes `diff-coverage` (blocking aggregator membership)"
+      - code: ".github/workflows/ci-quality.yml:1413-1435 — `fast-tests-next` job: `pytest tests/next/ tests/specify_cli/next/ tests/runtime/ ... --cov=src/runtime/next`"
+      - code: ".github/workflows/ci-quality.yml:2790-2801 — `integration-tests-next` job: same three test-path roots, same `--cov=src/runtime/next`"
+      - code: "tests/specify_cli/next/ already holds test_runtime_bridge.py, test_runtime_bridge_dispatch.py, etc. — the canonical existing precedent for testing other `src/runtime/next/` top-level modules (runtime_bridge.py, decision.py)"
+    claim: >
+      Two compounding gaps. First: plan.md's Gate Set (e) explicitly attempts to be an exhaustive
+      list of active CI gates (16 numbered items, plus an explicit SonarCloud exclusion with
+      rationale) and separately rules out the kernel and mission-loader coverage floors by path
+      (items 4-5) — but never mentions the `diff-coverage` job, a DIFFERENT, ENFORCED,
+      blocking gate (a required member of `quality-gate.needs`) that lists `'src/runtime/next/*'`
+      literally in its `critical_paths` array with `--fail-under=90` on changed lines. This gate
+      DOES apply to WP02's new file, `src/runtime/next/next_invocation_lifecycle.py` — the plan's
+      own coverage-floor analysis is incomplete, not merely silent on a non-applicable gate.
+      Second, and more concretely dangerous: the ONLY two jobs that produce the `--cov=src/runtime/next`
+      coverage report `diff-coverage` consumes (`fast-tests-next`, `integration-tests-next`) invoke
+      pytest scoped to exactly three roots — `tests/next/`, `tests/specify_cli/next/`,
+      `tests/runtime/` — and NOTHING else. The plan's own proposed location for the WP02/WP08
+      shared SC-008 regression test, `tests/specify_cli/cli/commands/test_next_invocation_lifecycle_seam.py`,
+      is OUTSIDE all three of those roots (it sits under `tests/specify_cli/cli/commands/`,
+      alongside the pre-existing `next_cmd`-adjacent tests it says it wants to be "co-located"
+      with). A test file placed there is never collected by either coverage-producing job, so it
+      cannot contribute ANY line coverage toward the enforced `src/runtime/next/*` 90% floor —
+      regardless of how thorough the test itself is. This is not hypothetical: `tests/specify_cli/next/`
+      already exists and already holds the test files for the other `src/runtime/next/` top-level
+      modules the plan cites as placement precedent (`runtime_bridge.py`, `decision.py` — e.g.
+      `test_runtime_bridge.py`), confirming that directory, not `cli/commands/`, is this repo's
+      actual convention for testing `src/runtime/next/*` code. As planned, WP02 risks a genuinely
+      well-tested new module still failing the enforced `diff-coverage` gate purely because of
+      where its test lives — a CI-blocking surprise the plan gives WP02's author no warning of.
+    remediation: >
+      Add `diff-coverage` as an explicit Gate Set item citing the `src/runtime/next/*`
+      critical-path entry and its 90%-on-changed-lines floor. Then either (a) move the proposed
+      shared regression test's home from `tests/specify_cli/cli/commands/` to
+      `tests/specify_cli/next/` (matching the existing `runtime_bridge.py`/`decision.py` test
+      precedent) so `fast-tests-next`/`integration-tests-next` actually collect it and its
+      coverage counts toward the enforced floor, or (b) if co-location with the `next_cmd`-adjacent
+      tests is kept for the CLI-path assertions, add a SEPARATE unit-test file for
+      `next_invocation_lifecycle.py`'s functions directly under `tests/specify_cli/next/` (or
+      `tests/runtime/`) so the new module has coverage from a path the enforced gate actually scans.
+      State the choice explicitly in plan.md rather than leaving WP02 to discover this at CI time.

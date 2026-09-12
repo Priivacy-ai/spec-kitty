@@ -12,7 +12,7 @@ audience: end-users
 ---
 # `spec-kitty init` lifecycle
 
-Reference description of what `spec-kitty init` creates, in what order, and how its options interact. For installation, see [Install on macOS / Linux / Windows](../guides/install-macos.md).
+Reference description of what `spec-kitty init` creates, in what order, and how its options interact. For installation, see [Install on macOS / Linux / Windows](../guides/how-to/installation/install-macos.md).
 
 ## Synopsis
 
@@ -72,7 +72,7 @@ One directory per agent selected via `--ai`. Spec Kitty supports 16 agents total
 | `codex` | `.agents/skills/spec-kitty.*/` | `$spec-kitty.<command>` |
 | `vibe` | `.agents/skills/spec-kitty.*/` plus `.vibe/config.toml` | `/spec-kitty.<command>` |
 | `pi` | `.agents/skills/spec-kitty.*/` | `/skill:spec-kitty.<command>` |
-| `letta` | `.agents/skills/spec-kitty.*/` | Agent Skills |
+| `letta` | `.agents/skills/spec-kitty.*/` | agent skills |
 
 Codex, Vibe, Pi, and Letta share a single installation tree under `.agents/skills/`; Vibe also gets a `.vibe/config.toml` `skill_paths` entry pointing at that tree. Only the agents you list in `--ai` get directories.
 
@@ -165,8 +165,8 @@ spec-kitty init . --ai claude --non-interactive
 
 ## See also
 
-- [Install on macOS](../guides/install-macos.md)
+- [Install on macOS](../guides/how-to/installation/install-macos.md)
 - [Upgrade lifecycle](upgrade-lifecycle.md)
-- [Non-interactive init](../guides/non-interactive-init.md)
+- [Non-interactive init](../guides/how-to/installation/non-interactive-init.md)
 - [CLI commands reference](cli-commands.md)
 - [Supported agents](supported-agents.md)

@@ -14,7 +14,7 @@ Also verifies zero network calls in all suppressed contexts.
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

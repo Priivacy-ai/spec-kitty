@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: fresh-3
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: ANALYZE-FRESH3-001
+    lens: architectural-seam-consistency
+    severity: 2
+    title: "WP01's own Context section still asserts the retired \"shell owns the infinite poll loop\" narrative, only patched with a bolted-on addendum"
+    evidence:
+      - artifact: "kitty-specs/event-push-watch-channel-01M1K6W2/tasks/WP01-core-tail-reader-primitives.md:77-78"
+      - artifact: "kitty-specs/event-push-watch-channel-01M1K6W2/tasks/WP01-core-tail-reader-primitives.md:84-88"
+    claim: >
+      WP01's Context section (lines 73-82) still reads, verbatim and unedited across all three fix
+      rounds: "The shell (WP04's `src/specify_cli/cli/commands/events.py`) is the thin, infinite
+      `while True` + `time.sleep` polling wrapper that owns Typer flags, mission-slug resolution,
+      and stdout/stderr JSON rendering." This is the exact retired shell-owns-the-loop claim that
+      plan.md's Architectural Seam section, tracer-approach.md, spec.md's FR-011/NFR-001/NFR-002,
+      and WP03's own T017 subtask have all been corrected to state the opposite of: `tail_events()`
+      in the core owns the poll-then-sleep loop via an injectable `sleep_fn`; the shell only
+      iterates it in a plain `for` loop with no `while True`/`time.sleep` of its own. Round 2's fix
+      round appended an "Addendum (analyze-phase fix round, WP03 in flight)" paragraph immediately
+      below (lines 84-88) stating this description "was superseded," but never edited or removed
+      the false sentence itself — the file now presents a false architectural claim followed
+      immediately by a note contradicting it, rather than stating the corrected architecture once.
+      Because WP01/WP02 are already implemented and approved (confirmed unaffected by this
+      review's own scope note) and no further implementation reads this WP's Context prose, this
+      does not risk further rework, but it leaves the mission's own binding task documentation
+      internally self-contradictory on its single most load-bearing architectural claim — the exact
+      narrative-vs-detailed-design defect class the prior three fix rounds exist to close
+      everywhere else in this document set.
+    remediation: >
+      Edit WP01-core-tail-reader-primitives.md lines 77-78 directly to state the corrected
+      architecture in the first place, e.g. replace "...is the thin, infinite `while True` +
+      `time.sleep` polling wrapper that owns Typer flags, mission-slug resolution, and
+      stdout/stderr JSON rendering" with "...merely iterates `tail_events()`'s poll-then-sleep loop
+      (owned by the core, per plan.md's corrected Architectural Seam section) in a plain `for`
+      loop, and owns Typer flags, mission-slug resolution, and stdout/stderr JSON rendering" — then
+      delete or substantially shorten the now-redundant Addendum paragraph at lines 84-88, since a
+      correctly-stated root sentence no longer needs a follow-up disclaimer contradicting it.
+  - id: ANALYZE-FRESH3-002
+    lens: cross-reference-integrity
+    severity: 1
+    title: "C-005's \"(see the dashboard precedent, C-006)\" cites the wrong constraint"
+    evidence:
+      - artifact: "spec.md:356 (C-005)"
+      - artifact: "spec.md:357 (C-006)"
+    claim: >
+      C-005 ("No `watchdog`/`inotify` dependency") ends with "...and polling is the established
+      idiom (see the dashboard precedent, C-006)." The very next Constraints-table row, C-006, is
+      titled "ATDD-first (C-011) applies to every implementation WP" and its constraint text is
+      entirely about the charter's failing-first ATDD requirement — it says nothing about a
+      dashboard or a polling precedent anywhere. The cross-reference points at the wrong constraint
+      ID (most likely a stale reference surviving a since-renumbered or reordered Constraints
+      table). This is unrelated to the poll-loop core-vs-shell defect class the three fix rounds
+      addressed, and it does not affect any FR/AC/implementation — it is a documentation citation
+      error only.
+    remediation: >
+      Either correct "C-006" to whichever constraint (if any) actually documents the
+      dashboard-polling precedent, or drop the parenthetical cross-reference entirely and replace
+      it with an inline description of the dashboard precedent or a direct file:line citation into
+      the codebase, matching the evidence-citation convention this spec already uses elsewhere
+      (e.g. Clarifications §2-3).

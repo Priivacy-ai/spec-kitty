@@ -1,0 +1,15 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 2
+verdicts:
+  - id: PR-CONTRACT-003
+    verdict: confirmed
+    reason: "Confirmed live: default()'s docstring and ADR 2026-08-13-1 (CL-001) justify the cache only against cross-project poisoning within one process, never same-project staleness over time; test_same_key_is_a_cache_hit (lines 467-488) mutates an org YAML after a first resolution and asserts the second call returns the stale first result; and grep across src/ shows resolve_layered_mission_types.cache_clear()/MissionTypeRepository.cache_clear() is invoked only in test files, never from any production CLI call site (mission_type.py's resolve_layered_roster never clears it)."
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: "Confirmed by reading tests/runtime/test_runtime_seam.py:206-233: org_root/mission_types is mkdir'd but no YAML file is ever written into it, and _scan_mission_types_dir (mission_type_repository.py:376-394) returns [] (not an error) on an existing-but-empty directory, so the org/project layers always contribute nothing and resolve_layered_mission_types(dirs, real_pack_context) collapses to the same built-in-only result as resolve_layered_mission_types(dirs, None) — the test cannot distinguish WP04's threading from a reversion of it."
+  - id: PR-TESTS-002
+    verdict: confirmed
+    reason: "Confirmed: no cache_clear() call exists anywhere in tests/charter/test_mission_type_profiles.py (grep found none in TestPackContextProjection/TestEmptyActionSequenceLoudFail/TestMissionCreatePropagatesEmptyActionSequenceError), while the three cited sibling CLI test files do use MissionTypeRepository.cache_clear() in a before/try-finally pattern at the exact lines cited, and PackContext is a frozen dataclass (src/charter/pack_context.py:100-101) whose fields are all derived from pytest's per-test-unique tmp_path, making the current safety incidental rather than designed as the finding claims."

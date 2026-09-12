@@ -76,8 +76,13 @@ def _init_project(tmp_path: Path) -> Path:
     # destination from the checked-out HEAD) can persist locally. T009 proves
     # topology survival through implement+merge, NOT protected-branch policy; the
     # generic legacy-no-coord done-marking is already covered by the merge suite.
+    # WP04 fail-closed (C-A1): create_mission_core (invoked via `specify`) requires
+    # a non-empty activated mission-type set; this fixture's missions are all
+    # created with the default software-dev type.
     (kittify / "config.yaml").write_text(
-        "project_slug: topology-fixture\nprotection:\n  protected_branches: []\n",
+        "project_slug: topology-fixture\n"
+        "protection:\n  protected_branches: []\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
     (repo / "kitty-specs").mkdir()
@@ -313,7 +318,7 @@ def _no_coord_branch(feature_dir: Path, checkpoint: str) -> None:
 
 
 def _write_lanes(feature_dir: Path, slug: str, mission_branch: str) -> None:
-    from datetime import datetime, timezone
+    from kernel.clock import now_utc_iso
 
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
@@ -344,7 +349,7 @@ def _write_lanes(feature_dir: Path, slug: str, mission_branch: str) -> None:
                     parallel_group=0,
                 ),
             ],
-            computed_at=datetime.now(timezone.utc).isoformat(),  # noqa: UP017
+            computed_at=now_utc_iso(),
             computed_from="test-fixture",
         ),
     )
@@ -484,9 +489,6 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
     with ExitStack() as stack:
         for target in (
             "specify_cli.merge.executor.commit_merge_bookkeeping",
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled",
-            "specify_cli.merge.executor.emit_mission_closed",
-            "specify_cli.merge.executor._emit_merge_diff_summary",
             "specify_cli.post_merge.stale_assertions.run_check",
             "specify_cli.merge.executor.run_check",
             "specify_cli.merge.executor.require_no_sparse_checkout",
@@ -589,10 +591,10 @@ def test_single_branch_mission_survives_implement_and_merge_end_to_end(
         )
         # ...and that residue is a lock-FIELD-ONLY diff — the exact case WP02
         # governs (asserted via the production decision helper).
-        from specify_cli.cli.commands.implement import _is_vcs_lock_only_meta_diff
+        from kernel.vcs_lock import is_vcs_lock_only_change
 
         committed_meta = json.loads(_git(repo, "show", f"HEAD:{meta_rel}").stdout)
-        assert _is_vcs_lock_only_meta_diff(committed_meta, _read_meta(feature_dir)), (
+        assert is_vcs_lock_only_change(committed_meta, _read_meta(feature_dir)), (
             "the sole residue must be a vcs-lock-only meta.json diff (WP02 scope)"
         )
         # The SECOND claim's REAL dirty-tree guard must drop the lock-only meta and

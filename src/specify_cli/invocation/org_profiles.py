@@ -10,7 +10,7 @@ activation gate (C-008).
 How the gate is honoured (C-006: reuse, never re-implement)
 ----------------------------------------------------------
 The activation gate lives two layers above ``resolve_org_roots`` — on
-:attr:`charter.resolver.DoctrineService.agent_profiles`, which filters the
+:attr:`charter.activation.resolver.DoctrineService.agent_profiles`, which filters the
 merged profile set by ``PackContext.activated_agent_profiles`` (three-state:
 ``None`` → all admitted; ``frozenset()`` → none; explicit set → only those).
 This resolver builds that activation-aware service via
@@ -18,7 +18,7 @@ This resolver builds that activation-aware service via
 and reads its already-gated ``agent_profiles`` mapping.  It then narrows the
 result to org-provenance members by consulting the inner repository's
 ``get_provenance`` / ``get_source_path`` (provenance lives on the repository,
-not on :class:`~doctrine.agent_profiles.profile.AgentProfile`).
+not on :class:`~charter.offering.agent_profiles.profile.AgentProfile`).
 
 Fail-closed (NFR-004)
 ---------------------
@@ -36,6 +36,7 @@ doctrine``).  It must never be placed inside ``charter.*`` or ``doctrine.*``.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -43,7 +44,7 @@ from typing import TYPE_CHECKING
 from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
+    from charter.profiles import AgentProfile, SkippedProfile
 
 # ``ResolvedOrgProfile`` is the return-record type — consumed by-value by the
 # routing/projection callers, not imported by name — so it stays a module-level
@@ -58,9 +59,9 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
 
     Best-effort: a missing/corrupt config yields an empty list so the caller
     takes the no-org-packs fast path. Mirrors
-    :func:`charter.context._existing_org_roots`.
+    :func:`charter.activation.context._existing_org_roots`.
     """
-    from doctrine.drg.org_pack_config import resolve_org_roots
+    from charter.drg import resolve_org_roots
 
     try:
         return [root for root in resolve_org_roots(repo_root) if root.exists()]
@@ -83,7 +84,26 @@ class ResolvedOrgProfile:
     source_path: Path | None
 
 
-def resolve_activated_org_profiles(repo_root: Path) -> list[ResolvedOrgProfile]:
+class OrgProfileResolution(list[ResolvedOrgProfile]):
+    """List-compatible admitted profiles plus independent source diagnostics.
+
+    ``skipped_profiles`` retains canonical org-layer load failures, including
+    files excluded by activation. List truthiness/equality describe admission
+    only; consumers assessing source health must inspect the diagnostics even
+    when the list is empty. Copying/slicing as a plain list drops diagnostics.
+    """
+
+    def __init__(
+        self,
+        profiles: Iterable[ResolvedOrgProfile] = (),
+        *,
+        skipped_profiles: Iterable[SkippedProfile] = (),
+    ) -> None:
+        super().__init__(profiles)
+        self.skipped_profiles = tuple(skipped_profiles)
+
+
+def resolve_activated_org_profiles(repo_root: Path) -> OrgProfileResolution:
     """Return the charter-activated, org-provenance agent profiles for ``repo_root``.
 
     Composes :func:`build_activation_aware_doctrine_service` (the canonical
@@ -103,18 +123,21 @@ def resolve_activated_org_profiles(repo_root: Path) -> list[ResolvedOrgProfile]:
 
     Returns
     -------
-    list[ResolvedOrgProfile]
-        Activated org profiles with provenance, sorted by ``profile_id``.
+    OrgProfileResolution
+        List-compatible activated org profiles, sorted by ``profile_id``, with
+        canonical org-only ``skipped_profiles`` sorted by path, profile ID and
+        error summary. Diagnostics are independent of the activation filter;
+        no built-in or project failures are attributed to the org layer.
     """
     # Short-circuit (perf): with zero configured org roots the org-provenance
     # subset is necessarily empty, so skip the full activation-aware service
-    # build. Mirrors ``charter.context._existing_org_roots`` (best-effort).
+    # build. Mirrors ``charter.activation.context._existing_org_roots`` (best-effort).
     if not _existing_org_roots(repo_root):
-        return []
+        return OrgProfileResolution()
 
     service = build_activation_aware_doctrine_service(repo_root)
     activated_profiles: dict[str, AgentProfile] = service.agent_profiles
-    inner_repository = service._inner.agent_profiles
+    inner_repository = service.agent_profile_repository
 
     resolved: list[ResolvedOrgProfile] = []
     for profile_id, profile in activated_profiles.items():
@@ -128,4 +151,11 @@ def resolve_activated_org_profiles(repo_root: Path) -> list[ResolvedOrgProfile]:
             )
         )
 
-    return sorted(resolved, key=lambda item: item.profile.profile_id)
+    skipped = sorted(
+        (item for item in inner_repository.skipped_profiles() if item.layer == _ORG_LAYER),
+        key=lambda item: (item.path, item.profile_id or "", item.error_summary),
+    )
+    return OrgProfileResolution(
+        sorted(resolved, key=lambda item: item.profile.profile_id),
+        skipped_profiles=skipped,
+    )

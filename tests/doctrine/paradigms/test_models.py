@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from doctrine.paradigms.models import Paradigm
+from charter.offering.paradigms.models import Paradigm
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 

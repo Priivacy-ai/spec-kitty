@@ -14,12 +14,31 @@ The multi-strategy approach:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from kernel.clock import datetime, now_utc
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
+
+#: Canonical concern subdirectories under ``docs/development/``, established by the
+#: ``common-docs-convergence`` mission (WP10) when the flat contributor tree was
+#: subdivided by concern. Pinned here so documentation gap analysis surfaces each
+#: contributor-doc concern as a distinct project area rather than lumping every
+#: development page under a single ``development`` bucket. Kept in lock-step with
+#: the on-disk structure by
+#: ``tests/agent/test_gap_analysis.py::test_development_concern_subdirs_pinned``
+#: (FR-018 subdir-name pin) — renaming or adding a ``docs/development/`` concern
+#: directory without updating this tuple turns that guard red.
+DEVELOPMENT_CONCERN_SUBDIRS: tuple[str, ...] = (
+    "getting-started",
+    "how-to",
+    "reference",
+    "testing",
+)
+
+#: The top-level docs directory whose concern subdirectories are pinned above.
+_DEVELOPMENT_SECTION = "development"
 
 
 class DocFramework(Enum):
@@ -691,6 +710,15 @@ def detect_project_areas(docs_dir: Path, project_root: Path) -> list[str]:
         if item.is_dir() and item.name not in ["_build", "_static", "_templates"]:
             areas.add(item.name)
 
+    # Surface the pinned docs/development/ concern subdirectories as distinct
+    # areas so contributor docs classify by concern (getting-started / how-to /
+    # reference / testing) instead of collapsing under one "development" bucket.
+    dev_dir = docs_dir / _DEVELOPMENT_SECTION
+    if dev_dir.is_dir():
+        for concern in DEVELOPMENT_CONCERN_SUBDIRS:
+            if (dev_dir / concern).is_dir():
+                areas.add(f"{_DEVELOPMENT_SECTION}/{concern}")
+
     # Check source code directories
     src_dir = project_root / "src"
     if src_dir.exists():
@@ -715,11 +743,13 @@ def infer_area_from_path(doc_path: Path, project_areas: list[str]) -> str | None
     Returns:
         Area name if match found, None otherwise
     """
-    # Check if any area name appears in path
+    # Match the most specific (longest) area name that appears in the path, so a
+    # page under docs/development/how-to/ classifies to "development/how-to"
+    # rather than the shorter "development" bucket it also matches.
     path_str = str(doc_path).lower()
-    for area in project_areas:
-        if area.lower() in path_str:
-            return area
+    matches = [area for area in project_areas if area.lower() in path_str]
+    if matches:
+        return max(matches, key=len)
 
     # Fallback: use first area (generic)
     return project_areas[0] if project_areas else None
@@ -803,7 +833,7 @@ def analyze_documentation_gaps(docs_dir: Path, project_root: Path | None = None)
 
     return GapAnalysis(
         project_name=project_name,
-        analysis_date=datetime.now(),
+        analysis_date=now_utc(),
         framework=framework,
         coverage_matrix=coverage_matrix,
         gaps=prioritized_gaps,

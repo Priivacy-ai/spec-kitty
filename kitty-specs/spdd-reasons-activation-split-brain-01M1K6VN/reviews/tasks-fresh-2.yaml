@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+round: 2
+findings:
+  - id: TASKS-FRESH2-001
+    lens: none-as-all-built-ins consistency / recurring-defect-class relocation
+    severity: 4
+    title: >-
+      WP02's org-required-union replacement drops directive-id normalization,
+      silently reintroducing Decision Record 2's "silent incorrect exclusion"
+      bug for stem-form required_directives
+    evidence:
+      - artifact: "tasks/WP02-action-doctrine-bundle-activated-derivation.md § Subtask T009, step 2"
+      - artifact: "tasks/WP02-action-doctrine-bundle-activated-derivation.md § Subtask T007 (no org-required fixture present)"
+      - code: "src/charter/activation/org_pack_discovery.py:155-176 (_read_org_required_selections returns raw, un-normalized required_<kind> strings)"
+      - code: "src/charter/activation/profile_resolution.py:203-216 (_normalize_directive_id converts stem form '024-locality-of-change' -> 'DIRECTIVE_024')"
+      - code: "src/charter/activation/action_doctrine_bundle.py:185 (current code normalizes the WHOLE selected_directives set, org-required entries included, via one _normalize_directive_id comprehension AFTER _load_doctrine_selection has already unioned org-required ids in)"
+      - code: "tests/charter/test_answers_inert_and_org_union.py:293-379 (TestOrgRequiredIdFormNormalizedBeforePromotion proves an org pack's required_directives: entry is legitimately authored/round-tripped in stem form, e.g. '001-architectural-integrity-standard', not only canonical DIRECTIVE_NNN form)"
+      - code: "load_doctrine_catalog().directives verified live (.venv) to be canonical 'DIRECTIVE_NNN' strings — confirms the set project_directives is compared/unioned against elsewhere is canonical-only"
+    claim: >-
+      T009 step 2 instructs replacing `_load_doctrine_selection(repo_root)` with a
+      direct `_read_org_required_selections(repo_root)` call and unioning its
+      "directives" entries onto step 1's already-normalized `project_directives`
+      set. On `main` today, org-required directive ids get normalized "for free"
+      because `_load_doctrine_selection` unions them into `selected_directives`
+      BEFORE `_load_action_doctrine_bundle`'s single `_normalize_directive_id`
+      comprehension runs over the combined set. T009's replacement removes that
+      single normalization point and does not add an equivalent one for the
+      org-required entries — nowhere in T009's steps, Risks, or Reviewer Guidance
+      is `_normalize_directive_id` applied to `_read_org_required_selections()`'s
+      output before the union. Since `required_directives:` is proven (by this
+      repo's own `TestOrgRequiredIdFormNormalizedBeforePromotion` test class) to
+      be legitimately authored in stem form, an org-required directive declared
+      that way would be unioned into `project_directives` verbatim/un-normalized,
+      while the DRG's `artifact_id` and the catalog default are canonical
+      `DIRECTIVE_NNN` form. `delivery_table.py`'s exclusion guard
+      (`artifact_id not in project_directives`) would then wrongly exclude that
+      legitimately org-required, DRG-reachable directive — reproducing exactly
+      Decision Record 2's mechanism-1 "silent incorrect exclusion" defect, this
+      time via the org-required path instead of the `selected_*` path this
+      mission set out to fix. `roots`'s `f"directive:{d}"` construction would
+      likewise emit an unresolvable stem-form URN, silently dropped from
+      closure-widening (mechanism 2). No fixture in T007 (FR-007/FR-008/FR-014,
+      or the plan-added tactics/paradigms-absent sibling) exercises the
+      org-required union path at all, and a repo-wide grep found no existing test
+      that combines `required_directives`/`required_tactics`/`required_paradigms`
+      with `_load_action_doctrine_bundle` — so this regression would ship with no
+      red-first test to catch it, and User Story 2 Scenario 3 / FR-006's own
+      explicit "must not regress" instruction for the org-required union would be
+      satisfied only for canonical-form org-required ids, silently broken for
+      stem-form ones.
+    remediation: >-
+      Add an explicit normalization step to T009 step 2: apply
+      `_normalize_directive_id` to each entry of
+      `_read_org_required_selections(repo_root)["directives"]` before unioning it
+      onto the `activated_*`-derived `project_directives` set (mirroring the
+      normalization `_load_action_doctrine_bundle` currently gets "for free" via
+      `_load_doctrine_selection`'s pre-union). Add a red-first fixture to T007
+      that declares an org pack's `required_directives:` entry in stem form
+      (e.g. mirroring `TestOrgRequiredIdFormNormalizedBeforePromotion`'s
+      `001-architectural-integrity-standard`), asserts it is delivered in
+      `directive_ids` and present in `roots`/`start_urns` in its canonical
+      `DIRECTIVE_NNN` form — failing on a naive T009 implementation that unions
+      the raw stem string, passing once normalization is added.
+
+  - id: TASKS-FRESH2-002
+    lens: bug-preserving tests / silent-success gap (NFR-001)
+    severity: 3
+    title: >-
+      WP01's activated_* rewrite spec omits the "key present but not a list"
+      type-check `_read_list_key` performs, and no fixture pins the expected
+      fail-loud behavior for that shape
+    evidence:
+      - artifact: "tasks/WP01-activation-rewrite-parity-test.md § Subtask T004, step 1(d)"
+      - artifact: "tasks/WP01-activation-rewrite-parity-test.md § Subtask T002 (fixture matrix: only absent-key / empty-list / non-empty-list states enumerated)"
+      - code: "src/charter/activation/pack_context.py:609-615 (_read_list_key: `if not isinstance(raw, list): raise _config_error(...)` for a present-but-non-list value)"
+    claim: >-
+      FR-001(d) and T004 step 1(d) instruct the rewrite to "apply the three-state
+      semantics verbatim, matching `_read_list_key`'s contract," but the
+      three states named everywhere in the spec/plan/WP1 text are only
+      "absent / explicit `[]` / explicit non-empty list" — none of FR-001,
+      FR-005, T001, or T002 explicitly calls out that `_read_list_key` raises a
+      fail-loud `_config_error` when the key is PRESENT but the value is NOT a
+      list at all (e.g. an authoring mistake like
+      `activated_paradigms: structured-prompt-driven-development` as a bare
+      scalar rather than a one-item list). A literal, unguarded three-state
+      implementation risks either raising an unrelated `TypeError`/silently
+      iterating a string's individual characters into a nonsense one-letter-per-
+      entry set (Python happily iterates a `str` character-by-character in a
+      `for entry in raw` loop) — neither of which is the intended fail-loud
+      `CharterPackConfigError`-equivalent behavior FR-005 requires, and both are
+      exactly the "unexplained silent result for an error condition" NFR-001
+      forbids. No fixture anywhere in T001/T002's steps constructs a
+      present-but-non-list `activated_*` value, so this gap would ship with no
+      test to catch it either way.
+    remediation: >-
+      Add an explicit type-check step to T004 ("if the key is present but its
+      value is not a `list`, raise — mirroring `_read_list_key`'s
+      `_config_error` fail-loud behavior") and a corresponding fixture to T002
+      (or T001) asserting a scalar/non-list `activated_paradigms`/
+      `activated_directives`/`activated_tactics` value raises rather than being
+      silently coerced or mis-iterated.

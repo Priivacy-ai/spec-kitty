@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: PLAN-FRESH2-001
+    lens: structural-completeness (Debugger Debbie / divergence-mapping)
+    severity: 4
+    title: >
+      The "empty set for None" choice for selected_tactics/selected_paradigms rests on a
+      factually false "no catalog available" premise, and silently under-seeds
+      closure-widening for the ordinary "all built-ins" (activated_* absent) case — the exact
+      defect class Decision Record 2 exists to close, relocated rather than eliminated.
+    evidence:
+      - artifact: "plan.md § (a) item 3, \"Chosen shape\": \"For `selected_tactics`/`selected_paradigms`: convert `None` to an **explicit empty set**. This is the defensible default here specifically because it is *not* symmetric with directives — unlike the directive exclusion guard, there is no catalog enumeration available at this call site to materialize \"all built-ins\" as concrete tactic/paradigm IDs for closure-widening seeds.\""
+      - code: "src/charter/activation/catalog.py:32-49 — `DoctrineCatalog` is a frozen dataclass with `paradigms: frozenset[str]` and `tactics: frozenset[str]` fields, populated by `load_doctrine_catalog()` (module-level, zero required args) — exactly parallel to the `directives: frozenset[str]` field the plan's own \"chosen shape\" cites as the catalog-backed way to materialize directives' \"all built-ins\" default. The catalog enumeration the plan claims is unavailable for tactics/paradigms exists, in the same object, right next to the one it does use."
+      - code: "src/charter/activation/resolver.py:43 imports `load_doctrine_catalog`; line 622 already reads `doctrine_catalog.paradigms` (`_validate_paradigm_selection`); line 713-714/732 reads `doctrine_catalog.directives` for `_resolve_directive_base`'s `None`-fallback (`base = sorted(doctrine_catalog.directives)`). `load_doctrine_catalog()` has no `repo_root`/DRG dependency and is a plain import — nothing about `action_doctrine_bundle.py`'s call site (same `charter.activation` package, same allowed import direction) prevents it from calling the identical function resolver.py already calls."
+      - artifact: "plan.md § (a) item 4 (resolver.py, FR-011): \"`resolve_project_governance` (line 848) gains an equivalent `PackContext.from_config(repo_root).activated_paradigms` read where today there is none at all\" — \"equivalent\" to `_resolve_directive_base`'s documented three-state guard, i.e. catalog-default-on-`None`. This mission's own resolver.py edit therefore widens `activated_paradigms is None` to the full catalog default (matching `directives`' behavior), while the same mission's `action_doctrine_bundle.py` edit narrows the identical `activated_paradigms is None`/`activated_tactics is None` state to an empty set — two different, contradictory resolutions of the same three-state field's `None` case, in two files edited by the same PR."
+      - artifact: "spec.md Decision Record 2, mechanism 2 (\"softer failure\"): \"`start_urns` is **empty** — so ... the closure-widening these fields exist to provide contributes nothing at all, despite ~9 directives, dozens of tactics, and several paradigms being genuinely activated\" — the defect this mission exists to close is defined exactly as \"a project whose activation is genuinely wide gets zero closure-widening seeds from tactics/paradigms.\" A project with `activated_tactics`/`activated_paradigms` absent (`None`, the widest possible activation state — \"all built-ins available\") is exactly such a project."
+      - artifact: "plan.md § (a) item 3, WP2 fixture description: \"asserting no `TypeError` and non-degraded closure widening (the empty-set default does not spuriously narrow delivery relative to **today's behavior**)\" — the comparator named is *today's* (pre-fix, buggy, already-narrow `selected_tactics=[]`) behavior, not the corrected `activated_*`-derived \"all built-ins\" semantic FR-001(d)/FR-006 require. A test asserting parity with the bug it is supposed to replace cannot detect this under-seeding — it would pass either way."
+    claim: >
+      Plan.md's stated reason for choosing "convert `None` to explicit empty set" for
+      `selected_tactics`/`selected_paradigms` — "there is no catalog enumeration available at
+      this call site" — is false: `DoctrineCatalog.tactics`/`.paradigms` exist, are loaded by
+      the same zero-argument `load_doctrine_catalog()` this mission's own `resolver.py` edit
+      already calls (and already reads `.paradigms` from, at line 622, for validation), in the
+      same `charter.activation` package `action_doctrine_bundle.py` lives in. Because the
+      premise is wrong, the fix built on it is wrong in the same shape as the bug the mission
+      exists to close: for a project that has never configured `activated_tactics`/
+      `activated_paradigms` at all — `None`, meaning "all built-ins," the *widest* possible
+      activation state, and an ordinary (not edge-case) shape for any project that has not
+      hand-tuned those two kinds — this design seeds the requires/suggests closure-widening
+      traversal with *zero* tactic/paradigm URNs, identical in shape to Decision Record 2's own
+      "softer failure" (`start_urns` empty despite genuine wide activation). The mission's
+      `resolver.py` edit (FR-011) resolves the identical `activated_paradigms is None` state to
+      the catalog default (mirroring `_resolve_directive_base`'s existing guard, per plan.md §
+      (a) item 4's own "equivalent" framing) — so this single PR ships two contradictory
+      resolutions of the same three-state field's `None` semantics in two different files, one
+      correct (widen) and one silently narrowing (empty). The WP2 test fixture the plan commits
+      to for this exact case is written to assert non-regression against *today's already-buggy*
+      narrow behavior, not against the corrected "all built-ins" semantic — so it would pass
+      whether or not this under-seeding defect is present, giving false confidence that the
+      `None` case was verified. This is the prior fix round's own remediation text
+      (PLAN-FRESH-001, round 1) carried into the plan verbatim, including its unverified
+      rationale; this fresh-2 review independently re-checked that rationale against the live
+      `catalog.py`/`resolver.py` code rather than accepting it as given, per this round's
+      instruction, and found it does not hold.
+    remediation: >
+      Change plan.md § (a) item 3's `None`-conversion for `selected_tactics`/`selected_paradigms`
+      to mirror `project_directives`'s treatment exactly: convert `None` to
+      `load_doctrine_catalog().tactics`/`.paradigms` (the same function and field family
+      `resolver.py`'s own FR-011 edit already uses for the identical `activated_paradigms`
+      `None` case), not to an explicit empty set. Update the design-commitment table in § (m)
+      to state the corrected symmetric behavior for all three re-derived values. Rewrite the
+      WP2 sibling fixture's assertion to compare against the catalog-derived "all built-ins"
+      expectation (e.g. `roots`/`start_urns` contain a tactic/paradigm URN for every ID in
+      `load_doctrine_catalog().tactics`/`.paradigms`) rather than against "no worse than today,"
+      so it actually fails on an empty-set implementation instead of passing either way. If an
+      empty-set default is deliberately kept instead (e.g. for a performance or scope reason not
+      currently stated), the plan must say so explicitly, name the resulting divergence from
+      `resolver.py`'s own FR-011 treatment of the same field within the same PR as a named,
+      evidence-based carve-out — the same treatment Decision Record 1 gives the `activated_kinds`
+      omission — rather than presenting it as the only available option.

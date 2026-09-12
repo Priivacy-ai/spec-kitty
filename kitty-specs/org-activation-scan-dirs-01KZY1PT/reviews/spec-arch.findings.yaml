@@ -1,0 +1,62 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: SPEC-ARCH-001
+    lens: Reflexivity
+    severity: 4
+    title: >-
+      FR-001 leaves flat-vs-legacy scan order unspecified, so a same-config-stem
+      artifact under both `<root>/<plural>` and `<root>/<plural>/built-in` in one
+      org root resolves to a different, silently-chosen URN depending on an
+      implementation detail no acceptance scenario pins down
+    evidence:
+      - artifact: "spec.md § FR-001 (Requirements > Functional Requirements)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3"
+      - code: "src/charter/kind_vocabulary.py:200-209 (_org_scan_dirs, pre-fix)"
+      - code: "src/charter/kind_vocabulary.py:260-297 (resolve_artifact_urn — first-match-wins over _iter_artifact_paths, `for path in ...: if _config_stem(path) == config_id: ... return`)"
+      - code: "src/charter/drg.py:333-381 (_resolve_activated_urns_for_kind — the sole caller in the failure mechanism this mission fixes)"
+    claim: >-
+      FR-001 says the fixed `_org_scan_dirs` returns a scan entry for the flat
+      `<root>/<plural>` dir "and, where it separately exists on disk,
+      `<root>/<plural>/built-in`" — additive, per Acceptance Scenario 3. But
+      `resolve_artifact_urn` (the sole consumer of `_scan_roots`'s output,
+      reached via `_resolve_activated_urns_for_kind` in the exact failure path
+      this mission's Problem section walks) is first-match-wins: it iterates
+      `_iter_artifact_paths` in scan order and returns on the first path whose
+      config stem matches. Empirically verified by patching `_org_scan_dirs` to
+      return `[(flat, False), (legacy, True)]` vs `[(legacy, True), (flat,
+      False)]` for one org root containing `foo.directive.yaml` in both the flat
+      dir (`id: DIRECTIVE_FLAT_FOO`) and the legacy `built-in/` dir (`id:
+      DIRECTIVE_LEGACY_FOO`): `resolve_artifact_urn(ArtifactKind.DIRECTIVE,
+      "foo", ..., org_roots=[root])` returned `directive:DIRECTIVE_FLAT_FOO` in
+      the first ordering and `directive:DIRECTIVE_LEGACY_FOO` in the second —
+      same on-disk fixture, opposite resolved URN, purely from list order.
+      FR-001's prose states the flat entry before the legacy entry but never
+      says this is a return-list-order guarantee, and Acceptance Scenario 3
+      deliberately uses two *different* stems (`<org-directive>` vs
+      `<legacy-directive>`), so it cannot exercise this case at all. An
+      implementer following the spec literally has no signal that same-stem
+      overlap is possible, let alone which layout should win, and no test would
+      catch either choice. This is exactly the defect class the mission exists
+      to close — org-pack content silently resolving to the wrong (or no) URN —
+      reopened at the file-collision level instead of the directory-scanning
+      level. It is also not confined to the activation gate: `resolve_artifact_urn`
+      is called directly by `src/charter/compiler.py:146`,
+      `src/charter/consistency_check.py:744,815`, and the `charter activate`/
+      `deactivate` CLI commands, so the ambiguity's blast radius is broader than
+      `filter_graph_by_activation`.
+    remediation: >-
+      Add to FR-001 an explicit precedence rule for the same-config-stem-in-both-
+      directories case (e.g. "flat takes precedence over legacy when both contain
+      a file with the same config stem" or the reverse), state it as a documented,
+      intentional choice rather than an accidental list-order artifact, and add a
+      fourth Acceptance Scenario to User Story 1 that places a same-stem file
+      under both the flat dir and the legacy `built-in/` dir with different `id:`
+      values and asserts which URN `resolve_artifact_urn` returns. Optionally
+      also require a collision to surface a warning (consistent with the
+      `DoctrineLayerCollisionWarning` pattern already used elsewhere in the
+      doctrine-layer merge, `src/doctrine/base.py:_record_collision_if_present`)
+      rather than silently picking one.

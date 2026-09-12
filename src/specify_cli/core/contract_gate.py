@@ -116,3 +116,26 @@ def validate_outbound_payload(payload: Payload, context: str) -> None:
         return
 
     _validate_section(payload, context, cast(ContractNode, section))
+
+
+def is_allowed_error_code(context: str, error_code: str) -> bool:
+    """True if *error_code* is in *context*'s ``allowed_error_codes`` list.
+
+    PR-CONTRACT-002: unlike :func:`validate_outbound_payload` (which checks
+    STATIC field shape at emission time), this is a runtime membership check
+    against the SAME vendored allow-list, for callers that propagate a
+    dynamically-typed exception's error code (e.g. ``exc.code.value`` from a
+    ``DecisionError``) rather than a literal string -- the one shape
+    ``tests/contract/test_orchestrator_api.py::TestAllowedErrorCodes``'s
+    static-regex check over literal ``_fail(...)`` call sites cannot see.
+    Absent/malformed ``allowed_error_codes`` fails closed (``False``) --
+    never silently trusts an error code because the contract section was
+    missing.
+    """
+    section = _load_contract().get(context)
+    if not isinstance(section, dict):
+        return False
+    allowed = section.get("allowed_error_codes")
+    if not isinstance(allowed, list):
+        return False
+    return error_code in allowed

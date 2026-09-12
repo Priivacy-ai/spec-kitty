@@ -1,0 +1,95 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: cascade-org-inert-01M07E9P
+findings:
+  - id: SPEC-VERIFY-001
+    lens: falsifiability
+    severity: 3
+    title: Three numbered "Acceptance Criteria" entries are recommendations/open questions, not testable pass/fail criteria
+    evidence:
+      - artifact: "spec.md § FR-002 Acceptance Criteria, item 5 (line 286)"
+      - artifact: "spec.md § FR-003 Acceptance Criteria, item 3 (line 307)"
+      - artifact: "spec.md § FR-003 Acceptance Criteria, item 4 (line 320)"
+    claim: >
+      FR-002 AC5 ("Recommendation, stated explicitly (not silently picked): this mission
+      recommends routing context.py's call path through
+      charter.action_doctrine_bundle._resolve_action_bundle...") and FR-003 AC3/AC4
+      ("Recommendation, stated explicitly: this mission recommends derivation (B)..." /
+      "Open question — explicitly flagged for the plan phase, not resolved here...") are
+      numbered inside the "Acceptance Criteria" lists for their FRs, but none of the three
+      states an observable pass/fail condition — they are design guidance and an unresolved
+      question for the plan phase, not assertions a test can verify true or false. Mixing
+      these into the same numbered list as the genuinely falsifiable items (FR-002 AC1-4,
+      FR-003 AC1/2/5) creates a real risk that a tasks-phase author either (a) tries to
+      manufacture a spurious test asserting "the recommendation was followed" as if it were
+      a binding AC, or (b) under-weights FR-003 AC4's open worktree question because it
+      reads as list-item parity with the real ACs around it, when the spec itself says it
+      "must be investigated and resolved before implementing FR-003."
+    remediation: >
+      Move these three items out of the numbered "Acceptance Criteria" list into a separate
+      "Design Notes / Open Questions" subsection under each FR (or a dedicated "Recommendations"
+      block), leaving only genuinely testable pass/fail criteria numbered as ACs. Cross-reference
+      the moved items from the AC list if needed for traceability, but do not let them occupy an
+      AC list-item number.
+
+  - id: SPEC-VERIFY-002
+    lens: AC quadrant completeness per FR (mission-derived)
+    severity: 2
+    title: FR-003 (rebaseline) has no multi-pack-chain acceptance criterion or acknowledgment of the omission
+    evidence:
+      - artifact: "spec.md § FR-003 Acceptance Criteria (lines 301-332)"
+      - artifact: "spec.md § User Story 5 (lines 187-220) — no multi-pack scenario stated"
+      - code: "src/specify_cli/dossier/manifest.py:253-260 (ManifestRegistry.load_manifest already calls _resolve_existing_org_roots(repo_root), a plural/multi-pack-aware resolver, once repo_root is non-None)"
+    claim: >
+      FR-001, FR-002, and FR-004 each cover all four quadrants (healthy single-pack, multi-pack
+      chain, malformed pack, no org pack) with an explicit AC. FR-003 covers (a) healthy
+      single-pack [AC1], (c) malformed [AC5], and (d) no org pack [AC2], but has no AC or
+      acknowledgment for (b) multi-pack chain — User Story 5 and its Acceptance Scenarios also
+      never mention a two-pack case. Verified the underlying mechanism: once repo_root is
+      correctly threaded (FR-003's actual fix), Indexer.__init__ passes it to
+      ManifestRegistry.load_manifest, which already calls the plural
+      `_resolve_existing_org_roots(repo_root)` (not a first-match-only resolver) — so multi-pack
+      support for rebaseline is very likely inherited "for free" from FR-003's own fix rather
+      than needing a separate mechanism. That is a plausible, defensible scoping reason to omit
+      quadrant (b) for FR-003, but the spec never states this reasoning anywhere — unlike its
+      practice elsewhere (e.g. FR-003 AC3's explicit "derivation (A) vs (B)" rationale, FR-003
+      AC4's explicit worktree open question) of naming omissions rather than leaving them silent.
+    remediation: >
+      Add one line to FR-003's Acceptance Criteria (or the "Why this priority" prose) stating
+      explicitly that multi-pack-chain coverage for rebaseline is expected to be inherited from
+      ManifestRegistry.load_manifest's existing `_resolve_existing_org_roots` call once repo_root
+      is threaded correctly, and that the plan phase should add a two-pack regression test only
+      if it finds this inheritance does not actually hold — so the omission reads as a stated
+      scoping decision rather than an unnoticed gap.
+
+  - id: SPEC-VERIFY-003
+    lens: baseline honesty
+    severity: 3
+    title: SC-004's "green post-fix" test-suite claim does not acknowledge the known #3284 baseline-red set
+    evidence:
+      - artifact: "spec.md § SC-004 (lines 470-472)"
+      - artifact: "CLAUDE.md § Test-run baseline-red gotcha (repo-level, project instructions)"
+      - artifact: "kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:10 (24 failed / 2 errors baseline, #3284 records 23 of the 24 failures + 2 errors)"
+    claim: >
+      SC-004 states "Zero regressions for the org-inert case ... verified by running the
+      existing pre-fix test suite for activate.py/deactivate.py/context.py/rebaseline.py
+      unchanged and green post-fix." This is a test-baseline claim (green suite, pre- and
+      post-fix) but the spec nowhere acknowledges the repo's known baseline-red condition
+      (issue #3284: 23 failures + 2 errors on a healthy full-suite baseline run, per the
+      project's own tracer file) or CLAUDE.md's explicit instruction to classify red results
+      against that known set before attributing them to a mission's own change. There are
+      20+ existing test files under tests/charter/ alone covering activate/deactivate/context
+      (e.g. tests/charter/test_context.py, tests/charter/test_context_org_governance.py) plus
+      tests/dossier/test_rebaseline.py, and the spec does not state whether any of them are
+      among the #3284-tracked reds — if even one is, "green post-fix" is not achievable by
+      this mission's own fix and SC-004 as worded would read a legitimate pre-existing red as
+      this mission's regression.
+    remediation: >
+      Add a line to SC-004 (or a short baseline note near the Testing/Success Criteria section)
+      stating that any test in the targeted files already tracked as a known-red #3284 baseline
+      failure is out of scope for "green post-fix" and must be classified per CLAUDE.md's
+      baseline-red-gotcha policy (pre-existing vs. introduced) rather than silently assumed
+      green, with an explicit instruction to the implementer/reviewer to check the current
+      #3284 status before treating any red in these files as their own regression.

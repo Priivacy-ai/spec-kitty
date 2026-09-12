@@ -1,0 +1,53 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: SPEC-GOV-001
+    lens: WP3 separability & PR-shape scope
+    severity: 4
+    title: "C-002's 'separable and revertible' claim for WP3 is not achievable as written — WP2 and WP3 rewrite the same lines of router.py's route()"
+    evidence:
+      - artifact: "spec.md § Constraints (C-002), § User Story 3 (\"its own separable, revertible unit (WP3)\"), § Blast Radius / Files Touched (single combined router.py bullet), § Key Entities (RouterDecision.alternatives)"
+      - code: "src/specify_cli/invocation/router.py:304-386 (candidate aggregation, single-candidate return at 343-351, routing_priority tiebreaker at 353-370, still-ambiguous raise at 372-386)"
+    claim: >
+      C-002 states WP3 (the SK-08 rerank, FR-006/FR-007) "must land as its own commit/diff
+      boundary... so it can be reverted independently" from WP1/WP2. Given this repo's default
+      PR shape is one PR per mission (charter "Collaboration Strategy": "Completed mission work
+      is opened as a DRAFT pull request" — singular; sk-implement: "One PR per mission by
+      default"), all three WPs land in the same PR, and "reverted independently" can only mean
+      "a clean `git revert <wp3-sha>` leaves WP1/WP2 intact." That is not achievable given the
+      spec's own description of the blast radius. FR-005 (WP2) requires threading `alternatives`
+      out of exactly the same `candidates`/`sorted_candidates`/`top_candidates` values that
+      FR-006/FR-007 (WP3) must restructure to change selection order:
+        - The `if len(candidates) == 1:` branch (router.py:343-351) is where WP2 must add
+          `alternatives=[]` to the `RouterDecision(...)` call AND where WP3 must insert the new
+          FR-007 check (a lone domain_keyword-confidence candidate must raise
+          `RouterAmbiguityError` instead of returning) — the same statement, touched by both WPs.
+        - The `routing_priority` tiebreaker block (router.py:353-370, `sorted_candidates =
+          sorted(candidates, key=_priority, ...)`) is where WP2 must compute the losing
+          candidates for `alternatives`, AND where WP3 must change the sort/filter to make
+          canonical_verb candidates outrank domain_keyword candidates regardless of priority
+          (FR-006) — again the same block.
+      A `git revert` of a WP3 commit that edits statements WP2's commit already rewrote (to add
+      `alternatives=...` to each `RouterDecision(...)` call) will conflict rather than apply
+      cleanly whenever the two edits land on overlapping or adjacent lines, which the spec's own
+      Blast Radius section all but confirms by listing both changes under one undifferentiated
+      `router.py` bullet with no WP-level line split. The spec asserts a strong, testable
+      property ("can be reverted independently") without acknowledging or resolving this
+      overlap, so an implementer or reviewer could accept WP3 as "done" while the C-002 property
+      it was supposed to satisfy is actually false — discoverable only at the moment someone
+      tries to revert it.
+    remediation: >
+      Either (a) soften C-002 to the achievable property: "WP3 lands as its own commit,
+      distinct from WP1/WP2's commits, but is not guaranteed to be a conflict-free `git revert`
+      target independent of WP2 — reverting it may require reverting or hand-resolving WP2's
+      `alternatives` edits to the same statements" — and drop "revertible" from the WP3
+      description in User Story 3 accordingly; or (b) add a concrete plan-phase requirement that
+      WP2 first extract a pure candidate-selection helper (e.g. `_select_winner(candidates) ->
+      tuple[dict, list[dict]]`) so WP3's FR-006/FR-007 rerank logic lives in a body WP2 does not
+      also edit for `alternatives`, making independent revert actually achievable. Either way,
+      C-002 needs to state which property it is actually promising before WP3 is scoped in the
+      tasks phase.

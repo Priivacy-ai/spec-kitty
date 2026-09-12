@@ -1,28 +1,51 @@
-"""Status-surface trust + snapshot/restore + projection for the merge seam.
+"""Status-surface trust + coord→target status projection for the merge seam.
 
 Mission #2057 (decompose ``cli/commands/merge.py``) — IC-09 / WP09.
 
-The security-sensitive path-trust assertions, the final-bookkeeping snapshot
-capture/restore, and the coord→target status projection moved out of the command
-shim verbatim. ``_restore_final_bookkeeping_snapshots`` keeps its exact signature
-and behavior because the executor (WP10) calls it at the ~6 restore-on-exception
-sites (INV-6). One-way import: this module never imports the command shim.
+The security-sensitive path-trust assertions and the coord→target status
+projection moved out of the command shim verbatim. The final-bookkeeping
+snapshot/restore compensator that once lived here has been RETIRED by the
+lifecycle-gate-execution-context mission (T048 / TAO-3): the merge executor now
+enrols its bytes with the single owner compensator in
+``coordination.atomic_write`` instead of a second implementation in this package.
+One-way import: this module never imports the command shim.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
+
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
-from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
-from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
-)
+
+# The kind used to derive the PRIMARY (target-checkout) surface this projection
+# stages onto (coord-write-placement-closure-01KYCF83 WP03 / FR-003). The
+# projection ALWAYS lands on the target checkout's ``kitty-specs/<slug>/`` dir
+# by contract (module docstring) — never the coordination worktree — so any
+# PRIMARY-partition kind resolves the identical dir via ``placement_seam(...)
+# .read_dir(...)``; ``PRIMARY_METADATA`` is used as the selector because this
+# is mission bookkeeping metadata, not a re-classification of the projected
+# ``status.events.jsonl`` / ``status.json`` files themselves (those stay
+# STATUS_STATE — see ``_classify_status_bookkeeping_filename`` below).
+_TARGET_SURFACE_KIND = MissionArtifactKind.PRIMARY_METADATA
+
+
+def _classify_status_bookkeeping_filename(filename: str) -> MissionArtifactKind | None:
+    """Classify ``filename`` via the SSOT classifier (FR-003), basename-only.
+
+    :func:`~mission_runtime.kind_for_mission_file` requires a path shaped like
+    ``kitty-specs/<slug>/<basename>`` to locate its classification anchor; the
+    mission slug is irrelevant to a basename-only classification, so a
+    placeholder segment satisfies the classifier's expected shape without
+    hand-rolling the basename -> kind mapping inline here.
+    """
+    return kind_for_mission_file(f"{KITTY_SPECS_DIR}/_/{filename}")
 
 
 def _validate_mission_slug_path_segment(mission_slug: str) -> str:
@@ -45,11 +68,16 @@ def _target_bookkeeping_status_paths(
     ``status_feature_dir`` is topology-aware and can point at the coordination
     worktree. The final merge bookkeeping commit runs from ``main_repo`` onto
     the target branch, so it must stage primary-checkout paths only.
+
+    The target directory is derived through the placement port
+    (:func:`mission_runtime.placement_seam`) rather than composing
+    ``primary_feature_dir_for_mission`` directly (coord-write-placement-closure-
+    01KYCF83 WP03 / FR-003) — byte-identical to the prior derivation, now
+    routed through the SAME authority every other primary-partition read uses.
     """
     safe_mission_slug = _validate_mission_slug_path_segment(mission_slug)
-    canonical_slug = _canonicalize_primary_read_handle(main_repo, safe_mission_slug)
     target_feature_dir = (
-        primary_feature_dir_for_mission(main_repo, canonical_slug)
+        placement_seam(main_repo, safe_mission_slug).read_dir(_TARGET_SURFACE_KIND)
         if is_under_worktrees_segment(status_feature_dir)
         else status_feature_dir
     )
@@ -76,13 +104,15 @@ def _assert_status_path_within_target_surface(
 
     Validates ``mission_slug`` via ``assert_safe_path_segment`` (FR-003) before
     composing the surface root, then delegates containment to ``ensure_within_any``
-    (FR-006 / T016).
+    (FR-006 / T016). The surface root is derived through the placement port
+    (:func:`mission_runtime.placement_seam`), not a direct
+    ``primary_feature_dir_for_mission`` composition (coord-write-placement-
+    closure-01KYCF83 WP03 / FR-003) — byte-identical to the prior derivation.
     """
     assert_safe_path_segment(mission_slug)
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    surface_root = primary_feature_dir_for_mission(
-        repo_resolved,
-        _canonicalize_primary_read_handle(repo_resolved, mission_slug),
+    surface_root = placement_seam(repo_resolved, mission_slug).read_dir(
+        _TARGET_SURFACE_KIND
     ).resolve(strict=False)
     contained: Path = ensure_within_any(candidate, roots=[surface_root])
     return contained
@@ -149,8 +179,15 @@ def _assert_status_surface_file_path_is_trusted(
     status_feature_dir: Path,
     filename: str,
 ) -> Path:
-    """Reject status-surface child paths outside the exact bookkeeping files."""
-    if filename not in {_STATUS_EVENTS_FILENAME, _STATUS_FILENAME}:
+    """Reject status-surface child paths outside the exact bookkeeping files.
+
+    The trust decision is classifier-derived (FR-003): a basename is only a
+    bookkeeping status file when :func:`kind_for_mission_file` classifies it to
+    ``STATUS_STATE`` — this replaces a hand-maintained ``{filename1, filename2}``
+    literal (a form of inline classification) with the SSOT classifier, per
+    basename, one at a time (never a single combined membership test).
+    """
+    if _classify_status_bookkeeping_filename(filename) is not MissionArtifactKind.STATUS_STATE:
         raise ValueError(f"Refusing untrusted status filename: {filename}")
     trusted_surface = _assert_status_surface_path_is_trusted(
         repo_root=repo_root,
@@ -175,62 +212,15 @@ def _restore_optional_bytes(path: Path, original: bytes | None) -> None:
     path.write_bytes(original)
 
 
-def _assert_bookkeeping_snapshot_path_is_trusted(
-    *,
-    repo_root: Path,
-    candidate: Path,
-) -> Path:
-    """Reject rollback snapshot paths outside merge bookkeeping roots.
-
-    Delegates multi-root containment + exact-file allowlist to ``ensure_within_any``
-    (FR-006 / T017).  The trusted set (3 dirs + the exact file) is preserved exactly —
-    no set change (NFR-001 / C-007).
-    """
-    repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    trusted_snapshot: Path = ensure_within_any(
-        candidate,
-        roots=[
-            (repo_resolved / KITTY_SPECS_DIR).resolve(strict=False),
-            (repo_resolved / WORKTREES_DIR).resolve(strict=False),
-            (repo_resolved / KITTIFY_DIR / "runtime" / "merge").resolve(strict=False),
-        ],
-        files=[repo_resolved / KITTIFY_DIR / "merge-state.json"],
-    )
-    return trusted_snapshot
-
-
-def _capture_bookkeeping_snapshots(
-    repo_root: Path,
-    *candidates: Path,
-) -> dict[Path, bytes | None]:
-    """Capture rollback bytes for repo-derived bookkeeping paths only."""
-    snapshots: dict[Path, bytes | None] = {}
-    for candidate in candidates:
-        trusted_path = _assert_bookkeeping_snapshot_path_is_trusted(
-            repo_root=repo_root,
-            candidate=candidate,
-        )
-        snapshots[trusted_path] = _read_optional_bytes(trusted_path)
-    return snapshots
-
-
-def _restore_final_bookkeeping_snapshots(
-    snapshots: dict[Path, bytes | None],
-) -> None:
-    """Best-effort restore for final merge bookkeeping rollback.
-
-    Snapshot paths are validated at capture time (``_capture_bookkeeping_snapshots``
-    → ``_assert_bookkeeping_snapshot_path_is_trusted``), so restore trusts the dict
-    keys and only needs to tolerate transient I/O failures.
-
-    INV-6: signature + behavior are stable — the executor (WP10) calls this at the
-    ~6 restore-on-exception sites.
-    """
-    for path, original in snapshots.items():
-        try:
-            _restore_optional_bytes(path, original)
-        except OSError:
-            continue
+# WP09 (T048 / C4b / TAO-3): the merge-side snapshot-trust helper and the
+# final-bookkeeping snapshot/restore compensator that used to live here are
+# RETIRED. The compensator is no longer a second implementation in the ``merge/``
+# package: the merge executor now enrols its primary-checkout (non-coord)
+# bookkeeping bytes with the SINGLE owner compensator in
+# ``coordination.atomic_write`` (capture + restore), which also owns the
+# trusted-root containment these helpers used to carry. The projection helpers
+# below (``_project_status_bookkeeping_to_target`` and its trust/reconcile
+# support) survive — they are the coord→target projection, not a compensator.
 
 
 def _target_branch_still_at_baseline(
@@ -369,9 +359,6 @@ __all__ = [
     "_assert_status_path_within_target_surface",
     "_assert_status_surface_path_is_trusted",
     "_assert_status_surface_file_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
     "_target_branch_still_at_baseline",
     "_project_status_bookkeeping_to_target",
 ]

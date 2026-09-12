@@ -1,0 +1,88 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: PLAN-FRESH-001
+    lens: Structural root-cause (recurring-mistake class check)
+    severity: 3
+    title: "New CHANGELOG.md work item (IC-04) never mentions that root CHANGELOG.md is a symlink guarded by a CI sync-check, and the unchanged docs-freshness Gate Set bullet is now stale against it"
+    evidence:
+      - artifact: "plan.md § Scale/Scope (line ~73-76), § Project Structure (line 510-517), § Implementation Concern Map IC-04 (line 625-632) — all added by the fix commit, all say 'CHANGELOG.md — Repo root — entry documenting...' with no mention of the symlink"
+      - code: "scripts/docs/sync_changelog.py:1-26 — docstring: 'The root CHANGELOG.md is a symlink to [docs/changelog/CHANGELOG.md] ... Before 2026-07-04 the root file was a generated frontmatter-stripped mirror ... the two-file model made every contributor edit the wrong copy and trip docs-freshness, so the mirror was retired.'"
+      - code: ".github/workflows/docs-freshness.yml:43 (pull_request paths filter includes 'CHANGELOG.md') and :126-127 ('Check CHANGELOG sync (canonical -> root)', 'uv run python scripts/docs/sync_changelog.py --check')"
+      - artifact: "plan.md § The Gate Set, 'Architecture/docs consistency (docs-freshness workflow)' bullet (unchanged by this fix) — still says 'Mostly does NOT apply ... no new doc cross-reference beyond the one guide edit', which no longer accounts for the fix's own new CHANGELOG.md touch"
+    claim: >
+      The fix round added a real work item (add a CHANGELOG.md entry, per confirmed finding
+      PLAN-ARCH-001) but wrote it as a plain edit to "CHANGELOG.md" at the repo root, with no
+      reference to the fact that the root file is a *symlink* to the canonical
+      docs/changelog/CHANGELOG.md, and no reference to the CI-enforced
+      `sync_changelog.py --check` guard (wired into docs-freshness.yml, which is triggered on
+      this exact path). That guard script's own docstring documents that contributors editing
+      "the wrong copy" of the changelog is a class of mistake the repo already hit once and
+      hardened against by retiring the old generated-mirror model in favor of the symlink. A
+      work-package implementer following an editing pattern that replaces-rather-than-modifies
+      the target path (e.g. `sed -i`, or any "write to temp then rename over the original"
+      pattern) will silently turn the root CHANGELOG.md from a symlink into a regular file,
+      tripping the docs-freshness `sync_changelog.py --check` step this same mission's own diff
+      now triggers. Separately, the Gate Set's own docs-freshness bullet — left untouched by
+      this fix — still asserts "no new doc cross-reference beyond the one guide edit," which
+      is now false: the fix's own CHANGELOG.md addition falls inside docs-freshness.yml's PR
+      path filter and specifically inside the CHANGELOG-sync sub-check, neither of which the
+      Gate Set bullet names.
+    remediation: >
+      In IC-04's CHANGELOG.md item, name the canonical file explicitly
+      ("edit docs/changelog/CHANGELOG.md — CHANGELOG.md at the repo root is a symlink to it,
+      do not replace the symlink") and note that `scripts/docs/sync_changelog.py --check` (run
+      by docs-freshness.yml's "Check CHANGELOG sync" step) verifies the symlink survives the
+      edit. Update the Gate Set's "Architecture/docs consistency (docs-freshness workflow)"
+      bullet to name this newly-applicable sub-check instead of leaving the pre-fix "no new doc
+      cross-reference beyond the one guide edit" text standing unqualified.
+
+  - id: PLAN-FRESH-002
+    lens: Documentation precision / internal consistency
+    severity: 2
+    title: "Scale/Scope's 'no new files beyond the changelog entry' phrasing mischaracterizes an edit to an existing file as a new-file exception, and the CHANGELOG work item names no target section"
+    evidence:
+      - artifact: "plan.md § Scale/Scope, line 73-76: '...one `CHANGELOG.md` entry ... — no new files beyond the changelog entry, no new package.'"
+      - artifact: "plan.md § IC-04, line 625-632 (the CHANGELOG.md work item — no mention of which changelog section/heading the entry belongs under)"
+      - code: "docs/changelog/CHANGELOG.md — an existing, actively-maintained file (current section: '## [Unreleased] - 3.2.6rc2') with an established heading taxonomy, e.g. '### 💥 Breaking Changes' (line 1761 and others), '### ✨ Added', '### 🐛 Fixed', '### ♻️ Changed'"
+    claim: >
+      "no new files beyond the changelog entry" reads as if CHANGELOG.md itself is being
+      created by this mission, when it is a pre-existing, actively-maintained repo file (see
+      PLAN-FRESH-001) — only the entry inside it is new. This is a wording-level self-
+      contradiction against the Project Structure tree's own correct framing two sections later
+      ("CHANGELOG.md # Repo root — entry documenting..."), which does not claim the file is new.
+      Separately, IC-04's CHANGELOG item gives no guidance on which of the repo's established
+      changelog headings (the repo already uses a dedicated "💥 Breaking Changes" heading, which
+      is exactly what this entry is, per spec.md's own "exit-code-breaking behavior change"
+      framing) the new entry should land under, leaving a WP implementer to guess.
+    remediation: >
+      Reword Scale/Scope to "no new files — the changelog entry is added inside the existing
+      CHANGELOG.md" (or equivalent), and add to IC-04 that the entry belongs under a
+      "💥 Breaking Changes" heading in the current "## [Unreleased]" section, matching the
+      repo's established taxonomy.
+
+  - id: PLAN-FRESH-003
+    lens: Gates (evidentiary reproducibility)
+    severity: 2
+    title: "The Gate Set's fixed Contextive-glossary bullet claims docs/context/*.md was checked, but the shown reproducible command only searches the .contextive.yml file set"
+    evidence:
+      - artifact: "plan.md § The Gate Set, 'Contextive glossary' bullet: 'Checked directly across the full `.contextive.yml`/`.contextive/*.yml` file set repo-wide (all 13 files), plus `docs/context/*.md`:' followed by a fenced bash block that runs `find . -iname \"*.contextive.yml\" -o -path \"*/.contextive/*.yml\" | xargs grep -n ...` — no reference to docs/context/*.md anywhere in the command."
+    claim: >
+      The bullet's prose claims two things were checked (the 13 contextive files, and
+      docs/context/*.md) but only shows one reproducible command, which covers only the
+      contextive files. Independently re-running both checks (find|xargs grep over the 13
+      contextive files, and a separate grep over docs/context/*.md) confirms the bullet's
+      bottom-line conclusion (zero hits) still holds for both — so this is not a wrong
+      conclusion, but the evidence block presented as "checked directly" does not actually
+      reproduce the docs/context/*.md half of the claim, which is exactly the kind of
+      audit-trail/claim mismatch the prior confirmed finding PLAN-GOV-001 flagged for this same
+      bullet before this fix round.
+    remediation: >
+      Either fold a second command into the fenced block (e.g.
+      `grep -n "schema_invalid\|duplicate_id\|asset_path_escape\|drg_dangling_edge\|profile_skipped\|drg_root_graph_missing" docs/context/*.md`)
+      or drop "plus docs/context/*.md" from the prose if only the contextive file set is meant
+      to be the reproducible evidence.

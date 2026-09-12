@@ -1,5 +1,6 @@
 ---
 title: Prompts Do Not Discover Context, Commands Do
+description: 'Command-layer context resolution becomes canonical: prompt templates may no longer infer mission, work package, or base branch from cwd, branch name, or repo scans.'
 status: Proposed
 date: '2026-03-09'
 ---

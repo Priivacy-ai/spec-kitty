@@ -1,0 +1,80 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: TASKS-FRESH-001
+    lens: "fresh sweep post-fix"
+    severity: 3
+    title: New reviewer-guidance checkbox demands a T001 pytest trace for FR/NFR/C entries that are documentation-only or explicitly "nothing to test"
+    evidence:
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Reviewer Guidance, line 525-528 (new in this revision)"
+      - code: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/spec.md:178 (FR-011 — hand-edited contract-doc update, no pytest coverage anywhere in WP01)"
+      - code: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/spec.md:185 (NFR-002 — \"stated explicitly so this is read as considered and absent\", i.e. deliberately not a test target)"
+      - code: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/spec.md:186 (NFR-003 — \"no deploy, no irreversible external action\", same non-behavioral shape)"
+      - code: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/spec.md:197 (C-006 — a reviewer scope note, \"reviewers should not expect __all__ updates here\", not a pinnable behavior)"
+    claim: >
+      This revision added a new Reviewer Guidance bullet to WP01 (in response to FR-008/FR-010
+      previously lacking dedicated tests — that part of the fix is correct and verified against
+      T001's new test list). But the bullet is written as a blanket rule: "Confirm every entry in
+      this WP's requirement_refs frontmatter (FR-001 through FR-011, NFR-001-003, C-001, C-006)
+      traces to a named, committed T001 test — not only to a Definition-of-Done checkbox." Several
+      of those entries structurally cannot trace to a T001 pytest test: FR-011 is a hand-edited
+      Markdown contract-doc update (validated by markdownlint / check_docs_freshness.py, per T006,
+      not pytest); NFR-002 and NFR-003 are explicitly "considered and absent" non-behaviors with
+      nothing to assert; C-006 is a reviewer-scope clarification, not a pinnable behavior. A
+      reviewer following this checklist literally would either incorrectly block WP01 for "missing"
+      tests that cannot exist, or an implementer would waste effort inventing a spurious pytest for
+      a documentation diff to satisfy the letter of the checkbox. The range notation "FR-001
+      through FR-011" is also imprecise: WP01's own frontmatter requirement_refs skip FR-005,
+      FR-006, FR-007 (those belong to WP02/WP03), so a reviewer reading the range literally would
+      look for FRs this WP was never scoped to cover.
+    remediation: >
+      Narrow the checkbox to name only the requirement_refs that are genuinely pytest-testable
+      (FR-001-004, FR-008, FR-009, FR-010, NFR-001, C-001), and add an explicit carve-out sentence
+      for FR-011 ("verified via T006's markdownlint/check_docs_freshness.py gates, not a T001
+      pytest") and for NFR-002/NFR-003/C-006 ("scope/non-behavior notes — no test expected").
+      Replace the "FR-001 through FR-011" range with the actual list of FR IDs WP01 owns.
+
+  - id: TASKS-FRESH-002
+    lens: "fresh sweep post-fix"
+    severity: 4
+    title: New T009 step-5 fail-fast guard on InvocationPayload.alternatives risks breaking a pre-existing GREEN test outside this WP's own gate scope
+    evidence:
+      - artifact: "tasks/WP02-router-decision-alternatives.md § Subtask T009, step 5 (line 261, new in this revision) and § Context (line 106-117, new in this revision)"
+      - code: "src/specify_cli/invocation/executor.py:230-236 (InvocationPayload.to_dict(): `for s in self.__slots__: ... val = getattr(self, s, None)` — generically serializes every slot, including the new alternatives slot once added, with a silent None default)"
+      - code: "tests/invocation/test_dispatch_recommendation.py:398-411 (_sample_payload() constructs InvocationPayload without an alternatives kwarg) and :413-430 (test_to_dict_serializes_recommendation_and_is_json_safe / test_to_dict_recommendation_absent_serializes_to_none both call payload.to_dict() on that fixture)"
+      - artifact: "tasks/WP02-router-decision-alternatives.md § Subtask T010, step 1, line 290 (`pytest tests/specify_cli/invocation/ -v` — does not include the top-level tests/invocation/ directory)"
+    claim: >
+      WP02's Context section (new in this revision) correctly documents that InvocationPayload's
+      __init__ accepts arbitrary kwargs with no required-argument enforcement, and explicitly cites
+      tests/invocation/test_dispatch_recommendation.py's _sample_payload() as a live example of a
+      fixture that "already omits several slots this way with no error" via to_dict()'s
+      `getattr(self, s, None)` fallback. Having identified that exact mechanism, T009 step 5 then
+      requires adding a fail-fast guard "at the point alternatives is read for serialization (in
+      to_dict() and/or to_dry_run_dict(), whichever actually reads the slot)" that raises
+      RuntimeError when alternatives is missing. Because to_dict() iterates every entry in
+      __slots__ generically, once alternatives is added to __slots__ it IS "the point alternatives
+      is read for serialization" inside to_dict() too — so an implementer following this
+      instruction into to_dict() (the method the WP's own Context section just pointed at) will
+      make _sample_payload()'s two existing to_dict() calls raise RuntimeError, since that fixture
+      is never updated to pass alternatives= (it lives in tests/invocation/test_dispatch_recommendation.py,
+      which is WP01's owned file, not WP02's — WP02 does not touch it). This would silently break a
+      currently-GREEN, unrelated test. Worse, WP02's own T010 gate command,
+      `pytest tests/specify_cli/invocation/ -v`, is scoped to tests/specify_cli/invocation/ only —
+      a different, sibling directory from the top-level tests/invocation/ where
+      test_dispatch_recommendation.py lives (this repo's own file-marker note elsewhere in WP01
+      calls out that these are "distinct" paths) — so this regression would not be caught by any
+      gate this WP prescribes running. The codebase's own established idiom for exactly this
+      "older fixture omits a newer field" situation is defensive getattr-with-default (see
+      dispatch.py's _render_empty_charter_warning docstring: "payloads built without the kwarg
+      (e.g. pre-WP02 test fixtures) must not raise AttributeError here"), which the new guard
+      contradicts for this one field without accounting for it.
+    remediation: >
+      Restrict the fail-fast guard to to_dry_run_dict() only (the method WP01 actually introduces
+      and controls), not to_dict(), OR explicitly instruct updating
+      tests/invocation/test_dispatch_recommendation.py's _sample_payload() to pass alternatives=[]
+      as part of T009 (adding that file to WP02's owned_files/T010 gate scope). Either way, add
+      `pytest tests/invocation/test_dispatch_recommendation.py` to T010's gate command so the
+      regression, if introduced, is caught before commit.

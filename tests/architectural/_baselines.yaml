@@ -16,6 +16,15 @@
 #   a follow-up tracker ticket per FR-303.
 # - Shrinkage requires no extra workflow steps (just edit the number).
 
+# Runtime outbound ledgers (PR #3888): independent caps, not derived from live sets.
+test_layer_rules:
+  mission_runtime_allowed_specify_cli: 10  # justification: freeze the ten existing mission_runtime upward-import subpackage exceptions independently of runtime.
+  runtime_allowed_specify_cli: 23  # justification: freeze 22 existing subpackage exceptions plus the bare-root exception; no new production imports.
+test_runtime_charter_doctrine_boundary:
+  lazy_baseline_allowlist: 11  # justification: freeze existing lazy imports as exact (file, module) pairs across six runtime files.
+test_doctrine_census:
+  orphan_reached_exceptions: 2  # justification: freeze runtime_bridge_composition -> step_contracts and runtime_bridge_io -> step_projection as exact pairs.
+
 # tests/architectural/test_no_dead_modules.py
 # Per-category breakdown (FR-112 refactor).
 test_no_dead_modules:
@@ -31,34 +40,43 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 93  # justification: 93 auto-discovered migrations after #2816 added m_zz_runtime_state_backfill, registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer; it sorts after the charter folds and performs the fail-closed corpus cutover on upgrade.
+  category_1_auto_discovered_migrations: 105  # justification: 101->105: convergence #3689 adds m_3_2_6rc3_worktrees_gitignore_backfill; main #820 adds m_3_3_1_context_sources_consolidation; main #1006 adds m_3_2_6rc3_narrow_cursor_gitignore and m_3_2_6rc3_lint_report_gitignore_backfill. All are auto-discovered upgrade migrations with no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
   # src/ caller via MissionTypeRepository (WP14 mission-type commands).
   # 3 -> 4 (common-docs-consolidation post-merge remediation): added
-  # doctrine.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID,
-  # the Common Docs directive-id SSOT) consumed by
-  # scripts/docs/anti_sprawl_ratchet.py -- wired from scripts/, not src/, the
-  # same "build-script-consumed" pattern as the schema generators.
-  category_2_build_schema_generators: 4  # justification: doctrine.directives.common_docs consumed from scripts/docs, not src/
+  # doctrine.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID)
+  # consumed by scripts/docs/anti_sprawl_ratchet.py.
+  # 4 -> 3 (#2851 follow-up: anti-sprawl ratchet retired): the ratchet was its
+  # only consumer, so doctrine.directives.common_docs was deleted with it.
+  category_2_build_schema_generators: 3  # justification: 3 schema generator modules consumed by scripts/generate_schemas.py
   # justification: 1 external/CLI entry point invoked outside the
   # spec-kitty import graph (commit_guard_hook). Shrunk from 4 by
   # retire-standalone-tasks-cli WP04 (FR-007): the 3 standalone-tasks-surface
   # module entries dropped with the deleted surface (shrink — burn-down ok).
-  category_3_external_cli_entrypoints: 1
+  # 1 -> 2 (doctrine-charter-split-unification-01KZ0SRB WP12/D7): added
+  # doctrine.hatch_build, a hatchling custom build-hook module loaded via
+  # src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom] `path =
+  # "hatch_build.py"` declaration -- never imported from src/ Python code,
+  # same external-entrypoint class as commit_guard_hook.
+  category_3_external_cli_entrypoints: 2
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
-  # justification: 0 compat-shim WP-in-flight adapters. charter.extractor
-  # (the last entry) is fully deleted by charter-deadcode-noop-campsite
-  # WP02 -- module removed, test-only refs retired/reconstructed. Category
-  # fully drained (1->0 SHRINK).
-  category_5_wp_in_flight_adapters: 0
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
+  category_4_backcompat_shims: 1
+  # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
+  # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
+  # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
+  # tracked in #3518. Grown 0->2 for PR #3507 (charter.extractor previously drained
+  # this category to 0).
+  category_5_wp_in_flight_adapters: 2
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -85,7 +103,66 @@ test_no_dead_modules:
   # 3 -> 2 (#2816 runtime-state-corpus-cutover WP01): the backfill library now has a
   # live src/ caller (migration.runtime_state_cutover), so it is no longer an orphan;
   # the Cat-7 entry was removed. Shrink — reverses the #2684 deferral bump.
-  category_7_grandfathered_orphans: 2
+  # 2 -> 3 (verdict-seam-write-unification-01KZ9Q35 post-merge green-up,
+  # 2026-08-06): migration.verdict_provenance_backfill was added as a deferred
+  # caller-less backfill library (#3236 deferral bump).
+  # justification: 3 -> 2 (verdict-seam-write-unification-01KZ9Q35 pre-merge
+  # remediation, 2026-08-06): the #3236 wiring landed -- the FR-012/SC-008
+  # backfill now has live src/ callers (upgrade.migrations.
+  # m_zz_verdict_provenance_backfill + the accept provenance diagnostic), so
+  # migration.verdict_provenance_backfill is no longer an orphan and its Cat-7
+  # entry was removed. Shrink -- reverses the post-merge green-up bump, mirrors
+  # the #2816 backfill_runtime_state re-shrink-when-wired precedent.
+  # 2 -> 3 (#3262 consent program reconciliation, 2026-08-13):
+  # sync.admission_operations is WP05's deferred admission-operation record
+  # library; wiring tracked as a WP11 TODO(triage) in the allowlist entry.
+  # 3 -> 7 (M2 canonical integration, 2026-08-22; docs/bootstrap/M2-CANONICAL-INTEGRATION.json):
+  # justification: four reviewed M1 candidates landed modules with no src/ runtime caller
+  # (D2-T1 dashboard.csp, F2-T1 status.migrate_lifecycle_envelope, TRK-M1-04 tracker.gateway,
+  # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
+  # Registered as TODO(triage) so the fact is tracked, not hidden.
+  #
+  # 7 -> 3 (WIRE-M2-01..04, 2026-08-22, LOCAL-RC train lrc-w1): each bead wired exactly one
+  # of the four modules above from src/ and burned down its Cat-7 entry in turn:
+  #   7 -> 6 (WIRE-M2-01): tracker.gateway wired into LocalTrackerService._build_engine
+  #     (local_service.py) -- Beads mutations now build their connector via
+  #     gateway.build_gateway_beads_connector, never the ungated factory.build_connector.
+  #   6 -> 5 (WIRE-M2-02): D2-T1 dashboard.csp wired -- send_csp_header() is now called
+  #     from every send_response() site in handlers/{base,api,features,glossary,lint,
+  #     static}.py.
+  #   5 -> 4 (WIRE-M2-03): status.migrate_lifecycle_envelope now has a live src/ caller
+  #     (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope).
+  #   4 -> 3 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
+  #     wired into live_frame.py's identity-field parsing.
+  # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
+  # fully reverses the M2-canonical-integration deferral bump above.
+  #
+  # 3 -> 4 (Priivacy-ai/spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
+  # call at fan-out — written library-first with its contract pinned by tests,
+  # no src/ caller yet. Follow-up tracker ticket per FR-303:
+  # Priivacy-ai/spec-kitty#8 (the wiring consumer); the entry burns when that
+  # lands, per the stale-entry check.
+  #
+  # 4 -> 3 (Priivacy-ai/spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
+  # zeitgeist_client.resolution at the fan-out seam, so the module has a live
+  # src/ caller and its Cat-7 entry is burned.
+  #
+  # 3 -> 5 (issue-5-delete-sync-transport, 2026-08-25): net +2. -1 for
+  # sync.admission_operations, deleted outright with the sync transport (its
+  # #3262 WP11 wiring consumer died with it -- shrink). +3 for the collateral
+  # orphans whose ONLY src/ caller was the deleted transport
+  # (core.batch_partition, dossier.drift_detector,
+  # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
+  # the allowlist entry, per FR-303.
+  #
+  # 5 -> 2 (issue-116-wire-or-prune-orphaned-collateral, 2026-08-27): the
+  # three sync-transport collateral orphans (core.batch_partition,
+  # dossier.drift_detector, migration.envelope_seam) were each adjudicated
+  # PRUNE and deleted outright -- none had a viable low-risk wiring target
+  # after the sync transport's removal (issue #5). TODO(triage) notes burned.
+  category_7_grandfathered_orphans: 5  # justification: 8->5 after the latest main merge wired discovery_recursion, org_governance, and project_scan; the remaining orphan disposition is tracked by #925.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -94,11 +171,6 @@ test_migration_chain_integrity:
   # intentional skip of 1.x (0.14->2.0a5), and the canonical-context
   # rewrite (2.2->3.0).
   known_line_jumps: 4
-
-# tests/architectural/test_runtime_charter_doctrine_boundary.py
-# Empty allowlist today; C-004 caps this at 2 documented exceptions.
-test_runtime_charter_doctrine_boundary:
-  baseline_allowlist: 0
 
 # tests/architectural/test_auth_transport_singleton.py
 # NO CHANGE this mission per Slice F C-005 (auth-transport boundary
@@ -112,13 +184,6 @@ test_auth_transport_singleton:
   # next-sweep TODO. C-005 binds this value for the duration of
   # Slice F; do not edit downward in this mission.
   allowed_direct_httpx_files: 3
-
-# tests/architectural/test_compat_shims.py
-test_compat_shims:
-  # justification: 3 pure-shim adapter files under
-  # src/specify_cli/compat/_adapters/. Per C-006 this MUST shrink to
-  # 0 by 4.0 (the compat-planner mission is the burn-down owner).
-  pure_shim_files: 0  # the 3 pure-shim adapter files deleted (closed #2159/#2049)
 
 # tests/contract/test_example_round_trip.py
 # Populated by WP03 after the legacy-contract-allowlist discovery
@@ -151,128 +216,170 @@ test_example_round_trip:
   # +1 (#2469): doctrine-template-asset-kinds .../contracts/asset-kind.md sidecar-
   # manifest block — an illustrative shape sketch with rich inline annotations; the
   # executable AssetManifest schema + round-trip coverage live in test_pack_validator.py.
-  skip_marker_blocks: 6
+  # +1 (#1418/PR #2852): glossary-pack-doctrine-kind .../contracts/pack-schema.md
+  # illustrative glossary-pack YAML example — the round-trippable schema is the
+  # GlossaryTerm pydantic model + tests/doctrine/glossary_packs/ coverage.
+  # +1 (pre-existing on base): docs-ia-onboarding .../redirect-map-entry-contract.md
+  # skip marker landed upstream without a baseline bump; absorbed here to unblock CI.
+  # +4 (#2535 half A): doctrine-controlled-transition-gates .../contracts/gate-binding-schema.md
+  # four illustrative GateBinding YAML blocks (schema sketch, valid-instance, rejection
+  # cases, half-B inert-asset) — permanent non-executable exemptions; the executable
+  # GateBinding pydantic round-trip lives in test_gate_binding_schema.py.
+  # +1 (#2873): scopesource-gate-followup .../contracts/baseline-identity-contract.md
+  # illustrative BaselineTestResult.source_identity field-add snippet — permanent
+  # non-executable exemption; the executable round-trip lives in tests/review/test_baseline.py.
+  skip_marker_blocks: 13
 
-# tests/architectural/test_all_declarations_required.py
-# Populated by WP02 after the charter/kernel __all__ sweep. WP01
-# pins these at 0 so the meta-test can run; WP02 edits the values
-# (most likely keeps them at 0 as all modules are migrated).
-test_all_declarations_required:
-  charter_without_all: 0
-  kernel_without_all: 0
+# tests/architectural/test_no_inert_schema_slots.py — the zero-producer lint
+# (mission doctrine-silence-guards-01KYFV7Q, WP01).
+#
+# NOT an allowlist. Each entry is a declared doctrine slot that nothing in the
+# tree populates, frozen with a named owner and a required structural fix; see
+# tests/architectural/_inert_slots_baseline.yaml. Growth FAILS, shrinkage WARNS.
+# WP05 cleared its 8 (the FR-028 enhances/overrides excision, 59 -> 51); mission
+# foundational-values-creed-band-01KYFV8N still owns 26 (import_candidates'
+# first producer). Expect this to fall further, not rise.
+# 51 -> 48 (PR #3134 fixup): occurrence-map.schema.yaml's `from`/`moves`/`to`
+# rows were deleted from the baseline. `_inert_slots.py` now excludes that
+# whole schema from the slot walk (`_NON_DOCTRINE_SCHEMAS`) -- occurrence maps
+# are per-mission kitty-specs/ planning artifacts, structurally outside the
+# src-only producer scope, so no property of that schema (including PR #3134's
+# new `structural_targets`) can ever be assessed here. All three deleted rows
+# were `unassigned`, so that count drops 23 -> 20 too.
+# justification: 48 -> 47 (PR #3234): the `toolguide-references` row was deleted
+# from _inert_slots_baseline.yaml because `diagram-daisy.agent.yaml` now authors
+# that key -- a previously-inert schema slot became live. Legitimate shrinkage.
+# The deleted row was `unassigned`, so that count drops 20 -> 19 too.
+# justification: 47 -> 51 (mission dead-port-disposition-01M1TZVN, WP01): the
+# retired mission-DSL v1 `states:`/`transitions:` blocks in
+# packs/built-in/missions/*/mission.yaml were name-only producer matches for the
+# `orchestration` child slots `states`/`transitions` (models.py + mission.schema.yaml);
+# deleting the blocks (OD3) exposed four pre-existing inert slots. They are
+# owned by that mission (disposition delete-the-declaration), NOT unassigned,
+# so `unassigned_entries` stays at 19.
+# justification: 51 -> 37 (mission dead-port-disposition-01M1TZVN, WP03 rider
+# T014b): the whole `orchestration` state-machine family was DELETED from
+# `charter/offering/missions/models.py` + `mission.schema.yaml`
+# (MissionOrchestration / MissionStateObject / MissionTransition and the
+# REQUIRED `Mission.orchestration` field that nothing ever supplied), so all 14
+# baseline rows it declared went with it: the 4 owned by that mission
+# (states x2, transitions x2 -- disposition delete-the-declaration, kept) plus
+# the 10 provisional `unassigned` rows (from, from_state, on x2,
+# orchestration x2, required_artifacts x2, to x2). `unassigned` drops 19 -> 9
+# and `MAX_UNASSIGNED_ENTRIES` in `_inert_slots.py` is lowered to match.
+# Counts are measured (`len(BASELINE_SLOTS)`), not derived.
+test_no_inert_schema_slots:
+  baseline_entries: 37  # justification: the 14-row orchestration family deleted by dead-port-disposition-01M1TZVN T014b (see comment above).
+  # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
+  # anti-weasel test can never fire for, so this is the gate's only escape hatch;
+  # registering it here subjects widening it to the same `# justification:` policy
+  # as any other ratchet, instead of leaving it a bare module constant a future PR
+  # raises in one line.
+  unassigned_entries: 9
+  # The shrink-only cap on slots suppressed by a CODE producer alone. A single
+  # dead line anywhere under src/doctrine (`x = None`, a dict key, a kwarg —
+  # three shapes work) used to silence a new inert-slot finding with no baseline
+  # row and nothing visible in review. Tightening which AST node counts as a
+  # write only moves that hole, so the suppressions are made visible and capped
+  # instead. Measured: 14 of the 15 are false suppressions (name collisions and
+  # reader-not-producer sites) — the lint erred permissively. At 14/14 a new
+  # suppression can only enter as a genuine producer, argued in the diff.
+  # 14 -> 13 (PR #3134 fixup): the `field_path` / occurrence-map.schema.yaml
+  # masking row was retired along with the whole schema exclusion (see
+  # `test_no_inert_schema_slots` note above and `_NON_DOCTRINE_SCHEMAS` in
+  # `_inert_slots.py`) — that slot is no longer scanned at all, so it can no
+  # longer be code-only-suppressed either.
+  masking_suppressions: 13
 
-# tests/architectural/test_no_dead_symbols.py
-# Symbol-level dead-code ratchet introduced by WP02. Two per-category
-# entries mirror the per-category frozensets in the test module so the
-# Cat-A (Slice F deferred, charter+kernel) ratchet can be tracked
-# separately from the Cat-B (grandfathered legacy, doctrine + specify_cli)
-# ratchet. Per C-004 / C-006, Cat-A MUST shrink by >= 2 entries per
-# major release; target = 0 by Slice G. Cat-B is informational until
-# a follow-up mission widens C-007 beyond charter+kernel.
-test_no_dead_symbols:
-  # justification: 12 pre-existing charter+kernel public symbols whose
-  # ``__all__`` membership was inherited from before WP02 and whose
-  # lack of runtime callers reflects a "library written but never
-  # wired" carry-over. WP02 left their public-API contracts intact;
-  # a future mission must wire / prune / delete each. 13->12: shrank when
-  # WP03 (org-doctrine close-out) wired one Cat-A symbol; locked in here.
-  category_a_slice_f_deferred: 12
-  # justification: 271 pre-existing public symbols across doctrine +
-  # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
-  # FR-121 scopes WP02 to charter+kernel; this category is the
-  # carry-over surface for the next mission that widens the convention.
-  # 275->271 (org-doctrine close-out WP04): removed 5 now-wired/dropped
-  # stale entries (charter.pack_context::CharterPackConfigError,
-  # status.lifecycle_events::{mission_event_log_path,read_lifecycle_events},
-  # and the two events.py re-exports SignificanceEvaluatedPayload /
-  # TimeoutExpiredPayload dropped from __all__ while keeping imports).
-  # 286->237 (retire-standalone-tasks-cli WP04, FR-007 + Boy Scout): the
-  # standalone tasks surface was deleted, dropping the 13
-  # ``scripts.tasks.acceptance_support::*`` and 21 ``scripts.tasks.task_helpers::*``
-  # grandfathered entries. The same touch also sheds two now-LIVE entries that
-  # WP03's reconciliation left stale — ``specify_cli.acceptance::ArtifactEncodingError``
-  # and ``::normalize_feature_encoding`` gained callers via the canonical-home
-  # move, so the dead-symbol gate correctly demanded their removal. Recomputed to
-  # the live ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)``; a shrink (burn-down policy:
-  # a shrink needs no extra workflow).
-  # 237->216 (unshim-wave1-01KWKVHB #2292, WP03 T009): recomputed to the live
-  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` after removing sync.replay::* x8 and
-  # sync.tracker_client_glue::* x4 (the deleted modules' symbol rows). NOTE on
-  # arithmetic: spec FR-005 stated 237->224 (-13) on the assumption the recorded
-  # baseline matched live. The true post-WP01/WP02 live count was 227 (the 237
-  # baseline had drifted +10 above live via prior warn-on-shrink cleanups that
-  # never lowered it). WP03 removes 12 here -> live 215. Per the mission's own
-  # "accurate baselines for Wave 2 planning" intent (#2293) and the anti-vacuous-
-  # ratchet policy, this pins the honest live value rather than the stale-
-  # baseline arithmetic (224), which would have left a silent regrowth gap.
-  # Net arithmetic: 227 (pre-edit live) -12 (sync.replay/glue rows removed with
-  # the module deletions) +1 (frontmatter::update_field: a cascade-orphan whose
-  # sole src/ caller WAS the deleted task_profile; adopted-as-follow-up per C-002
-  # rather than editing the live frontmatter.py) = 216. (Aggregate view of the
-  # same result: base live 228 -13 rows incl. WP01's identity_aliases +1 = 216;
-  # the 227/-12 frame above is the post-WP01 slice.) Research D8's "strands no
-  # sibling" claim was falsified by the live dead-symbol gate -- recorded honestly.
-  # 216->215 (unshim-wave2-01KWMCAX #2326 WP07 T020): the singular
-  # frontmatter::update_field triad adopted-as-follow-up in wave1 is now DELETED
-  # (verified caller-less first; its twin update_fields stays live). Its row is
-  # drained from _CATEGORY_B_GRANDFATHERED_LEGACY, so the frozenset shrinks by
-  # exactly 1 (update_field was the sole newly-dead row this lane touched -- no
-  # other category_b entries went stale). Recomputed to the live
-  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 215 (NFR-004, honest live count).
-  # Shrink-only direction overall (237->215); the growth-above-baseline gate stays enforced.
-  # relocation-hardened-dead-code-scanners-01KX958P WP02 (T011, doc hygiene
-  # only -- this key is NOT read by test_ratchet_baselines, which maps only
-  # test_no_dead_modules CATEGORY_1..7 + fixed single-ratchets; dropping
-  # entries here trips no shrink-warn): re-keyed onto SymbolKey (FR-007);
-  # dropped 2 stale (charter_activate_app/charter_deactivate_app, FR-006);
-  # 18 more entries moved to the T013 structural auto-exempt (registered
-  # migration class / re-export shim) and are no longer hand-listed here.
-  # Honest live count (not the naive 215-2=213 the 2-drop alone would give,
-  # since drift + the auto-exempt migration both shrank this category):
-  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 193 (194 -2 stale -19 FR-010 auto-exempt, then -1 WorkPackageState pruned at the upstream/main reconciliation).
-  # test-suite-friction-remediation-01KXDKBX WP05 (T020, #2559/#2293): audited
-  # all 193 entries against the WP01-wired gate (dynamic-access detector now
-  # folded into ``_imports_by_target``) -- zero are dangling (every SymbolKey
-  # still resolves to a live ``__all__`` declaration) and zero went stale
-  # (none gained a caller via the newly-wired detector), so none qualify as
-  # "genuinely dead" under FR-002/FR-004. Cross-checked WP18's 8 deleted
-  # ``runtime_bridge`` self-alias re-exports (`_extract_wp_heading` et al.):
-  # none were ``__all__``-declared (private helpers, never allowlisted here),
-  # so no stale rows resulted. Count stays 193 -- WP02 was re-scoped
-  # classify-only (0 delegate deletions; see tracer-design-decisions.md) and
-  # WP18's deletions didn't intersect this category, so the burn-down
-  # candidate this baseline anticipated didn't materialize this cycle. The
-  # mission's net allowlist shrinkage instead lands via Category C
-  # (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` 4->0, FR-002): the
-  # aggregate ``_SYMBOL_ALLOWLIST`` still strictly decreases (317->313).
-  category_b_grandfathered_legacy: 193
-  # 6->4->1 (org-doctrine close-out WP04, then doctrine-tension-edges-01KY1WPC):
-  # removed the now-wired charter.invocation_context::{OperationalContext,
-  # build_operational_context} (WP14 added live src/ callers), then pruned
-  # the now-dangling charter.consistency_check::ConsistencyReport entry
-  # (removed from __all__ instead of re-pinning its hash after WP05 extended
-  # the dataclass -- no external caller imports it by name). Remaining 1:
-  # ContextPreconditionError.
-  category_c_wp_in_flight_charter_scope: 1
-  # WP11 removal trigger reached: all 4 workflow registry symbols now have
-  # live src/ callers (planner.py imports get_workflow, UnknownWorkflowError,
-  # list_available_workflows from workflow_registry, and ActionStep from
-  # workflow_schema). Category shrunk to 0.
-  category_c_wp_in_flight_workflow_registry: 0
-  # justification: 8 type/error symbols introduced by WP05/WP06 of mission
-  # charter-pack-activation-layer-01KSYE4V whose production callers (CLI
-  # activation command, DRG pipeline) are in-flight in later WPs of the same
-  # mission. All symbols ship ahead of wiring per the activation-layer design.
-  category_c_wp_in_flight_charter_activation: 8  # justification: activate_cmd removed from __all__ (typer callback, consistent with deactivate/list); remaining 8 are type/error symbols with no direct src/ caller yet
-  # justification: 15 mission-authored charter/doctrine public symbols
-  # re-allowlisted by org-doctrine-profile-integrity-closeout WP04 (the
-  # parent's WP15 allowlist was dropped in the specify_cli.next->runtime.next
-  # upstream rebase). Re-derived against the live import graph after WP03's
-  # charter.template_catalog facade landed (the 4 doctrine.template_catalog
-  # accessors remain genuinely unimported). Tracker: WP06/T021 (DIRECTIVE_013).
-  category_c_org_doctrine_closeout: 15
-  # category_c_upstream_status_service removed by execution-context-unification
-  # WP09 (#1622/#391): the 2 truly-dead functions (append_event_log_batch,
-  # read_wp_lane_actor) were deleted and the 3 internally-used types
-  # (EventLogWriteTarget, StatusContractError, StatusReadSource) were
-  # de-exported from status_service.__all__, so the baseline is now 0.
+# tests/architectural/test_reference_enum_ratchet.py
+# The four `<kind>_reference.type` enums in src/doctrine/schemas/. `_BASELINE`
+# there is a mutable, shrink-only member set; Charter Burn-down Policy (a) puts
+# every such allowlist under a baseline here, so widening an enum needs the
+# `# justification:` diff rather than a one-line module edit. Counted as flat
+# `<definition_key>:<member>` slots (BASELINE_MEMBER_SLOTS) so the four sets
+# reduce to one number: 9 + 7 + 9 + 9. The 9-vs-7 split is unadjudicated --
+# see #2976 -- so expect this to SHRINK when it is settled, never grow.
+test_reference_enum_ratchet:
+  baseline_members: 34
+
+# tests/architectural/test_egress_consent_boundary.py
+# Issue #3030 (P0 confidentiality). The egress boundary permits a transmit
+# primitive only in a file carrying an explicit allowance. Both sets are
+# ratcheted here so this gate cannot be silenced by a one-line module edit —
+# adding a file requires this diff plus a `# justification:` naming why the
+# sink carries no project data, or why its consent seam is sound.
+test_egress_consent_boundary:
+  # justification: 28 files hold a transmit primitive with a recorded reason —
+  # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
+  # and E6-E13), 1 per-project transport whose every caller is separately
+  # seamed (E14), and 15 that are
+  # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
+  # the readiness probe, four localhost control endpoints and `sync doctor`'s
+  # empty-body connectivity probe (E18). Each was verified individually, not
+  # assumed. 12 + 1 + 14 = 27. Earlier, 27 -> 28: the callee-agnostic
+  # injected-transport rule (added after
+  # E20 showed a `poster(...)` parameter is invisible to any method-name rule)
+  # surfaced cli/commands/sync.py, which calls request_with_fallback_sync
+  # rather than requests.post. That is the gate finding a file nobody had
+  # reasoned about, which is its purpose — not a new leak.
+  # 28 -> 27 (#3167): E15, the UNREACHABLE allowance for the queue-backed drain
+  # in sync/batch.py, was RETIRED — the drain was deleted rather than gated, so
+  # the module holds zero transmit primitives and is no longer on the allowlist
+  # at all. This ratchet is shrink-only (growth fails, shrinkage merely warns),
+  # so leaving it at 28 would have silently held the ceiling one free
+  # unconsented-egress file too high. That is the drift #3167 exists to close,
+  # which is why the count is corrected here even though nothing reds on it.
+  # 27 -> 28 (per-project-sync-consent-ledgers WP10/T047):
+  # sync/daemon_protocol.py owns one authenticated, versioned quiesce/restart
+  # call to the exact current daemon. Its constructor parses and requires an
+  # exact http://127.0.0.1:<port> or http://localhost:<port> authority; remote,
+  # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
+  # This is loopback control, not project-data egress, and its exact sink count
+  # is independently pinned in test_egress_consent_boundary.py.
+  # Both sides of the #14 merge moved this counter off 28, in opposite
+  # directions, and both allowances are kept:
+  # - Priivacy-ai/spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
+  #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
+  #   credential traffic gated by team membership over Bearer auth, not
+  #   per-project consent.
+  # - E4 re-homing (planning epic #4, issue spec-kitty#2) REMOVED
+  #   specify_cli/dashboard/handlers/api.py — its /api/sync/trigger proxy
+  #   route was deleted, so the file holds zero transmit primitives and left
+  #   the allowlist entirely (the loopback health probe it used to borrow
+  #   lives in dashboard/lifecycle.py now). Recorded so the ceiling does not
+  #   silently hold a free file.
+  # Recount at the merge (sk-impl-spec-kitty-9): the merged allowlist measures
+  # 26 entries (resolution.py in, api.py out), not the 28 the arithmetic of
+  # the two recorded bumps suggests — the number had drifted +2 ahead of the
+  # real set before either branch touched it. Corrected to the measured count
+  # per the #3167 rule above: this ratchet is shrink-only (growth fails,
+  # shrinkage merely warns), but the ceiling should not hold free files.
+  # Growth here means a new file transmits: argue it in the diff.
+  #
+  # 26 -> 14 (issue-5-delete-sync-transport, 2026-08-25): the sync transport's
+  # deletion removed twelve sink-bearing files outright — delivery/receivers.py,
+  # delivery/dispatcher.py, sync/body_transport.py, sync/runtime.py, sync/events.py,
+  # invocation/propagator.py's E6 row was RE-ANCHORED (not removed) on its
+  # surviving auth seam; sync/sharing_client.py, sync/history_import/upload.py,
+  # sync/client.py, cli/commands/sync.py, and the three loopback rows
+  # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
+  # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
+  # Recorded so the ceiling does not silently hold free files.
+  # 14 -> 15 (#217): doctrine HTTPS fetches now query Artifactory AQL for the
+  # configured public pack item's version and SHA-256. The query identifies
+  # repo/path/name from the operator-configured doctrine URL and returns
+  # metadata; it transmits no project data.
+  # 15 -> 16 (#4125): the detached dashboard spawn's readiness probe now GETs
+  # the child's /api/health on 127.0.0.1 to verify the listener serves this
+  # project's identity (project_path + token) instead of a bare connect_ex —
+  # same E18 loopback-control class as dashboard/lifecycle.py, on the spawn
+  # side of the same boundary. Sends no payload beyond the GET itself.
+  egress_allowlist_files: 16
+  # justification: 0. The module asserts this set is EMPTY, so any entry is a
+  # red build; pinning the baseline at 0 makes recording one cost a second
+  # visible diff here as well. Growth is a NEW unconsented egress path — the
+  # P0 this mission exists to close — so the intended response to a finding is
+  # to fix the path, never to register it. E1/E2/E3 were the founding entries
+  # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
+  known_ungated_files: 0

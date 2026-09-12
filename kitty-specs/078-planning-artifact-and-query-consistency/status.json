@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 35,
   "last_event_id": "01KNQ89CGY23P16V09CP8XP866",
   "materialized_at": "2026-04-08T19:14:43.358672+00:00",
   "mission_number": "78",
@@ -19,38 +19,81 @@
   "work_packages": {
     "WP01": {
       "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "agent": "opencode:gpt-5.4:orchestrator:orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNQ88SP3CNJFP7381PSKSMPD",
-      "last_transition_at": "2026-04-08T19:14:24.068029+00:00"
+      "last_transition_at": "2026-04-08T19:14:24.068029+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "agent": "opencode:gpt-5.4:orchestrator:orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNQ88TQF6XPFNS5PKTBSN2MB",
-      "last_transition_at": "2026-04-08T19:14:25.136044+00:00"
+      "last_transition_at": "2026-04-08T19:14:25.136044+00:00",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "agent": "opencode:gpt-5.4:orchestrator:orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNQ88VQPK7Y58JT7N4W9XKXK",
-      "last_transition_at": "2026-04-08T19:14:26.166745+00:00"
+      "last_transition_at": "2026-04-08T19:14:26.166745+00:00",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "agent": "opencode:gpt-5.4:orchestrator:orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNQ88WQAF4FBGN9E6V2SGC07",
-      "last_transition_at": "2026-04-08T19:14:27.178330+00:00"
+      "last_transition_at": "2026-04-08T19:14:27.178330+00:00",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP05": {
       "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "agent": "opencode:gpt-5.4:orchestrator:orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KNQ89CGY23P16V09CP8XP866",
-      "last_transition_at": "2026-04-08T19:14:43.358672+00:00"
+      "last_transition_at": "2026-04-08T19:14:43.358672+00:00",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     }
   }
 }

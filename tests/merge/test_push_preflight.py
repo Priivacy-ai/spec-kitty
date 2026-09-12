@@ -50,43 +50,6 @@ def test_domain_preflight_does_not_import_push_preflight_at_module_load() -> Non
 
 
 # ---------------------------------------------------------------------------
-# T010 Test 1: no-push path never calls check_push_safety
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("state", ["in_sync", "ahead", "behind", "diverged", "no_tracking_branch"])
-def test_merge_no_push_never_calls_check_push_safety(state: str) -> None:
-    """When push=False, push_preflight.check_push_safety must never be called.
-
-    This verifies the is_safe_to_push predicate semantics for each origin state,
-    and confirms that check_push_safety is not invoked in the no-push path.
-    """
-    from specify_cli.merge.push_preflight import TargetBranchSyncStatus
-
-    status = TargetBranchSyncStatus(
-        target_branch="main",
-        tracking_branch="origin/main" if state != "no_tracking_branch" else None,
-        ahead_count=1 if state in ("ahead", "diverged") else 0,
-        behind_count=1 if state in ("behind", "diverged") else 0,
-        state=state,  # type: ignore[arg-type]
-    )
-
-    # For no-push path: check_push_safety is never called. The push predicate
-    # may still be false for states that would fail after local mutation.
-    if state in {"behind", "diverged"}:
-        assert not status.is_safe_to_push
-    else:
-        assert status.is_safe_to_push
-
-    # Local merge is always safe regardless of origin state (is_safe deprecated alias).
-    assert status.is_safe is True
-
-    # The gate itself (if push:) is in merge.py — check_push_safety is never
-    # invoked in the no-push path, so we simply confirm it was not called here.
-    # (No mock needed: we never invoked it above.)
-
-
-# ---------------------------------------------------------------------------
 # T010 Test 2: is_safe_to_push predicate for all 5 states
 # ---------------------------------------------------------------------------
 
@@ -110,7 +73,7 @@ def test_is_safe_to_push_predicate(state: str, expected_safe: bool) -> None:
         tracking_branch="origin/main" if state != "no_tracking_branch" else None,
         ahead_count=1 if state in ("ahead", "diverged") else 0,
         behind_count=1 if state in ("behind", "diverged") else 0,
-        state=state,  # type: ignore[arg-type]
+        state=state,
     )
     assert status.is_safe_to_push == expected_safe
 

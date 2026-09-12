@@ -16,7 +16,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import Any
 
@@ -322,4 +322,4 @@ def _parse_retry_after(value: Any) -> float:
 
 
 def _iso_now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return now_utc_stamp()

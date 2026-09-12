@@ -1,0 +1,80 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: pr-merged-001
+    verdict: confirmed
+    reason: Independently reproduced at both tiers — calling gather_artifact_presence with a schema-invalid manifest (built-in tier via a patched MissionTemplateRepository, org tier via a patched _resolve_org_manifest_mapping) raises a bare pydantic_core.ValidationError in both cases, while required_artifacts_for on the identical bad input raises ManifestSchemaError, matching the finding exactly.
+    notes: |
+      Reproduction (own probes, not the lenses'): three scripts run against the live checkout
+      at HEAD 06e7a8bdb via monkeypatching (no tree mutation):
+        1. Patched charter.missions.MissionTemplateRepository.default() to return a config
+           whose .parsed is schema-invalid (missing required fields + extra_forbidden field).
+           gather_artifact_presence(feature_dir, mission_family="software-dev", step_id="specify")
+           raised pydantic_core._pydantic_core.ValidationError — uncaught.
+        2. Patched runtime_bridge_io._resolve_org_manifest_mapping to return the same bad dict,
+           forcing the org-tier branch (:904) inside _presence_filenames_for. Same result: bare
+           pydantic_core.ValidationError, not ManifestSchemaError.
+        3. Same bad input through specify_cli.runtime.resolver.required_artifacts_for (which
+           calls the guarded _load_expected_artifact_manifest) correctly raised
+           specify_cli.dossier.manifest.ManifestSchemaError with a populated origin.
+      This confirms the divergence the finding describes: gather_artifact_presence's first pass
+      through _presence_filenames_for (runtime_bridge_io.py:904/909, unguarded model_validate())
+      crashes before required_artifacts_for (called later, at :1116-1122, only if the earlier
+      call didn't already blow up) ever gets a chance to produce the domain error.
+
+      Production reachability: gather_artifact_presence is called unconditionally from BOTH real
+      CLI-level guard entry points — runtime_bridge.py:781 (_check_cli_guards, invoked on every
+      step's guard check) and runtime_bridge_composition.py:486 (_check_composed_action_guard,
+      the composed-action path). Neither caller wraps the call in a try/except for ValidationError
+      or ManifestSchemaError. There is no schema validation earlier in the org-tier resolution
+      chain (resolve_org_expected_artifacts only checks the file parses as YAML, per its own
+      docstring) that would catch a schema-invalid-but-syntactically-valid org manifest before it
+      reaches _presence_filenames_for. So a hand-authored org-pack expected-artifacts.yaml with a
+      schema mistake (extra field, wrong type, missing required key) is a realistic, not merely
+      theoretical, trigger — and it crashes every guard check for that mission family, not just
+      one step.
+
+      spec.md:455-478 (FR-010) check: read directly. FR-010's literal text names one function —
+      resolver.py::_load_expected_artifact_manifest — and both its branches (built-in ~:653,
+      org-tier ~:630-648) ARE correctly wrapped in try/except ValidationError -> ManifestSchemaError,
+      confirmed by reading resolver.py:557-657. FR-010 does not name runtime_bridge_io.py or
+      _presence_filenames_for by symbol. However FR-010's own stated rationale is explicit and
+      general: "WP02 (FR-008) already edits _load_expected_artifact_manifest to add org-tier
+      awareness — the change that, for the first time, makes this exact model_validate(...) call
+      reachable... Rather than leave that newly-introduced crash exposure as an undocumented side
+      effect of FR-008, this mission closes it." The same WP02/FR-008 also added the identical
+      org-tier-lookup + unguarded model_validate() pattern to _presence_filenames_for (its own
+      docstring cites "FR-008 (WP02)" for exactly this addition) — the same newly-introduced crash
+      exposure FR-010 says it exists to close, left open in a sibling function touched by the same
+      work package. The finding's framing ("requires... at both tiers on this mission's call path")
+      is a fair reading of FR-010's intent even though the FR's literal text under-names its scope;
+      this is not the lenses inventing a requirement, it's the FR's own stated design rationale
+      applying to code the same WP wrote and left inconsistent with itself.
+
+      Deferred #3412 check: NOT the same item, explicit no. Spec.md's FR-010 item #2 names the
+      deferred, out-of-scope gap as org-tier YAML-SYNTAX failures degrading silently via
+      resolve_org_expected_artifacts's WARNING-log-and-None path (unparseable YAML). This finding
+      is about SCHEMA-invalid content — valid, parseable YAML that fails ExpectedArtifactManifest's
+      pydantic validation (extra="forbid", wrong types, missing required keys) — a categorically
+      different failure surfacing at a different point in the pipeline (model_validate(), which
+      only runs after resolve_org_expected_artifacts has already successfully returned a parsed
+      mapping). Confirmed directly from the docstrings: resolve_org_expected_artifacts's own
+      docstring says a file that "fails to parse as a YAML mapping is treated the same as no
+      matching file" (the deferred #3412 behavior) — that is a wholly separate code path from the
+      model_validate() ValidationError this finding reproduces.
+
+      Severity: agree severity 4 is right, not inflated. This is not merely "loud crash on already-
+      broken input" in the sense of the repo's rejected-input case — the whole reason this mission
+      exists (title: custom-mission-guard-failure-blocking-inert) is to make guard failures loud
+      and correct instead of silently inert; FR-010 exists specifically to replace a bare crash
+      with a legible domain error on the primary, most-frequently-exercised call path
+      (every guard check on every step, vs. required_artifacts_for's narrower direct-call usage).
+      Leaving the more heavily-trafficked path emitting a raw pydantic traceback instead of the
+      promised ManifestSchemaError defeats the FR's actual purpose for the majority of real
+      invocations, and does so for every guard check of the affected mission family, not just the
+      one triggering step — that blast radius plus the coverage gap (TestManifestSchemaErrorPerTier
+      exercises only required_artifacts_for, confirmed by reading tests/specify_cli/runtime/
+      test_configured_artifact_name.py:524-593) supports blocking severity.

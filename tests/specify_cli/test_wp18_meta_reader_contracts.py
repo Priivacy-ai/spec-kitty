@@ -1,25 +1,7 @@
-"""Contract tests for WP18 cluster-2b meta-reader migration (FR-006c).
+"""Live consumer tests for the WP18 meta-reader migration (FR-006c).
 
-These tests pin the **observable contract** of each site converted by WP18:
-
-- ``retrospective.generator`` — was local ``_load_meta`` (silent-empty dict)
-- ``cli.commands.review`` — was local ``_load_meta`` (silent-empty dict)
-- ``verify_enhanced._resolve_mission_from_feature`` — was lazy import with
-  broad ``except Exception: pass``
-
-All three sites now delegate to ``load_meta_or_empty`` (contract (c)): returns
-``{}`` for a *missing* file **and** for a *malformed* file.  The malformed arm
-is the mutation-killer — an over-absorb mutant (e.g. always returning ``{}``)
-only breaks the malformed cell.
-
-The tests assert the **return value** of the consuming functions, never the
-internal ``load_meta_or_empty`` call-graph (CT4/D036).
-
-Negative control pairs
------------------------
-Each "silent-empty" site has TWO cells:
-  - missing file → ``{}``  (control)
-  - malformed file → ``{}``  (mutation-killer)
+The canonical reader contract is covered in ``test_mission_metadata.py``.
+This module retains only observable ``verify_enhanced`` consumer behavior.
 
 Production-shaped identity
 ---------------------------
@@ -75,86 +57,6 @@ def _seed_malformed(feature_dir: Path) -> None:
 
 
 # ===========================================================================
-# retrospective.generator: _load_meta removed → load_meta_or_empty (FR-006c)
-#
-# Observable contract via generate_retrospective's meta access:
-#   meta = load_meta_or_empty(feature_dir)  # was _load_meta(feature_dir)
-# The consuming site is at the top of generate_retrospective; the function
-# reads ``meta.get("mission_slug")`` etc. A missing/malformed file must
-# NOT raise — it silently yields an empty mapping.
-#
-# We test ``load_meta_or_empty`` directly as the extracted sub-contract
-# because testing it through the full ``generate_retrospective`` would
-# require a complete fixture setup (policy, spec.md, etc.) and would assert
-# on the wrong surface (CT4: don't test call-args, test observable return).
-# ===========================================================================
-
-
-def test_retrospective_generator_silent_empty_on_missing_meta(tmp_path: Path) -> None:
-    """Missing meta.json must return {} — never raise (contract c, missing arm)."""
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    # No meta.json written — dir is empty
-    result = load_meta_or_empty(tmp_path)
-    assert result == {}
-
-
-def test_retrospective_generator_silent_empty_on_malformed_meta(tmp_path: Path) -> None:
-    """Malformed meta.json must return {} — never raise (contract c, malformed arm).
-
-    This is the mutation-killer: an over-absorb mutant that always returns {}
-    will pass the missing-file cell but must also hold here.  The malformed
-    arm is where silent-empty drift hides.
-    """
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    _seed_malformed(tmp_path)
-    result = load_meta_or_empty(tmp_path)
-    assert result == {}
-
-
-def test_retrospective_generator_returns_dict_on_valid_meta(tmp_path: Path) -> None:
-    """A valid meta.json returns the parsed mapping — not {} (positive control)."""
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    expected = _seed_valid(tmp_path)
-    result = load_meta_or_empty(tmp_path)
-    assert result == expected
-
-
-# ===========================================================================
-# cli.commands.review: _load_meta removed → load_meta_or_empty (FR-006c)
-#
-# The former local ``_load_meta`` in review/__init__.py is removed;
-# the call site ``meta = _load_meta(feature_dir)`` now reads
-# ``meta = load_meta_or_empty(feature_dir)``.
-#
-# Contract: same silent-empty semantics as the retrospective site.
-# We assert via the shared canonical reader (identical sub-contract).
-# ===========================================================================
-
-
-def test_review_meta_reader_silent_empty_on_missing(tmp_path: Path) -> None:
-    """review/_load_meta removed: missing file → {} (contract c, missing arm)."""
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    result = load_meta_or_empty(tmp_path)
-    assert result == {}
-
-
-def test_review_meta_reader_silent_empty_on_malformed(tmp_path: Path) -> None:
-    """review/_load_meta removed: malformed file → {} (contract c, malformed arm).
-
-    Malformed arm is the mutation-killer — must be asserted explicitly.
-    """
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    _seed_malformed(tmp_path)
-    result = load_meta_or_empty(tmp_path)
-    assert result == {}
-
-
-# ===========================================================================
 # verify_enhanced._resolve_mission_from_feature: lazy import + broad except
 # removed → module-level load_meta_or_empty (FR-006c campsite)
 #
@@ -198,10 +100,18 @@ def test_resolve_mission_from_feature_returns_mission_type(tmp_path: Path) -> No
     assert result == "research"
 
 
-def test_resolve_mission_from_feature_falls_back_to_legacy_mission_field(
+def test_resolve_mission_from_feature_returns_none_for_legacy_only_mission_field(
     tmp_path: Path,
 ) -> None:
-    """Legacy meta.json with ``mission`` key (no mission_type) → returns that value."""
+    """Legacy-only meta.json (``mission`` key, no ``mission_type``) → returns None.
+
+    rc3 M5 (FR-002, ADR 2026-08-22-1) retires the legacy ``mission`` fallback:
+    ``_resolve_mission_from_feature`` routes through the single canonical
+    ``read_mission_type`` seam, which reads only ``mission_type``. A
+    legacy-only mission is therefore typeless here (not resolved to its old
+    legacy value) until backfilled via ``spec-kitty migrate
+    backfill-mission-type``.
+    """
     from specify_cli.verify_enhanced import _resolve_mission_from_feature
 
     meta = _valid_meta()
@@ -210,4 +120,4 @@ def test_resolve_mission_from_feature_falls_back_to_legacy_mission_field(
     write_meta(tmp_path, meta, validate=False)
 
     result = _resolve_mission_from_feature(tmp_path)
-    assert result == "documentation"
+    assert result is None

@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >
+      Commit fc5741b97 adds an explicit "Bridge to spec.md's Edge Cases" clause to
+      validate_activatable_mission_type's docstring naming both UnknownMissionTypeError
+      (spec.md's read-path governance) and plan_activation's available_ids membership
+      check / UnknownActivationIdError (the activation-time analogue that fires first),
+      stating they are "not in tension" and each governs its own path -- this is a
+      substantive addition, not a restatement, and the UnknownActivationIdError claim
+      is corroborated against src/charter/activation_engine.py:193-208.

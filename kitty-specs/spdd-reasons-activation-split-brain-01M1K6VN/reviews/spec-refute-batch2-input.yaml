@@ -1,0 +1,183 @@
+findings:
+- id: SPEC-ARCH-003
+  lens: INV-2 resolution fidelity
+  severity: 2
+  title: Spec's description of "the real activation authority" omits the separate activated_kinds coarse
+    gate consulted by the DRG activation filter
+  evidence:
+  - artifact: spec.md Summary and Decision Record 1 ("PackContext.from_config ... is the real, current
+      activation authority"; the algorithm at FR-001 checks only the three per-kind lists)
+  - code: "src/charter/activation/drg_activation.py:433 \u2014 `_node_is_activated` step 2: `if plural\
+      \ not in pack_context.activated_kinds: return False` \u2014 a coarse per-KIND gate applied BEFORE\
+      \ the per-artifact-ID gate FR-001 replicates"
+  - code: "src/charter/activation/compiler.py:153-226 \u2014 `_resolve_config_activated_roots` (the function\
+      \ `compile_charter`'s docstring actually cites as the config.activated_* authority) does NOT consult\
+      \ `pack_context.activated_kinds` at all, so this omission does not create a fidelity gap against\
+      \ `compile_charter` specifically"
+  claim: "`PackContext` carries a second, independent activation dimension \u2014 `activated_kinds` (a\
+    \ coarse \"is this whole artifact KIND on\" gate, e.g. `activated_kinds: [\"directives\"]` would exclude\
+    \ ALL paradigms/tactics regardless of what `activated_paradigms`/`activated_tactics` list) \u2014\
+    \ that is consulted by the DRG activation filter (`_node_is_activated`, `drg_activation.py:433`, which\
+    \ Decision Record 2 itself cites as \"correct\" gating behavior for `filter_graph_by_activation`)\
+    \ but is NEVER mentioned in FR-001's four-step algorithm or in Decision Record 1's \"what Option A\
+    \ actually requires\" enumeration. Independently verified this specific omission does NOT create an\
+    \ actual divergence for `is_spdd_reasons_active` itself: `compile_charter`'s own config-activated-ids\
+    \ resolution (`_resolve_config_activated_roots`) likewise never consults `activated_kinds`, so FR-001's\
+    \ per-ID-only algorithm is faithful to the authority the spec's Summary actually cites. This is filed\
+    \ as a documentation-completeness nit, not a correctness defect: a future reader (or a later mission\
+    \ extending this fix) could reasonably assume the FR-001 algorithm is the *complete* activation picture\
+    \ and try to \"fix\" it to also honor `activated_kinds`, which would then diverge from `compile_charter`'s\
+    \ real behavior in the opposite direction.\n"
+  remediation: "Add one sentence to Decision Record 1 (or a code comment in the rewritten `is_spdd_reasons_active`)\
+    \ stating explicitly that `activated_kinds` is a deliberately out-of-scope, separate activation dimension\
+    \ not consulted here, because `compile_charter`'s own `activated_*`-authority resolution (`_resolve_config_activated_roots`)\
+    \ does not consult it either \u2014 so a future reader does not \"fix\" this into a new divergence.\n"
+- id: SPEC-ARCH-004
+  lens: INV-2 resolution fidelity (nit)
+  severity: 1
+  title: Decision Record 1 says the rewrite uses "only stdlib YAML parsing" but the codebase's actual
+    parser for both files is the third-party ruamel.yaml, not the standard library
+  evidence:
+  - artifact: 'spec.md Decision Record 1: "only stdlib YAML parsing of the two files, mirroring the ''narrow
+      compat read'' idiom the module already uses"'
+  - code: "src/charter/offering/spdd_reasons/activation.py:197 \u2014 `yaml = YAML(typ=\"safe\")` (ruamel.yaml)"
+  - code: "src/charter/activation/pack_context.py:32,294-298 \u2014 `from ruamel.yaml import YAML`; `_yaml_loader()`\
+      \ constructs a `ruamel.yaml.YAML()` round-trip parser"
+  claim: "Python's standard library has no built-in YAML support at all; both the existing `activation.py`\
+    \ module and `PackContext`'s config/charter.yaml readers use the third-party `ruamel.yaml` package.\
+    \ \"Stdlib YAML parsing\" is imprecise \u2014 a reader could take it to mean the rewrite should avoid\
+    \ a third-party dependency the rest of the module (and the file it's parsing) already depends on,\
+    \ which would be a wrong constraint.\n"
+  remediation: 'Reword to "raw YAML parsing (ruamel.yaml, matching the module''s existing dependency)"
+    or similar, so the constraint being expressed (no `charter.activation` Python-class imports, not "no
+    third-party libraries") is unambiguous.
+
+    '
+- id: SPEC-VERIFY-001
+  lens: "MISSION-DERIVED LENS 1 \u2014 silent-success carve-out honesty (FR-004 falsifiability)"
+  severity: 4
+  title: FR-004's call-site-reachability clause has no acceptance criterion, and the answer it defers
+    to 'implementation time' is already determinable now
+  evidence:
+  - artifact: "spec.md \xA7 FR-004 (Requirements table) and \xA7 Edge Cases (first bullet, '.kittify/config.yaml\
+      \ is entirely absent')"
+  - code: "src/specify_cli/cli/commands/init.py:910 (install_skills_for_agent(project_path, agent_key,\
+      \ agent_skills, ...) \u2014 called from spec-kitty init)"
+  - code: src/specify_cli/skills/installer.py:236 (install_skills_for_agent) -> src/specify_cli/skills/command_installer.py:260
+      (_render_command_skill) -> :265 render_skill(..., repo_root=repo_root) -> src/specify_cli/skills/command_renderer.py:441-443
+      (apply_spdd_blocks_for_project(raw_text, repo_root))
+  - code: src/specify_cli/cli/commands/init.py:1220-1227 (_save_vcs_config / save_agent_config, which
+      write .kittify/config.yaml, execute AFTER the skills-install block at line 910 within the same init()
+      function)
+  claim: "FR-004 requires the implementer to \"verify at the real call sites (bootstrap_text.py:332, apply_spdd_blocks_for_project,\
+    \ command_renderer.py, asset_generator.py) whether any of them can be reached before .kittify/config.yaml\
+    \ exists on disk ... recording the finding either way\" \u2014 but the FR names no concrete acceptance\
+    \ criterion for what \"recording the finding\" must produce (a code comment? a test? a PR-body note?),\
+    \ nor any criterion for what changes if the finding is \"yes, reachable.\" Reading the actual call\
+    \ graph, the answer is already determinable without any implementation-time investigation: in spec-kitty\
+    \ init() (src/specify_cli/cli/commands/init.py), install_skills_for_agent( project_path, ...) at line\
+    \ 910 renders command/skill templates through command_renderer.py's apply_spdd_blocks_for_project(raw_text,\
+    \ repo_root) \u2014 and this call happens strictly before save_agent_config(project_path, agent_config)\
+    \ at line 1227, the call that actually writes .kittify/config.yaml. So command_renderer.py's call\
+    \ site IS reached before .kittify/config.yaml exists on disk, on every spec-kitty init run. The spec\
+    \ had the material to settle this now (as it did for the other Decision Records) but instead relocated\
+    \ an answerable factual question into the FR text with \"recording the finding either way\" as the\
+    \ only deliverable \u2014 leaving a WP with no way to know whether it is \"done\": a WP could satisfy\
+    \ the letter of FR-004 by writing nothing more than a one-line comment, or by adding an elaborate\
+    \ new test, and neither would be wrong per the FR as written. (Separately, the actual behavioral answer\
+    \ for this specific call path is benign \u2014 pre-fix, the old is_spdd_reasons_active also returns\
+    \ False at this point because .kittify/charter/ does not exist yet either, so the FR-004 pin does\
+    \ not regress this path \u2014 but the spec does not state this, which is exactly the verification\
+    \ FR-004 asks for and does not require to be recorded in a checkable form.)\n"
+  remediation: "Either (a) resolve the call-site question in the spec now, the same way Decision Records\
+    \ 1 and 2 resolved their open questions \u2014 state explicitly that command_renderer.py's and asset_generator.py's\
+    \ call sites ARE reached before .kittify/config.yaml exists during `spec-kitty init`, that this is\
+    \ safe because the pre-fix function already returns False in that state (byte-for-byte parity preserved),\
+    \ and drop the \"verify at implementation time\" language; or (b) if the investigation is deliberately\
+    \ left for implementation, give FR-004 a concrete, falsifiable acceptance criterion \u2014 e.g. \"\
+    a code comment naming which call sites are reachable pre-config.yaml, plus a regression test asserting\
+    \ apply_spdd_blocks_for_project(text, repo_root) strips REASONS blocks when repo_root has no .kittify/config.yaml,\
+    \ run through at least one of command_renderer.py/asset_generator.py's real entry points\" \u2014\
+    \ so a reviewer can check RED-then-GREEN against a defined \"done.\"\n"
+- id: SPEC-VERIFY-002
+  lens: "MISSION-DERIVED LENS 2 \u2014 ATDD/red-first shape (C-011), FR-010"
+  severity: 4
+  title: 'FR-010''s ''kept vs. flipped'' assertion-level triage framing understates the actual required
+    work: most affected tests need a fixture-construction rewrite, not a boolean flip, and the spec gives
+    no per-test guidance'
+  evidence:
+  - artifact: "spec.md \xA7 FR-010 (Requirements table)"
+  - code: 'tests/charter/test_charter_context_spdd_reasons.py:36-53 (_write_governance/_write_directives
+      helpers write ONLY .kittify/charter/charter.yaml''s governance:/directives: sections; neither ever
+      writes .kittify/config.yaml)'
+  - code: "tests/charter/test_charter_context_spdd_reasons.py:128-176 (TestActivation::test_paradigm_selected_returns_true,\
+      \ test_only_tactic_fill_returns_true, test_only_tactic_review_returns_true, test_only_directive_038_returns_true,\
+      \ test_directive_038_via_directives_yaml \u2014 all assert is_spdd_reasons_active(tmp_path) is True\
+      \ using only the charter.yaml governance/directives fixture, with no .kittify/config.yaml present\
+      \ in tmp_path)"
+  - code: "tests/charter/test_charter_context_spdd_reasons.py:365-379 (TestParadigmRoundTrip::test_paradigm_in_governance_activates_pack)\
+      \ and :413-484 (TestSelectedTacticsRoundTrip::test_tactic_only_selection_round_trips_to_governance_and_activates)\
+      \ \u2014 both build a PackContext/GovernanceConfig in memory then persist the result into charter.yaml's\
+      \ governance: section via save_charter_yaml, never into .kittify/config.yaml, then assert on is_spdd_reasons_active(tmp_path)"
+  - code: "tests/charter/test_activate_resolves_no_answers_edit.py:194-249 (TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active)\
+      \ \u2014 reconstructs a GovernanceConfig from interview.selected_*/compiled fields and writes it\
+      \ to tmp_path/.kittify/charter/charter.yaml via save_charter_yaml; tmp_path never receives a .kittify/config.yaml,\
+      \ then asserts is_spdd_reasons_active(tmp_path) is True"
+  claim: "FR-010 characterizes the required change as an assertion-level triage: \"assertions whose intent\
+    \ survives ... are kept, updated only where their literal mechanics changed; assertions that encode\
+    \ the bug itself ... are flipped.\" Reading all three files' actual fixture-construction code shows\
+    \ this materially understates the work for at least 8 test methods across two of the three files (TestActivation's\
+    \ 5 True-asserting cases, TestParadigmRoundTrip, TestSelectedTacticsRoundTrip, and TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active):\
+    \ every one of these builds its fixture by writing ONLY .kittify/charter/charter.yaml's governance:/\
+    \ directives: sections (via save_charter_yaml or the local _write_governance/ _write_directives helpers)\
+    \ and never writes a .kittify/config.yaml at all. Under FR-001's rewrite, is_spdd_reasons_active no\
+    \ longer reads charter.yaml's governance:/directives: sections under its own steam \u2014 it reads\
+    \ .kittify/config.yaml (or, via a charter: pointer, the pointed charter.yaml's top-level activated_*\
+    \ keys). Since none of these fixtures write .kittify/config.yaml, every one of them would, under the\
+    \ new implementation, hit FR-004's absent-config-file path and return False unconditionally \u2014\
+    \ which is not \"flip the assertion from True to False\" in any way that preserves the test's *intent*\
+    \ (each of these tests exists to prove a specific selector \u2014 a paradigm, a tactic, DIRECTIVE_038\
+    \ \u2014 activates the pack); a bare True->False flip would silently stop testing activation via any\
+    \ real selector at all. What each of these actually needs is a full rewrite of its fixture-construction\
+    \ mechanism (write .kittify/config.yaml's activated_paradigms/ activated_directives/activated_tactics,\
+    \ optionally via a charter: pointer, instead of charter.yaml's governance:/directives: sections) so\
+    \ the test still exercises the selector it is named for. FR-010 gives no per-file, per-test guidance\
+    \ distinguishing this \"rewrite the fixture mechanism\" bucket from its own \"kept, mechanics-updated\"\
+    \ and \"flipped\" buckets \u2014 a WP implementer following FR-010's literal text (find assertions,\
+    \ decide kept-vs-flipped) has no way to discover, without independently re-deriving this same audit,\
+    \ that ~8 of these tests need a bigger structural change than either bucket describes. Two implementers\
+    \ following FR-010 as written could reasonably disagree about whether TestParadigmRoundTrip and TestSelectedTacticsRoundTrip\
+    \ should be rewritten, deleted as now-redundant with the FR-002 parity test, or merged into it \u2014\
+    \ none of those outcomes is ruled in or out by the spec.\n"
+  remediation: "Add a third, explicit bucket to FR-010 \u2014 \"assertions whose fixture-construction\
+    \ mechanism is now obsolete and must be rewritten to write .kittify/config.yaml's activated_* keys\
+    \ instead of charter.yaml's governance:/directives: sections, while preserving the selector-under-test\"\
+    \ \u2014 and name the specific tests that fall into it (at minimum TestActivation's five True-asserting\
+    \ cases, TestParadigmRoundTrip, TestSelectedTacticsRoundTrip in test_charter_context_spdd_reasons.py,\
+    \ and TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active in test_activate_resolves_no_answers_edit.py),\
+    \ so a WP can commit a red-first version of each rewritten fixture (red against the OLD is_spdd_reasons_active\
+    \ reading the new config.yaml-only fixture, green after FR-001) and a reviewer can verify RED-then-GREEN\
+    \ on the intended commit without re-deriving which tests needed what.\n"
+- id: SPEC-VERIFY-003
+  lens: "MISSION-DERIVED LENS 1 \u2014 silent-success carve-out honesty (internal consistency)"
+  severity: 2
+  title: User Story 1's 'agree ... in every case' framing is imprecise given FR-004's documented carve-out
+  evidence:
+  - artifact: "spec.md \xA7 User Story 1 ('I want is_spdd_reasons_active(repo_root) to agree with the\
+      \ compiler's real activated_* authority in every case ...')"
+  - artifact: "spec.md \xA7 FR-004 and \xA7 Edge Cases (absent .kittify/config.yaml bullet) \u2014 the\
+      \ explicit, deliberate divergence from PackContext.from_config for the absent-config-file case"
+  claim: "User Story 1's narrative motivation states the goal as agreement \"in every case,\" but FR-004\
+    \ explicitly carves out one case (absent .kittify/config.yaml) where the rewritten function's answer\
+    \ is pinned to False regardless of what a literal PackContext.from_config parity read would produce\
+    \ (which would be True, per PackContext's documented absent-key-means-all-built-ins-active default).\
+    \ The FR-004/Edge-Cases text does reconcile this by naming it a \"deliberate, evidence-based carve-out,\"\
+    \ so the spec is not self-contradicting once read in full \u2014 but the User Story's own framing,\
+    \ read on its own (as an FR-writing WP agent working FR-by-FR might), overstates the guarantee the\
+    \ mission actually delivers. This is a wording-precision gap, not a behavioral ambiguity.\n"
+  remediation: 'Qualify User Story 1''s "in every case" phrase with a forward pointer to FR-004''s documented
+    exception (e.g. "... in every case where a charter has been provisioned (see FR-004 for the one deliberate
+    exception)"), so a reader of the User Story section alone is not misled about the scope of the parity
+    guarantee.
+
+    '

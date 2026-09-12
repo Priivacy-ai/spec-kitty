@@ -1,0 +1,109 @@
+{
+  "mission_slug": "coord-write-placement-closure-01KYCF83",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Whole-tree write-placement enforcement: any mission-artifact write bypassing the placement port is rejected anywhere in src/.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (commit a24578610): _placement_whole_tree_scan.py whole-tree AST scanner replaces the 17-module allowlist; test_no_write_side_rederivation.py asserts len(scan_scope) > retired allowlist + reds on a planted bypass. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Whole-tree scan strictly broader than the retired allowlist; def-vs-call discrimination; anti-false-negative test."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Partition-aware meta.json routing: write_meta/_flip_phase/_bake_mission_number resolve their partition through the placement port (extends port kind-mapping, not a topology re-architecture).",
+      "proof_type": "automated_test",
+      "evidence": "WP02: PRIMARY_METADATA given a partition-aware write target in mission_runtime/artifacts.py; test_artifact_partition_mapping.py. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "One-field flip extending the existing port; no MissionArtifactHome/topology re-architecture (C-002 honored)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Close the emit HEAD-derived fallback (#1716) and route bookkeeping_projection/bookkeeping_commit/decision_log through the port; classify decisions.events.jsonl in the partition SSOT.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (commit 85a59648a): status_transition._resolve_write_target no longer calls _current_branch; zero production callers remain. WP03 (commit 5cc18390c): three writers routed via resolve_placement_only; decisions.events.jsonl classified. WP06 registered its merge driver across 4 surfaces. Reviewer-renata APPROVED all.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "#1716 fork closed with red-first; ambient refs demoted to degrade-path only."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Read-side placement enforcement: every mission-artifact read routed through the read-surface authority, failing loud on partition mismatch (symmetric with writes).",
+      "proof_type": "automated_test",
+      "evidence": "WP07 (commit 472b2da82): PlacementSeam.read_dir routes through resolve_artifact_surface; #2906 guards folded into one declared_read_surface predicate (not double-guarded); DELETED coord branch fails loud, legit-absent degrades. test_read_surface_placement_guard.py. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Degrade-vs-fail-loud distinguished; both branches tested."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "agent mission repair command: detects and forward-only repairs a diverged mission (fail-loud with a diff otherwise), distinct from doctor coordination --fix.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (commits 9248a481a, d239385e8): new agent mission repair registered + reachable; reuses _is_ff_candidate/_fast_forward_finding bidirectionally; TOCTOU-guarded; divergent path mutates nothing + scoped diff. test_mission_repair.py 10 tests. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Distinct from doctor coordination --fix (Gap-1) and doctor mission-state --fix repair_repo (shape); C-003 honored."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "traces/ classified to its doctrine-correct COORD partition in the SSOT, with writers/readers routed accordingly.",
+      "proof_type": "automated_test",
+      "evidence": "WP02: traces added to _COORD_RESIDUE_DIRS. WP06 (commit a24578610): traces ruled both-sides-divergent; spec-kitty-traces union driver confirmed across 4 surfaces; test_merge_reconciliation_class_guard.py green (fail-closed divergent/non-divergent split). WP07 routed the traces reader. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Also unmasked + fixed a missing decisions.events.jsonl merge driver."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Front-load the runtime-state backfill over the drifted missions and commit, so test_dogfood_corpus_backfilled passes and 3.2.6 is unblocked.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (front-load commit 3f279a71a): migrate backfill-runtime-state run over the drifted corpus + committed; the sole 3.2.6 CI red cleared. test_corpus_frontload_idempotent.py. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "MVP; idempotent deterministic seeds."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Event-source exactly two runtime-authoring dual-writes (claim shell_pid/agent + subtask-completion checkboxes, #2684); no other authoring in scope.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 + WP05: both authoring paths + their frontmatter/tasks.md dual-writes were already unconditionally retired by prior merged #2684/#2816 (verified via git log base..HEAD = zero commits); locked in with test_claim_event_source.py + test_stale_sweep_snapshot.py (byte-identical WP-file assertions). Reviewer-renata APPROVED (live-evidence discipline).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Satisfied-by-prior-work; lock-in regression tests prevent reintroduction. No broad dual-write retirement (C-002)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Birth-time runtime cutover: a mission is stamped status_phase and runtime-reconciled at land (bake hook), routed through the placement port, so it is born reconciled.",
+      "proof_type": "automated_test",
+      "evidence": "WP09 (commit 82eabc02e): cutover_mission (sole status_phase writer) extended to two-target form; wired post-target in _phase_record_done_and_project (pre-target proven to write stale meta.json via canonicalize-redirect); resume-heal closes the merged-but-unstamped window; status_phase written last after verify.ok. test_birth_cutover.py incl. crash-heal + IC-09 predicate tests. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Better-grounded than the plan's empirically-wrong pre-target assumption; C-004 sole-writer preserved."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Event-log-keyed acceptance lock: test_dogfood_corpus_backfilled re-keyed so every mission whose event log carries runtime must be status_phase>=1 with a non-empty snapshot, surviving authoring retirement (no green-wash).",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (commit 22d22008d): _mission_carries_event_log_runtime keys on InnerStateChanged annotation OR non-empty policy_metadata (independent event-log evidence), excludes the bootstrap identity anchor, never keys on has_evictable_state/status_phase. Non-vacuity proven: test_reked_lock_reds_on_born_un_reconciled_mission (OLD key blind, NEW key reds). Reproduces the same eligible set on today's corpus. Reviewer-renata APPROVED.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-25T00:00:00+00:00",
+      "notes": "Highest silent-failure stakes; genuinely non-vacuous. Plus test_backfill_migration_coexistence.py (NFR-006)."
+    }
+  ],
+  "negative_invariants": []
+}

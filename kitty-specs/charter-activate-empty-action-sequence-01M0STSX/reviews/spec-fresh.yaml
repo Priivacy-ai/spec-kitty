@@ -1,0 +1,82 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: SPEC-FRESH-001
+    lens: "fresh-eyes / structural-root-cause (Debugger Debbie: directive-030 test-gate lens)"
+    severity: 3
+    title: "\"Required fixture shape\" bullet names only half the fixture and omits the extends-fallback case entirely"
+    evidence:
+      - artifact: "spec.md § Edge Cases, \"Required fixture shape\" bullet (added this revision)"
+      - code: "tests/charter/test_mission_type_profiles.py:846-874 (_write_org_pack_config body — writes only .kittify/config.yaml: mission_type_activations + doctrine.org.packs; never touches mission_types/<T>.yaml)"
+      - code: "tests/charter/test_mission_type_profiles.py:449-471 (_write_layered_mission_type_yaml — the actual helper that authors <org_root>/mission_types/<T>.yaml with action_sequence=None; not named anywhere in spec.md)"
+      - code: "tests/charter/test_mission_type_profiles.py:449-454 (_write_layered_mission_type_yaml signature has no `extends` parameter at all — grep for \"extends\" across the whole test file returns zero matches)"
+      - artifact: "spec.md Acceptance Scenario 4 (User Story 1) / FR-005 — requires an extends-fallback fixture for which no helper or precedent exists in this test file"
+    claim: >-
+      The revision's new "Required fixture shape" bullet says to use
+      `_write_org_pack_config` "called with `<T>`'s org pack (config +
+      `mission_types/<T>.yaml`) declared via `packs`" — but
+      `_write_org_pack_config` (verified against the current checkout) only
+      ever writes `.kittify/config.yaml`; it takes an org root `Path` for
+      the `packs` tuple but never creates `mission_types/<T>.yaml` inside
+      that root. The actual YAML-authoring call is a separate, unnamed
+      helper (`_write_layered_mission_type_yaml`) that the implementer has
+      to independently discover in the same file. Worse, that helper has no
+      `extends` parameter, and no test in this file exercises `extends` at
+      all — so the spec's own AC4/FR-005 (activation must succeed when the
+      candidate's own sequence is empty but a single-level `extends`
+      resolves a non-empty parent) has zero fixture precedent to follow;
+      the helper needs widening (add an `extends: str | None` param) before
+      that scenario can even be constructed. This is the same class of
+      under-specified-fixture risk the mission's own "pre-seeded-vs-natural-
+      path trap" note (the bullet immediately above this one) exists to
+      prevent — the guidance added to close that gap is itself incomplete.
+    remediation: >-
+      In the "Required fixture shape" bullet, name both required calls
+      explicitly: `_write_layered_mission_type_yaml(org_root /
+      "mission_types", "<T>.yaml", "<T>", action_sequence=None)` to author
+      the candidate's org-pack YAML, in addition to
+      `_write_org_pack_config(..., packs=[("<pack-name>", org_root)],
+      activated_mission_types=[])`. Separately, note for AC4/FR-005 coverage
+      that `_write_layered_mission_type_yaml` has no `extends` parameter and
+      must be widened (or a sibling helper added) before an extends-chain
+      fixture can be constructed — flag this as a plan-phase task rather
+      than leaving it implicit.
+  - id: SPEC-FRESH-002
+    lens: "fresh-eyes / conceptual-alignment (Debugger Debbie: directive-032)"
+    severity: 2
+    title: Edge Cases' cascade bullet describes a scenario that cannot occur, now that C-003 pins an exact single call site
+    evidence:
+      - artifact: "spec.md § Edge Cases, \"What happens to cascade-activated targets (--cascade) that include a mission-type kind alongside the direct target?\" (unchanged by this revision)"
+      - artifact: "spec.md § Constraints, C-003 (revised this round) — pins the new gate to one call inside `activate_cmd`, immediately before the direct-target `manager.activate()` (activate.py:553-560), and states it \"never touches activation_engine.py or pack_manager.py\""
+      - code: "src/doctrine/artifact_kinds.py — ArtifactKind.from_operator_token(\"mission-type\") raises MissionTypeNotAnArtifactKind; mission-type is not an ArtifactKind member"
+      - code: "src/specify_cli/cli/commands/charter/activate.py `_source_urn()` — returns None (cascade no-op) when `ArtifactKind.from_operator_token(kind)` raises `MissionTypeNotAnArtifactKind`, i.e. whenever kind==\"mission-type\" is the direct target"
+      - code: "src/doctrine/drg/models.py NodeKind enum — has no MISSION_TYPE member, so a mission-type node cannot appear in the DRG at all"
+      - code: "src/charter/cascade.py `_referenced_artifacts()` — filters discovered nodes to `kind in CHARTER_ACTIVATABLE_KINDS`, itself a subset of `ArtifactKind` (src/doctrine/artifact_kinds.py:330), so a mission-type node could never be a discovered cascade target even if one existed"
+    claim: >-
+      Given the current checkout, a mission-type can be neither a cascade
+      *source* (activating `mission-type <T> --cascade ...` makes
+      `_source_urn` return `None`, so `_render_cascade_activation` is never
+      invoked at all) nor a cascade *target* (mission-type has no DRG
+      `NodeKind` representation, so it can never be discovered via
+      `_referenced_artifacts`'s forward closure). The Edge Cases bullet asks
+      "what happens to cascade-activated targets... that include a
+      mission-type kind" as though this is a reachable case needing the new
+      gate's attention, and answers it with "the activation-time check
+      applies wherever the candidate id is about to be written" — implying
+      a possible second call site inside the cascade path. That directly
+      tensions with C-003's now-precise claim (added this revision) that the
+      gate is exactly one call in `activate_cmd`, never touching the cascade
+      machinery. A plan author who takes the Edge Case bullet at face value
+      risks adding a redundant/unreachable guard inside
+      `_activate_cascade_target` or `_render_cascade_activation` to satisfy
+      it, contradicting C-003's single-call-site design.
+    remediation: >-
+      Replace the bullet's answer with the factual one: mission-type cannot
+      be reached through `--cascade`, either as source or target (cite
+      `MissionTypeNotAnArtifactKind` and the absent `NodeKind` member), so no
+      second gate call site is needed and none should be added — C-003's
+      single call in `activate_cmd` is already exhaustive. This removes the
+      apparent tension with C-003 for anyone reading both sections together.

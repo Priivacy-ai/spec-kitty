@@ -3,8 +3,8 @@
 WP03 (mission ``mission-step-authority-01KXNZMT``) annotates the 12 built-in
 software-dev ``step.yaml`` files with the relocated ``sequence_index`` /
 ``in_action_sequence`` / ``template`` fields (S-B). This module proves the
-WP02 projection seam (:func:`~doctrine.missions.step_projection.project_action_sequence`,
-:func:`~doctrine.missions.step_projection.project_template_set`) reproduces
+WP02 projection seam (:func:`~charter.offering.missions.step_projection.project_action_sequence`,
+:func:`~charter.offering.missions.step_projection.project_template_set`) reproduces
 today's pre-mission authored ``mission_types/software-dev.yaml`` values --
 ``action_sequence`` and ``template_set`` -- exactly, from the annotated
 per-step data alone.
@@ -36,10 +36,10 @@ from collections.abc import Iterator
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
-from doctrine.missions.models import MissionStep
-from doctrine.missions.step_projection import (
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.models import MissionStep
+from charter.offering.missions.step_projection import (
     project_action_sequence,
     project_template_set,
 )

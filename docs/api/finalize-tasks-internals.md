@@ -1,13 +1,13 @@
 ---
 title: finalize-tasks internals reference
-description: Deep dive into the finalize-tasks internal command behavior. Learn about empty owned_files handling, status events, and dependency-depth cycle detection.
+description: Deep dive into finalize-tasks internals - empty owned_files handling, status events, lane-depth cycle safety, and the planning_commit_sha refresh override.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-09-09'
 ---
 # `finalize-tasks` internals reference
 
-Two non-obvious behaviours an operator may encounter when running
-`spec-kitty agent mission finalize-tasks`. Both have regression tests
+Three non-obvious behaviours an operator may encounter when running
+`spec-kitty agent mission finalize-tasks`. All have regression tests
 under `tests/specify_cli/cli/commands/` and `tests/specify_cli/lanes/`.
 
 ## 1. Explicit empty `owned_files`
@@ -62,4 +62,46 @@ Both fixes are locked by tests in:
 - `tests/specify_cli/lanes/test_compute_lane_depths_cycle_safety.py`
 
 Removing those tests, or weakening their assertions to permit recursion,
+is a regression.
+
+## 3. Refreshing the recorded planning commit after an amendment (#4141)
+
+`finalize-tasks` freezes `planning_commit_sha` into `lanes.json` at first
+run. Once execution has begun (any WP past `planned`), a re-finalize
+PRESERVES that recorded SHA (#3311) — correct for an ownership-only
+amendment, which must not silently clobber established planning provenance.
+But preserve-only left no sanctioned way to advance the SHA after a
+legitimate planning amendment (a WP dependency-field fix, an `/spec-kitty
+.analyze` remediation) landed mid-execution: every subsequently allocated
+lane kept merging the stale planning snapshot, the `move-task` gates
+(branch-currency / `kitty-specs/` contamination / uncommitted-changes) fired
+on the resulting drift, and the only in-tool path was `--force` on every
+transition.
+
+The fix adds an explicit, advance-only override:
+
+```bash
+spec-kitty agent mission finalize-tasks --mission <slug> --refresh-planning-commit
+```
+
+- With execution begun, the recorded SHA is re-pointed to the current
+  target-branch tip, so lanes merge the amended planning state at their next
+  allocation/reuse.
+- The override is refused (exit 1, `lanes.json` untouched) when the recorded
+  SHA is not an *ancestor* of the tip — a history rewrite or a foreign
+  provenance SHA, not an amendment. Resolve the divergence manually instead.
+- Without the flag, the #3311 preserve behavior is unchanged, but a
+  re-finalize that detects drift (recorded SHA ≠ branch tip) now warns on
+  the console and names the flag; the `--json` success payload carries the
+  decision structurally under `planning_commit`
+  (`action` / `sha` / `previous_sha` / `branch_tip`).
+
+Locked by tests in:
+
+- `tests/specify_cli/cli/commands/agent/test_issue_4141_refresh_planning_commit.py`
+- `tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py` (the
+  `_preserve_or_capture_planning_commit_sha` / `_report_planning_sha_decision`
+  branch tests)
+
+Weakening the ancestor refusal, or making the refresh the default (no flag),
 is a regression.

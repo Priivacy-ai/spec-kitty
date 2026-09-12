@@ -1,0 +1,46 @@
+phase: pr
+step: R5b-fresh
+findings:
+  - id: PR-FRESH-001
+    severity: 2
+    title: "answer-decision's _handle_answer citation points past next_cmd.py's own EOF"
+    location: "src/specify_cli/orchestrator_api/commands.py:3420 (answer_decision)"
+    claim: >
+      The comment introducing the shared-seam parity block reads "Mirrors
+      ``next_cmd.py:975-1005`` (``_handle_answer``) exactly". The live
+      next_cmd.py is only 974 lines long (wc -l), so line 975 does not exist
+      at all, and the real `_handle_answer` function is defined at
+      next_cmd.py:768 (body runs to ~855). The citation was presumably
+      accurate against an earlier revision of next_cmd.py and drifted as the
+      file grew/shrank during this mission's fix rounds.
+    evidence: >
+      `wc -l src/specify_cli/cli/commands/next_cmd.py` -> 974 lines. `grep -n
+      "_handle_answer" src/specify_cli/cli/commands/next_cmd.py` -> def at
+      line 768 (docstring "Handle the --answer flow for pending decisions.").
+      The cited range 975-1005 is entirely out of bounds.
+    remediation: >
+      Update the citation in commands.py:3420 to the real line range of
+      `_handle_answer` (currently next_cmd.py:768-855), or better, cite the
+      function name only ("`_handle_answer` in next_cmd.py") to avoid future
+      line-drift as both files keep changing.
+  - id: PR-FRESH-002
+    severity: 2
+    title: "Echoed-answer-key citation (next_cmd.py:915) points at unrelated print-formatting code"
+    location: "src/specify_cli/orchestrator_api/commands.py:3286 (module-level comment above answer_decision)"
+    claim: >
+      The comment explaining why `data` carries no `answer` key cites
+      "next_cmd.py:915" as the location of the CLI's echoed-answer key. Line
+      915 of the live next_cmd.py falls inside `_print_standard_human`
+      (human-readable stdout formatting), unrelated to the JSON `answer` key.
+      The actual `d["answer"] = answer` assignment this comment is describing
+      lives in `_print_decision` at next_cmd.py:760.
+    evidence: >
+      `sed -n '900,925p' src/specify_cli/cli/commands/next_cmd.py` shows line
+      915 inside `_print_standard_human`'s `decision.workspace_path` block.
+      `grep -n '"answer"' src/specify_cli/cli/commands/next_cmd.py` shows the
+      real assignment at line 760 (`d["answer"] = answer`, inside
+      `_print_decision`).
+    remediation: >
+      Repoint the citation to next_cmd.py:760 (`_print_decision`), or cite
+      the function name instead of a raw line number.
+complete: true

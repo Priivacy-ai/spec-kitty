@@ -1,0 +1,134 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: SPEC-ARCH-001
+    lens: New-fallback-inside-the-fix risk (mission-derived) / Contracts
+    severity: 4
+    title: >-
+      C-001 (composed path must never raise) and C-002 (legacy path must raise)
+      bind the SAME shared function today; the spec never specifies the call-site
+      restructuring needed to make both true at once
+    evidence:
+      - artifact: "spec.md § C-001, C-002, FR-005, User Story 3"
+      - code: "src/runtime/next/runtime_bridge.py:680-698 (_check_cli_guards, verified via `grep -n \"^def _check_cli_guards\"`)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:427-486 (_check_composed_action_guard)"
+    claim: >-
+      Read directly: `_check_cli_guards` (runtime_bridge.py:698) ends with
+      `return _cores.evaluate_guards(snapshot)`, and `_check_composed_action_guard`
+      (runtime_bridge_composition.py:486) ends with the identical
+      `return _cores.evaluate_guards(snapshot)` — both the legacy and composed
+      delegates forward to the literal same shared function with no
+      path-identifying parameter in the snapshot (mission_family/step_id only).
+      C-001 says the composed path "MUST NOT raise... for an unregistered
+      mission_family" and C-002 says the legacy path "(`_check_cli_guards`)...
+      It must raise." Both constraints are stated as properties of the shared
+      `evaluate_guards` reachable identically from either delegate today. FR-005's
+      own Independent Test only requires "Directly unit-test the registry lookup
+      function used by the legacy path" — it does not require that function to be
+      the one `_check_cli_guards` actually calls. A compliant-but-lazy
+      implementation can satisfy every literal FR/AC by adding a new, isolated
+      raising helper (e.g. `_GUARD_TABLES[family]` with no `.get()` default) that
+      is unit-tested directly and never wired into `_check_cli_guards`'s real call
+      chain, leaving `_check_cli_guards` continuing to delegate straight to the
+      tolerant, neutral-degrading `evaluate_guards` exactly as it does today. That
+      implementation passes FR-005's literal AC (an isolated function raises) and
+      NFR-002/C-001 (the composed path degrades) while silently failing C-002's own
+      stated subject — "`_check_cli_guards`... must raise" — the moment (per User
+      Story 3's own "should the legacy path ever be extended" scenario) the
+      hardcoded `mission_family="software-dev"` at runtime_bridge.py:692 is ever
+      relaxed. The spec does not name the concrete wiring change (which of
+      `_check_cli_guards`'s call chain vs. `_check_composed_action_guard`'s call
+      chain keeps calling the tolerant wrapper, and which must call a distinct
+      strict/raising wrapper) required to make C-001 and C-002 simultaneously true
+      of the real production call graph, not just of two independently-tested
+      helper functions.
+    remediation: >-
+      Add an FR/AC (or amend FR-005) that names the concrete call-site shape: e.g.
+      split the shared dispatch into a strict lookup (`_GUARD_TABLES[family]`,
+      raises `KeyError`/a new typed exception for a missing key) used directly by
+      `_check_cli_guards`, and a tolerant wrapper (catches that raise, logs, returns
+      `[]`) used by `_check_composed_action_guard` — and state explicitly that
+      `_check_cli_guards` itself (not merely an isolated unit-tested helper) must be
+      the caller of the strict path, so C-002's "must raise" binds the real
+      production call graph, not just a test-only helper.
+
+  - id: SPEC-ARCH-002
+    lens: Reflexivity
+    severity: 4
+    title: >-
+      NFR-001's named verification method (two test files) does not include the
+      tests that actually exercise the legacy and composed call paths end-to-end;
+      it only exercises evaluate_guards directly
+    evidence:
+      - artifact: "spec.md § NFR-001, § C-005"
+      - code: "tests/next/test_runtime_bridge_unit.py:656-1409 (15+ direct `_check_cli_guards(...)` calls for specify/plan/implement/tasks_outline/tasks_packages/tasks_finalize)"
+      - code: "tests/next/test_occurrence_gate_next_loop.py:187-350 (direct `_check_cli_guards(...)` calls)"
+      - code: "tests/specify_cli/next/test_runtime_bridge_composition.py:505-531 (unmocked `_check_composed_action_guard(...)` calls, explicitly labelled \"Parity with legacy `_check_cli_guards`\")"
+      - code: "tests/runtime/test_bridge_composition.py:583-649 (the `_check_composed_action_guard` guard tests in THIS NFR-001-named file monkeypatch `cores_seam.evaluate_guards` to a stub — they do not exercise real family dispatch at all)"
+    claim: >-
+      NFR-001 states the byte-for-byte-identical guarantee for
+      `{software-dev, research, documentation}` "is verified by running the full
+      existing `tests/runtime/test_bridge_cores.py` and
+      `tests/runtime/test_bridge_composition.py` suites unmodified... all green."
+      Verified directly: `tests/runtime/test_bridge_cores.py` calls
+      `cores.evaluate_guards(snapshot)` directly (bypassing both real delegate
+      functions), and the guard-dispatch tests inside `tests/runtime/
+      test_bridge_composition.py` (`test_check_composed_action_guard_delegates_to_
+      cores_and_io` and its siblings, lines 583-649) monkeypatch
+      `cores_seam.evaluate_guards` itself to a stub returning `["boom"]` /
+      `[]` — they test that `_check_composed_action_guard` forwards to whatever
+      `evaluate_guards` returns, not the real per-family registry dispatch. Neither
+      NFR-001-named file exercises the real, unmocked `_check_cli_guards` or
+      `_check_composed_action_guard` call chains end-to-end. The tests that DO
+      exercise those real call chains for the software-dev family
+      (`tests/next/test_runtime_bridge_unit.py`,
+      `tests/next/test_occurrence_gate_next_loop.py`,
+      `tests/specify_cli/next/test_runtime_bridge_composition.py`) are not named in
+      NFR-001 at all — only incidentally covered by C-005's broader `tests/next/`
+      and `tests/specify_cli/next/` directory buckets. An implementer who follows
+      NFR-001's literal, specific verification recipe (run exactly the two named
+      files, diff assertions) could pass that recipe while a wiring regression in
+      the actual `_check_cli_guards`/`_check_composed_action_guard` delegate
+      functions (e.g. a broken snapshot construction, a dropped
+      `mission_family="software-dev"` default, or the C-001/C-002 split from
+      SPEC-ARCH-001 being wired backwards) goes undetected, because the two named
+      files never call those functions with the real registry active. This is the
+      exact gap the Reflexivity lens instructions flag: "the composed AND legacy
+      paths are both covered for every currently-registered family" is NOT
+      established by NFR-001's own cited test list, only by the wider C-005 surface
+      that NFR-001 does not itself reference.
+    remediation: >-
+      Expand NFR-001's named verification-method file list to explicitly include
+      `tests/next/test_runtime_bridge_unit.py`,
+      `tests/next/test_occurrence_gate_next_loop.py`, and
+      `tests/specify_cli/next/test_runtime_bridge_composition.py` (or restate the
+      method as "run the full `tests/next/` and `tests/specify_cli/next/`
+      directories, not only the two `tests/runtime/` files"), so the
+      byte-for-byte-identical claim is actually backed by tests that call the real,
+      unmocked `_check_cli_guards` and `_check_composed_action_guard` delegates for
+      all three registered families, not only the shared core function in
+      isolation.
+
+  - id: SPEC-ARCH-003
+    lens: Canonical source
+    severity: 1
+    title: "Stale-by-2-lines citation for _check_cli_guards's start line"
+    evidence:
+      - artifact: "spec.md § User Story 3, § FR-005"
+      - code: "src/runtime/next/runtime_bridge.py:678-680 (lines 678-679 are blank; `def _check_cli_guards` is on line 680, verified via `grep -n \"^def _check_cli_guards\"`)"
+    claim: >-
+      Both User Story 3 and FR-005 cite `_check_cli_guards` at
+      `src/runtime/next/runtime_bridge.py:678-698`. The function's `def` line is
+      actually at line 680 (lines 678-679 are blank lines separating it from the
+      preceding `STATE_FILE = "state.json"` constant at line 677); the end of the
+      range (line 698, `return _cores.evaluate_guards(snapshot)`) and the
+      load-bearing line-692 citation for `mission_family="software-dev"` are both
+      exact. This is a 2-line drift at the start of the range only, not a
+      substantive misattribution.
+    remediation: >-
+      Update the citation to `runtime_bridge.py:680-698` in both User Story 3 and
+      FR-005 the next time this spec is touched; no functional change needed.

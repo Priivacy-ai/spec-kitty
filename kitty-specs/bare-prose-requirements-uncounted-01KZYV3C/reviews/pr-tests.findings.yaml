@@ -1,0 +1,44 @@
+# review-findings/v1 — pre-merge squad, tests lens (R1). Report-only phase:
+# HEAD does not move and nothing outside reviews/ changes as a result of this file.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+profile: debugger-debbie
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings: []
+# Empty findings list is the outcome, not the absence of a session — this squad
+# genuinely ran. Verification performed, recorded here as the evidence:
+verification_summary: >
+  Both shipped gates proven non-vacuous by planting real failures and restoring; all
+  three ATDD red-first commits independently checked out and confirmed genuinely RED;
+  shard selection verified per file; coverage floors untouched; the one new `patch()`
+  target verified valid; no new skip/xfail markers introduced.
+checks:
+  - description: WP04's import-boundary architectural gate — non-vacuity proof.
+    result: >-
+      Planted a disallowed import into `runtime_bridge_cores.py`; the gate failed;
+      reverted; confirmed clean.
+  - description: WP08's frozen-corpus ratchet gate — non-vacuity proof.
+    result: >-
+      Planted a real growth spec (a genuine bare-prose-shaped spec) outside the
+      committed fixture; the ratchet test failed as expected; reverted; confirmed clean.
+  - description: ATDD red-first discipline — all three commits checked out in disposable worktrees.
+    result: >-
+      `e083a0e12`, `08dd6d595`, and `a04054ebd` each independently confirmed genuinely
+      RED with the expected errors before their corresponding implementation commits.
+  - description: Shard selection, verified per file (not merely per directory).
+    result: >-
+      `arch` mission-type default_fallback + `ci-quality.yml:2162-2174` runs all three
+      legs; `tests/_next_shard_map.py:73,92`; `fast-tests-cli` path-selection;
+      `specify-cli-rest` — all confirmed to actually select the changed files.
+  - description: Coverage floors (kernel, mission loader).
+    result: Untouched — no `src/kernel` or mission-loader paths touched by this diff.
+  - description: The one new `patch()` target introduced by the diff.
+    result: >-
+      Valid via `tasks.py:234`'s explicit re-export — not patching a private internal
+      that could silently stop being exercised.
+  - description: New skip/xfail markers.
+    result: None introduced.
+  - description: Full targeted test surface, final run.
+    result: 675 passed.

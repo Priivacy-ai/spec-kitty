@@ -1,0 +1,153 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: charter-activate-empty-action-sequence-01M0STSX
+merge_note: >
+  Mechanical concatenation of tasks.decomp.findings.yaml, tasks.seq.findings.yaml,
+  tasks.verify.findings.yaml (R2, orchestrator's own hands, no session). No dedup
+  performed: all 4 findings cite distinct artifact sections/claims, none overlap.
+  Original ids preserved, nothing renumbered.
+findings:
+  - id: TASKS-DECOMP-001
+    lens_group: decomp
+    lens: No vacuous Definition-of-Done items
+    severity: 4
+    title: FR-006 (built-in types unaffected) has no test, DoD item, or Reviewer Guidance tie-back anywhere in WP01
+    evidence:
+      - artifact: "wps.yaml § work_packages.WP01.requirement_refs (lists FR-006)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § frontmatter requirement_refs (lists FR-006)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done (no FR-006 item; no reference to tests/runtime/test_runtime_seam.py)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no FR-006 / built-in-type checkpoint)"
+      - artifact: "spec.md § Functional Requirements (FR-006, Medium priority) and § Edge Cases ('What happens on a built-in mission type?' — cites tests/runtime/test_runtime_seam.py's golden-parity suite as what locks this)"
+    claim: >
+      FR-006 ("Built-in types unaffected") is declared as one of WP01's owned
+      requirements in both wps.yaml and the WP01 frontmatter, but nothing in
+      the WP file's body ever traces back to it: none of T001-T004 adds or
+      points to a test asserting a built-in mission type's activation is
+      unaffected, the Definition of Done's "Targeted test surface" item lists
+      exactly 8 files (none of which is tests/runtime/test_runtime_seam.py,
+      the golden-parity suite spec.md's own Edge Cases names as the thing
+      that "locks" this guarantee), and the Gate Set's targeted-shard list
+      likewise omits it. Every other requirement_ref this WP carries (FR-001,
+      FR-002, FR-003, FR-004, FR-005, FR-007, NFR-002, C-001-C-007) is
+      explicitly traced to a specific subtask, test, or DoD/Gate-Set line
+      elsewhere in this same file — FR-006 is the sole exception, and a
+      reviewer following this WP's own Reviewer Guidance checklist has no
+      instruction that would surface a regression here even if the shared
+      resolution path were ever changed to special-case built-ins.
+    remediation: >
+      Add one explicit line — to Definition of Done and/or Reviewer Guidance
+      — stating how FR-006 is verified: either (a) add
+      tests/runtime/test_runtime_seam.py's golden-parity suite to the DoD's
+      targeted test surface / Gate Set so it is actually re-run as part of
+      this WP's gate, or (b) if reliance on that pre-existing, out-of-surface
+      suite plus "no new code path for built-ins" reasoning is intentional
+      (as spec.md's Edge Cases already argues), say so explicitly in the WP
+      file the same way C-006's "skip campsite-clean" decision is documented,
+      so a reviewer is not left to re-derive the reasoning from spec.md.
+
+  - id: TASKS-DECOMP-002
+    lens_group: decomp
+    lens: No vacuous Definition-of-Done items
+    severity: 2
+    title: T001's baseline-capture DoD item names no durable artifact/location for the recorded results
+    evidence:
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Subtask T001: Baseline capture ('Record pass/fail per test — this recorded baseline is what SC-005 ... is verified against, not a fresh assumption.')"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done, item 1 ('T001 baseline captured (pass/fail per test recorded, attributable before any mission commit lands).')"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no line asking the reviewer to check the recorded baseline)"
+    claim: >
+      Both T001's own instructions and Definition-of-Done item 1 require the
+      per-test pass/fail baseline to be "recorded," but neither names where —
+      no reference to the WP file's own Activity Log, to one of this
+      mission's existing tracer-*.md files (tracer-approach.md,
+      tracer-design-decisions.md, tracer-tooling-friction.md — already the
+      established convention in this mission directory per plan.md's
+      Documentation section for exactly this kind of authoring note), to a
+      PR description, or to any other durable artifact. As written this DoD
+      item is not independently checkable: a reviewer has nothing to open to
+      confirm the baseline was actually captured before commit 1 landed,
+      which is the exact evidence SC-005 ("no new failures introduced
+      outside the pre-existing #3284 baseline") depends on.
+    remediation: >
+      Add one sentence to T001 (and mirror it in DoD item 1) naming the
+      artifact the pass/fail table must be written to — e.g. "record the
+      per-test result table in tracer-approach.md" or as a dated Activity Log
+      entry on this WP file — so both the implementer and the reviewer have
+      a concrete, checkable location.
+
+  - id: TASKS-VERIFY-001
+    lens_group: verify
+    lens: per-ac-test-strategy-concrete
+    severity: 2
+    title: "User Story 2 / AC1 (`charter mission-type list` on a pre-registered empty-sequence type) has no named test at the literal CLI-command surface, unlike every User Story 1 AC"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (\"When the operator runs `charter mission-type list` ... Then the command still fails with the same error\")"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md § Context (\"covered by FR-004's own regression suite (existing tests must stay green, unchanged assertions)\")"
+      - code: "src/specify_cli/cli/commands/charter/mission_type.py:156-164 (charter_mission_type_list's try/except around resolve_mission_type_context -> MissionTypeEmptyActionSequenceError)"
+      - code: "tests/charter/test_mission_type_profiles.py:577-633 (test_project_layer_omitting_action_sequence_raises_named_error — calls resolve_mission_type_context directly, not via the `mission-type list` CLI command)"
+    claim: >
+      Every User Story 1 AC (1-4) is mapped in WP01 to a concrete, named test
+      (T002's CLI-level test for AC1/AC2, T002's unit-level non-empty case for
+      AC3, T003's unit+CLI-level extends tests for AC4). User Story 2's AC1 —
+      whose Acceptance Scenario names the literal `charter mission-type list`
+      command — is instead waved through with the prose claim "covered by
+      FR-004's own regression suite" and no specific test citation. Searching
+      the full repo (not just WP01's 8-file targeted surface) turns up no
+      existing test that invokes the `mission-type list` Typer command
+      end-to-end against an already-registered, empty-action-sequence type;
+      the only close analogue is `test_show_exits_cleanly_for_activated_org_
+      type_with_empty_action_sequence` (tests/specify_cli/cli/commands/
+      test_mission_type_template_set_cli.py:229), which exercises `mission-
+      type show`, not `list`. Existing coverage for AC1's underlying claim
+      only reaches the shared `resolve_mission_type_context` function
+      directly (test_mission_type_profiles.py), not the `list` command's own
+      thin CLI wrapper (mission_type.py:151-164). This is a real but low-risk
+      gap: the wrapper code is pre-existing, untouched by this mission
+      (FR-004 forbids touching it), and the underlying function's behavior IS
+      pinned — so the implementation is very unlikely to come out wrong, but
+      the WP's own AC-to-test traceability is weaker for US2 than for every
+      US1 AC, and a reviewer following only WP01 has no test citation to
+      independently re-run for AC1 specifically.
+    remediation: >
+      In WP01's Context or T004 "Verify GREEN" section, name the specific
+      existing test(s) that pin User Story 2 AC1/AC2 (e.g.
+      test_mission_type_profiles.py's TestPackContextProjection /
+      TestEmptyActionSequenceLoudFail tests) so the reviewer has a citation
+      to re-run, or add one lightweight CliRunner-level regression test
+      invoking `charter mission-type list` against a pre-seeded,
+      already-registered empty-sequence type to close the CLI-surface gap
+      directly.
+
+  - id: TASKS-VERIFY-002
+    lens_group: verify
+    lens: sk-81-methodological-trap-enforceability
+    severity: 1
+    title: "SC-004 (trap rejection) is absent from WP01's machine-readable requirement_refs, with no acknowledgment of the known upstream cause (#2991)"
+    evidence:
+      - artifact: "wps.yaml § work_packages[0].requirement_refs (FR-001..FR-007, NFR-001, NFR-002, C-001..C-007 — no SC-### entries)"
+      - artifact: "tasks/WP01-activation-empty-action-sequence-gate.md frontmatter § requirement_refs (identical list, no SC-004)"
+      - artifact: "kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/wps.yaml lines 12-15 (\"requirement_refs carries SC-### deliberately. _REF_FIND_PATTERN (requirement_mapping.py:16) matches only (FR|NFR|C)-\\d+, so every SC-### is dropped at the tasks-packages -> WP-frontmatter boundary ... Upstream defect #2991\")"
+    claim: >
+      FR-005 is present in WP01's requirement_refs list (confirmed directly
+      in both wps.yaml and the WP file frontmatter). SC-004 is not present in
+      either — only FR/NFR/C-prefixed IDs appear. This is very likely the
+      same pre-existing tooling limitation another in-repo mission already
+      documented and cited (#2991: the tasks-packages generator's
+      `_REF_FIND_PATTERN` regex only matches `(FR|NFR|C)-\d+`, so any
+      `SC-###` a tasks-outline author lists is silently dropped before it
+      reaches the WP frontmatter) rather than an authoring omission specific
+      to this mission — but neither spec.md, plan.md, tasks.md, wps.yaml, nor
+      WP01 acknowledges this known limitation the way the precedent mission
+      does. The substance of SC-004 is otherwise well-covered in WP01's prose
+      (the verbatim SK-81 trap section, T002's fixture instructions, and
+      Reviewer Guidance's explicit "A pre-seeded-only test is a severity-4
+      finding per spec.md SC-004" line), so this is a traceability nit, not a
+      coverage gap.
+    remediation: >
+      Add a one-line note near WP01's requirement_refs (mirroring
+      isolated-home-pin-guard-r1a-01KZNMA3/wps.yaml's header comment) stating
+      that SC-004 is intentionally absent from the machine-readable
+      requirement_refs list due to upstream defect #2991 (SC-### IDs are
+      dropped by `_REF_FIND_PATTERN` at the tasks-packages boundary), so a
+      future reader does not mistake the omission for an oversight and does
+      not "clean it up" by inventing a workaround.

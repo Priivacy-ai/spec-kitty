@@ -1,0 +1,301 @@
+schema_version: 1
+mission_id: 01KY72GQAGEQYNQBKM41X7F6JP
+mission_slug: lifecycle-gate-execution-context-01KY72GQ
+mission_number:
+friendly_name: Lifecycle Gate Execution Context and Tool-Artifact Ownership
+mission_type: software-dev
+target_branch: remediation/coord-lifecycle-gates
+created_at: '2026-07-24T17:47:10.218278+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-24T17:47:10.218278+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-007
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-008
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-009
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-010
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-011
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-012
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-013
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-024
+- id: h-014
+  category: implementation
+  summary: WP19 completed without rejection cycles
+  evidence_refs:
+  - e-024
+not_helpful:
+- id: n-010
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-034
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-007
+  category: implementation
+  summary: WP15 needed 2 implementation cycles
+  evidence_refs:
+  - e-031
+  details: WP WP15 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-008
+  category: implementation
+  summary: WP16 needed 2 implementation cycles
+  evidence_refs:
+  - e-032
+  details: WP WP16 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-009
+  category: implementation
+  summary: WP17 needed 2 implementation cycles
+  evidence_refs:
+  - e-033
+  details: WP WP17 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-004
+  category: process
+  summary: WP05 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP05 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-005
+  category: process
+  summary: WP09 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP09 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-006
+  category: process
+  summary: WP16 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-030
+  details: WP WP16 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP15 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-025
+  details: WP WP15 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP16 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-026
+  details: WP WP16 was sent back from review to planning 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP17 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP17 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP01-claim-blocker-and-baseline.md
+- id: e-006
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP02-surface-translation-seam.md
+- id: e-007
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP03-gate-execution-context.md
+- id: e-008
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP04-provenance-and-deferral.md
+- id: e-009
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP05-provenance-backfill-migration.md
+- id: e-010
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP06-post-consolidation-verification.md
+- id: e-011
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP07-two-partition-preview.md
+- id: e-012
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP08-transaction-campsite-split.md
+- id: e-013
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP09-tool-artifact-owner.md
+- id: e-014
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP10-registry-ratchet-inventory.md
+- id: e-015
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP11-retire-self-bookkeeping-path.md
+- id: e-016
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP12-retire-residue-path.md
+- id: e-017
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP13-retire-coord-owned-status-files.md
+- id: e-018
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP14-dedupe-drop-if.md
+- id: e-019
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP15-retire-runtime-state-allowlist.md
+- id: e-020
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP16-retire-new-checkout-paths.md
+- id: e-021
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP17-retire-r014-additions.md
+- id: e-022
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP18-enforcement-disclosure-docs.md
+- id: e-023
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/tasks/WP19-mission-archiving.md
+- id: e-024
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+- id: e-025
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9KNJJJDT0RMRW1NY62F6J2
+- id: e-026
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9KVX8NW21DQHZBVYWC1YP4
+- id: e-027
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9W13H4P7NBD2A1P4DV8ZRZ
+- id: e-028
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9E26EX50XJG0WPRJ142KWX
+- id: e-029
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9CRMPFVHN7MSSGQNKCYWAC
+- id: e-030
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: 01KY9NDCX6ZJ1VN5T7GP6RJDY3
+- id: e-031
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: implementation_cycles
+- id: e-032
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: implementation_cycles
+- id: e-033
+  kind: event_range
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/status.events.jsonl
+  range: implementation_cycles
+- id: e-034
+  kind: file
+  path: kitty-specs/lifecycle-gate-execution-context-01KY72GQ/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

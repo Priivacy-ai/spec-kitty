@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-07-28T08:16:25.863444+00:00",
+  "flattened": false,
+  "friendly_name": "journal project consent 3030",
+  "mission_id": "01KYKWQSR6ZA5BMN6B94HYHG2Y",
+  "mission_number": null,
+  "mission_slug": "journal-project-consent-3030-01KYKWQS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances journal project consent 3030 on feat/journal-project-consent-3030 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "journal project consent 3030",
+  "slug": "journal-project-consent-3030-01KYKWQS",
+  "status_phase": "1",
+  "target_branch": "feat/journal-project-consent-3030",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-29T10:17:57.054382+00:00"
+}

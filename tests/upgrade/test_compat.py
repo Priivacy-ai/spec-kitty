@@ -11,16 +11,15 @@ from specify_cli.upgrade.compat import uses_centralized_runtime
 pytestmark = pytest.mark.fast
 
 
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
 def test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Repo with .kittify but no metadata.yaml is not treated as 2.x managed."""
     # Arrange
     home = tmp_path / "home"
-    (home / "cache").mkdir(parents=True)
+    (home / "cache").mkdir(parents=True, exist_ok=True)
     (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
     project = tmp_path / "project"
     (project / ".kittify").mkdir(parents=True)
@@ -36,16 +35,15 @@ def test_uses_centralized_runtime_does_not_assume_metadata_less_repo_is_2x(
     assert result is False
 
 
+@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
 def test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_managed(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Worktree path without metadata is treated as runtime-managed (no project-local config needed)."""
     # Arrange
     home = tmp_path / "home"
-    (home / "cache").mkdir(parents=True)
+    (home / "cache").mkdir(parents=True, exist_ok=True)
     (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
     worktree = tmp_path / "repo" / ".worktrees" / "001-feature-lane-a"
     (worktree / "kitty-specs").mkdir(parents=True)

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.styleguides.repository import StyleguideRepository
-from doctrine.styleguides.validation import validate_styleguide
+from charter.offering.styleguides.repository import StyleguideRepository
+from charter.offering.styleguides.validation import validate_styleguide
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -56,14 +56,6 @@ class TestStyleguideRepository:
         ids = [sg.id for sg in repo.list_all()]
         assert "sub-style" in ids
 
-    def test_load_from_custom_shipped_dir(
-        self, tmp_styleguide_dir: Path
-    ) -> None:
-        repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
-        styleguides = repo.list_all()
-        assert {s.id for s in styleguides} == {"test-style"}
-        assert styleguides[0].id == "test-style"
-
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         shipped = tmp_path / "built-in"
         shipped.mkdir()
@@ -102,7 +94,7 @@ class TestStyleguideRepository:
     def test_save_writes_valid_yaml(
         self, tmp_path: Path, sample_styleguide_data: dict
     ) -> None:
-        from doctrine.styleguides.models import Styleguide
+        from charter.offering.styleguides.models import Styleguide
 
         project_dir = tmp_path / "project"
         repo = StyleguideRepository(
@@ -123,7 +115,7 @@ class TestStyleguideRepository:
     def test_save_raises_without_project_dir(
         self, tmp_path: Path, sample_styleguide_data: dict
     ) -> None:
-        from doctrine.styleguides.models import Styleguide
+        from charter.offering.styleguides.models import Styleguide
 
 
         repo = StyleguideRepository(built_in_dir=tmp_path / "empty")

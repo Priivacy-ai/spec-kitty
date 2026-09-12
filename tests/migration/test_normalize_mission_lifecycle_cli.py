@@ -92,10 +92,6 @@ def test_live_run_writes_event_log_and_lifecycle_projection(tmp_path: Path) -> N
             "specify_cli.cli.commands.migrate_cmd.locate_project_root",
             return_value=tmp_path,
         ),
-        patch(
-            "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-            return_value=None,
-        ),
     ):
         result = runner.invoke(migrate_app, ["normalize-lifecycle", "--json"])
 

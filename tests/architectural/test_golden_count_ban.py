@@ -18,19 +18,31 @@ This module has three jobs:
    file) is the directory-partitioned, human-readable rendering of this scan, built by
    ``python -m tests.architectural.test_golden_count_ban --emit-inventory <path>``.
 
-2. **Recurrence guard** — :func:`test_convert_sites_do_not_exceed_frozen_baseline`
-   re-scans the real tree and asserts the number of ``convert``-classified,
-   non-escaped sites in every top-level ``tests/<dir>`` never exceeds the frozen
-   ceiling in ``_golden_count_baseline.json`` (this guard's own new sidecar data file
-   — no other WP's ``owned_files`` claims it; see the mission's ownership-map leeway
-   for rationale-backed additions outside a WP's literal owned-file list). A brand
-   new directory, or one exceeding its recorded ceiling, fails — closing the class
-   going forward *everywhere* in ``tests/``, not only in this mission's batch-owned
-   directories. Batch WPs (WP12-WP14) burn their own directories' ceilings down
-   (T057-style: "decrement the baseline"); the ceiling is regenerated wholesale via
-   ``--freeze-baseline`` (a full re-scan snapshot, mirroring the gc3b
-   ``--update-baseline`` idiom) after each batch's conversions land, never edited by
-   hand for anything other than a documented decrease.
+2. **Recurrence guard (advisory since #3458/WP16)** —
+   :func:`test_convert_sites_do_not_exceed_frozen_baseline` re-scans the real tree
+   and reports (via :func:`warnings.warn`, not a hard assertion) whenever the
+   number of ``convert``-classified, non-escaped sites in a top-level
+   ``tests/<dir>`` exceeds the frozen ceiling in ``_golden_count_baseline.json``
+   (this guard's own sidecar data file — no other WP's ``owned_files`` claims it;
+   see the mission's ownership-map leeway for rationale-backed additions outside a
+   WP's literal owned-file list).
+
+   Mission ``ci-pipeline-reinstatement-01M1X35E`` WP16 (P2 shape-guard demotion,
+   FR-014/C-007/NFR-007, #3458) took this off the PR-blocking gate: a single
+   benign symbol addition anywhere in ``tests/`` was forcing either a spurious
+   escape-hatch annotation or a whole-tree re-freeze on every unrelated PR, for
+   zero real catches (#3458's own evidence: 0 catches, 2 forced annotations). The
+   classification/scan/baseline machinery is unchanged and still exercised by this
+   module's other (behavioral) unit tests; only the final guard's *consequence* on
+   breach changed from "fail the suite" to "warn". Its committed classification —
+   ``shape-guard``, demoted — lives in
+   ``tests/architectural/shape_guard_membership.yaml``, and
+   ``test_shape_guard_membership.py`` proves behaviorally (not just via the yaml
+   label) that a manufactured breach no longer raises. Batch WPs (WP12-WP14, an
+   earlier mission) burned their own directories' ceilings down; the ceiling is
+   still regenerated wholesale via ``--freeze-baseline`` (a full re-scan snapshot)
+   after a legitimate conversion or addition lands, so the advisory warning stays
+   meaningful rather than perpetually noisy.
 
 3. **Escape hatch** — a genuinely cardinality-only assertion the heuristic
    misclassifies as ``convert`` may carry an inline ``# golden-count:
@@ -50,6 +62,14 @@ not a semantic oracle over ~2000 sites:
   (``errors``, ``calls``, ``retries``, ``events``, ``results``, ... — the vocabulary
   of a runtime-measured quantity, where WHICH items occurred doesn't matter, only how
   many) -> ``keep``.
+* the counted expression is a single lower-case past-participle identifier
+  (``blanked``, ``filtered``, ``collected`` — a collection *produced by an operation*,
+  see :func:`_is_dynamic_result_participle`) -> ``keep``. This closes #3458 (a facet of
+  #2853): a dynamically-produced result count whose variable name isn't in the fixed
+  vocabulary no longer defaults to ``convert`` and no longer forces a spurious escape-
+  hatch annotation. It stays narrow — a *single* lower-case ``-ed`` word — so CapWords
+  enum references (``Lane``) and multi-word snake_case registry names
+  (``supported_colors``) remain ``convert``, preserving the gate's real value (NFR-E).
 * otherwise -> ``convert`` (the default: a bare/attribute collection reference with no
   dynamic-measurement vocabulary — the WP07 ``len(Lane) == 10`` shape, and the common
   case in the mission's batch-owned "clean" directories, which were chosen precisely
@@ -83,6 +103,7 @@ import argparse
 import ast
 import json
 import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -187,6 +208,43 @@ def _collection_words(collection_expr: str) -> frozenset[str]:
     return frozenset(w.lower() for w in _WORD_RE.findall(collection_expr))
 
 
+# Minimum length for a single ``-ed`` participle to count as a dynamic result name.
+# Excludes short accidental ``-ed`` endings (``bed``, ``red``, ``fed``) while
+# admitting genuine participles (``added`` is the shortest we care about).
+_MIN_PARTICIPLE_LEN = 5
+
+
+def _is_dynamic_result_participle(collection_expr: str) -> bool:
+    """``True`` when *collection_expr* is a single lower-case past-participle
+    identifier (``blanked``, ``filtered``, ``collected``) — the name of a collection
+    *produced by an operation*, whose contract is genuinely its cardinality (#3458).
+
+    Deliberately narrow so it broadens dynamic-result recognition without blanket-
+    allowing anything (the #3458 fix must not weaken the gate):
+
+    * a **single** identifier only — multi-word snake_case registry names such as
+      ``supported_colors`` (whose ``supported`` word ends in ``-ed``) are excluded,
+      staying ``convert``;
+    * **lower-case** only — a bare enumerable-domain reference is a CapWords type name
+      (``Lane``, ``Color``), which is never lower-case, so enum golden counts stay
+      ``convert`` (NFR-E);
+    * ending in the ``-ed`` participle suffix — enum / registry *domain* names are
+      nouns (``lanes``, ``colors``, ``kinds``), never verb participles.
+
+    Lossy by design: common fixed-collection names that happen to be lowercase ``-ed``
+    identifiers (``expected``, ``allowed``, ``required``) are also admitted to ``keep``.
+    A false ``keep`` is a missed nudge — the escape hatch remains the backstop — never a
+    broken invariant, consistent with this classifier being heuristic-and-lossy by design.
+    """
+    expr = collection_expr.strip()
+    return (
+        expr.isidentifier()
+        and expr.islower()
+        and expr.endswith("ed")
+        and len(expr) >= _MIN_PARTICIPLE_LEN
+    )
+
+
 def classify_golden_count(collection_expr: str, n: int) -> str:
     """Classify one ``len(collection_expr) == n`` site as ``"keep"`` or ``"convert"``.
 
@@ -197,6 +255,8 @@ def classify_golden_count(collection_expr: str, n: int) -> str:
     if n == 0:
         return "keep"
     if _collection_words(collection_expr) & _DYNAMIC_RUNTIME_WORDS:
+        return "keep"
+    if _is_dynamic_result_participle(collection_expr):
         return "keep"
     return "convert"
 
@@ -358,6 +418,47 @@ def test_fresh_unannotated_golden_count_is_classified_convert() -> None:
     assert classify_golden_count("supported_colors", 3) == "convert"
 
 
+def test_dynamic_result_participle_count_is_kept() -> None:
+    """#3458 (a front-loadable facet of #2853): a dynamically-produced result count
+    whose identifier is a past-participle result name *outside* the fixed
+    :data:`_DYNAMIC_RUNTIME_WORDS` vocabulary is ``keep``, not ``convert``.
+
+    ``len(blanked) == 1`` is the exact false-positive from PR #3456's WP10 test: the
+    contract is genuinely the *cardinality* of a runtime result (how many fields were
+    blanked), not membership — WHICH items were produced does not matter. Before the
+    fix this defaulted to ``convert``, forcing a spurious
+    ``# golden-count: cardinality-is-contract`` annotation for zero real catches. A
+    single lowercase ``-ed`` participle is never an enumerable-domain reference (enum /
+    registry domains are nouns, referenced bare as CapWords like ``Lane``), so
+    broadening recognition here reduces the toll without weakening the gate.
+    """
+    assert classify_golden_count("blanked", 1) == "keep"
+    assert classify_golden_count("filtered", 2) == "keep"
+    assert classify_golden_count("collected", 4) == "keep"
+
+
+def test_enumerable_domain_enum_count_still_converts() -> None:
+    """NFR-E (gate-value guard): the #3458 false-positive fix must NOT let the real
+    failure mode escape. A bare enum reference — ``len(Lane) == 10``, the
+    ``tests/status/test_models.py::test_lane_member_names_exact`` exemplar — is a
+    *swap-tolerant* golden count over an enumerable domain: add one member and remove
+    another and the count is unchanged, so the assertion silently passes. Such sites
+    are still forced to ``convert`` (into an exact frozenset of member names). If the
+    participle broadening ever lets a CapWords enum or a snake_case registry domain
+    escape to ``keep``, the fix is wrong and must be tightened.
+    """
+    assert classify_golden_count("Lane", 10) == "convert"
+    assert classify_golden_count("Color", 7) == "convert"
+    assert classify_golden_count("supported_colors", 3) == "convert"
+    # Lock the load-bearing ``islower()`` branch specifically: a CapWords identifier
+    # that DOES end in ``-ed`` (``Fixed``, ``Provisioned``) must still ``convert``.
+    # ``Lane``/``Color`` above are excluded by ``endswith("ed")``, so without these two
+    # the ``islower()`` discriminator would be untested — drop ``islower()`` and this
+    # is the only assertion that goes red.
+    assert classify_golden_count("Fixed", 3) == "convert"
+    assert classify_golden_count("Provisioned", 5) == "convert"
+
+
 def test_escape_hatch_on_own_line_excludes_site() -> None:
     """T050 (part 2): the escape-hatch annotation is read from the assertion's own
     physical source line and marks the site escaped regardless of classification.
@@ -389,6 +490,19 @@ def test_site_within_frozen_ceiling_passes_ratchet() -> None:
     assert ratchet_violations(current={"tests/charter": 30}, baseline={"tests/charter": 40}) == []
 
 
+def test_one_site_above_current_frozen_ceiling_fails_ratchet() -> None:
+    """No spare ceiling may hide one fresh violation in an existing directory."""
+    baseline = load_baseline()
+    directory = "tests/architectural"
+    poisoned = dict(baseline)
+    poisoned[directory] += 1
+
+    violations = ratchet_violations(poisoned, baseline)
+
+    assert len(violations) == 1
+    assert directory in violations[0]
+
+
 def test_convert_counts_by_dir_excludes_escaped_and_keep_sites() -> None:
     sites = [
         GoldenCountSite("tests/foo/test_a.py", 10, "<module>", "Lane", 10, "convert", escaped=False),
@@ -409,17 +523,46 @@ def test_baseline_file_exists_and_parses() -> None:
 
 
 def test_convert_sites_do_not_exceed_frozen_baseline() -> None:
-    """The recurrence guard (T049/T053): re-scan the real tree and assert no
-    directory's non-escaped ``convert`` count exceeds its frozen baseline ceiling.
-    Green on the real tree today (the ceiling was just frozen from this exact
-    scan); goes red the moment a NEW un-annotated golden-count assertion is added
-    anywhere under ``tests/`` beyond what a directory's ceiling already accounts
-    for.
+    """The recurrence guard (T049/T053), demoted to ADVISORY by mission
+    ``ci-pipeline-reinstatement-01M1X35E`` WP16 (P2 shape-guard demotion,
+    FR-014/C-007/NFR-007, #3458 -- see the module docstring and
+    ``tests/architectural/shape_guard_membership.yaml``, which classes this
+    test ``shape-guard``).
+
+    Re-scans the real tree and, when a directory's non-escaped ``convert``
+    count exceeds its frozen baseline ceiling, emits a :class:`UserWarning`
+    naming the breach instead of raising. A benign symbol addition anywhere
+    under ``tests/`` therefore never reds CI on shape alone (NFR-007); the
+    warning still surfaces the drift for a human (or ``--freeze-baseline``)
+    to act on, it just no longer blocks the PR that triggered it.
     """
     current = convert_counts_by_dir(scan_repo())
     baseline = load_baseline()
     violations = ratchet_violations(current, baseline)
-    assert violations == [], "Golden-count regrowth detected:\n" + "\n".join(violations)
+    if violations:
+        warnings.warn(
+            "Golden-count regrowth detected (advisory, off the blocking gate "
+            "-- P2 demotion #3458):\n" + "\n".join(violations),
+            stacklevel=1,
+        )
+
+
+def test_benign_symbol_add_does_not_red_ci_on_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T087/NFR-007 proof (#3458): a benign symbol addition -- a fresh
+    ``len(<symbol>) == N`` assertion, the classic golden-count trigger -- does
+    not red CI on shape alone now that the guard above is demoted to advisory.
+
+    Manufactures the exact breach shape the guard used to fail on (a
+    directory whose non-escaped ``convert`` count exceeds its recorded
+    ceiling) and asserts the demoted test both (a) does not raise and
+    (b) still surfaces the drift as a warning, closing #3458 without
+    silently swallowing the signal.
+    """
+    monkeypatch.setattr(f"{__name__}.convert_counts_by_dir", lambda _sites: {"tests/architectural": 999})
+    monkeypatch.setattr(f"{__name__}.load_baseline", lambda: {"tests/architectural": 0})
+
+    with pytest.warns(UserWarning, match="Golden-count regrowth detected"):
+        test_convert_sites_do_not_exceed_frozen_baseline()  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +578,7 @@ def _format_site_row(site: GoldenCountSite) -> str:
 
 
 def _render_inventory(sites: list[GoldenCountSite]) -> str:
-    from datetime import UTC, datetime
+    from kernel.clock import now_utc
 
     batch_dirs = {
         "WP12": (
@@ -474,7 +617,7 @@ def _render_inventory(sites: list[GoldenCountSite]) -> str:
     lines.append("# Golden-count inventory (WP11, #2076/FR-014)")
     lines.append("")
     lines.append(
-        f"Generated {datetime.now(UTC).isoformat(timespec='seconds')} by "
+        f"Generated {now_utc().isoformat(timespec='seconds')} by "
         "`python -m tests.architectural.test_golden_count_ban --emit-inventory`. "
         "Classification heuristic: see `tests/architectural/test_golden_count_ban.py` "
         "module docstring."

@@ -166,6 +166,52 @@ class TestAssemblePack:
         drg_conflicts = [c for c in result.conflicts if c.artifact_type == "drg"]
         assert drg_conflicts, result.conflicts
 
+    def test_force_dedup_prunes_duplicate_edges_via_canonical_serializer(
+        self, tmp_path: Path
+    ) -> None:
+        """WP05/T020 (#3075, #2977): the force-dedup re-emit path used to build
+        its pruned fragment via raw ``n.model_dump()`` / ``e.model_dump()``,
+        bypassing ``model_to_graph_dict`` entirely. That dropped
+        ``FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`` (it emitted a literal
+        ``provenance: null`` key the canonical writer withholds) in addition
+        to the pre-existing duplicate-edge pruning behaviour this test also
+        pins. Regression coverage for the ``_document_dict``-routed rewrite.
+        """
+        a = _make_pack(tmp_path, "alpha", directives=["X-101", "X-102"])
+        b = _make_pack(tmp_path, "bravo", directives=["X-101", "X-102"])
+        # Same edge defined in both packs -- force=True must keep exactly one.
+        _add_drg_fragment(
+            a, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
+        )
+        _add_drg_fragment(
+            b, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
+        )
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output, force=True)
+
+        assert result.ok is True, result.errors
+        fragments = sorted((output / "drg").glob("*.graph.yaml"))
+        assert len(fragments) == 2, "one fragment per pack must survive, renumbered"  # golden-count: cardinality-is-contract
+
+        rendered = [f.read_text(encoding="utf-8") for f in fragments]
+        # The DUPLICATE edge itself (source+target+relation) must appear only
+        # once across both re-emitted fragments -- the pruning behaviour this
+        # path exists for.
+        edge_block_count = sum(text.count("relation: requires") for text in rendered)
+        assert edge_block_count == 1, (  # golden-count: cardinality-is-contract
+            f"expected exactly one surviving duplicate edge, got {edge_block_count}:\n"
+            + "\n---\n".join(rendered)
+        )
+        # The canonical serializer withholds `provenance` (FIELDS_WITHHELD_
+        # FROM_GRAPH_OUTPUT); the old raw .model_dump() path emitted it as a
+        # literal `provenance: null` key on every node/edge.
+        assert not any("provenance" in text for text in rendered), (
+            "pruned fragment(s) leaked the withheld `provenance` field -- "
+            "force-dedup re-emit did not route through the canonical "
+            f"document serializer:\n{rendered}"
+        )
+
     def test_conflicts_out_written(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["DUP-003"])
         b = _make_pack(tmp_path, "bravo", directives=["DUP-003"])
@@ -248,6 +294,33 @@ class TestAssemblePack:
         assert "refusing to delete non-pack" in " ".join(result.errors)
         assert marker.read_text(encoding="utf-8") == "keep\n"
 
+    def test_force_recognises_fetched_artifactory_pack_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        pack = _make_pack(tmp_path, "alpha", directives=["NEW-ART-001"])
+        output = tmp_path / "fetched-artifactory-pack"
+        output.mkdir()
+        (output / "pack-manifest.yaml").write_text(
+            textwrap.dedent(
+                """\
+                artifact_counts: {}
+                fetched_at: '2026-08-22T12:00:00Z'
+                pack_version: 3.2.7
+                source_type: artifactory
+                source_url: https://artifactory.example.com/artifactory/repo/pack.tar.gz
+                """
+            ),
+            encoding="utf-8",
+        )
+        marker = output / "old-artifact.txt"
+        marker.write_text("old\n", encoding="utf-8")
+
+        result = assemble_pack([pack], output, force=True)
+
+        assert result.ok is True, result.errors
+        assert not marker.exists()
+        assert (output / "directives" / "new-art-001.directive.yaml").is_file()
+
     def test_force_allows_replacing_previous_pack_output(
         self, tmp_path: Path
     ) -> None:
@@ -263,6 +336,38 @@ class TestAssemblePack:
         assert second_result.ok is True, second_result.errors
         assert not (output / "directives" / "old-001.directive.yaml").exists()
         assert (output / "directives" / "new-001.directive.yaml").exists()
+
+    def test_internal_validate_pack_call_carves_out_drg_root_check(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-004 / AC-6 (operator ruling #2, ``reviews/plan.ruling.md``):
+        ``assemble_pack``'s internal round-trip ``validate_pack(...)`` call
+        passes ``check_drg_root=False`` — proven by an actual
+        parameter-value assertion, not merely by
+        ``test_force_dedup_prunes_duplicate_edges_via_canonical_serializer``
+        continuing to pass. This carve-out is unconditional and structural:
+        ``_copy_drg_fragments`` never writes a pack-root ``*.graph.yaml``, so
+        the assembler's own output is always exactly the drg/-fragments-only
+        shape this check would otherwise flag.
+
+        Before this WP, ``validate_pack`` has no ``check_drg_root`` keyword
+        parameter at all, so asserting it was passed with that value fails.
+        """
+        from unittest.mock import patch
+
+        from specify_cli.doctrine.pack_validator import ValidationResult
+
+        pack = _make_pack(tmp_path, "alpha", directives=["V-001"])
+        output = tmp_path / "out"
+
+        with patch(
+            "specify_cli.doctrine.pack_assembler.validate_pack",
+            return_value=ValidationResult(ok=True),
+        ) as mock_validate:
+            result = assemble_pack([pack], output)
+
+        assert result.ok is True, result.errors
+        mock_validate.assert_called_once_with(output, check_drg_root=False)
 
 
 # ---------------------------------------------------------------------------

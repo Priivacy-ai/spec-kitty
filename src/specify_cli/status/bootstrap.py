@@ -91,6 +91,8 @@ def bootstrap_canonical_state(
     *,
     dry_run: bool = False,
     capability: GuardCapability = GuardCapability.STANDARD,
+    repo_root: Path | None = None,
+    effective_root: Path | None = None,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -144,6 +146,7 @@ def bootstrap_canonical_state(
     existing_events = read_events_transactional(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
+        **({"repo_root": repo_root, "effective_root": effective_root} if effective_root is not None else {}),
     )
     initialized_wp_ids: set[str] = {e.wp_id for e in existing_events}
 
@@ -168,6 +171,8 @@ def bootstrap_canonical_state(
                 to_lane="planned",
                 actor="finalize-tasks",
                 reason="canonical bootstrap",
+                repo_root=repo_root,
+                effective_root=effective_root,
             ),
             capability=capability,
         )

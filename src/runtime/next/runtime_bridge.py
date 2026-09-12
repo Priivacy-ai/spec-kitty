@@ -141,13 +141,16 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 import shutil
-from datetime import UTC, datetime
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from kernel.clock import now_utc_iso
+
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 from runtime.next._internal_runtime import (
     DiscoveryContext,
@@ -173,10 +176,14 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 # at each call site below; the seam ``_rb.<name>`` round-trips were repointed to
 # the owning seam in the same change.
 
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
+from specify_cli.status import get_all_wp_snapshots
 from specify_cli.status import wp_state_for
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -186,7 +193,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -194,6 +201,7 @@ logger = logging.getLogger(__name__)
 KITTIFY_DIR = ".kittify"
 # MISSION_RUNTIME_YAML / MISSION_YAML moved to runtime_bridge_io.py (T017 —
 # their only residual users, the discovery cluster, moved with them).
+
 
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
@@ -229,7 +237,12 @@ def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
     return _identity_seam._resolve_mission_ulid(mission_slug, repo_root)
 
 
-def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> bool:
+def _mission_routes_through_coordination(
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    effective_root: Path | None = None,
+) -> bool:
     """Return True when the mission's STORED topology routes through coordination.
 
     Reads the WP02 stored :class:`MissionTopology` (FR-004) from ``meta.json`` via
@@ -246,32 +259,43 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     cells return ``False``. Missing/malformed meta degrades to non-coord (matching
     the historical "no declared coord topology" arm).
     """
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
 
     # Anchor the stored-topology read on the topology-BLIND primary dir (where
-    # meta.json lives), mirroring ``resolution._resolve_coordination_branch`` — the
-    # coord-aware resolver fail-closes for a materialized-but-empty coord worktree,
-    # so it must not gate this read.
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
-    )
+    # meta.json lives), mirroring ``resolution._resolve_coordination_branch``.
+    # A KIND-BLIND resolver (``candidate_feature_dir_for_mission``) genuinely
+    # CAN land on a materialized-but-empty coord worktree here — that was the
+    # original hazard this anchoring guarded against. The kind-aware seam
+    # cannot: for a PRIMARY-partition kind (``PRIMARY_METADATA``) the decision
+    # layer short-circuits to the primary anchor for EVERY topology and coord
+    # state, before any coord probe (read-side-seam-primary-primitive-closure-
+    # 01KYKMMT WP07, T032 — FR-004/FR-015).
+    if effective_root is None:
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    else:
+        from mission_runtime import mission_context_for
+
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
+        feature_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
     try:
         topology = read_topology(feature_dir)
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
         return False
     return routes_through_coordination(topology)
 
 
 def _wrap_with_decision_git_log(
-    emitter: SyncRuntimeEventEmitter,
+    emitter: RuntimeEventEmitter,
     mission_slug: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Any:
     """Wrap ``emitter`` with DecisionGitLog for durable decision recording.
 
@@ -279,15 +303,33 @@ def _wrap_with_decision_git_log(
     the original emitter is returned unchanged so mission execution is not
     blocked.
     """
-    coord_routing_topology = _mission_routes_through_coordination(
-        mission_slug, repo_root,
-    )
+    if effective_root is None:
+        coord_routing_topology = _mission_routes_through_coordination(mission_slug, repo_root)
+    else:
+        coord_routing_topology = _mission_routes_through_coordination(
+            mission_slug,
+            repo_root,
+            effective_root=effective_root,
+        )
     try:
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
-        coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
-        mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
+        if effective_root is None:
+            coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
+            mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
+        else:
+            from mission_runtime import MissionArtifactKind, mission_context_for
+            from specify_cli.mission_metadata import resolve_mission_identity
+
+            mission_context = mission_context_for(
+                repo_root,
+                mission_slug,
+                effective_root=effective_root,
+            )
+            coordination_branch = mission_context.artifact(MissionArtifactKind.STATUS_STATE).commit_target.ref
+            primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+            mission_id = resolve_mission_identity(primary_metadata_dir).mission_id
 
         # T019 (#2531 WP05): mid8 derivation + the fail-closed mid8-required
         # validation + CommitTarget/worktree_root-candidate selection is the
@@ -316,11 +358,17 @@ def _wrap_with_decision_git_log(
             # C-011 risk site: the worktree_root selection is preserved EXACTLY —
             # keyed off the stored-topology coord-routing decision and the C-006
             # transient on-disk materialization check, never ``.kind``.
-            worktree_root = (
-                worktree_root_candidate
-                if worktree_root_candidate.exists()
-                else CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
-            )
+            if worktree_root_candidate.exists():
+                worktree_root = worktree_root_candidate
+            elif effective_root is None:
+                worktree_root = CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
+            else:
+                worktree_root = _resolve_owned_coordination_workspace(
+                    CoordinationWorkspace,
+                    repo_root,
+                    mission_slug,
+                    _mid8,
+                )
         else:
             # Coord-less topology: decisions land on the primary checkout's
             # current branch (a lane/mission branch); landing == coordination ==
@@ -344,12 +392,53 @@ def _wrap_with_decision_git_log(
                 "without durable decision evidence."
             ) from exc
         logger.warning(
-            "DecisionGitLog construction failed for mission %s; "
-            "falling back to plain emitter.",
+            "DecisionGitLog construction failed for mission %s; falling back to plain emitter.",
             mission_slug,
             exc_info=True,
         )
         return emitter
+
+
+def _resolve_owned_coordination_workspace(
+    workspace_type: Any,
+    repo_root: Path,
+    mission_slug: str,
+    mid8: str,
+) -> Path:
+    """Materialize after transient shared git-worktree registry contention.
+
+    Two distinct owned missions may reach ``git worktree add`` concurrently.
+    Their filesystem destinations do not overlap, but git serializes updates to
+    the shared worktree registry.  Retry only that subprocess failure; durable
+    failures still surface unchanged after a short bounded window.  This avoids
+    a second persistent lock file and therefore cannot leak ownership locks.
+    """
+    import subprocess
+    import time
+
+    attempts = 20
+    for attempt in range(attempts):
+        try:
+            resolved: Path = workspace_type.resolve(repo_root, mission_slug, mid8)
+            return resolved
+        except subprocess.CalledProcessError as exc:
+            if not _is_transient_git_worktree_contention(exc):
+                raise
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+    raise AssertionError("unreachable coordination workspace retry tail")
+
+
+def _is_transient_git_worktree_contention(
+    exc: Any,
+) -> bool:
+    """Recognize only Git's shared lock-contention diagnostics."""
+    if getattr(exc, "returncode", None) != 128:
+        return False
+    output = "\n".join(str(value) for value in (getattr(exc, "stderr", ""), getattr(exc, "stdout", "")) if value).casefold()
+    lock_exists = "file exists" in output and ("config.lock" in output or ("unable to create" in output and ".lock" in output))
+    return lock_exists or ("could not lock config file" in output and "file exists" in output) or ("another git process" in output and "lock" in output)
 
 
 # FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
@@ -391,10 +480,7 @@ class MissionNotFoundError(Exception):
 
     def __init__(self, handle: str, next_step: str | None = None) -> None:
         self.handle = handle
-        self.next_step = next_step or (
-            "Run 'spec-kitty mission list' to see available missions, then "
-            f"re-run with a valid handle (attempted: '{handle}')."
-        )
+        self.next_step = next_step or (f"Run 'spec-kitty mission list' to see available missions, then re-run with a valid handle (attempted: '{handle}').")
         super().__init__(f"Mission not found: '{handle}'")
 
 
@@ -434,8 +520,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     intra-seam-call trap research.md §Compat documents for
     ``_primary_runtime_feature_dir``)."""
     return {
-        wp_id: _cores._collect_requirement_refs_for_section(section_content)
-        for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
+        wp_id: _cores._collect_requirement_refs_for_section(section_content) for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
@@ -471,9 +556,7 @@ def _build_retrospective_facilitator_callback(
 ) -> Any:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_retrospective._build_retrospective_facilitator_callback`."""
-    return _retrospective_seam._build_retrospective_facilitator_callback(
-        mission_slug, repo_root, provenance_kind
-    )
+    return _retrospective_seam._build_retrospective_facilitator_callback(mission_slug, repo_root, provenance_kind)
 
 
 def _resolve_retrospective_policy_for_runtime(
@@ -556,9 +639,7 @@ def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRu
     Passes this module's own ``MissionRunRef`` binding through explicitly
     (rather than letting the io module close over its own import) so tests
     that monkeypatch ``runtime_bridge.MissionRunRef`` observe the substitution."""
-    return _io_seam._build_run_ref(
-        run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef
-    )
+    return _io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef)
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +665,9 @@ def _finalized_task_board_override_step(
     This is intentionally narrow: it only overrides stale early runtime phases
     after a mission already has tasks.md, finalized WP files, and canonical WP
     lane state. It does not reorder non-finalized mission DAG execution.
+    A board whose WPs all reach acceptable endings reports ``accept``; ``done``
+    remains reserved for a board whose reduced lanes are all done, so an
+    operator-canceled WP is never reported as done.
     """
     if progress is None:
         return None
@@ -604,23 +688,109 @@ def _finalized_task_board_override_step(
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
-    done = int(progress.get("done_wps", 0) or 0)
-    approved = int(progress.get("approved_wps", 0) or 0)
-    if done == total:
-        return "done"
-    if approved + done == total:
-        return "accept"
+    done_endings, acceptable_endings = _count_wp_endings(
+        feature_dir,
+        status_dir=status_dir,
+    )
+    if acceptable_endings == total:
+        return "done" if done_endings == total else "accept"
     return "blocked:no_actionable_wp"
 
 
-def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
+def _reduced_wp_lane(wp_snapshot: Mapping[str, Any] | None) -> str:
+    """Return the canonical lane slot from a reduced WP snapshot."""
+    if wp_snapshot is None:
+        return str(Lane.UNINITIALIZED)
+    return str(wp_snapshot.get("lane", Lane.GENESIS))
+
+
+def _count_wp_endings(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+) -> tuple[int, int]:
+    """Count WP files whose reduced lanes are done and acceptable endings."""
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return 0, 0
+
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    try:
+        wp_snapshots = get_all_wp_snapshots(lane_read_dir)
+    except CanonicalStatusNotFoundError:
+        return 0, 0
+
+    acceptable_endings = 0
+    done_endings = 0
+    for wp_file in sorted(tasks_dir.glob(TASKS_GLOB)):
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
+        wp_snapshot = wp_snapshots.get(wp_id)
+        lane = _reduced_wp_lane(wp_snapshot)
+        if lane == str(Lane.DONE):
+            done_endings += 1
+        if is_acceptable_ending(
+            lane,
+            has_provenance=has_operator_provenance(wp_snapshot),
+        ):
+            acceptable_endings += 1
+    return done_endings, acceptable_endings
+
+def _should_advance_wp_step(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
-    For implement: all WPs must be handed off or complete
-    (for_review, approved, or done).
-    For review: all WPs must be approved or done.
+    For implement: all WPs must be handed off, accepted, done, or reach an
+    acceptable ending (operator-canceled).
+    For review: all WPs must be approved, done, or canceled-with-operator-
+    provenance (#3780, D2/D6/D11).
+
+    Routes through WP01's :func:`committed_authority.wp_ending` — a single
+    status reduction per WP that yields lane AND operator-provenance in one
+    read (C-004), fronted by the same explicit fail-loud event-log gate
+    ``get_wp_lane`` used (C-003/D6): a genuinely-absent committed status log
+    still raises ``CanonicalStatusNotFoundError`` here, never a silent
+    ``False``.
+
+    FR-009 (#3884): when the caller opts in by supplying ``repo_root`` (no
+    separate flag, mirroring the #3704 precedent), the ``tasks/`` directory
+    this function reads is anchored via ``mission_runtime.placement_seam``'s
+    PRIMARY-partition resolution for ``MissionArtifactKind.WORK_PACKAGE_TASK``
+    instead of the raw ``feature_dir`` -- a coord-topology mission's
+    coordination-worktree ``feature_dir`` never receives ``tasks/WP*.md``
+    (a PRIMARY-partition artifact), so the unanchored read hit this
+    function's own no-``tasks/``-dir early return below and skipped the
+    per-WP loop entirely, regardless of whether FR-004's disjunct exists. Any
+    coord-less topology (``SINGLE_BRANCH``/``LANES``) -- where ``feature_dir``
+    already IS the primary directory -- sees no behavior change: the anchor
+    resolves to the same directory for both. May raise ``MissionSelectorAmbiguous`` for a genuinely
+    ambiguous ``mission_slug`` handle -- caught at this function's one real
+    call site (``_dn_dependency_gate``, FR-010).
     """
-    tasks_dir = feature_dir / "tasks"
+    anchor_dir = feature_dir
+    if repo_root is not None:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        # Fail closed on a missing handle rather than silently falling back to
+        # ``feature_dir.name`` (#3981): at this call ``feature_dir`` is a
+        # coord-worktree / status dir whose ``.name`` is NOT a kitty-specs
+        # mission handle, so the old fallback would feed a wrong (and possibly
+        # ambiguous) handle into ``placement_seam``. Matches this function's own
+        # no-silent-fallback stance on ``MissionSelectorAmbiguous`` (C-009): a
+        # caller that anchors (``repo_root=``) must name the mission explicitly.
+        if mission_slug is None:
+            raise ValueError(
+                "_should_advance_wp_step: mission_slug is required when repo_root "
+                "is supplied (anchoring); feature_dir.name is not a mission handle."
+            )
+        anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+
+    tasks_dir = anchor_dir / "tasks"
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
@@ -628,40 +798,65 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
-    # Get canonical lane state from event log (hard-fail if absent)
-    import re as _re
-    from specify_cli.status import get_wp_lane
+    from runtime.next import committed_authority
+    from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
     for wp_file in wp_files:
-        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        raw_lane = get_wp_lane(feature_dir, wp_id)
+        ending = committed_authority.wp_ending(feature_dir, wp_id)
         try:
-            state = wp_state_for(raw_lane)
+            state = wp_state_for(ending.lane)
         except ValueError:
-            # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
-            # not-yet-handed-off, so this WP blocks advancement.
+            # A lane string outside _STATE_MAP (a genuinely-unknown / malformed
+            # value -- note "uninitialized" and "genesis" ARE in _STATE_MAP and
+            # are handled by _wp_blocks_step's disjunct, not here). Treat an
+            # unknown lane as not-yet-handed-off, so this WP blocks advancement.
             return False
-        if _wp_blocks_step(step_id, state):
+        has_provenance = ending.reason_source == OPERATOR_REASON_SOURCE
+        if _wp_blocks_step(step_id, state, has_provenance=has_provenance):
             return False
 
     return True
 
 
-def _wp_blocks_step(step_id: str, state: Any) -> bool:
-    """Return whether a WP state blocks advancement for ``step_id``."""
+def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> bool:
+    """Return whether a WP state blocks advancement for ``step_id``.
+
+    ``has_provenance`` (#3780, defaulted so the single caller above stays the
+    only 3-arg call site) is folded through the shipped
+    :func:`specify_cli.status_lanes.is_acceptable_ending` authority for the
+    ``review`` branch (D2/C-001): approved/done are unconditionally
+    acceptable; canceled is acceptable only with operator-authored
+    provenance (synthetic cancellations stay fail-closed); every other lane
+    still blocks. The ``implement`` branch is unchanged — a canceled WP is
+    never run-affecting there regardless of provenance.
+    """
     lane = state.lane
+    if is_acceptable_ending(
+        str(lane),
+        has_provenance=has_provenance,
+    ):
+        return False
     if step_id == "implement":
         # Advance past implement only when the WP has been handed off
-        # (for_review or approved) or completed (done/canceled).
+        # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
+        # FR-004 (#3884): the two NON_DISPLAY_LANES -- Lane.UNINITIALIZED and
+        # Lane.GENESIS -- are neither is_blocked nor is_run_affecting (neither
+        # ever entered an active lane), so both fell through the run-affecting
+        # disjunct and silently did not block. A WP that was never claimed
+        # (UNINITIALIZED) or never lifecycled past creation (GENESIS) must not
+        # be conflated with a genuinely-exempt handed-off state -- either one
+        # is pending work that has to block the implement -> review advance.
         return (
-            state.is_blocked
+            lane in (Lane.UNINITIALIZED, Lane.GENESIS)
+            or state.is_blocked
             or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
         )
     if step_id == "review":
-        return lane not in (Lane.DONE, Lane.APPROVED)
+        return not is_acceptable_ending(str(lane), has_provenance=has_provenance)
     return False
 
 
@@ -675,7 +870,13 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    mission_family: str | None = None,
+    repo_root: Path | None = None,
+) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -684,16 +885,38 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
     compat reach — stay exactly where they were.
 
+    ``mission_family`` is supplied by runtime paths that already resolved the
+    primary-anchored mission type. Direct callers may omit it to preserve the
+    legacy feature-dir lookup behavior.
+
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
+    mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family="software-dev", step_id=step_id
+        feature_dir,
+        mission_family=mission_family,
+        step_id=step_id,
+        repo_root=repo_root,
     )
     if step_id in ("implement", "review"):
-        snapshot = dataclasses.replace(
-            snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)
-        )
-    return _cores.evaluate_guards(snapshot)
+        # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
+        # though repo_root is in scope above for gather_artifact_presence: this call
+        # is reachable only from _dn_dependency_gate's WP-iteration branch (#3884
+        # INT-001), and only AFTER that branch's own anchored _should_advance_wp_step
+        # call (repo_root=repo_root, mission_slug=mission_slug) already returned
+        # True for the identical (step_id, feature_dir) — see the "All WPs done for
+        # this step" comment at its call site. Do not "fix" this by anchoring it; if
+        # phase ordering ever changes so this can be reached with WPs still pending,
+        # this needs a repo_root=/mission_slug= forward of its own, mirroring
+        # _dn_dependency_gate's call, not a silent carry-forward assumption.
+        snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
+    return _cores.evaluate_guards_strict(snapshot)
 
 
 def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
@@ -710,6 +933,53 @@ def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
     return list(ensure_occurrence_classification_ready(feature_dir).errors)
 
 
+def _log_requirement_extraction_warnings(feature_dir: Path, warnings: list[str]) -> None:
+    """#3394 F1 advisory, folded into this path's diagnostics too.
+
+    :func:`specify_cli.requirement_mapping.find_undeclared_requirement_citations`
+    was originally wired into ``finalize-tasks``/``map-requirements`` only;
+    this path (``spec-kitty next``'s requirement-mapping preflight) got
+    nothing, so an operator whose spec.md cites requirement-shaped tokens in
+    an undeclared shape had no "why" surfaced here. Logged (never appended to
+    the returned failures list), so it stays purely advisory: a log line,
+    never a guard failure.
+    """
+    for warning in warnings:
+        logger.warning("[%s] %s", feature_dir.name, warning)
+
+
+def _log_requirement_extraction_warnings_safely(feature_dir: Path, spec_content: str) -> None:
+    """Compute and log the #3394 F1 advisory without ever gating on it.
+
+    #3394 focused-review F3 (severity 2): the advisory call used to sit
+    directly inside ``_check_requirement_mapping_ready``'s broad
+    ``except Exception``, which exists to fail-closed on genuine extraction
+    crashes (``parse_requirement_ids_from_spec_md``, the WPs manifest load,
+    the tasks.md ref parse). That means an exception raised by the advisory
+    *computation* itself -- not its content, which is never appended to the
+    returned failures -- would propagate to that handler and turn into a
+    "Requirement mapping preflight failed" gate failure, contradicting the
+    "advisory can never gate" property. ``find_undeclared_requirement_
+    citations`` is pure regex/string-splitting with no I/O and currently has
+    no failure mode, so this was near-zero practical risk -- but true by
+    luck of the function, not by construction. This wrapper makes it true by
+    construction: any exception here is swallowed and logged at DEBUG, never
+    re-raised, so it cannot reach the enclosing fail-closed handler. Scoped
+    to this one call; the surrounding broad ``except Exception`` is
+    untouched and still fail-closed for the other three extraction calls.
+    """
+    try:
+        from specify_cli.requirement_mapping import find_undeclared_requirement_citations
+
+        _log_requirement_extraction_warnings(feature_dir, find_undeclared_requirement_citations(spec_content))
+    except Exception:
+        logger.debug(
+            "[%s] Requirement-citation advisory computation failed; skipping (non-blocking)",
+            feature_dir.name,
+            exc_info=True,
+        )
+
+
 def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     """Validate requirement coverage before issuing the finalize-tasks prompt.
 
@@ -723,6 +993,12 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     now lives in the pure :func:`runtime_bridge_cores._evaluate_requirement_
     mapping` — the ``# noqa: C901`` this function used to carry is REMOVED,
     not relocated (FR-004/NFR-002).
+
+    Also logs any :func:`specify_cli.requirement_mapping.
+    find_undeclared_requirement_citations` advisory as a non-blocking
+    diagnostic -- see :func:`_log_requirement_extraction_warnings_safely` for
+    the full rationale, including why its computation is isolated from this
+    function's own fail-closed ``except Exception`` below.
     """
     spec_md = feature_dir / SPEC_ARTIFACT
     if not spec_md.exists():
@@ -739,9 +1015,12 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
             read_all_wp_requirement_refs,
         )
 
-        spec_ids = parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
+        spec_content = spec_md.read_text(encoding="utf-8")
+        spec_ids = parse_requirement_ids_from_spec_md(spec_content)
         all_spec_requirement_ids = set(spec_ids["all"])
         functional_requirement_ids = set(spec_ids["functional"])
+
+        _log_requirement_extraction_warnings_safely(feature_dir, spec_content)
 
         wps_manifest = load_wps_manifest(feature_dir)
         wp_requirement_refs = read_all_wp_requirement_refs(tasks_dir)
@@ -765,6 +1044,53 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         feature_dir_name=feature_dir.name,
     )
     return _cores._evaluate_requirement_mapping(facts)
+
+
+def _check_bare_prose_requirements_ready(feature_dir: Path) -> list[str]:
+    """WP05 (#3396) T023 — gather-only residual for the bare-prose
+    requirement signal (fact-port/pure-core split, mirroring
+    ``_check_requirement_mapping_ready``).
+
+    Deliberately independent of ``tasks_dir``/WP-file state (FR-002): reads
+    ONLY spec.md, so the signal is available and populated in
+    ``status_facts`` regardless of whether any WP file exists yet -- the
+    guards (``runtime_bridge_cores.py``) read it BEFORE their own
+    ``tasks_dir`` readiness checks, closing the exact dead-path shape the
+    reverted ``3823f2b00`` left open.
+
+    Fail-loud, textually separate from the advisory (Story 5 / FR-007 /
+    FR-008): this does NOT route through
+    ``_log_requirement_extraction_warnings_safely`` -- that wrapper's "never
+    crash into a gate" contract is the opposite of this detector's "never
+    silently report clean" contract. Any exception here becomes an explicit,
+    non-empty, blocking failure via ``BareProseRequirementFacts.
+    classification_error`` (NFR-002: silent-success prohibition) --
+    mirroring ``_check_requirement_mapping_ready``'s own
+    ``except Exception as exc: return [...]`` shape one function up, never
+    a bare traceback and never downgraded to a log line.
+    """
+    spec_md = feature_dir / SPEC_ARTIFACT
+    if not spec_md.exists():
+        return []
+
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        spec_content = spec_md.read_text(encoding="utf-8")
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        facts = _cores.BareProseRequirementFacts(
+            flagged={candidate.section_heading: tuple(candidate.ids) for candidate in candidates},
+            classification_error=None,
+        )
+    except Exception as exc:
+        facts = _cores.BareProseRequirementFacts(
+            flagged={},
+            classification_error=(
+                f"Bare-prose requirement detection failed to classify {feature_dir.name}'s spec.md: "
+                f"{exc!r} -- treating as blocking (never silently clean, NFR-002)."
+            ),
+        )
+    return _cores._evaluate_bare_prose_requirements(facts)
 
 
 def _has_raw_dependencies_field(wp_file: Path) -> bool:
@@ -831,9 +1157,7 @@ def _should_dispatch_via_composition(
     (FR-008 selection seam; FR-012 compat surface, #2531 WP08). See the seam
     module's docstring for the full order-critical charter-lookup /
     custom-widening contract."""
-    return _composition._should_dispatch_via_composition(
-        mission, step_id, run_dir=run_dir, repo_root=repo_root
-    )
+    return _composition._should_dispatch_via_composition(mission, step_id, run_dir=run_dir, repo_root=repo_root)
 
 
 def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
@@ -854,9 +1178,7 @@ def _resolve_runtime_contract_for_step(
     :func:`runtime_bridge_composition._resolve_runtime_contract_for_step`
     (identity-only compat surface — GUARD_B_ONLY_IMPORT_SURFACE in
     contracts/compat-surface.md; #2531 WP08)."""
-    return _composition._resolve_runtime_contract_for_step(
-        repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id
-    )
+    return _composition._resolve_runtime_contract_for_step(repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id)
 
 
 def _count_source_documented_events(feature_dir: Path) -> int:
@@ -879,13 +1201,18 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_composition._check_composed_action_guard`
     (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
-    the full guard-branch-family / legacy-vs-composition-only contract."""
+    the full guard-branch-family / legacy-vs-composition-only contract.
+
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
+    ``None`` (built-in tree only, matching every existing caller of this
+    compat surface that does not yet pass a real ``repo_root``)."""
     return _composition._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
     )
 
 
@@ -945,7 +1272,7 @@ def _advance_run_state_after_composition(
     timestamp: str,
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> Decision:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
@@ -1025,9 +1352,7 @@ def get_or_start_run(
     Run mapping stored in .kittify/runtime/feature-runs.json:
     { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
     """
-    return _io_seam.get_or_start_run(
-        mission_slug, repo_root, mission_type, emitter=emitter
-    )
+    return _io_seam.get_or_start_run(mission_slug, repo_root, mission_type, emitter=emitter)
 
 
 # ---------------------------------------------------------------------------
@@ -1036,17 +1361,13 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_run_dir_for_mission(
-    repo_root: Path, mission_slug: str
-) -> Path | None:
+def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_io._resolve_run_dir_for_mission`."""
     return _io_seam._resolve_run_dir_for_mission(repo_root, mission_slug)
 
 
-def _resolve_tech_stack_for_profile(
-    repo_root: Path, profile_id: str | None
-) -> frozenset[str]:
+def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_io._resolve_tech_stack_for_profile`."""
     return _io_seam._resolve_tech_stack_for_profile(repo_root, profile_id)
@@ -1167,6 +1488,27 @@ def _materialize_decision(
     return _cores.step_or_blocked(envelope, guard_failures, prompt_exists=_prompt_exists)
 
 
+def _primary_mission_is_completed(primary_metadata_dir: Path) -> bool:
+    """Return whether the PRIMARY checkout proves the mission is MERGED.
+
+    Deliberately gated on the merge marker alone (squad pass 1 on PR #845):
+    ``is_mission_completed`` is also True for an unmerged mission whose WPs are
+    all terminal, and short-circuiting there skips the final advance that
+    appends ``MissionRunCompleted`` and runs the retrospective completion gate.
+    Fail-closed and non-raising: a corrupt primary ``meta.json``
+    (``MissionMetaReadError``) reads as not-merged.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.status import StoreError, is_mission_merged
+
+    if not (primary_metadata_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_merged(primary_metadata_dir))
+    except (StoreError, MissionMetaReadError):
+        return False
+
+
 @dataclasses.dataclass(frozen=True)
 class DecideNextContext:
     """Frozen value carrier threading ``decide_next_via_runtime``'s shared
@@ -1187,7 +1529,7 @@ class DecideNextContext:
     feature_dir: Path
     now: str
     mission_type: str
-    sync_emitter: SyncRuntimeEventEmitter
+    sync_emitter: RuntimeEventEmitter
     emitter_for_engine: Any
     origin: dict[str, Any]
     progress: dict[str, int | float] | None
@@ -1201,6 +1543,8 @@ def _dn_bootstrap(
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> tuple[DecideNextContext | None, Decision | None]:
     """Phase 1/4 of ``decide_next_via_runtime`` (FR-010) — resolve
     feature/mission/run and build the shared :class:`DecideNextContext`.
@@ -1213,8 +1557,21 @@ def _dn_bootstrap(
     start) and the caller must return it immediately without running the
     remaining phases.
     """
-    feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-    now = datetime.now(UTC).isoformat()
+    if effective_root is None:
+        feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
+        primary_metadata_dir: Path | None = _primary_runtime_feature_dir(repo_root, mission_slug)
+    else:
+        from mission_runtime import MissionArtifactKind, mission_context_for
+
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
+        status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+        feature_dir = status_dir if status_dir.is_dir() else primary_metadata_dir
+    now = now_utc_iso()
 
     if not feature_dir.is_dir():
         return None, _materialize_decision(
@@ -1235,26 +1592,39 @@ def _dn_bootstrap(
     # ``""`` from ``get_mission_type`` (post-#883 no software-dev default), which
     # then breaks runtime template resolution. Anchor the type read on the primary
     # dir, mirroring ``_mission_routes_through_coordination`` above (FR-001).
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
 
     mission_type = get_mission_type(
-        primary_feature_dir_for_mission(
-            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
-        )
+        placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA) if primary_metadata_dir is None else primary_metadata_dir
     )
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    if primary_metadata_dir is not None and _primary_mission_is_completed(primary_metadata_dir):
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason="Mission is already completed",
+            )
+        )
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
     # Wrap with DecisionGitLog so decision events are durably committed to
     # the coordination branch (spec-kitty #1546, FR-001–FR-005).
-    emitter_for_engine: Any = _wrap_with_decision_git_log(
-        sync_emitter, mission_slug, repo_root
-    )
+    if effective_root is None:
+        emitter_for_engine: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
+    else:
+        emitter_for_engine = _wrap_with_decision_git_log(
+            sync_emitter,
+            mission_slug,
+            repo_root,
+            effective_root=effective_root,
+        )
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -1301,9 +1671,10 @@ def _dn_bootstrap(
     try:
         snapshot = _engine_adapter._read_snapshot(run_dir)
         current_step_id = snapshot.issued_step_id
-        sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
 
     # FR-017: populate the runtime OperationalContext at the `next` decision
     # boundary via the extracted helper (keeps the bootstrap phase flat). The
@@ -1367,8 +1738,27 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
-            should_advance = _should_advance_wp_step(current_step_id, feature_dir)
+            should_advance = _should_advance_wp_step(
+                current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug
+            )
         except CanonicalStatusNotFoundError as exc:
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=str(exc),
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                ),
+                [str(exc)],
+            )
+        except MissionSelectorAmbiguous as exc:  # NEW — FR-010 (#3884)
             return _materialize_decision(
                 _cores.DecisionEnvelope(
                     kind=DecisionKind.blocked,
@@ -1399,8 +1789,36 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 origin,
                 run_ref,
             )
-        # All WPs done for this step — check guards before advancing
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        # All WPs done for this step — check guards before advancing.
+        #
+        # Unlike the non-WP pre-check below (deliberately scoped to
+        # ``software-dev`` only, #3407), this WP-iteration branch runs for
+        # every mission family whose current step is ``implement``/``review``
+        # (``_WP_ITERATION_STEPS``) — including ``software-dev`` and
+        # ``plan``, both of which ARE registered in ``_GUARD_TABLES``, but
+        # also any custom mission family that has no guard-table entry at
+        # all (#3627). ``_check_cli_guards`` -> ``evaluate_guards_strict``
+        # fails closed with ``UnregisteredMissionFamilyError`` for such a
+        # family by design (see its own docstring); that is correct for the
+        # scoped non-WP pre-check, but here it must degrade to "no guard
+        # failures" instead of crashing the WP-iteration advance decision —
+        # composition-dispatch's own tolerant ``evaluate_guards`` remains the
+        # authority for those custom families, exactly as it already is for
+        # every non-WP-iteration step of theirs.
+        try:
+            guard_failures = _check_cli_guards(
+                current_step_id,
+                feature_dir,
+                mission_family=mission_type,
+                repo_root=repo_root,
+            )
+        except _cores.UnregisteredMissionFamilyError:
+            logger.warning(
+                "Unregistered mission_family %r reached the CLI guard path; "
+                "returning a neutral (empty) guard result.",
+                mission_type,
+            )
+            guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
                 current_step_id,
@@ -1416,9 +1834,29 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 guard_failures=guard_failures,
             )
 
-    # Check guards for non-WP steps before advancing
-    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+    # Check guards for non-WP steps before advancing.
+    #
+    # This CLI-native pre-check (#3407 M3) is scoped to the ``software-dev``
+    # mission family only. Its ``kind=step`` "re-issue the current step"
+    # semantic belongs to software-dev's linear specify → plan → tasks CLI
+    # vocabulary; it must NOT pre-empt composition dispatch for the other
+    # families. For ``documentation`` / ``research`` / ``plan`` and every
+    # custom mission type, the composed-action guard (Phase 3) is the
+    # authority — it surfaces the same missing-artifact failure as a
+    # ``kind=blocked`` decision (the fail-CLOSED contract, spec.md AC of the
+    # documentation/research runtime walks) and, unlike ``_check_cli_guards``
+    # here, degrades gracefully for guard-table-unregistered custom families
+    # instead of raising ``UnregisteredMissionFamilyError``. Gating on the
+    # family keeps software-dev byte-identical to its pre-#3407 behavior
+    # (AC-14) while restoring the correct blocked decision for the composed
+    # families (WP06 wrongly routed them through this ``kind=step`` path).
+    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and mission_type == MISSION_TYPE_SOFTWARE_DEV:
+        guard_failures = _check_cli_guards(
+            current_step_id,
+            feature_dir,
+            mission_family=mission_type,
+            repo_root=repo_root,
+        )
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,
@@ -1440,9 +1878,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                     mission_type,
                 )
             else:
-                prompt_error = (
-                    f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
-                )
+                prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
             # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
             # issues kind=step with an unresolvable prompt_file — it falls
             # back to kind=blocked using this pre-computed reason (matches
@@ -1496,7 +1932,7 @@ def _dn_composition_blocked_decision(
     )
     prompt_file = (
         _build_prompt_safe(
-            action or current_step_id,
+            action,
             ctx.feature_dir,
             ctx.mission_slug,
             wp_id,
@@ -1539,8 +1975,9 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
     invocation_id chain (host harness interprets it); a structured guard
     failure surface (Decision.kind=blocked, guard_failures populated) is
     used in lieu of a Python traceback when the executor raises
-    `StepContractExecutionError`. C-008 hard-guards this on
-    `mission == "software-dev"`; every other mission falls through (returns
+    `StepContractExecutionError`. C-008 gates this on `action_sequence`
+    membership for the resolved mission type -- any mission type, not just
+    `software-dev`; a step outside its own sequence falls through (returns
     ``None``) to composition unchanged so decision-materialize runs the
     runtime planner next.
     """
@@ -1597,16 +2034,16 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             contract=runtime_contract,
         )
         if composition_failures:
-            return _dn_composition_blocked_decision(
-                ctx, current_step_id, composition_failures
-            )
+            return _dn_composition_blocked_decision(ctx, current_step_id, composition_failures)
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
         # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
-        # helper emits the same lane / state events the legacy path emits;
-        # any error from it surfaces through the existing ``Decision``
-        # ``blocked`` shape (EDGE-003) — the legacy DAG dispatch handler is
-        # **not** entered as a fallback.
+        # helper emits the same lane / state events the legacy path emits,
+        # through the decision-log-wrapped engine emitter so a
+        # ``DecisionInputRequested`` it raises is durably recorded
+        # (ADR 2026-09-06-2 (c)); any error from it surfaces through the
+        # existing ``Decision`` ``blocked`` shape (EDGE-003) — the legacy
+        # DAG dispatch handler is **not** entered as a fallback.
         try:
             return _advance_run_state_after_composition(
                 run_ref=run_ref,
@@ -1618,7 +2055,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 timestamp=now,
                 progress=progress,
                 origin=origin,
-                sync_emitter=ctx.sync_emitter,
+                sync_emitter=ctx.emitter_for_engine,
             )
         except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
             # advancement-helper failure must surface as a structured
@@ -1637,11 +2074,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                     mission=mission_type,
                     mission_state=current_step_id,
                     timestamp=now,
-                    reason=(
-                        f"Run-state advancement after composition failed for "
-                        f"{mission_type}/{composed_action}: "
-                        f"{type(exc).__name__}: {exc}"
-                    ),
+                    reason=(f"Run-state advancement after composition failed for {mission_type}/{composed_action}: {type(exc).__name__}: {exc}"),
                     progress=progress,
                     origin=origin,
                     run_id=run_ref.run_id,
@@ -1789,10 +2222,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
                     mission=ctx.mission_type,
                     mission_state=ctx.current_step_id or "unknown",
                     timestamp=ctx.now,
-                    reason=(
-                        "Cannot read run state.json / run.events.jsonl before "
-                        "speculative engine advance; refusing to advance"
-                    ),
+                    reason=("Cannot read run state.json / run.events.jsonl before speculative engine advance; refusing to advance"),
                     progress=ctx.progress,
                     origin=ctx.origin,
                 )
@@ -1828,23 +2258,18 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         )
 
     if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        gate_decision = _dn_terminal_retrospective_gate(
-            ctx, policy_error, buffer, pre_state_bytes, pre_events_size
-        )
+        gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size)
         if gate_decision is not None:
             return gate_decision
 
     # Gate either passed (terminal allow) or never ran (non-terminal /
-    # not opted in): flush any buffered emit calls into the real sync
-    # emitter so observers receive them in original order.
+    # not opted in): flush any buffered emit calls into the decision-log-
+    # wrapped engine emitter so decision events are durably recorded and
+    # observers receive them in original order (ADR 2026-09-06-2 (c)).
     if buffer is not None:
-        buffer.flush(ctx.sync_emitter)
+        buffer.flush(ctx.emitter_for_engine)
 
-    if (
-        retrospective_enabled
-        and not block_on_retrospective
-        and runtime_decision.kind == DecisionKind.terminal
-    ):
+    if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
         _run_retrospective_learning_capture(
             mission_id=mission_id,
@@ -1867,11 +2292,94 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     )
 
 
+#: Reused across both #2947 short-circuit branches (S1192 — repeated literal).
+_MERGED_MISSION_DONE_REASON = "All work packages are done"
+
+
+def _merged_mission_short_circuit(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    agent: str | None,
+    now: str,
+    terminal_kind: str,
+) -> Decision | None:
+    """Committed-authority pre-check (#2947, D8/D9/D13/F5) shared by BOTH
+    ``next`` entry points, called BEFORE either selects a workspace or starts
+    a run.
+
+    Consumes WP01's :func:`committed_authority.mission_terminal_verdict` —
+    the PRIMARY-surface authority (never the coordination checkout) — so a
+    merged mission is recognized from committed truth instead of a stale/
+    artifact-missing coordination workspace fabricating an unstarted run
+    (D9). ``mission_type`` is resolved off the same PRIMARY surface
+    (:func:`_primary_runtime_feature_dir`) — never via workspace selection.
+
+    ``terminal_kind`` lets the two callers diverge on the ONE dimension D13
+    requires: :func:`decide_next_via_runtime` passes ``DecisionKind.terminal``
+    (matching issue #2947's ``--result success`` repro, and creating NO run
+    since this returns before workspace selection / ``get_or_start_run``);
+    :func:`query_current_state` passes ``DecisionKind.query`` (query mode is
+    structurally ``kind: query`` only — mirrors the finalized-override
+    ``mission_state="done"`` precedent, :func:`_build_finalized_override_
+    query_decision`). A ``blocked_conflict`` verdict honors the same mode
+    split: advancing mode emits ``kind: blocked`` (an actionable blocked
+    decision), while query mode emits ``kind: query`` with
+    ``mission_state="blocked"`` — preserving the query-mode ``is_query`` /
+    ``kind: query`` invariant and matching the finalized-override ``blocked:``
+    precedent (never ``kind: blocked`` from a read-only query).
+
+    F5 invariant: returns ``None`` for verdict ``"none"`` so the caller's
+    existing behavior is BYTE-IDENTICAL to today (protects the many
+    in-flight query/decide fixtures) — the only two verdicts this function
+    ever materializes a ``Decision`` for are ``"terminal"`` and
+    ``"blocked_conflict"``.
+    """
+    from runtime.next.committed_authority import mission_terminal_verdict
+
+    verdict = mission_terminal_verdict(repo_root, mission_slug)
+    if verdict == "none":
+        return None
+
+    mission_type = get_mission_type(_primary_runtime_feature_dir(repo_root, mission_slug))
+    if verdict == "terminal":
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=terminal_kind,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason=_MERGED_MISSION_DONE_REASON,
+            )
+        )
+    # blocked_conflict — honor the mode: query mode keeps the structural
+    # ``kind: query`` invariant (``mission_state="blocked"``, mirroring the
+    # finalized-override ``blocked:`` precedent), advancing mode emits an
+    # actionable ``kind: blocked``. Field set mirrors the inline blocked
+    # emissions; no invented payload shape.
+    blocked_kind = DecisionKind.query if terminal_kind == DecisionKind.query else DecisionKind.blocked
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=blocked_kind,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="blocked",
+            timestamp=now,
+            reason="Merged mission has committed work packages that are not an acceptable ending (conflict)",
+        )
+    )
+
+
 def decide_next_via_runtime(
     agent: str,
     mission_slug: str,
     result: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Main entry point replacing old decide_next().
 
@@ -1883,6 +2391,11 @@ def decide_next_via_runtime(
     decision-materialize is the terminal phase and always resolves.
 
     Flow:
+    0. Committed-authority pre-check (#2947, D13) — a merged mission
+       (``mission_terminal_verdict`` is ``terminal``/``blocked_conflict``)
+       short-circuits BEFORE workspace selection / run start, returning
+       ``kind: terminal`` (no run created) or ``kind: blocked``. A ``"none"``
+       verdict falls through unchanged (F5).
     1. Resolve mission_type from meta.json
     2. get_or_start_run() to obtain MissionRunRef
     3. Check if current step is a WP-iteration step
@@ -1891,7 +2404,26 @@ def decide_next_via_runtime(
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
+    merged_short_circuit = _merged_mission_short_circuit(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        agent=agent,
+        now=now_utc_iso(),
+        terminal_kind=DecisionKind.terminal,
+    )
+    if merged_short_circuit is not None:
+        return merged_short_circuit
+
+    if effective_root is None:
+        ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
+    else:
+        ctx, early_decision = _dn_bootstrap(
+            agent,
+            mission_slug,
+            result,
+            repo_root,
+            effective_root=effective_root,
+        )
     if early_decision is not None:
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
@@ -1916,6 +2448,7 @@ def _build_finalized_override_query_decision(
     emitted_run_id: str | None,
     repo_root: Path,
     finalized_override: str,
+    effective_root: Path | None = None,
 ) -> Decision:
     override_wp_id: str | None = None
     if finalized_override == "done":
@@ -1934,7 +2467,11 @@ def _build_finalized_override_query_decision(
             from mission_runtime import MissionArtifactKind, mission_context_for
             from runtime.next.discovery import preview_claimable_wp
 
-            mission_context = mission_context_for(repo_root, mission_slug)
+            mission_context = mission_context_for(
+                repo_root,
+                mission_slug,
+                effective_root=effective_root,
+            )
             preview = preview_claimable_wp(
                 mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir,
                 status_dir=mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir,
@@ -2054,22 +2591,48 @@ def query_current_state(
     agent: str | None,
     mission_slug: str,
     repo_root: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Return current mission state without advancing the DAG.
 
     Reads the run snapshot idempotently. Does NOT call next_step().
     Returns a Decision with kind=DecisionKind.query and is_query=True.
 
+    Committed-authority pre-check (#2947, D13): before any workspace
+    selection (``mission_context_for`` below), a merged mission
+    (``mission_terminal_verdict`` is ``terminal``) short-circuits to
+    ``kind: query`` / ``mission_state: "done"`` — query mode's structural
+    ``kind: query`` contract (never ``kind: terminal`` here); a
+    ``blocked_conflict`` verdict short-circuits to ``kind: blocked``. A
+    ``"none"`` verdict falls through unchanged (F5), so
+    ``_finalized_task_board_override_step`` (D9) never runs for a merged
+    mission.
+
     Args:
         agent: Agent name (for Decision construction only).
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
+    now = now_utc_iso()
+    merged_short_circuit = _merged_mission_short_circuit(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        agent=agent,
+        now=now,
+        terminal_kind=DecisionKind.query,
+    )
+    if merged_short_circuit is not None:
+        return merged_short_circuit
+
     from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 
-    now = datetime.now(UTC).isoformat()
     try:
-        mission_context = mission_context_for(repo_root, mission_slug)
+        mission_context = mission_context_for(
+            repo_root,
+            mission_slug,
+            effective_root=effective_root,
+        )
         mission_slug = mission_context.mission_slug
     except ActionContextError as exc:
         # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
@@ -2161,6 +2724,7 @@ def query_current_state(
                 emitted_run_id=emitted_run_id,
                 repo_root=repo_root,
                 finalized_override=finalized_override,
+                effective_root=effective_root,
             )
 
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
@@ -2238,8 +2802,7 @@ def answer_decision_via_runtime(
         # remediation, mis-routing the operator. Log the context, then re-raise
         # the typed ActionContextError so the command layer surfaces its code.
         logger.warning(
-            "answer_decision_via_runtime: read-path error (%s) for mission %r in "
-            "repo %s — cannot answer decision %r",
+            "answer_decision_via_runtime: read-path error (%s) for mission %r in repo %s — cannot answer decision %r",
             exc.code,
             mission_slug,
             repo_root,
@@ -2253,29 +2816,27 @@ def answer_decision_via_runtime(
             feature_dir,
             decision_id,
         )
-        raise MissionRuntimeError(
-            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
-        )
+        raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
     )
     try:
-        sync_emitter.seed_from_snapshot(_engine_adapter._read_snapshot(Path(run_ref.run_dir)))
+        snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
     except Exception as exc:
         logger.warning(
             "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
             run_ref.run_dir,
             exc,
         )
+    else:
+        seed_runtime_emitter(sync_emitter, snapshot)
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
-    answer_emitter: Any = _wrap_with_decision_git_log(
-        sync_emitter, mission_slug, repo_root
-    )
+    answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,

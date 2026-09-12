@@ -1,0 +1,137 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Red-first testability of FR-002/User Story 2 (mission-specific lens)
+    severity: 4
+    title: >-
+      Acceptance Scenario 1 / SC-002 / FR-002's "activate one unrelated
+      built-in artifact" premise cannot make the org node survive
+      filter_graph_by_activation, even after the FR-001 fix — empirically
+      verified against the live gate code
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1"
+      - artifact: "spec.md § FR-002 (Requirements table)"
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (reuses US1's Independent Test)"
+      - code: "src/charter/drg.py:467-473 (_node_is_activated Step 3, per-artifact-ID gate)"
+      - code: "src/charter/drg.py:372-378 (_resolve_activated_urns_for_kind iterates only stems already IN activated_ids)"
+      - code: "src/charter/activation_engine.py:257-274 (plan_activation, FR-021: materializes a fixed default pack + the one requested stem, not a dynamic org-aware set)"
+      - code: "src/charter/pack_manager.py:512-520 (_load_default_pack reads a static, built-in-only src/charter/packs/default.yaml)"
+      - code: "tests/charter/test_drg_activation_gate.py:209-216 (test_non_activated_directive_is_still_excluded — existing, currently-passing test proving a populated activated_directives set excludes any node whose stem/URN is not itself a member, regardless of source)"
+    claim: >-
+      The mission's central Acceptance Scenario 1 (P1, "the whole defect")
+      says: given an org root with a flat-layout directive and "no other
+      activation state," WHEN `charter activate directive <built-in-stem>`
+      activates an *unrelated* built-in directive, THEN the org directive's
+      node is present in filter_graph_by_activation's output. FR-002 and
+      SC-002 restate the identical premise, and User Story 2's own red-first
+      regression test (C-004) is explicitly this same scenario "made
+      concrete as a pytest test."
+
+      Tracing the actual mechanism chain end-to-end (as this lens requires)
+      shows this premise is false, independent of whether _org_scan_dirs is
+      fixed. `_node_is_activated` Step 3 (drg.py:467-473) only lets a node
+      through when its own URN is a member of `resolved_urns_by_kind[kind]`
+      — and that set is built by `_resolve_activated_urns_for_kind`
+      (drg.py:372-378) resolving ONLY the stems already present in
+      `activated_ids` (the config's `activated_directives` list). The org
+      directive's stem is never a member of that list in Scenario 1's setup:
+      per FR-021 (activation_engine.py:257-274), activating one directive
+      with no prior explicit set materializes the static, built-in-only
+      default pack (`_load_default_pack()`, pack_manager.py:512-520, backed
+      by src/charter/packs/default.yaml — "Contains all built-in artifact
+      IDs") plus the single requested stem. The org stem is never added, so
+      `resolve_artifact_urn` is never even called on it via this path — the
+      swallowed-`UnknownArtifactIdError` mechanism the spec's own narrative
+      hinges on ("For every stem in the activated set it calls
+      resolve_artifact_urn...") never applies to the org stem in this
+      scenario, because the org stem is not a member of "the activated set"
+      to begin with.
+
+      This is not a hypothesis: I built a live repro (PackContext with
+      `activated_directives={<unrelated built-in stem>}`, `pack_roots=(org_root,)`,
+      a hand-added org directive node in the graph, and `_org_scan_dirs`
+      monkeypatched to the FR-001-described fixed behavior) and ran it
+      against this checkout. Result: `resolve_artifact_urn` for the org
+      stem directly succeeds (proving the FR-001 fix itself works, i.e.
+      Acceptance Scenario 2 is sound), but `filter_graph_by_activation`
+      under Scenario 1's exact setup still excludes the org node
+      (`survived == False`). This exactly matches the pre-existing,
+      currently-passing test `test_non_activated_directive_is_still_excluded`,
+      whose own docstring states the general rule: "a populated set that
+      omits a node's canonical id excludes that node."
+
+      Net effect: the FR-002 regression test, if implemented literally as
+      specified, will be RED before the FR-001 fix (correctly, but for the
+      wrong reason — org pack unresolvable) and RED after the FR-001 fix too
+      (because the org stem was never activated) — it can never reach GREEN
+      by fixing only `_org_scan_dirs`. This violates C-004's red-then-green
+      requirement and risks the implementing WP either (a) burning a cycle
+      believing FR-001's fix is broken, or (b) silently rewriting the test's
+      activation target to make it pass without updating the spec, creating
+      spec/code drift the charter's ATDD-First Discipline (C-011) exists to
+      prevent.
+    remediation: >-
+      Rewrite Acceptance Scenario 1 (and the linked FR-002, SC-002, and User
+      Story 2 Independent Test) so the activated-stem set actually contains
+      the org directive's own config-stem — e.g. change the WHEN clause to
+      "charter activate directive <org-directive-stem>" (mirroring Scenario
+      2, but through the full activate()+filter_graph_by_activation() round
+      trip instead of a direct resolve_artifact_urn() call), or explicitly
+      set `activated_directives` to include both the unrelated built-in stem
+      AND the org stem. Keep a *second*, clearly-separate scenario proving
+      the org node's PRESENCE does not depend on it happening to share a
+      kind with something already activated (the "additive, not
+      order-dependent" property Scenario 3 gestures at) — but do not present
+      "activate something else entirely" as sufficient to reveal the org
+      node, since the per-artifact-ID allowlist gate (drg.py Step 3) makes
+      that false by design, not by defect.
+
+  - id: SPEC-VERIFY-002
+    lens: Silent-success / Red-first testability (mechanism-chain completeness)
+    severity: 3
+    title: >-
+      Acceptance Scenario 1's fixture omits the DRG-node registration an
+      org directive needs to appear in filter_graph_by_activation's INPUT
+      graph at all, independent of _org_scan_dirs
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (fixture: only `<org_root>/directives/<org-directive>.directive.yaml`)"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (this mission's own finding: `<org_root>/drg/*.graph.yaml` is NOT read by the current loader)"
+      - code: "src/charter/_drg_helpers.py:78-96 (load_validated_graph merges built-in graph with load_graph_or_dir(org_root) — a *.graph.yaml-driven merge, not derived from scanning *.directive.yaml artifact files)"
+      - code: "packs/built-in/directive.graph.yaml (built-in directive nodes are explicitly declared graph fragments, confirming nodes are never auto-synthesized from artifact YAML)"
+      - code: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md:58-66 (documented canonical org-pack layout places DRG fragments under a `drg/` subdirectory)"
+    claim: >-
+      For the org directive's node to be "present in the graph returned by
+      filter_graph_by_activation" (Scenario 1's THEN clause), it must
+      already be a node in the graph *passed into* the filter.
+      `filter_graph_by_activation`/`_node_is_activated` never derive nodes
+      from `_scan_roots`/`resolve_artifact_urn` — those are purely for
+      resolving config-stem activation-list entries to URNs. DRG nodes come
+      from `load_validated_graph`'s merge of `*.graph.yaml` fragments
+      (confirmed: built-in directive nodes live in a committed
+      `packs/built-in/directive.graph.yaml`, not synthesized from
+      `*.directive.yaml` files). Scenario 1's fixture only creates
+      `<org_root>/directives/<org-directive>.directive.yaml` — no
+      `*.graph.yaml` fragment at all — so, per this mission's own User
+      Story 3 finding (a root-level `*.graph.yaml` is required; the
+      documented `<org_root>/drg/*.graph.yaml` location is NOT read by
+      `load_graph_or_dir`, which globs non-recursively at the given path),
+      the org directive would never become a node in the input graph in the
+      first place, for a reason entirely orthogonal to `_org_scan_dirs`
+      (this is squarely #3384's territory, explicitly out of scope here per
+      C-002). The implementing WP will discover this only by debugging a
+      test that fails for a reason the spec never names.
+    remediation: >-
+      Add an explicit fixture requirement to Acceptance Scenario 1 (and
+      FR-002/FR-003's test-construction guidance): the org root must also
+      carry a root-level `*.graph.yaml` declaring the org directive as a
+      node (test-fixture data only — this does not modify
+      `_drg_helpers.py` or compete with #3384's fix, consistent with C-002).
+      Name this explicitly as a fixture-construction detail distinct from
+      the production fix, so the WP does not conflate "graph-node discovery
+      is broken" (#3384, out of scope) with "activation-list resolution is
+      broken" (#3385, this mission's actual fix).

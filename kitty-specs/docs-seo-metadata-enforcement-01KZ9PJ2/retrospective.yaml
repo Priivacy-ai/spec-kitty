@@ -1,0 +1,171 @@
+schema_version: 1
+mission_id: 01KZ9PJ2QG6BWH6MFMMZHVB72C
+mission_slug: docs-seo-metadata-enforcement-01KZ9PJ2
+mission_number: 191
+friendly_name: Docs SEO Metadata Audit and Enforcement
+mission_type: software-dev
+target_branch: feat/docs-seo-metadata-enforcement
+created_at: '2026-08-06T19:24:08.040782+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-06T19:24:08.040782+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-007
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-017
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-003
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-016
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-002
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP05 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP01-published-page-set-resolver.md
+- id: e-006
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP02-adr-descriptions-1x-2x.md
+- id: e-007
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP03-adr-descriptions-3x-early.md
+- id: e-008
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP04-adr-descriptions-3x-late.md
+- id: e-009
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP05-render-emission-and-verifier.md
+- id: e-010
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP06-source-metadata-gate.md
+- id: e-011
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP07-internal-link-equity.md
+- id: e-012
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/tasks/WP08-ci-trigger-scoping.md
+- id: e-013
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/status.events.jsonl
+  range: 01KZ9VH94EBCXFM3W1CFNP5A2W
+- id: e-015
+  kind: event_range
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/status.events.jsonl
+  range: 01KZ9VH94EBCXFM3W1CFNP5A2W
+- id: e-016
+  kind: event_range
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/status.events.jsonl
+  range: implementation_cycles
+- id: e-017
+  kind: file
+  path: kitty-specs/docs-seo-metadata-enforcement-01KZ9PJ2/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "charter-activate-empty-action-sequence-01M0STSX",
+  "mission_id": "01M0STSX60B3SEY5SX52DSQGM8",
+  "mission_branch": "kitty/mission-charter-activate-empty-action-sequence-01M0STSX",
+  "target_branch": "fix/charter-activate-empty-action-sequence-3702",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profiles.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "tests/charter/test_mission_type_profiles.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-24T13:39:53.108229+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "312e29139e95e31f851df74c1b912e07c91e903e"
+}

@@ -1,0 +1,180 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: merged
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+merge_note: >
+  R2 mechanical merge/dedup of spec-gov.findings.yaml (4), spec-arch.findings.yaml (2),
+  spec-verify.findings.yaml (2) = 8 raw findings. SPEC-ARCH-001 and SPEC-VERIFY-001 make
+  substantially the same claim (FR-007/NFR-002's "relative to repo_root, raise if not"
+  contradicts the existing, currently-green worktree charter-path behavior/test) —
+  deduplicated into one merged entry keeping both original ids, severity 4 (both agreed),
+  evidence unioned. All other 6 findings are distinct claims, kept as-is with original ids
+  and severities. No finding dropped for disagreement — that judgment belongs to R3.
+findings:
+  - id: SPEC-GOV-001
+    lens: public-repo
+    severity: 5
+    title: "spec.md itself writes the operator's absolute, username-bearing checkout path, violating the spec's own binding C-001"
+    evidence:
+      - artifact: "spec.md § Clarifications / Decision Record, D3 (line 18) and Grounding Correction 3 (line 31)"
+    claim: >
+      D3 and Grounding Correction 3 both cite the ledger by writing the literal absolute path
+      `<workspace-root>/SPEC-KITTY-LEDGER.md` directly into spec.md. This is a real
+      OS username embedded in a document this mission commits to a PUBLIC repository.
+      Constraint C-001 (spec.md line 126) states verbatim: "No absolute filesystem path containing a
+      username may be written into any artifact this mission commits — including the spec/plan/tasks
+      artifacts themselves, not only the code fix (this instruction is binding on the mission's own
+      authored artifacts too)." The spec violates its own stated, binding constraint in the very
+      document that declares it. `grep -n "/home/" spec.md` confirms two literal hits (lines 18, 31);
+      the third match (NFR-001, line 117) is an illustrative pattern and is not itself a leak.
+    remediation: >
+      Replace both literal absolute-path citations of the ledger with a path-free reference, e.g.
+      "the workspace-root SPEC-KITTY-LEDGER.md (sibling to this checkout), entry SK-63". Re-run
+      `grep -n "/home/\|/Users/" spec.md` before commit and confirm only the illustrative NFR-001
+      pattern remains.
+
+  - id: SPEC-GOV-002
+    lens: "mission-derived — #3678 fix-direction resolution correctness"
+    severity: 3
+    title: "FR-006 does not actually pin the commit-subject's type/scope pattern, despite Grounding Correction 3's rationale depending on a specific type"
+    evidence:
+      - artifact: "spec.md § FR-006 (line 110) and Grounding Correction 3 (line 31)"
+      - code: "commitlint.config.cjs:12-25 (type-enum list: build, chore, ci, docs, feat, fix, lint, perf, plan, refactor, revert, spec, style, test — no scope-enum rule)"
+    claim: >
+      Grounding Correction 3 picks `docs(mission): record analysis report for mission <slug>` and
+      justifies it by appeal to this repo's own established `docs(review): ...` convention — an
+      argument for the `docs` type specifically. But FR-006's actual requirement text only binds the
+      implementer to "a subject satisfying type-enum/type-case/type-empty/subject-empty"; nothing
+      requires `type == docs`. Any of the 14 valid type-enum values would satisfy FR-006/AC-1 verbatim
+      while diverging from the stated rationale. A WP reviewer has no FR/AC text to hold the
+      implementer to `docs(mission): ...` specifically.
+    remediation: >
+      Tighten FR-006 (or add an AC) to pin the *type* — "the subject's conventional-commit type MUST
+      be `docs`, consistent with this repo's other tool-authored analyze/review commits" — while
+      leaving exact free-text wording and scope token to implementation.
+
+  - id: SPEC-GOV-003
+    lens: directive
+    severity: 2
+    title: "Key Entities section miscounts the post-#3677 __all__ size: 21 claimed, 20 actual"
+    evidence:
+      - artifact: "spec.md § Key Entities (line 136): \"This mission shrinks it by seven entries ... the remaining twenty-one entries ... are unchanged.\""
+      - code: "src/specify_cli/dossier/__init__.py:50-77 (__all__ list, 27 total string entries)"
+    claim: >
+      `__all__` in the live checkout currently declares 27 names. Removing the seven
+      `spec_kitty_events` type re-exports (FR-005) leaves 20, not 21 — a simple arithmetic slip in a
+      descriptive (non-normative) note. FR-005's own name list and C-002's keep-list are both correct.
+    remediation: "Change \"the remaining twenty-one entries\" to \"the remaining twenty entries\" in the Key Entities section."
+
+  - id: SPEC-GOV-004
+    lens: scope
+    severity: 1
+    title: "Mission title and opening paragraph still frame this as closing '#1058 deferrals' rather than naming it a D1 fold"
+    evidence:
+      - artifact: "spec.md line 1 (\"Close the three #1058 deferrals\") and line 6 (\"plus ledger entry SK-63's secondary ... defect — folded per operator decision D3\")"
+    claim: >
+      The title says "the three #1058 deferrals" but the mission actually closes four defects
+      (#3676, #3677, #3678, and SK-63's path-relativization half). Wording-only — the Clarifications
+      section and FR-007 are unambiguous, so no implementer would miss it.
+    remediation: "Retitle to something like \"Close #3676/#3677/#3678 plus SK-63's path-relativization half\" so the title matches the actually-scoped set without requiring the reader to reach the Clarifications section first."
+
+  - id: SPEC-ARCH-001
+    duplicate_of_group: [SPEC-ARCH-001, SPEC-VERIFY-001]
+    lens: "Layering / Contracts (FR-007) + silent-success (verify) — converged finding"
+    severity: 4
+    title: "FR-007/NFR-002's 'relative to repo_root, raise if unrelativizable' contract contradicts the existing, tested canonical-root charter-hashing behavior, and is silently applied to a second, non-raising caller"
+    evidence:
+      - artifact: "spec.md FR-007 (line 111), NFR-002 (line 118), Edge Cases item 4 (line 94), User Story 1 AC-2 (line 48) and AC-3 (line 49)"
+      - code: "src/specify_cli/analysis_report.py:188-229 (_charter_path, collect_input_artifact_hashes) — resolves the charter through `resolve_canonical_repo_root(repo_root)`, explicitly to get the MAIN checkout's charter so a worktree-local charter copy is never hashed in place of the main checkout's charter (comment at lines 189-194); the returned path can legitimately live OUTSIDE the passed repo_root."
+      - code: "tests/specify_cli/test_analysis_report.py:207-238 (test_charter_hash_resolves_canonical_root_from_worktree, #1823) — an existing, currently-passing regression test asserting the charter path resolves to a SIBLING main checkout, not a subpath of the passed repo_root (worktree). Verified live: `uv run --extra test pytest tests/specify_cli/test_analysis_report.py -q -k charter_hash` -> 3 passed, on this checkout right now, not part of #3284's baseline."
+      - code: "src/specify_cli/analysis_report.py:458-544 (check_analysis_report_current) — calls collect_input_artifact_hashes at line 515 as part of a function whose own established contract (FrontmatterError catch, lines 472-482) is to NEVER raise, always returning a typed AnalysisFreshness(ok=False, reason=...)."
+      - code: "src/specify_cli/cli/commands/agent/workflow.py:950-961 (_require_current_analysis_report) — sole consumer of check_analysis_report_current, branches on .reason for the `agent action implement` gate; a code path this spec never mentions."
+    claim: >
+      FR-007 and NFR-002 require every path in collect_input_artifact_hashes's output — including the
+      charter entry — to be relative to repo_root, raising whenever a path "cannot be expressed
+      relative to repo_root." But `_charter_path` deliberately resolves the charter via
+      `resolve_canonical_repo_root(repo_root)`, which can return the MAIN checkout root even when
+      repo_root is a linked worktree — exactly the scenario `test_charter_hash_resolves_canonical_root_from_worktree`
+      pins (fix for #1823). A literal FR-007 implementation (raise whenever
+      `charter_path.relative_to(repo_root)` fails) breaks that existing, intentional, currently-green
+      test — a real regression this mission's own SC-checks would not catch, since no SC references
+      that test. Worse, the SAME shared helper is called a second time by
+      `check_analysis_report_current`, whose own contract is to never raise; the spec's User Story 1
+      ("Both checks are independent of #3676/#3677 and can be verified without touching the dossier
+      module at all") never scopes, tests, or even mentions this second caller, so an implementer
+      following FR-007 literally risks crashing the `agent action implement` gate with a raw
+      traceback instead of its existing reason-coded recovery guidance. Edge Case 4's framing of this
+      scenario as "hypothetical ... e.g. a symlinked or foreign-root path" is inaccurate for the
+      charter case specifically — it is live, already-tested, production topology (worktree/lane
+      execution is this repo's normal model), not a hypothetical.
+    remediation: >
+      Add an explicit clarification (Grounding Correction or new Constraint) stating which reference
+      root each input_artifacts entry relativizes against: the three hash-input artifacts
+      (spec.md/plan.md/tasks.md) relativize against repo_root; the charter entry relativizes against
+      its OWN canonical_root (the root _charter_path already resolves via resolve_canonical_repo_root),
+      NOT the passed-in repo_root — so the worktree case stays a legitimate non-error, matching the
+      #1823 test's existing expectation. Name test_charter_hash_resolves_canonical_root_from_worktree
+      explicitly and state it is NOT expected to change its assertion. Reword AC-2/NFR-001's "relative
+      to repo_root" language to "relative to its governing root (repo_root for spec/plan/tasks;
+      canonical_root for charter)". Separately, require the implementation to keep
+      check_analysis_report_current's non-raising contract intact — either by catching the new
+      relativization error inside it and mapping it to a typed AnalysisFreshness(ok=False, reason=...),
+      or by adding an explicit AC/SC that exercises check_analysis_report_current /
+      _require_current_analysis_report (not just write_analysis_report) against an
+      unrelativizable-path fixture. Drop "hypothetical" from Edge Case 4's framing for the charter
+      case; reserve that word for the spec/plan/tasks paths, which genuinely have no known production
+      trigger today.
+
+  - id: SPEC-VERIFY-001
+    duplicate_of_group: [SPEC-ARCH-001, SPEC-VERIFY-001]
+    lens: silent-success
+    severity: 4
+    title: "Merged into SPEC-ARCH-001 above — see that entry for the unioned claim/evidence/remediation."
+    evidence: []
+    claim: "See SPEC-ARCH-001 (converged finding, same underlying defect, independently found by both the arch and verify lens groups)."
+    remediation: "See SPEC-ARCH-001."
+
+  - id: SPEC-ARCH-002
+    lens: "Close defect classes by construction (DIRECTIVE_043) — #3676 guard boundary honesty"
+    severity: 3
+    title: "Edge Cases section names the alias-reassignment boundary but never names the dynamic/reflective-dispatch escape hatch (getattr, dispatch-dict) the widened guard still cannot see"
+    evidence:
+      - artifact: "spec.md Edge Cases (lines 91-93), FR-001/FR-002 (lines 105-106), User Story 2 Acceptance Scenario 5 (line 68)"
+      - code: "tests/architectural/test_dossier_emitter_positional_guard.py:92-96 (_call_target_name) — has and will have no path to recognize getattr(dossier, \"emit_artifact_indexed\")(...), a dispatch-dict call, or any other reflective/dynamic call construction."
+    claim: >
+      The Edge Cases section names two boundaries for the widened guard (nested attribute-chain depth
+      — handled; alias-reassignment tracking — explicitly out of scope) but never names the broader
+      class of dynamic/reflective invocation as a boundary at all, even though it is a real,
+      syntactically distinct escape hatch, and User Story 2's own premise is that gaps should be
+      "actually closed, not merely written down as accepted risk." AC5's general "no full call-graph
+      resolution" clause technically covers it, but per DIRECTIVE_043 a design boundary should be a
+      named, deliberate statement, not an implicit inference — the same anti-pattern (undisclosed
+      deferral) this mission was opened to fix for the two shapes it does close.
+    remediation: >
+      Add one more Edge Cases bullet explicitly naming dynamic/reflective dispatch (getattr-based
+      calls, dispatch tables/dict unpacking, functools.partial-wrapped emitters) as an explicitly
+      out-of-scope boundary for this widening, with the same rationale style used for
+      alias-reassignment, so the widened docstring (AC5) states this boundary by name.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: "FR-003 / User Story 2 Acceptance Scenario 5 (docstring update) has no concrete, mechanically-checkable assertion, unlike every other AC in the spec"
+    evidence:
+      - artifact: "spec.md § FR-003 (line 107)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 5 (line 68)"
+      - code: "tests/architectural/test_dossier_emitter_positional_guard.py:1-33 (module docstring, 'What this guard deliberately does NOT cover')"
+    claim: >
+      Every other AC in this spec names a literal grep pattern, pytest invocation, or exact
+      fixture/field name to check against. AC-5 of User Story 2 only says the docstring "no longer
+      frames attribute-chain and aliased-import calls as deferred/out-of-scope" — no literal string(s)
+      required absent/present, and FR-003/AC-5 has no corresponding Success Criterion pointing back to
+      it at all.
+    remediation: >
+      Either add an SC with a concrete grep-based check (e.g. confirming the phrases "explicitly
+      deferred" / "none exist in .src/. today" no longer appear), or explicitly note in FR-003/AC-5
+      that this AC is intentionally judged by reviewer read-through rather than mechanical check.
+
+findings_count: 8
+distinct_findings_count: 7

@@ -1,7 +1,7 @@
 """Seam-equivalence tests for WP06 — consumer switch (mission-step-authority-01KXNZMT).
 
 WP02 injects a projected ``action_sequence``/``template_set`` into every
-:class:`~doctrine.missions.models.MissionType` at
+:class:`~charter.offering.missions.models.MissionType` at
 ``MissionTypeRepository._load`` time (see
 ``_inject_projected_fields``/``project_action_sequence``/
 ``project_template_set``). WP03/WP05 populated the mission-step data so the
@@ -14,8 +14,8 @@ future change cannot silently reintroduce a 5th authority (C-003).
 
 Investigation result (T018/T019 — no code changes required, confirmation only):
 
-- ``charter.mission_type_profiles._resolve_action_slot`` (:694/697) calls
-  ``doctrine.missions.mission_type_repository.MissionTypeRepository.default()``
+- ``charter.activation.mission_type_profiles._resolve_action_slot`` (:694/697) calls
+  ``charter.offering.missions.mission_type_repository.MissionTypeRepository.default()``
   and reads ``mission.action_sequence`` straight off the loaded model — the
   exact field WP02's ``_inject_projected_fields`` overlays before
   ``MissionType.model_validate()`` runs. There is no alternate/raw YAML
@@ -33,7 +33,7 @@ Investigation result (T018/T019 — no code changes required, confirmation only)
 - ``runtime.next.decision._build_prompt_or_error`` (:606) and
   ``runtime.next.runtime_bridge_composition._should_dispatch_via_composition``
   (:186) / ``_composition_dispatch_inputs`` (:321) all call
-  ``charter.mission_type_profiles.resolve_mission_type_context(...).action_sequence``
+  ``charter.activation.mission_type_profiles.resolve_mission_type_context(...).action_sequence``
   — the bundle built from ``_resolve_action_slot`` above — so they consume the
   projected value transitively. No consumer reads a raw/flat field directly.
 
@@ -60,9 +60,9 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType, resolve_mission_type_context
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.activation.mission_type_profiles import ResolvedMissionType, resolve_mission_type_context
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -127,7 +127,7 @@ def _expected_authored(mission_type_id: str) -> dict[str, Any]:
 
 def _resolve_via_seam(tmp_path: Path, mission_type_id: str) -> ResolvedMissionType:
     with patch(
-        "charter.mission_type_profiles.existing_mission_types",
+        "charter.activation.mission_type_profiles.existing_mission_types",
         return_value=list(_BUILTIN_TYPE_IDS),
     ):
         return resolve_mission_type_context(tmp_path, mission_type=mission_type_id)
@@ -181,6 +181,206 @@ class TestSeamEquivalence:
         }
 
 
+class TestGoldenParityUnaffectedByPackContextThreading:
+    """WP04/T010 step 3 — golden-parity extension (User Story 3 AC1).
+
+    WP04 threads a real, non-``None`` ``PackContext`` into
+    ``_resolve_action_slot``/``_resolve_template_set_slot`` (FR-002). This
+    class extends ``TestSeamEquivalence`` above by exercising that real
+    threading against a ``PackContext`` that carries a genuine (but
+    unrelated) org pack root, and asserting all 4 built-in types still
+    resolve byte-identically to the pinned authored contract.
+
+    Not a red-first pin (unlike ``TestPackContextProjection`` in
+    ``tests/charter/test_mission_type_profiles.py``): built-in types already
+    resolve correctly pre-WP04 -- ``TestSeamEquivalence`` above never mocks
+    ``PackContext.from_config`` either, so it already exercises this WP's
+    new code path incidentally. This class is the deliberate regression
+    backstop (not incidental coverage) proving a real org pack root, present
+    but declaring nothing for any built-in type id, never perturbs built-in
+    output -- the mechanism CL-001 requires: no cross-project/cross-layer
+    pollution.
+    """
+
+    @pytest.mark.parametrize("mission_type_id", _BUILTIN_TYPE_IDS)
+    def test_builtin_type_unaffected_by_real_pack_context_with_org_root(
+        self, tmp_path: Path, mission_type_id: str
+    ) -> None:
+        from charter.activation.pack_context import PackContext
+
+        expected = _expected_authored(mission_type_id)
+        org_root = tmp_path / "org-pack"
+        (org_root / "mission_types").mkdir(parents=True)
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(_BUILTIN_TYPE_IDS),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        with patch(
+            "charter.activation.pack_context.PackContext.from_config", return_value=pack_context
+        ):
+            bundle = _resolve_via_seam(tmp_path, mission_type_id)
+
+        assert bundle.action_sequence == expected["action_sequence"]
+        expected_template_set = expected.get("template_set")
+        if expected_template_set is None:
+            assert bundle.template_set is None
+        else:
+            assert bundle.template_set is not None
+            assert dict(bundle.template_set) == expected_template_set
+
+    def test_builtin_layer_scan_receives_the_real_pack_context_once_per_type(
+        self, tmp_path: Path
+    ) -> None:
+        """WP01/T004 (NFR-004, mission mission-types-empty-action-sequence-01M0RMCA,
+        #3701): closes two claims with call-level evidence rather than
+        architectural assertion alone.
+
+        1. **No new filesystem walk**: threading ``pack_context`` into the
+           built-in-equivalent layer's own ``scan_mission_types_dir(base_dir,
+           pack_context=pack_context)`` call (this WP's fix) must not cause
+           ``"software-dev"``'s own step set to be resolved more than once.
+        2. **Not vacuous**: an empirical revert of just that one call site
+           (confirmed manually per this subtask's own instructions -- not
+           committed) leaves the sibling test directly above
+           (``test_builtin_type_unaffected_by_real_pack_context_with_org_root``)
+           passing unchanged, because this fixture's org root declares no
+           content for any built-in type id -- the byte-level parity
+           assertion is correctly invariant either way (an *unrelated* org
+           pack must never perturb output, by design), so it cannot by
+           itself prove the new call site is live. This test closes that
+           gap directly: it asserts the resolved call for ``"software-dev"``
+           actually received *this* real, non-``None`` ``pack_context``
+           instance (identity, not just a truthy check), which only WP01's
+           fix could deliver -- pre-fix, ``_inject_projected_fields``
+           hardcoded ``pack_context=None`` regardless of what its callers
+           held (see that function's own pre-WP01 docstring in git history).
+
+        Spy shape (deviation from the WP prompt's literal instance-``patch.object``
+        suggestion, recorded here and in the tracer files per this mission's own
+        "verify rather than trust" standard): ``MissionStepRepository.default()``
+        is a plain ``@classmethod`` with **no** ``functools.cache`` -- unlike
+        ``MissionTypeRepository.default()`` -- so it returns a *fresh* instance on
+        every call. An instance-level
+        ``patch.object(instance, "resolve_all_for_mission_type", wraps=...)``
+        against a pre-captured ``instance`` therefore observes **zero** calls
+        (empirically confirmed: the seam's own internal
+        ``MissionStepRepository.default()`` call constructs a *different* object),
+        not a `TypeError`. This test instead reuses the plain-function
+        class-attribute-spy shape ``TestMemoizedDefaultNoHotPathIO.
+        test_default_does_not_rewalk_mission_steps_on_repeat_calls`` above already
+        applies successfully in this same file: a plain function (not a ``Mock``)
+        set as the class attribute correctly binds ``self`` via Python's normal
+        descriptor protocol when accessed through *any* instance, sidestepping the
+        instance-identity problem entirely.
+
+        Counts only calls whose ``mission_type_id`` is ``"software-dev"``:
+        the built-in-equivalent layer's scan loads all 4 built-in YAML
+        files in one pass (``TestMemoizedDefaultNoHotPathIO`` above pins
+        this: ``len(calls) == len(_BUILTIN_TYPE_IDS)`` for a full-roster
+        resolution), so a raw, unfiltered call count would conflate "one
+        walk per type in the directory" (expected, unrelated to this WP)
+        with "one walk for the single type this test resolves" (the actual
+        claim under test).
+        """
+        from charter.activation.pack_context import PackContext
+
+        org_root = tmp_path / "org-pack"
+        (org_root / "mission_types").mkdir(parents=True)
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(_BUILTIN_TYPE_IDS),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        original = MissionStepRepository.resolve_all_for_mission_type
+        calls: list[tuple[str, Any]] = []
+
+        def _spy(
+            self: MissionStepRepository,
+            mission_type_id: str,
+            pack_context: Any = None,
+        ) -> dict[str, Any]:
+            calls.append((mission_type_id, pack_context))
+            return original(self, mission_type_id, pack_context)
+
+        with (
+            patch.object(MissionStepRepository, "resolve_all_for_mission_type", _spy),
+            patch(
+                "charter.activation.pack_context.PackContext.from_config",
+                return_value=pack_context,
+            ),
+        ):
+            _resolve_via_seam(tmp_path, "software-dev")
+
+        calls_for_software_dev = [c for c in calls if c[0] == "software-dev"]
+        assert len(calls_for_software_dev) == 1
+        assert calls_for_software_dev[0][1] is pack_context
+
+    def test_org_root_content_actually_resolves_through_the_seam(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-TESTS-001 (pre-merge squad, mission up-mission-type-seam-01KZY1JB):
+        the sibling test above (``test_builtin_type_unaffected_by_real_pack_
+        context_with_org_root``) `mkdir`'s the org root's ``mission_types/``
+        directory but never writes a YAML into it -- the org layer always
+        scans to ``[]``, so that test's assertions hold identically whether
+        WP04's ``PackContext`` threading exists or is fully reverted
+        (empirically confirmed by the squad: reverting
+        ``_resolve_action_slot``/``_resolve_template_set_slot`` to bypass
+        ``resolve_layered_mission_types``/``pack_context`` entirely still
+        left that test 4/4 green). This test gives the SAME kind of org root
+        real, non-colliding content -- a custom id sharing nothing with any
+        built-in type -- so the layered-merge code path this class claims to
+        guard is actually exercised end to end, closing the vacuity gap.
+        """
+        from charter.activation.pack_context import PackContext
+
+        org_root = tmp_path / "org-pack"
+        mt_dir = org_root / "mission_types"
+        mt_dir.mkdir(parents=True)
+        (mt_dir / "unrelated-custom.yaml").write_text(
+            "schema_version: 1\n"
+            "id: unrelated-custom\n"
+            "display_name: Unrelated Custom\n"
+            "action_sequence:\n"
+            "  - design\n"
+            "  - implement\n",
+            encoding="utf-8",
+        )
+        activated = ["unrelated-custom", *_BUILTIN_TYPE_IDS]
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(activated),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        MissionTypeRepository.cache_clear()
+        try:
+            with (
+                patch(
+                    "charter.activation.mission_type_profiles.existing_mission_types",
+                    return_value=activated,
+                ),
+                patch(
+                    "charter.activation.pack_context.PackContext.from_config",
+                    return_value=pack_context,
+                ),
+            ):
+                bundle = resolve_mission_type_context(tmp_path, mission_type="unrelated-custom")
+        finally:
+            MissionTypeRepository.cache_clear()
+
+        assert bundle.action_sequence == ["design", "implement"]
+
+
 # ---------------------------------------------------------------------------
 # 2. Consumer transitivity (T019) — the three cited call sites read the seam
 # ---------------------------------------------------------------------------
@@ -199,7 +399,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _should_dispatch_via_composition(
@@ -216,7 +416,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _should_dispatch_via_composition(
@@ -236,7 +436,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _composition_dispatch_inputs(
@@ -269,7 +469,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             path, err = _build_prompt_or_error(

@@ -39,7 +39,11 @@ from specify_cli.cli.console import console
 import typer
 
 from specify_cli.core.git_ops import get_current_branch
-from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.paths import (
+    get_main_repo_root,
+    get_status_read_root,
+    read_target_branch_from_meta,
+)
 from specify_cli.missions._resolve_planning_branch import (
     load_mission_target_branch,
 )
@@ -79,6 +83,7 @@ def _inject_branch_contract(
     target_branch: str,
     current_branch: str | None = None,
     primary_branch: str | None = None,
+    match_target_branch: str | None = None,
 ) -> dict[str, object]:
     """Attach deterministic branch/runtime aliases for templates and agents.
 
@@ -88,6 +93,16 @@ def _inject_branch_contract(
     human-readable ``reason``. Callers that do not resolve the primary branch
     omit it, and the emitted payload is byte-identical to the legacy contract
     so existing snapshots and consumers are unaffected.
+
+    ``match_target_branch`` (FR-006 / #3124) decouples the honesty of the
+    ``branch_matches_target`` verdict from the *display* ``target_branch``. When
+    supplied, the match is computed against it (``resolved_current_branch ==
+    match_target_branch``) instead of the primary-anchored ``target_branch`` used
+    for every display/planning field. ``setup-plan`` passes the mission's
+    ``meta.json`` target here while feeding ``current_branch`` the invoking
+    checkout's HEAD, so a lane on a divergent branch reports honest disagreement
+    without disturbing the deliberate primary-anchored target resolution. Callers
+    that omit it (e.g. ``branch-context``) keep the legacy match byte-for-byte.
     """
     enriched = dict(payload)
     raw_runtime_vars = enriched.get("runtime_vars", {})
@@ -96,7 +111,8 @@ def _inject_branch_contract(
     resolved_current_branch = str(current_branch or target_branch).strip() or target_branch
     planning_base_branch = target_branch
     merge_target_branch = target_branch
-    branch_matches_target = resolved_current_branch == target_branch
+    match_reference = match_target_branch if match_target_branch is not None else target_branch
+    branch_matches_target = resolved_current_branch == match_reference
     branch_strategy_summary = (
         f"Current branch at workflow start: {resolved_current_branch}. "
         f"Planning/base branch for this feature: {planning_base_branch}. "
@@ -334,7 +350,8 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return load_mission_target_branch(feature_dir)
+    resolved: str = load_mission_target_branch(feature_dir)
+    return resolved
 
 
 def _get_current_branch(repo_root: Path) -> str:
@@ -389,7 +406,13 @@ def branch_context(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        current_branch = _mission.get_current_branch(repo_root)
+        # ``locate_project_root`` deliberately re-anchors linked worktrees to
+        # the primary checkout for shared metadata reads. Branch identity is
+        # invocation-owned state, but only within the repository being queried.
+        caller_root = get_status_read_root(Path.cwd())
+        if get_main_repo_root(caller_root).resolve() != get_main_repo_root(repo_root).resolve():
+            caller_root = repo_root
+        current_branch = _mission.get_current_branch(caller_root)
         if not current_branch or current_branch == "HEAD":
             error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."
             if json_output:

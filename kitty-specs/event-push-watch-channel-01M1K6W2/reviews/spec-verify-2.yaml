@@ -1,0 +1,35 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      FR-004 now defines an optional --from-invariant input and requires each envelope to
+      carry both the offset and the FR-005 content-invariant value (spec.md line 298); FR-013
+      now requires checking the invariant when both --from-offset and --from-invariant are
+      supplied and treats a mismatch identically to a structural failure — explicit signal,
+      fail closed, never trusting a structurally-valid offset (spec.md line 307); US3 AC4
+      (lines 199-207) and the updated Edge Cases bullet (lines 268-276) both walk the
+      rollback-then-regrow-while-offline scenario to the same fail-closed outcome; the Tail
+      cursor and Tail envelope Key Entity bullets (lines 336-366) now describe a real,
+      FR-004-defined output field rather than gesturing at one that doesn't exist; no
+      contradiction found with FR-010's pure-reader guarantee (invariant travels via CLI
+      flag/stdout envelope, never persisted by the command) or C-001's scope lock.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      Direct read of src/specify_cli/status/store.py confirms read_events_raw spans lines
+      533-560 (def at 533, return results at 560); Clarifications §2 now cites
+      store.py:533-560 (spec.md line 43), matching exactly; Clarifications §3 was re-checked
+      directly and, as the fixer claimed, only ever cited a bare :533 (no range) plus :554,
+      both of which are independently correct (533 = def line, 554 = the StoreError raise on
+      first bad JSON) — so §3 needed no fix and none is required now.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      SC-002 (spec.md lines 379-383) now reads "whether observed as a size shrink on the next
+      poll, or as a truncate-then-regrow whose content invariant no longer matches (FR-005)"
+      — both detection paths are named explicitly, closing the shape-(b)-only reading risk
+      the finding raised.

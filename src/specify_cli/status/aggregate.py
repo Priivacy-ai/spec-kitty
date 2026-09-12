@@ -28,8 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
 
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
@@ -48,13 +51,19 @@ def _enrich_transition_request(
     *,
     read_dir: Path,
     mission_slug: str,
+    current_actor: str | None = None,
 ) -> TransitionRequest:  # noqa: F821
-    """Inject aggregate-owned path/slug into a transition request."""
+    """Inject aggregate-owned path/slug (and the WP's current actor) into a request.
+
+    ``current_actor`` is the guard input the aggregate resolves from the
+    transactional read surface; a caller-supplied value is never overwritten.
+    """
     import dataclasses
 
     return dataclasses.replace(
         request,
         feature_dir=read_dir,
+        current_actor=request.current_actor if request.current_actor is not None else current_actor,
         mission_slug=mission_slug,
     )
 
@@ -407,13 +416,14 @@ class MissionStatus:
         try:
             # Canonical reader (FR-005/WP12): allow_missing=False because the
             # ``exists()`` precondition above already resolved the tolerant-missing
-            # branch -- a FileNotFoundError here means the file vanished in a race
-            # window, which is a genuine failure, not a legacy-tolerant miss.
-            # on_malformed="raise" folds the JSON-syntax AND non-dict-shape checks
-            # into ONE ValueError, replacing the two ad-hoc except/isinstance arms
-            # this call site used to hand-roll.
-            meta = load_meta(primary_dir, allow_missing=False, on_malformed="raise") or {}
-        except (FileNotFoundError, ValueError) as exc:
+            # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+            # MissionMetaReadError instead of raw ValueError. Missing files still
+            # raise FileNotFoundError (required by race-window handling).
+            meta_result = load_meta_fail_closed(primary_dir)
+            if meta_result is None:
+                raise FileNotFoundError(meta_path)
+            meta = meta_result or {}
+        except (FileNotFoundError, MissionMetaReadError) as exc:
             _logger.warning(
                 "_read_meta: failed to read/parse meta.json for mission %r at %s: %s",
                 mission_slug,
@@ -457,13 +467,17 @@ class MissionStatus:
         """Return ``(meta_path, primary_dir)`` via the canonical handle resolver.
 
         Routes EVERY handle form (full slug, bare mid8, full ULID, numeric
-        prefix, ``<slug>-<mid8>`` dir name) through the one canonical read
-        primitive :func:`candidate_feature_dir_for_mission` so identity is
-        derived exactly once — aggregate never self-composes the surface path or
-        does its own ``glob`` selection (FR-008). The resolved candidate may land
-        in a coord worktree (which carries no ``meta.json``), so only its
-        canonical NAME re-anchors the meta read on the primary checkout, where
-        ``meta.json`` always lives.
+        prefix, ``<slug>-<mid8>`` dir name) so identity is derived exactly
+        once — aggregate never self-composes the surface path or does its own
+        ``glob`` selection (FR-008). :func:`candidate_feature_dir_for_mission`
+        still disambiguates an ambiguous handle to a canonical mission-dir
+        NAME, but the primary and canonical directory legs are now composed
+        via ``placement_seam(...).read_dir(MissionArtifactKind.
+        PRIMARY_METADATA)`` (read-side-seam-primary-primitive-closure-01KYKMMT
+        WP07, T033) — the resolved candidate may land in a coord worktree
+        (which carries no ``meta.json``), so only its canonical NAME
+        re-anchors the meta read on the primary checkout, where ``meta.json``
+        always lives.
 
         The historical silent-first-match glob
         (``sorted(specs_dir.glob(f"{slug}-*/meta.json"))``) is **removed**: an
@@ -479,26 +493,27 @@ class MissionStatus:
             MissionSelectorAmbiguous: When ``mission_slug`` is a handle that
                 matches more than one mission (FR-008 — never a silent pick).
         """
+        from mission_runtime import MissionArtifactKind, placement_seam
         from specify_cli.missions._read_path_resolver import (
             StatusReadPathNotFound,
-            _canonicalize_primary_read_handle,
+            _compose_primary_feature_dir,
             candidate_feature_dir_for_mission,
-            primary_feature_dir_for_mission,
             resolve_bare_modern_mission_dir_name,
         )
 
-        # Compose the primary candidate through the blessed path-constructor
-        # (the sanctioned ``KITTY_SPECS_DIR`` owner that carries its own
-        # ``assert_safe_path_segment`` guard), so aggregate never self-composes a
-        # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
+        # Compose the primary candidate through the kind-aware placement seam
+        # (a PRIMARY-partition kind never transits coord for any topology/coord
+        # state), so aggregate never self-composes a raw
+        # ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
         # raw-bypass; FR-008). The slug is also grammar-checked one level up at
-        # the ``load`` boundary.
-        # WP05/FR-005: route through _canonicalize_primary_read_handle so every
-        # handle form (bare mid8 / ULID / numeric prefix / bare human slug) lands
-        # on the correct composed primary dir — not a wrong literal dir.
-        primary_dir = primary_feature_dir_for_mission(
-            repo_root,
-            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        # the ``load`` boundary. read-side-seam-primary-primitive-closure-
+        # 01KYKMMT WP07 (T033): routed through
+        # ``placement_seam(...).read_dir(PRIMARY_METADATA)`` -- the seam folds
+        # every handle form (bare mid8 / ULID / numeric prefix / bare human
+        # slug) to the correct composed primary dir internally, so the caller
+        # no longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
+        primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         raw_meta = primary_dir / _META_JSON_FILENAME
         # Pure-path happy path: when the literal slug already names an existing
@@ -519,7 +534,21 @@ class MissionStatus:
         # Re-anchor the meta read on the composed primary dir when it resolves.
         bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, mission_slug)
         if bare_dir_name is not None:
-            composed_primary = primary_feature_dir_for_mission(repo_root, bare_dir_name)
+            # read-side-seam-primary-primitive-closure-01KYKMMT WP07 (T033) /
+            # WP08 (T035): calls the module-private leaf directly, not the
+            # seam. ``bare_dir_name`` is already the on-disk composed dir NAME
+            # returned by ``resolve_bare_modern_mission_dir_name`` --
+            # already-canonical by provenance, not a detectable intra-function
+            # fold. This exact call is a PERMANENT fixture in
+            # ``tests/architectural/resolution_gate_allowlist.yaml``'s
+            # ``canonicalizer`` allow-list (qualname ``MissionStatus._find_meta_path``,
+            # predates this mission). WP08 deleted the public wrapper
+            # (``primary_feature_dir_for_mission``) this site used to call --
+            # ``CANONICALIZER_PRIMITIVE_NAMES`` already recognises the leaf
+            # ``_compose_primary_feature_dir`` by literal name, so the pinned
+            # entry's token line is re-pointed to it in the same commit rather
+            # than orphaned.
+            composed_primary = _compose_primary_feature_dir(repo_root, bare_dir_name)
             composed_meta = composed_primary / _META_JSON_FILENAME
             if composed_meta.exists():
                 return composed_meta, composed_primary
@@ -537,11 +566,20 @@ class MissionStatus:
         # ``candidate_feature_dir_for_mission`` resolved a canonical mission
         # directory NAME; re-anchor the meta read on the primary checkout under
         # that canonical name (the candidate itself may be a coord-worktree dir
-        # with no ``meta.json``), again via the blessed constructor. For a
-        # literal slug that already matched on disk the name is unchanged and
-        # this collapses to the same primary candidate.
-        canonical_primary = primary_feature_dir_for_mission(
-            repo_root, candidate_dir.name
+        # with no ``meta.json``), again via the kind-aware seam. For a literal
+        # slug that already matched on disk the name is unchanged and this
+        # collapses to the same primary candidate. read-side-seam-primary-
+        # primitive-closure-01KYKMMT WP07 (T033): ``candidate_dir.name`` is a
+        # composed ``<slug>-<mid8>`` name for a BACKFILLED mission whose
+        # on-disk PRIMARY dir still carries the bare ``<slug>``; routing
+        # through the seam (rather than the deprecated wrapper's literal
+        # compose) means the seam's ``_backfilled_primary_dir`` recovery leg
+        # resolves the EXISTING bare-slug dir instead of silently returning a
+        # non-existent composed path (NFR-001's one accepted divergence, US3
+        # scenario 3) -- pinned by
+        # ``tests/specify_cli/status/test_aggregate_read_seam_migration.py``.
+        canonical_primary = placement_seam(repo_root, candidate_dir.name).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         return canonical_primary / _META_JSON_FILENAME, canonical_primary
 
@@ -571,97 +609,53 @@ class MissionStatus:
         )
 
     def transition(self, request: TransitionRequest) -> StatusEvent:
-        """Validate and apply a lane transition via ``BookkeepingTransaction`` internally.
+        """Apply a lane transition by composing the transactional shell.
 
-        Domain invariant: the transition is validated before it is handed off
-        to the transactional path.  ``BookkeepingTransaction`` is called
-        internally — it is not exposed to callers.
+        Validation runs exactly once per emit, tree-wide: in the status-owned
+        pipeline (``status.transition_pipeline.prepare_transition``), inside
+        the transaction, against the in-lock ``from_lane`` the shell derives
+        (decision Q4, ``01M1V80R6F6RTMR7Y3C2WBKR32``; spec FR-006 / US2-4).
+        The aggregate no longer re-derives the lane, re-infers the review
+        gates, or calls ``validate_transition`` itself; it contributes only
+        what it owns -- the resolved read surface, the mission slug, and the
+        WP's current actor (a guard input the shell cannot see) -- and
+        delegates. ``BookkeepingTransaction`` is called by the shell, never
+        exposed to callers (C-004).
 
         Args:
             request: Fully populated :class:`~specify_cli.status.TransitionRequest`.
 
         Returns:
-            The persisted :class:`~specify_cli.status.StatusEvent`.
+            The persisted :class:`~specify_cli.status.StatusEvent` (or the
+            shell's unpersisted synthetic event on the alias-collapse arm).
 
         Raises:
-            :class:`~specify_cli.status.InvalidTransitionError`: When the
-                requested (from_lane, to_lane) pair is not allowed.
+            :class:`~specify_cli.status.emit.TransitionError`: When the
+                pipeline refuses the (from_lane, to_lane) edge or a guard.
         """
-        from specify_cli.status import validate_transition
-        from specify_cli.status.models import GuardContext, Lane, actor_identity_str
+        # C-006 precedent violation, kept deliberately: ``status`` must never
+        # import ``coordination``, and this lazy reach is the one existing
+        # exception (decision Q4 rider). Removing it means migrating the
+        # aggregate's callers onto a status-owned write door -- the future
+        # caller-migration mission owns that; do NOT add a second reach.
         from specify_cli.coordination.status_transition import (
             emit_status_transition_transactional,
             read_current_wp_state_transactional,
         )
-        from specify_cli.status import emit as status_emit
+        from specify_cli.status.models import Lane
 
-        from specify_cli.status.transitions import resolve_lane_alias
-
-        from_lane_str, current_actor = self._resolve_current_lane(
+        _from_lane, current_actor = self._resolve_current_lane(
             request=request,
             read_current_wp_state_transactional=read_current_wp_state_transactional,
             lane_unseeded=Lane.GENESIS,
         )
-        to_lane_str = request.to_lane or ""
-        resolved_to_lane = resolve_lane_alias(to_lane_str)
-        workspace_context = self._resolve_workspace_context(request)
-        subtasks_complete, implementation_evidence_present = self._resolve_review_gate_inputs(
-            request=request,
-            from_lane_str=from_lane_str,
-            resolved_to_lane=resolved_to_lane,
-            status_emit=status_emit,
-            lane_in_progress=Lane.IN_PROGRESS,
-            lane_for_review=Lane.FOR_REVIEW,
-        )
-
-        if status_emit._legacy_alias_collapses_to_current_lane(
-            to_lane_str,
-            resolved_to_lane,
-            from_lane_str,
-        ):
-            enriched = _enrich_transition_request(
-                request,
-                read_dir=self.read_dir,
-                mission_slug=self.mission_slug,
-            )
-            return emit_status_transition_transactional(enriched)
-
-        raw_evidence = request.evidence
-        built_evidence = (
-            status_emit._build_done_evidence(raw_evidence)
-            if raw_evidence is not None
-            else None
-        )
-
-        # Build a GuardContext from behavior-preserving inferred request fields.
-        ctx = GuardContext(
-            actor=(
-                actor_identity_str(request.actor)
-                if request.actor is not None
-                else None
-            ),
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            reason=request.reason,
-            review_ref=request.review_ref,
-            evidence=built_evidence,
-            force=request.force,
-            review_result=request.review_result,
-            current_actor=current_actor,
-        )
-        ok, error = validate_transition(from_lane_str, resolved_to_lane, ctx)
-        if not ok:
-            from specify_cli.status.emit import TransitionError
-
-            raise TransitionError(error or f"Illegal transition: {from_lane_str} -> {resolved_to_lane}")
-
         # Inject the resolved read_dir so the transactional path uses the
         # correct (possibly coord-worktree) directory.
         enriched = _enrich_transition_request(
             request,
             read_dir=self.read_dir,
             mission_slug=self.mission_slug,
+            current_actor=current_actor,
         )
         return emit_status_transition_transactional(enriched)
 
@@ -698,68 +692,16 @@ class MissionStatus:
         """
         from specify_cli.status.models import Lane as _Lane
 
-        from_lane_enum, current_actor = read_current_wp_state_transactional(
+        current = read_current_wp_state_transactional(
             feature_dir=self.read_dir,
             mission_slug=self.mission_slug,
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
+        from_lane_enum = current.lane
         if from_lane_enum == _Lane.UNINITIALIZED:
             from_lane_enum = lane_unseeded
-        return str(from_lane_enum), current_actor
-
-    def _resolve_workspace_context(self, request: TransitionRequest) -> str:
-        """Return the workspace context string used by transition guards."""
-        if request.workspace_context is not None:
-            return str(request.workspace_context)
-        context_root = request.repo_root if request.repo_root is not None else self.read_dir
-        return f"{request.execution_mode}:{context_root}"
-
-    def _resolve_review_gate_inputs(
-        self,
-        *,
-        request: TransitionRequest,
-        from_lane_str: str,
-        resolved_to_lane: str,
-        status_emit: Any,
-        lane_in_progress: Any,
-        lane_for_review: Any,
-    ) -> tuple[bool | None, bool | None]:
-        """Infer review gate inputs only for in-progress -> for-review transitions."""
-        subtasks_complete = request.subtasks_complete
-        implementation_evidence_present = request.implementation_evidence_present
-        entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
-        if entering_review:
-            # T010/FR-003 (folded into the #2574 single seam): route through the
-            # canonical resolve_subtasks_gate_dir seam so a coord-topology
-            # mission's completeness check reads the PRIMARY tasks.md, not
-            # ``self.read_dir`` (which is the coordination-branch husk for
-            # coord-topology missions) -- ``self.repo_root``/``self.mission_slug``
-            # are dataclass-required fields, so no None-guard is needed here.
-            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir
-            from specify_cli.coordination.status_transition import (
-                read_event_stream_transactional,
-            )
-
-            subtasks_dir = resolve_subtasks_gate_dir(self.read_dir, self.repo_root, self.mission_slug)
-            event_stream = read_event_stream_transactional(
-                feature_dir=self.read_dir,
-                mission_slug=self.mission_slug,
-                repo_root=self.repo_root,
-            )
-            if not request.force:
-                subtasks_complete = status_emit._infer_subtasks_complete(
-                    subtasks_dir,
-                    request.wp_id or "",
-                    event_stream=event_stream,
-                )
-            if implementation_evidence_present is None:
-                implementation_evidence_present = (
-                    status_emit._infer_implementation_evidence_from_event_stream(
-                        event_stream, request.wp_id or ""
-                    )
-                )
-        return subtasks_complete, implementation_evidence_present
+        return str(from_lane_enum), current.actor
 
     def save(self, *, operation: str) -> CommitReceipt:
         """Persist staged transitions via ``BookkeepingTransaction``.
@@ -778,20 +720,19 @@ class MissionStatus:
         from specify_cli.coordination.transaction import BookkeepingTransaction
 
         if self.mission_id is None or not self.mid8:
-            # Compose the diagnostic paths through the blessed path-constructor
-            # (the sanctioned ``KITTY_SPECS_DIR`` owner) so aggregate carries no
-            # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for
-            # any surface — even error-path diagnostics (WP01 raw-bypass).
-            from specify_cli.missions._read_path_resolver import (
-                _canonicalize_primary_read_handle,
-                primary_feature_dir_for_mission,
-            )
+            # Compose the diagnostic paths through the kind-aware placement seam
+            # so aggregate carries no raw
+            # ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for any
+            # surface — even error-path diagnostics (WP01 raw-bypass).
+            # read-side-seam-primary-primitive-closure-01KYKMMT WP07 (T033):
+            # routed through ``placement_seam(...).read_dir(PRIMARY_METADATA)``
+            # -- the seam folds every handle form internally, so the caller no
+            # longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
+            from mission_runtime import MissionArtifactKind, placement_seam
 
-            # WP05/FR-005: route through _canonicalize_primary_read_handle.
-            diag_primary = primary_feature_dir_for_mission(
-                self.repo_root,
-                _canonicalize_primary_read_handle(self.repo_root, self.mission_slug),
-            )
+            diag_primary = placement_seam(
+                self.repo_root, self.mission_slug
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
                 meta_path=diag_primary / _META_JSON_FILENAME,
@@ -804,6 +745,8 @@ class MissionStatus:
         # existed for mid8-era missions). ``mission_id`` is guaranteed present
         # by the guard above, so this always resolves the mid8-era branch.
         from specify_cli.lanes.branch_naming import mission_branch_name_required
+        from specify_cli.status.reducer import SNAPSHOT_FILENAME
+        from specify_cli.status.store import EVENTS_FILENAME
 
         destination_ref = self.coordination_branch or mission_branch_name_required(
             self.mission_slug, self.mission_id
@@ -817,7 +760,7 @@ class MissionStatus:
             destination_ref=destination_ref,
             operation=operation,
         ) as txn:
-            for artifact_name in ("status.events.jsonl", "status.json"):
+            for artifact_name in (EVENTS_FILENAME, SNAPSHOT_FILENAME):
                 artifact = txn.feature_dir / artifact_name
                 if artifact.exists():
                     txn.stage_path(artifact)

@@ -18,9 +18,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from charter.synthesizer.provenance import ProvenanceEntry, dump_yaml, load_yaml
-from charter.synthesizer.path_guard import PathGuard
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.provenance import ProvenanceEntry, dump_yaml, load_yaml
+from charter.activation.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
 
 # ---------------------------------------------------------------------------

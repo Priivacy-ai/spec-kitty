@@ -1,0 +1,107 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-sweep-2
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: SPEC-FRESH2-001
+    lens: fresh-eyes-citation-verification
+    severity: 4
+    title: "FR-004's call chain still names the wrong function as the entry point into apply_spdd_blocks_for_project"
+    evidence:
+      - artifact: "spec.md § FR-004 (also restated in the FR-004 Acceptance criterion sentence)"
+      - code: "src/specify_cli/cli/commands/init.py:889 (`command_installer.install(project_path, agent_key)`, inside the `elif agent_key in (\"codex\", \"vibe\", \"pi\", \"letta\")` branch)"
+      - code: "src/specify_cli/cli/commands/init.py:910 (`install_skills_for_agent(...)`, a *different* elif branch for native/SHARED-class agents)"
+      - code: "src/specify_cli/skills/installer.py (no reference to `command_installer`, `_render_command_skill`, `command_renderer.render`, or `apply_spdd_blocks_for_project` anywhere in the module — `install_skills_for_agent` copies pre-built `CanonicalSkill` directories via `shutil.copytree`/`shutil.copy2`, it never renders a command template)"
+      - code: "src/specify_cli/skills/command_installer.py:260 (`_render_command_skill`, called only from `command_installer.install` at :426, and from `tool_surface/bundles/{codex,claude}.py` — never from `installer.py`)"
+    claim: >
+      Round 2 corrected the fabricated middle hop of FR-004's call-chain trace
+      (the nonexistent `render_skill` → the real `command_renderer.render`,
+      defined at `command_renderer.py:384`) but left the chain's *anchor*
+      uncorrected: FR-004 (and its own Acceptance criterion, which explicitly
+      names "the `install_skills_for_agent`/`spec-kitty init` path" as a valid
+      way to exercise the regression test) still claims
+      `install_skills_for_agent` (`init.py:910`) is what reaches
+      `command_installer.py`'s `_render_command_skill` (:260). It does not.
+      `install_skills_for_agent` is defined in `skills/installer.py` and
+      belongs to a completely separate pipeline (copying pre-built canonical
+      skill directories for native/SHARED-class agents) that never imports or
+      calls `command_installer`, `command_renderer.render`, or
+      `apply_spdd_blocks_for_project` anywhere in its source. The real
+      pre-`.kittify/config.yaml` entry point into `_render_command_skill` is
+      `command_installer.install(project_path, agent_key)`, called at
+      `init.py:889` inside the sibling `elif agent_key in ("codex", "vibe",
+      "pi", "letta")` branch of the same per-agent loop — a different function,
+      a different line, and reached only for a different subset of agents than
+      the one FR-004 names. FR-004's own framing ("The call-site-reachability
+      question is resolved here, not deferred to implementation time") is
+      undercut: an implementer who follows the named entry point literally
+      (writing a regression test that drives `apply_spdd_blocks_for_project`
+      "via the `install_skills_for_agent`/`spec-kitty init` path", per the
+      Acceptance criterion's own wording) will find that path never invokes
+      the function under test, and will have to independently rediscover the
+      real chain through `command_installer.install` before FR-004's
+      falsifiable AC can be implemented at all.
+    remediation: >
+      In FR-004 (and its Acceptance criterion sentence), replace
+      `install_skills_for_agent (init.py:910)` with
+      `command_installer.install (init.py:889, inside the "codex"/"vibe"/"pi"/"letta"
+      branch)` as the chain's first hop into `_render_command_skill`
+      (`command_installer.py:260`) → `command_renderer.render`
+      (`command_installer.py:264-266`, defined at `command_renderer.py:384`) →
+      `apply_spdd_blocks_for_project` (`command_renderer.py:441-443`). Also
+      correct the Acceptance criterion's "exercised via the
+      `install_skills_for_agent`/`spec-kitty init` path" phrase to name
+      `command_installer.install`/`spec-kitty init` instead, so a future
+      implementer does not attempt to reach the target function through a
+      pipeline that never calls it.
+  - id: SPEC-FRESH2-002
+    lens: fresh-eyes-internal-consistency
+    severity: 3
+    title: "User Story 3's intro paragraph still says 'four surfaces' and lists only four consumers, unmoved by round 2's four→five correction"
+    evidence:
+      - artifact: "spec.md § User Story 3 intro paragraph (lines 386-394, unchanged by the round-2 diff)"
+      - artifact: "spec.md § Decision Record 3 (corrected this round: 'consumed by five real, verified call sites')"
+      - artifact: "spec.md § Acceptance Scenario 4 under User Story 3 (corrected this round: 'the five real consumers ... and resolver.py's own collect_governance_diagnostics')"
+    claim: >
+      Round 2 corrected the caller count from "four" to "five" in Decision
+      Record 3's summary and in User Story 3's Acceptance Scenario 4 (adding
+      `resolver.py`'s own `collect_governance_diagnostics` as the fifth
+      consumer), but did not touch User Story 3's own introductory paragraph
+      two sections above, which still enumerates exactly four named consumers
+      (`prompt_builder.py`'s legacy governance fallback, `context_json.py`'s
+      `--json` keys, `compact.py`'s summary, `doctor.py`'s check) and
+      explicitly says "not silently hidden from any of these four surfaces".
+      This is now a direct internal contradiction: the User Story that defines
+      what "done" means for this fold-in undercounts the consumer set by one
+      relative to the Decision Record and Acceptance Scenario that back it,
+      leaving the fifth surface (`collect_governance_diagnostics`, and its
+      public re-export from `charter/__init__.py`) absent from the story that
+      is supposed to motivate the whole fix.
+    remediation: >
+      Update User Story 3's intro paragraph to list the fifth consumer
+      (`resolver.py`'s own `collect_governance_diagnostics`, re-exported from
+      `charter/__init__.py`) alongside the other four, and change "any of
+      these four surfaces" to "any of these five surfaces" to match Decision
+      Record 3 / Acceptance Scenario 4's corrected count.
+  - id: SPEC-FRESH2-003
+    lens: fresh-eyes-citation-verification
+    severity: 2
+    title: "compact.py's _resolve_governance_summary citation is off by two lines (293-315 vs actual 293-317)"
+    evidence:
+      - artifact: "spec.md § Decision Record 3 (`- src/charter/activation/compact.py:293-315 (_resolve_governance_summary) — feeds the compact governance summary.`), untouched by the round-2 diff"
+      - code: "src/charter/activation/compact.py:293 (`def _resolve_governance_summary(`) through :317 (`return resolution.template_set, paradigms, tools, diagnostics, resolver_directives`)"
+    claim: >
+      Not part of round 2's edit scope, but still present in the current
+      document: the `compact.py` line range cited for `_resolve_governance_summary`
+      (`293-315`) is two lines short of the function's actual span
+      (`293-317`, confirmed by reading the live file). A minor drift, not a
+      wrong function or a wrong file, and it does not affect any FR's
+      correctness — but since this fresh sweep's brief is to independently
+      re-verify every resolver-adjacent citation rather than trust round 1's
+      unaudited carry-forward, it is flagged so the eventual line-number pass
+      catches it too.
+    remediation: >
+      Update the citation to `compact.py:293-317` (or `293-316` if the
+      trailing blank line before the next definition is excluded).

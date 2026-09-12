@@ -66,20 +66,37 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
 
     try:
         with open(config_file) as f:
-            data = yaml.load(f) or {}
+            data = yaml.load(f)
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
 
-    agents_data = data.get("agents") or data.get("tools") or {}
+    if data is None:
+        data = {}
+
+    # A YAML document need not be a mapping -- a bare scalar or a list parses
+    # without error but is not a dict, and the unguarded `data.get(...)` below
+    # raised a bare `AttributeError` on it (same defect class as ledger SK-16,
+    # `charter status --json`'s leaked-exception bug). Treat a non-mapping top
+    # level as a config error, matching the sibling raise two lines above --
+    # not a silent default, so the operator learns their config is corrupt
+    # instead of getting an unexplained "no agents configured".
+    if not isinstance(data, dict):
+        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping at the top level, got {type(data).__name__}")
+
+    section = "agents"
+    agents_data = data.get(section)
+    if agents_data is None or agents_data == {}:
+        section = "tools"
+        agents_data = data.get(section)
+    if agents_data is None:
+        agents_data = {}
+    if not isinstance(agents_data, dict):
+        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping for {section}, got {type(agents_data).__name__}")
 
     # Parse settings from either the agents/tools dict or the top level
-    auto_commit_raw = None
-    lint_on_edit_raw = None
-
-    if isinstance(agents_data, dict):
-        auto_commit_raw = agents_data.get("auto_commit")
-        lint_on_edit_raw = agents_data.get("lint_on_edit")
+    auto_commit_raw = agents_data.get("auto_commit")
+    lint_on_edit_raw = agents_data.get("lint_on_edit")
 
     if auto_commit_raw is None:
         auto_commit_raw = data.get("auto_commit")

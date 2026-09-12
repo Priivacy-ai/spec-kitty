@@ -14,7 +14,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.saas.readiness import ReadinessResult, ReadinessState
+from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.discovery import BindableResource
 from specify_cli.tracker.service import TrackerServiceError
 
@@ -355,7 +355,7 @@ def test_discover_readiness_failure(state, expected_message, monkeypatch, tmp_pa
 @pytest.mark.no_readiness_stub
 def test_discover_readiness_rollout_disabled(monkeypatch) -> None:
     """discover is invisible (not registered) when rollout flag is off."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
     import importlib
     import specify_cli.cli.commands as commands_module

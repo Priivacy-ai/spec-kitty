@@ -171,7 +171,7 @@ class TestOrphanCheckerBuiltInGraphExactSet:
     """
 
     def test_orphaned_directive_findings_exact_set(self):
-        from doctrine.drg.loader import load_built_in_graph
+        from charter.offering.drg.loader import load_built_in_graph
 
         drg = load_built_in_graph()
         findings = OrphanChecker().run(drg)
@@ -184,7 +184,7 @@ class TestOrphanCheckerBuiltInGraphExactSet:
 
     def test_no_orphaned_adr_findings_in_built_in_graph(self):
         """The retired ``adr`` rule must never surface a finding (#2737)."""
-        from doctrine.drg.loader import load_built_in_graph
+        from charter.offering.drg.loader import load_built_in_graph
 
         drg = load_built_in_graph()
         findings = OrphanChecker().run(drg)

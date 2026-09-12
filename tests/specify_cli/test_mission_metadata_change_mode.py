@@ -77,6 +77,31 @@ def test_set_change_mode_bulk_edit(tmp_path):
     assert reloaded["change_mode"] == "bulk_edit"
 
 
+def test_set_change_mode_accepts_str_path(tmp_path):
+    """A bare ``str`` feature_dir is coerced to Path and behaves identically
+    to a Path argument (regression for #3436 -- the documented shell one-liner
+    passes a string and must not raise ``TypeError``)."""
+    _write_minimal_meta(tmp_path)
+    result = set_change_mode(str(tmp_path), "bulk_edit")
+    assert result["change_mode"] == "bulk_edit"
+    # Round-trip: reload from disk to confirm the write actually landed.
+    reloaded = load_meta(tmp_path)
+    assert reloaded["change_mode"] == "bulk_edit"
+
+
+def test_set_change_mode_str_and_path_equivalent(tmp_path):
+    """str and Path inputs produce identical results."""
+    path_dir = tmp_path / "as_path"
+    str_dir = tmp_path / "as_str"
+    _write_minimal_meta(path_dir)
+    _write_minimal_meta(str_dir)
+
+    via_path = set_change_mode(path_dir, "bulk_edit")
+    via_str = set_change_mode(str(str_dir), "bulk_edit")
+
+    assert via_path["change_mode"] == via_str["change_mode"] == "bulk_edit"
+
+
 def test_set_change_mode_invalid_raises(tmp_path):
     _write_minimal_meta(tmp_path)
     with pytest.raises(ValueError, match="Invalid change_mode"):

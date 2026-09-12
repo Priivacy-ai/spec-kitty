@@ -13,17 +13,19 @@ Source-of-truth:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from kernel.clock import now_utc_iso, date
 import json
 import sys
-from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from typing_extensions import Annotated
+
+from specify_cli.cli.console import console as _console
+from specify_cli.cli.console import err_console as _err_console
 
 from specify_cli.retrospective.summary import (
     MalformedSummaryEntry,
@@ -42,8 +44,9 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-_console = Console()
-_err_console = Console(stderr=True)
+# Output routes through the canonical CLI console seam (GitHub #2635):
+# ``--json`` payloads bypass Rich's highlighter via ``CliConsole.print_json``,
+# so a FORCE_COLOR-forcing harness never splices ANSI escapes into the JSON.
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +59,7 @@ def _build_json_envelope(snapshot: SummarySnapshot) -> dict[str, object]:
     return {
         "schema_version": "1",
         "command": "retrospect.summary",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_utc_iso(),
         "result": snapshot.model_dump(),
     }
 

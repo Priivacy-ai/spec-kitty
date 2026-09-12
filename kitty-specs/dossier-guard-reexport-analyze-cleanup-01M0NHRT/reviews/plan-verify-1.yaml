@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: "Campsite-clean paragraph now states check_analysis_report_current is 87 lines (458-544), a flat unnested guard-clause chain, separated from the 5-30-line bucket of the other three functions; re-verified live against src/specify_cli/analysis_report.py (function spans exactly lines 458-544, file is 544 lines, all early-return guard clauses with no branch nesting)."
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: "Reflexivity section now carries a binding recovery path: on commitlint failure or a leaked absolute path, treat FR-006/FR-007 as not-yet-done, fix forward within the mission (amend IC-03) before PR-prep, and do not mark analyze complete on a failing self-test; SK-63 section cross-references it for the content-vs-hang split."
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: "IC-03 now names all three: (a) exception type (reuse AnalysisReportError or a new PathRelativizationError subtype), (b) explicit raise site (_artifact_hash_entry gains a governing_root parameter, or relativization as a post-processing step in collect_input_artifact_hashes), and (c) an explicit statement that write_analysis_report's missing try/except around collect_input_artifact_hashes is deliberate, not omission."
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: "The Charter Check ATDD-first bullet now carries the same disambiguating clause as §591 in-line (checking out the commit immediately before the GREEN implementation commit reproduces RED; final reproduces GREEN), making it self-sufficient without requiring the reader to reach the later section."
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "Gate set and Coverage floors sections now correctly state mission-loader-coverage WILL run/gate via the core_misc disjunct while its floor stays unaffected; re-verified live against .github/workflows/ci-quality.yml (core_misc filter group includes tests/architectural/** at line 353, job if: at line 1442 ORs on core_misc, job is a quality-gate.needs member at line 4275)."
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: "Gate set section's 'Enforced, separate jobs' list now includes deferral-consistency-check as unconditional (no changes-filter) and a quality-gate.needs member; re-verified live against ci-quality.yml (job at line 602, listed in quality-gate.needs at line 4252)."

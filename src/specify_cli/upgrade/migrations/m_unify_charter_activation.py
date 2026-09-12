@@ -9,7 +9,7 @@ in ``answers.selected_<kind>`` that were never mirrored into
 ``config.activated_<kind>`` — under the new config-authority regime those
 artefacts would silently drop out of the compiled reference set. This
 migration is the zero-drop backstop: it promotes every answers-only selection
-into config via :func:`charter.activation_engine.promote_activations` (WP06),
+into config via :func:`charter.activation.activation_engine.promote_activations` (WP06),
 for **every** charter kind (not roots-only — an org- or hand-authored project
 can carry non-root selections such as ``selected_styleguides`` that no
 activated directive reaches).
@@ -22,7 +22,7 @@ values are free-form and may already be the stem OR the artefact's canonical
 ``id:`` field (e.g. ``"DIRECTIVE_001"`` for directives — the two forms this
 repository's own answers/config pair actually differ by, per the squad
 measurement in WP07's task doc). :func:`resolve_selected_id_to_stem` tries
-both directions via :mod:`charter.kind_vocabulary` (the WP01 resolver) before
+both directions via :mod:`charter.activation.kind_vocabulary` (the WP01 resolver) before
 concluding an id is unresolved, so a form-only difference is never mistaken
 for an answers-only artefact.
 
@@ -32,7 +32,7 @@ Absent-key built-in safety (WP06 LAND-BLOCKER, reviewer caveat)
 kind whose ``config.activated_<kind>`` key is *absent* before appending the
 promoted ids — but only if the caller actually supplies the real built-in set.
 This migration loads the shipped default pack via the shared
-:func:`charter.default_pack.load_default_pack_activation_ids` loader (the
+:func:`charter.activation.default_pack.load_default_pack_activation_ids` loader (the
 same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
 uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
 first-run/absent-key project keeps every built-in active rather than
@@ -54,25 +54,24 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.activation_engine import promote_activations
-from charter.catalog import resolve_doctrine_root
-from charter.default_pack import load_default_pack_activation_ids
-from charter.kind_vocabulary import (
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-    resolve_config_id,
+from charter.activation.activation_engine import promote_activations
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.kind_vocabulary import (
+    UnrepresentableDirectiveIdError,
+    resolve_selected_id_to_stem as resolve_selected_id_to_stem,
 )
-from charter.kind_vocabulary import ArtifactKind
+from charter.activation.kind_vocabulary import ArtifactKind
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 #: Kinds eligible for answers -> config promotion. Mirrors the 8-kind charter
-#: activation universe (``doctrine.artifact_kinds.CHARTER_KIND_TOKENS`` minus
+#: activation universe (``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`` minus
 #: the ``mission-type`` outlier, which has no ``selected_<kind>`` answers key
 #: and no per-artefact config-stem/URN pair). ``TEMPLATE``/``ASSET`` are
 #: excluded — they are not charter-activatable (see
-#: ``doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
+#: ``charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
 _PROMOTABLE_KINDS: tuple[ArtifactKind, ...] = (
     ArtifactKind.DIRECTIVE,
     ArtifactKind.TACTIC,
@@ -107,37 +106,13 @@ def load_default_pack_ids() -> dict[str, list[str]]:
     ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
     ``promote_activations`` primitive supplies the same real built-in
     ``default_ids`` rather than each re-deriving it independently. Thin
-    re-export of the canonical :func:`charter.default_pack.load_default_pack_activation_ids`
+    re-export of the canonical :func:`charter.activation.default_pack.load_default_pack_activation_ids`
     loader — kept under this name (rather than inlined at each call site)
     because this migration's own tests and ``interview.py`` import it from
     this module (squad finding #2530: the duplicate *implementations* are
     gone; the public name here is now a one-line delegation).
     """
     return load_default_pack_activation_ids()
-
-
-def resolve_selected_id_to_stem(
-    kind: ArtifactKind, raw_id: str, *, doctrine_root: Path
-) -> str | None:
-    """Best-effort normalize *raw_id* (already-stem OR canonical id) to config-stem form.
-
-    Tries *raw_id* as a config stem first (the common case for most kinds,
-    where stem and canonical id coincide); falls back to treating it as the
-    artefact's canonical ``id:`` field (the directive case, e.g.
-    ``"DIRECTIVE_001"``). Returns ``None`` when neither direction resolves —
-    the caller reports this as an unresolved, skipped id (never a silent
-    drop, C-006) rather than raising, since a migration must not abort the
-    whole run over one stale/malformed legacy answers entry.
-    """
-    try:
-        resolve_artifact_urn(kind, raw_id, doctrine_root=doctrine_root)
-        return raw_id
-    except UnknownArtifactIdError:
-        pass
-    try:
-        return resolve_config_id(f"{kind.value}:{raw_id}", doctrine_root=doctrine_root)
-    except (ValueError, UnknownArtifactIdError):
-        return None
 
 
 def _answers_only_ids_for_kind(
@@ -154,7 +129,12 @@ def _answers_only_ids_for_kind(
     promote_stems: list[str] = []
     unresolved: list[str] = []
     for raw_id in raw_answer_ids:
-        stem = resolve_selected_id_to_stem(kind, str(raw_id), doctrine_root=doctrine_root)
+        try:
+            stem = resolve_selected_id_to_stem(kind, str(raw_id), doctrine_root=doctrine_root)
+        except UnrepresentableDirectiveIdError:
+            # Preserve the migration's per-ID unresolved warning contract.
+            unresolved.append(str(raw_id))
+            continue
         if stem is None:
             unresolved.append(str(raw_id))
         elif stem not in existing_stems and stem not in promote_stems:
@@ -210,7 +190,7 @@ class UnifyCharterActivationMigration(BaseMigration):
         "so config-authority derivation never silently drops an artefact "
         "recorded only in the charter interview (FR-006)."
     )
-    target_version = "3.2.6"
+    target_version = "3.2.6rc1"
 
     def detect(self, project_path: Path) -> bool:
         """Return True when at least one answers-only selection is promotable."""
@@ -243,7 +223,7 @@ class UnifyCharterActivationMigration(BaseMigration):
 
         Uses ``ruamel.yaml`` round-trip mode so existing ``config.yaml``
         comments/formatting survive the write, and routes the single write
-        through :func:`charter.activation_engine.promote_activations` (one
+        through :func:`charter.activation.activation_engine.promote_activations` (one
         ``commit_plan`` call per affected kind) — there is no other write
         path in this migration.
         """
@@ -268,9 +248,7 @@ class UnifyCharterActivationMigration(BaseMigration):
         except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
             return MigrationResult(success=False, errors=[f"Invalid .kittify/config.yaml: {exc}"])
         if not isinstance(config_data, dict):
-            return MigrationResult(
-                success=False, errors=[".kittify/config.yaml root must be a mapping"]
-            )
+            return MigrationResult(success=False, errors=[".kittify/config.yaml root must be a mapping"])
 
         answers_data = _load_yaml(answers_path)
         if not answers_data:
@@ -287,18 +265,14 @@ class UnifyCharterActivationMigration(BaseMigration):
         promotions, unresolved = _compute_promotions(answers_data, config_data, doctrine_root)
 
         if not promotions:
-            result = MigrationResult(
-                success=True, changes_made=["No answers-only selections to promote"]
-            )
+            result = MigrationResult(success=True, changes_made=["No answers-only selections to promote"])
             if unresolved:
                 result.warnings = [_unresolved_warning(unresolved)]
             return result
 
         if dry_run:
             summary = [f"{key}: +{ids}" for key, ids in promotions.items()]
-            result = MigrationResult(
-                success=True, changes_made=[f"dry-run: would promote {summary}"]
-            )
+            result = MigrationResult(success=True, changes_made=[f"dry-run: would promote {summary}"])
             if unresolved:
                 result.warnings = [_unresolved_warning(unresolved)]
             return result
@@ -318,9 +292,7 @@ class UnifyCharterActivationMigration(BaseMigration):
             default_ids=default_ids,
         )
 
-        changes_made = [
-            f"Promoted {plan.activated} into {plan.yaml_key}" for plan in plans if plan.activated
-        ]
+        changes_made = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in plans if plan.activated]
         warnings = [warning for plan in plans for warning in plan.warnings]
         if unresolved:
             warnings.append(_unresolved_warning(unresolved))

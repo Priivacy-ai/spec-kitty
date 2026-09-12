@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "alphabetical-command-listing-01KW6N8W",
+  "mission_id": "01KW6N8WCAAYSHWXT47BD3J1PW",
+  "mission_branch": "kitty/mission-alphabetical-command-listing-01KW6N8W",
+  "target_branch": "feat/alphabetical-command-listing",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/__init__.py",
+        "tests/specify_cli/cli/commands/test_root_command_order.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-28T08:45:41.397948+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

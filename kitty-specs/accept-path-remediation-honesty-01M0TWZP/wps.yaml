@@ -1,0 +1,85 @@
+work_packages:
+  - id: WP01
+    title: "Resolved-path correctness"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/validators/paths.py"
+      - "tests/specify_cli/acceptance/**"
+      - "tests/agent/test_validators_unit.py"
+    requirement_refs:
+      - FR-001
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T016
+    prompt_file: "tasks/WP01-resolved-path-correctness.md"
+
+  - id: WP02
+    title: "Stop double-reporting"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/acceptance/summary_core.py"
+      - "src/specify_cli/acceptance/__init__.py"
+      - "src/specify_cli/cli/commands/accept.py"
+      - "tests/specify_cli/acceptance/**"
+      - "tests/specify_cli/cli/commands/**"
+    requirement_refs:
+      - FR-002
+      - FR-003
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T005
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: "tasks/WP02-stop-double-reporting.md"
+
+  - id: WP03
+    title: "Honest remediation text and flag discoverability"
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - "src/specify_cli/validators/paths.py"
+      - "src/specify_cli/cli/commands/accept.py"
+      - "tests/agent/test_validators_unit.py"
+      - "tests/specify_cli/cli/commands/**"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-008
+      - NFR-002
+      - NFR-003
+    cross_cutting: true
+    subtasks:
+      - T010
+      - T011
+      - T012
+    prompt_file: "tasks/WP03-honest-remediation-text.md"
+
+  - id: WP04
+    title: "Red-first tests including the FR-007 repro fixture"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+    owned_files:
+      - "tests/specify_cli/acceptance/test_accept_contracts_path_repro.py"
+    requirement_refs:
+      - FR-007
+      - NFR-001
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T013
+      - T014
+      - T015
+    prompt_file: "tasks/WP04-red-first-tests.md"

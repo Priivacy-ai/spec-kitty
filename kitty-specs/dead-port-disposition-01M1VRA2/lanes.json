@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "mission_slug": "dead-port-disposition-01M1VRA2",
+  "mission_id": "01M1VRA2VWSET7NAR2M5Z6TZ5M",
+  "mission_branch": "kitty/mission-dead-port-disposition-01M1VRA2",
+  "target_branch": "feat/dead-port-disposition",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/emitter.py",
+        "src/runtime/next/_internal_runtime/events.py",
+        "tests/next/test_internal_runtime_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/events/decision_log.py",
+        "tests/runtime/test_bridge_decision_log_flush.py",
+        "tests/specify_cli/events/test_decision_log.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge_engine.py",
+        "tests/next/test_runtime_bridge_blocked_paths.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/runtime/_bridge_oracle.py",
+        "tests/runtime/test_bridge_decide_next.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/runtime/next/event_emitter.py",
+        "tests/architectural/test_runtime_emitter_seam.py",
+        "tests/contract/test_identity_contract_matrix.py",
+        "tests/specify_cli/events/test_decision_log_coord.py",
+        "tests/status/test_producer_conformance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-06T17:06:18.895957+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ca3c20abf806f552eddcaf6ed5b4429de8a46938"
+}

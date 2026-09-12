@@ -1,34 +1,51 @@
 from __future__ import annotations
 
 import atexit
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import tomllib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Callable, Iterable, Iterator
 
+import psutil
 import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from kernel.clock import now_epoch
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
+from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
     quarantine_skip_mark,
 )
+from tests._support.repo_root_status_guard import register_repo_root_status_guard
+from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
+from tests._support.shared_build_artifacts import (
+    SharedBuildError,
+    default_wheel_sdist_builder,
+    ensure_shared_build_artifacts,
+    run_scoped_shared_root,
+)
 from tests._support.wall_clock_assertions import (
-    find_wall_clock_assertion_violations,
+    find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
+from tests._support.xdist_scheduling import upgrade_unspecified_xdist_load_to_loadfile
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
@@ -45,9 +62,10 @@ from tests.utils import REPO_ROOT, run, write_wp
 #
 # Two layers are required:
 #   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
-#      that modules which bind a home-derived path at import time (e.g.
-#      ``specify_cli.sync.daemon.SPEC_KITTY_DIR = Path.home() / ".spec-kitty"``
-#      at module top level, ``daemon.py:94``) resolve into the isolated home.
+#      that modules which bind a home-derived path at import time resolve into
+#      the isolated home. (The sync daemon was the motivating case; it died
+#      with the sync transport, issue #5, but the isolation stays load-bearing
+#      for every other home-derived binding.)
 #   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
 #      monkeypatch + env for every test, keyed by worker id, so call-time
 #      ``Path.home()`` reads are isolated too. Never session-only: a single
@@ -140,7 +158,49 @@ def _apply_home_env(home_base: Path) -> None:
 
 _VENV_CACHE_PATH = Path(".pytest_cache/spec-kitty-test-venv")
 _VENV_LOCK_PATH = Path(".pytest_cache/spec-kitty-test-venv.lock")
-_LOCK_TIMEOUT_S = 60.0
+_VENV_STATE_PATH = Path(".pytest_cache/spec-kitty-test-venv.state.json")
+_STATE_LOCK_TIMEOUT_S = 10.0
+_HEARTBEAT_INTERVAL_S = 5.0
+_LEASE_SECONDS = 30.0
+_WAIT_TIMEOUT_S = 900.0
+_WAIT_POLL_INTERVAL_S = 0.2
+_LEASE_STATES = {"BUILDING", "VALIDATED", "PUBLISHED"}
+
+
+@dataclass(frozen=True)
+class _BootstrapLease:
+    state: str
+    owner_pid: int
+    process_start_token: str
+    heartbeat_at: float
+    lease_seconds: float
+    temp_path: Path
+    source_version: str
+    environment_hash: str
+
+    def to_json(self) -> dict[str, object]:
+        return {
+            "state": self.state,
+            "owner_pid": self.owner_pid,
+            "process_start_token": self.process_start_token,
+            "heartbeat_at": self.heartbeat_at,
+            "lease_seconds": self.lease_seconds,
+            "temp_path": str(self.temp_path),
+            "source_version": self.source_version,
+            "environment_hash": self.environment_hash,
+        }
+
+    def with_state(self, state: str, *, heartbeat_at: float | None = None) -> _BootstrapLease:
+        return _BootstrapLease(
+            state=state,
+            owner_pid=self.owner_pid,
+            process_start_token=self.process_start_token,
+            heartbeat_at=self.heartbeat_at if heartbeat_at is None else heartbeat_at,
+            lease_seconds=self.lease_seconds,
+            temp_path=self.temp_path,
+            source_version=self.source_version,
+            environment_hash=self.environment_hash,
+        )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -153,7 +213,41 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # TEST-M2-03 (xdist-order-sensitive families): promote a silently-scattered
+    # bare `-n <N>` to `--dist loadfile`. See
+    # tests/_support/xdist_scheduling.py for the full rationale and evidence
+    # -- the function is defined there rather than here because this module
+    # is under tests/architectural/test_home_owner_behaviour.py::
+    # test_conftest_definition_order_is_unchanged_with_the_owner_removed,
+    # which permits exactly one new top-level definition beyond a frozen
+    # merge-base snapshot; an imported call is not an AST-visible
+    # ``FunctionDef`` here.
+    upgrade_unspecified_xdist_load_to_loadfile(config)
+
+    # #2815: arm the per-test repo-root status-artifact guard. Defined in
+    # tests/_support/ and registered here rather than defined in this module
+    # for the same frozen-definition-order reason as the call above (an
+    # imported call is not an AST-visible ``FunctionDef`` here).
+    register_repo_root_status_guard(config)
+
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
+
+    # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
+    # module is imported. Import-time ``@pytest.mark.skipif(not
+    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates are evaluated at
+    # collection, which the per-test autouse ``_enable_saas_sync_feature_flag``
+    # fixture (a setup-time monkeypatch) is too late to satisfy. Previously six
+    # docs/architectural modules set it at import via their own
+    # ``os.environ.setdefault``, so whether the gate fired depended on whether
+    # one of those modules happened to be collected — ``pytest tests/ -m
+    # regression`` enforced it, ``pytest tests/regression`` did not. Setting it
+    # here is the single collection-time authority, so a given node's skip/run
+    # decision is the same under every selection. (Historically this also
+    # re-exposed the then-open #2782 P0 red under ``pytest tests/regression``;
+    # #2782 has since been resolved and its reproduction retired, so nothing in
+    # ``tests/regression`` is red today — but the invariant still governs every
+    # other import-time SaaS-sync gate.)
+    os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
     # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
@@ -161,6 +255,17 @@ def pytest_configure(config: pytest.Config) -> None:
     # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
     # the same mapping per test for call-time reads.
     _apply_home_env(_worker_home_base(config))
+
+    # Give this run its own private, wiped-per-run pytest temp root instead of
+    # the shared platform-temp `pytest-of-<user>` numbered tree, which never
+    # shrinks except through its own locked, timeout-gated pruning and
+    # accumulates stale roots on a long-lived box. See run_basetemp.py's
+    # module docstring for why this does NOT fix #63's crash mechanism (that
+    # is `tmp_path_retention_policy` in pytest.ini). Must happen here in
+    # configure — the builtin tmpdir plugin snapshots the option into its
+    # TempPathFactory now, and xdist nests every worker's popen-gwN under the
+    # controller's value. Controller-gated; an explicit --basetemp wins.
+    install_run_basetemp(config, now_epoch())
 
     try:
         prepare_mutants_environment_from_cwd()
@@ -205,15 +310,29 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
     # Quarantine chokepoint (single, un-bypassable). Per the flakiness policy a
     # quarantined test is held out of every normal/blocking run so it can never
-    # turn main red or block an unrelated PR; the non-blocking quarantine-
-    # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
+    # turn main red or block an unrelated PR; visibility requires the explicit
+    # SPEC_KITTY_RUN_QUARANTINE=1 opt-in (no hosted CI lane schedules it today).
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
+    # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
+    # wall-clock budget test is cold-start / shared-runner bound, so it is held
+    # out of every normal PR/blocking run — it can never turn main red or block
+    # an unrelated PR. The proper out-of-band harness (Monte-Carlo
+    # iterate-and-aggregate, off the PR path) is tracked in #3595; it sets
+    # SPEC_KITTY_RUN_PERFORMANCE=1 to run these for real.
+    apply_performance_skip = os.environ.get("SPEC_KITTY_RUN_PERFORMANCE") != "1"
+    skip_performance = pytest.mark.skip(
+        reason="performance: single-shot wall-clock budget test held out of "
+        "normal runs (cold-start/runner-bound). Set SPEC_KITTY_RUN_PERFORMANCE=1 "
+        "to run it; the out-of-band perf harness is tracked in #3595."
+    )
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
         if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
             item.add_marker(skip_quarantine)
+        if apply_performance_skip and item.get_closest_marker("performance"):
+            item.add_marker(skip_performance)
         _apply_shard_markers(item)
     _fail_on_wall_clock_assertions(items)
 
@@ -245,16 +364,36 @@ def _apply_shard_markers(item: pytest.Item) -> None:
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
     del items
     paths = find_test_python_paths(Path(__file__).parent)
-    violations = find_wall_clock_assertion_violations(paths)
+    violations = find_wall_clock_assertion_violations_cached(
+        paths,
+        REPO_ROOT / ".pytest_cache" / "wall-clock-assertion-scan",
+        config_paths=(REPO_ROOT / "pytest.ini", REPO_ROOT / "pyproject.toml"),
+    )
     if violations:
         raise pytest.UsageError(format_wall_clock_assertion_violations(violations))
+
+
+#: WP06 fix-before-wiring (FR-015) extension point: the full ``SPEC_KITTY_*``
+#: env namespace, snapshotted and restored around every test by
+#: ``_isolated_worker_home`` below (folded into that existing fixture's body,
+#: not a new top-level definition, per C-001/NFR-005 — see
+#: ``tests/architectural/test_home_owner_behaviour.py``'s single-permitted-edit
+#: gate on this file). The fix-before-wiring audit found two tests mutating
+#: ``SPEC_KITTY_*`` env vars directly (a production helper, and an inline
+#: ``os.environ[...] =``) with no restore --
+#: ``tests/agent/test_context_validation_unit.py`` (fixed locally with its own
+#: ``_isolate_context_env_vars`` fixture) and
+#: ``tests/docs/test_check_cli_reference_freshness.py`` (fixed inline with a
+#: snapshot/restore). Both are now order-independent on their own; this is the
+#: systemic safety net closing the whole CLASS of such leaks across ``tests/``.
+_SPEC_KITTY_ENV_PREFIX = "SPEC_KITTY_"
 
 
 @pytest.fixture(autouse=True)
 def _isolated_worker_home(
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
-) -> Path:
+) -> Iterator[Path]:
     """WP04: redirect the *default* home (HOME/XDG env) into a per-worker temp dir.
 
     Autouse and function-scoped so it applies to *every* test and is keyed by
@@ -284,6 +423,14 @@ def _isolated_worker_home(
     set up and assert their own tmp home. Setting only the env source keeps the
     real-``~/.spec-kitty``-untouched guarantee (the env vars are reset per test
     and before collection) while yielding precedence to in-test overrides.
+
+    WP06 (FR-015) extension: also snapshots + restores the full
+    ``SPEC_KITTY_*`` env namespace around the test (see
+    ``_SPEC_KITTY_ENV_PREFIX`` above) — session-scoped ``SPEC_KITTY_*`` setup
+    already in place before this fixture's first invocation
+    (``SPEC_KITTY_ENABLE_SAAS_SYNC``, ``SPEC_KITTY_TEST_VENV``, ...) survives
+    unchanged across every test; only per-test additions/removals within the
+    namespace are undone at teardown, regardless of shard order.
     """
     home_base = _worker_home_base(request.config)
     home_base.mkdir(parents=True, exist_ok=True)
@@ -295,7 +442,59 @@ def _isolated_worker_home(
         target.mkdir(parents=True, exist_ok=True)
         monkeypatch.setenv(var, str(target))
 
-    return home_base
+    before_spec_kitty_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key.startswith(_SPEC_KITTY_ENV_PREFIX)
+    }
+    try:
+        yield home_base
+    finally:
+        for key in [k for k in os.environ if k.startswith(_SPEC_KITTY_ENV_PREFIX)]:
+            if key not in before_spec_kitty_env:
+                os.environ.pop(key, None)
+        for key, value in before_spec_kitty_env.items():
+            os.environ[key] = value
+
+
+@pytest.fixture
+def canonical_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """R1a (#3121): the ONE canonical ``SPEC_KITTY_HOME`` owner.
+
+    Binding contract:
+    ``kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/contracts/canonical-home-owner.md``.
+    Every property below is fixed there and asserted by
+    ``tests/architectural/test_home_owner_behaviour.py``, which PARSES that document for this
+    fixture's name rather than repeating it.
+
+    **The name is a scanner input, not a local detail.**
+    ``tests/architectural/_home_pin_scan.py``'s ``OWNER_PARAM_NAMES`` treats a parameter naming
+    this owner as ``tmp_path`` for both the silhouette and value resolution (FR-010). Renaming
+    this fixture without renaming it there makes that resolver limb permanently inert while every
+    assertion about it stays green.
+
+    **Non-autouse and function-scoped by ABSENCE**, never ``scope="function"``: an explicit
+    ``scope=`` on a pin-bearing fixture is a shape ``_home_pin_scan.INERT_LIMBS`` registers with a
+    measured population of zero.
+
+    **Returns ``None`` deliberately, and this must not be "improved".** A fixture that returned
+    its own path would invite ``assert os.environ["SPEC_KITTY_HOME"] == canonical_home``, which
+    compares the environment against this fixture's OWN report and passes for an owner whose body
+    sets nothing. Returning ``None`` forces a probe to compute ``str(tmp_path / "home")`` itself.
+
+    **Establishes the home only via ``monkeypatch.setenv``** — no ``monkeypatch.setattr(Path,
+    "home", ...)``, no process-global patch — for the reason recorded at ``:342-356`` above: the
+    ``setattr`` form pinned ``Path.home()`` regardless of any later in-test ``setenv`` and silently
+    won over ~16 ``tests/sync`` cases. Because this fixture only sets an env var during its own
+    setup, a fixture that REQUESTS it and then keeps its own pin still wins; the owner never
+    overrides a definition managing its own home.
+
+    The directory is created before the test body runs, so a consumer may read the variable and
+    find the path already present.
+    """
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
 
 @pytest.fixture(autouse=True)
@@ -305,28 +504,139 @@ def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _plain_cli_console_seam() -> Iterator[None]:
-    """Force the shared CLI console seam colourless for every test (#2632).
+def _isolate_global_encoding_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Keep relative charter provenance writes inside each test sandbox.
 
-    All CLI modules render through the single ``console`` / ``err_console``
-    singletons in :mod:`specify_cli.cli.console` — plus a few deliberately-
-    distinct specials (glossary/list fixed-width consoles, stderr consoles).
-    Determinism is a property of the *object*, not the environment:
+    ``charter.activation._io`` intentionally routes non-mission inputs to the relative
+    ``.kittify/encoding-provenance/global.jsonl`` sink.  Tests commonly load
+    absolute files from ``tmp_path`` while pytest's process CWD remains the
+    source checkout; under xdist those otherwise append the same ignored
+    source file while source-pollution tests inventory it.  Redirect only that
+    canonical relative sink.  Absolute and per-mission routes keep exercising
+    the production resolver unchanged, and CLI subprocesses retain their own
+    project CWD.
+    """
+    import charter.activation._io as charter_io
+
+    original_route = charter_io._route_provenance_path
+    isolated_sink = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"
+
+    def _isolated_route(source_path: Path | None) -> Path:
+        routed = original_route(source_path)
+        if routed == Path(".kittify/encoding-provenance/global.jsonl"):
+            return isolated_sink
+        return routed
+
+    monkeypatch.setattr(charter_io, "_route_provenance_path", _isolated_route)
+
+
+# ---------------------------------------------------------------------------
+# WP02 — render-surface width pin (FR-002, #3115)
+#
+# ``rich.console.Console.size`` returns ``ConsoleDimensions(80, 25)`` from its
+# ``if self.is_dumb_terminal:`` branch, which sits ABOVE the ``COLUMNS`` read —
+# so on the failing path ``COLUMNS`` is never consulted (C-012). ``is_terminal``
+# is true whenever ``FORCE_COLOR`` is set to any non-empty value (the Claude
+# Code harness exports ``FORCE_COLOR=3``), and the sync ``Project`` column is
+# ``overflow="fold"`` (deliberate — ``src/specify_cli/cli/commands/sync.py:1440``;
+# never remove it, C-009), so an 80-column render folds a 36-character project
+# uuid across two lines and a substring assertion stops seeing it.
+#
+# Measured (rich 15.0.0, ``TERM=dumb FORCE_COLOR=1 COLUMNS=220``):
+#   no explicit size                     -> ConsoleDimensions(80, 25)
+#   Console(width=220) ALONE             -> ConsoleDimensions(80, 25)   <- the trap
+#   Console(width=220, height=50)        -> ConsoleDimensions(220, 50)
+#   TTY_COMPATIBLE=0 (no explicit width) -> ConsoleDimensions(220, 25)
+# ``Console.size``'s explicit-size early return requires BOTH ``self._width``
+# and ``self._height`` to be set — width alone silently falls through to the
+# same ``is_dumb_terminal`` branch that causes the defect, which is why this is
+# the single most likely way a fix ships broken and green. House precedent for
+# pinning both dimensions: ``tests/specify_cli/cli/commands/_help_snapshot.py``
+# (``_HELP_CONSOLE_WIDTH = 10_000`` / ``_HELP_CONSOLE_HEIGHT = 100``), whose
+# module docstring documents the identical trap and whose
+# ``force_wide_help_console`` uses the same ``console.size = (w, h)`` setter
+# this seam uses below.
+#
+# The shipped width is >= 240, not the 220 used above to take the trap
+# measurements: ``tests/specify_cli/cli/commands/charter/test_activation_layout.py:111``
+# passes ``env={"COLUMNS": "240"}`` and is LIVE on the *non-dumb* path — under
+# ``CliRunner`` in the default environment ``is_terminal`` is False, the
+# ``is_dumb_terminal`` early return does not fire, and ``COLUMNS`` IS consulted
+# there. The correct ``COLUMNS`` finding, stated precisely: inert on the
+# failing (dumb-terminal) path, consulted on the passing (non-dumb) one — so
+# the three existing ``monkeypatch.setenv("COLUMNS", ...)`` call sites in the
+# victim files stay exactly as they are; this seam neither removes nor
+# annotates them (C-012). A pin narrower than 240 would shrink that test's
+# render surface below what it already asks for. 240 is also the
+# ``_WIDE_TERMINAL`` value ``tests/cli/commands/test_sync_purge_3030.py``
+# independently converged on.
+_RENDER_WIDTH = 240
+_RENDER_HEIGHT = 50
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _plain_cli_console_seam() -> Iterator[None]:
+    """Force the shared CLI console seam colourless AND wide for every test.
+
+    Colour (#2632): all CLI modules render through the single ``console`` /
+    ``err_console`` singletons in :mod:`specify_cli.cli.console` — plus a few
+    deliberately-distinct specials (glossary/list fixed-width consoles, stderr
+    consoles). Determinism is a property of the *object*, not the environment:
     ``set_all_plain`` toggles EVERY live ``CliConsole`` instance so ``CliRunner``
     substring / ``--json`` assertions are stable under any ``FORCE_COLOR``
-    harness (the Claude Code harness exports ``FORCE_COLOR=3``). We never mutate
-    ``os.environ`` — env writes leak into subprocesses and sibling tests. Reset
-    to styled afterwards so nothing but the test window is affected.
+    harness. We never mutate ``os.environ`` for colour — env writes leak into
+    subprocesses and sibling tests.
+
+    Width/height (FR-002, #3115): pins the render surface structurally so a
+    dumb-terminal / ``FORCE_COLOR`` test environment can no longer fold a
+    36-character project uuid across two table lines and silently break a
+    substring assertion. See the measured trap values and rationale in the
+    module-level comment above ``_RENDER_WIDTH`` / ``_RENDER_HEIGHT``. Covers
+    the ``#3115`` victims ``tests/cli/commands/test_sync_status_per_project_3030.py``
+    and ``tests/cli/commands/test_sync_doctor_per_project_3030.py``.
+
+    **Reach, bounded explicitly** (post-plan squad, F1): ``CliConsole._instances``
+    (``console.py:49``) is a ``WeakSet`` that ALSO holds three deliberately-sized
+    specials this seam must not widen — ``cli/commands/charter/list_cmd.py:26``
+    (``width=200``), ``cli/commands/glossary.py:46`` (``width=120``), and
+    ``cli/commands/docs.py:43`` (``width=120``, stated load-bearing at
+    ``docs.py:40-42``). A blanket walk of ``_instances`` would overwrite all
+    three. This seam therefore pins ONLY the two module-level singletons,
+    ``specify_cli.cli.console.console`` / ``err_console`` (``console.py:126-127``)
+    — colour still reaches every instance via ``set_all_plain``, but the size
+    pin is singleton-only by deliberate choice, exactly like the colour seam
+    already is for the specials it does not size.
+
+    **Stated gap, not an invisible one**: two further ``CliConsole`` instances
+    are constructed INSIDE FUNCTIONS, i.e. *after* this fixture's setup-time
+    walk has already run, so they are never reached by this pin —
+    ``src/specify_cli/cli/helpers.py:234`` (``CliConsole(stderr=True,
+    color_system=_color)``) and ``src/specify_cli/cli/logging_bootstrap.py:92``
+    (``CliConsole(stderr=True, highlight=False)``). FR-003's guard reports this
+    gap by name; it is not something this seam can close from setup time.
+
+    Reset both colour and size afterwards, in ``finally``, so nothing but the
+    test window is affected (C-002).
     """
     # Lazy import keeps conftest's import graph free of the CLI bootstrap until
     # the first test actually runs.
-    from specify_cli.cli.console import CliConsole
+    from specify_cli.cli.console import CliConsole, console, err_console
 
     CliConsole.set_all_plain(True)
+    original_console_size = (console._width, console._height)
+    original_err_console_size = (err_console._width, err_console._height)
+    console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
+    err_console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
     try:
         yield
     finally:
         CliConsole.set_all_plain(False)
+        console._width, console._height = original_console_size
+        err_console._width, err_console._height = original_err_console_size
 
 
 def reset_spec_kitty_queue_state() -> None:
@@ -447,17 +757,23 @@ def _neutralize_worktree_detection(request, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def _venv_python(venv_dir: Path) -> Path:
-    candidate = venv_dir / "bin" / "python"
-    if candidate.exists():
-        return candidate
-    return venv_dir / "Scripts" / "python.exe"
+    posix = venv_dir / "bin" / "python"
+    windows = venv_dir / "Scripts" / "python.exe"
+    if posix.exists():
+        return posix
+    if windows.exists():
+        return windows
+    return windows if os.name == "nt" else posix
 
 
 def _venv_pip(venv_dir: Path) -> Path:
-    candidate = venv_dir / "bin" / "pip"
-    if candidate.exists():
-        return candidate
-    return venv_dir / "Scripts" / "pip.exe"
+    posix = venv_dir / "bin" / "pip"
+    windows = venv_dir / "Scripts" / "pip.exe"
+    if posix.exists():
+        return posix
+    if windows.exists():
+        return windows
+    return windows if os.name == "nt" else posix
 
 
 def _venv_has_required_runtime(venv_dir: Path) -> bool:
@@ -467,7 +783,7 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
         return False
     probe = (
         "import importlib.util,sys;"
-        "mods=['typer','rich','httpx','yaml'];"
+        "mods=['typer','rich','httpx','yaml','specify_cli'];"
         "missing=[m for m in mods if importlib.util.find_spec(m) is None];"
         "sys.exit(1 if missing else 0)"
     )
@@ -497,33 +813,323 @@ def _venv_is_valid(venv_dir: Path, source_version: str) -> bool:
     return _venv_has_required_runtime(venv_dir)
 
 
-def _ensure_test_venv(project_root: Path, source_version: str) -> Path:
-    """Create or reuse the shared test venv, serialised across concurrent pytest processes.
+def _test_venv_environment_hash(project_root: Path, source_version: str) -> str:
+    lock_path = project_root / "uv.lock"
+    # File-integrity identity, not charter content hashing.
+    lock_hash = (
+        hashlib.sha256(lock_path.read_bytes()).hexdigest()  # noqa: TID251
+        if lock_path.is_file()
+        else "missing"
+    )
+    payload = json.dumps(
+        {
+            "lock_hash": lock_hash,
+            "platform": sys.platform,
+            "python": list(sys.version_info[:2]),
+            "source_version": source_version,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()  # noqa: TID251
 
-    Uses a file lock at ``_VENV_LOCK_PATH`` (relative to *project_root*) so that
-    parallel pytest invocations (e.g., contract + architectural gates) cannot race
-    and observe a half-created venv.  The lock timeout is ``_LOCK_TIMEOUT_S``
-    seconds; if the lock cannot be acquired, an operator-actionable RuntimeError is
-    raised that names the lock file and explains how to remove it.
 
-    Implements FR-003 and FR-004.
-    """
-    venv_path = project_root / _VENV_CACHE_PATH
-    lock_path = project_root / _VENV_LOCK_PATH
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
+def _process_start_token(pid: int) -> str | None:
     try:
-        with FileLock(str(lock_path), timeout=_LOCK_TIMEOUT_S):
-            if not _venv_is_valid(venv_path, source_version):
-                shutil.rmtree(venv_path, ignore_errors=True)
-                _create_test_venv(venv_path, source_version)
-                (venv_path / "VERSION").write_text(source_version, encoding="utf-8")
-    except Timeout:
+        return f"{psutil.Process(pid).create_time():.6f}"
+    except (psutil.Error, OSError):
+        return None
+
+
+def _read_bootstrap_lease(state_path: Path) -> _BootstrapLease | None:
+    if not state_path.exists():
+        return None
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError("state is not an object")
+        state = payload["state"]
+        owner_pid = payload["owner_pid"]
+        process_start_token = payload["process_start_token"]
+        heartbeat_at = payload["heartbeat_at"]
+        lease_seconds = payload["lease_seconds"]
+        temp_path = payload["temp_path"]
+        source_version = payload["source_version"]
+        environment_hash = payload["environment_hash"]
+        if state not in _LEASE_STATES:
+            raise ValueError(f"unknown state {state!r}")
+        if not isinstance(owner_pid, int) or isinstance(owner_pid, bool) or owner_pid <= 0:
+            raise TypeError("owner_pid must be a positive integer")
+        if not isinstance(process_start_token, str) or not process_start_token:
+            raise TypeError("process_start_token must be a non-empty string")
+        if not isinstance(heartbeat_at, int | float) or isinstance(heartbeat_at, bool):
+            raise TypeError("heartbeat_at must be numeric")
+        if not isinstance(lease_seconds, int | float) or isinstance(lease_seconds, bool) or lease_seconds <= 0:
+            raise TypeError("lease_seconds must be positive")
+        if not isinstance(temp_path, str) or not temp_path:
+            raise TypeError("temp_path must be a non-empty string")
+        if not isinstance(source_version, str) or not isinstance(environment_hash, str):
+            raise TypeError("version/hash must be strings")
+        return _BootstrapLease(
+            state=state,
+            owner_pid=owner_pid,
+            process_start_token=process_start_token,
+            heartbeat_at=float(heartbeat_at),
+            lease_seconds=float(lease_seconds),
+            temp_path=Path(temp_path),
+            source_version=source_version,
+            environment_hash=environment_hash,
+        )
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise RuntimeError(
-            f"Timed out acquiring {lock_path} after {_LOCK_TIMEOUT_S}s. "
-            f"If no test process is currently running, remove the lock file: "
-            f"rm {lock_path}"
-        ) from None
-    return venv_path
+            f"Malformed test-venv lease state at {state_path}: {exc}. "
+            "Inspect and remove that state file only after confirming no test builder is running."
+        ) from exc
+
+
+def _write_bootstrap_lease(state_path: Path, lease: _BootstrapLease) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = state_path.with_name(f"{state_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}")
+    try:
+        temporary.write_text(
+            json.dumps(lease.to_json(), sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, state_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _lease_is_live_and_fresh(lease: _BootstrapLease, now: float) -> bool:
+    current_token = _process_start_token(lease.owner_pid)
+    return (
+        current_token is not None
+        and current_token == lease.process_start_token
+        and now - lease.heartbeat_at <= lease.lease_seconds
+    )
+
+
+def _expected_temp_path(temp_path: Path, final_path: Path) -> bool:
+    candidate = Path(os.path.abspath(temp_path))
+    final = Path(os.path.abspath(final_path))
+    return (
+        os.path.normcase(str(candidate.parent)) == os.path.normcase(str(final.parent))
+        and candidate.name.startswith(f"{final.name}.build-")
+    )
+
+
+def _remove_path_without_following_symlinks(path: Path) -> None:
+    """Remove one cache entry without following a file or directory symlink."""
+    if path.is_symlink() or path.is_file():
+        path.unlink(missing_ok=True)
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _remove_recorded_temp(lease: _BootstrapLease, final_path: Path) -> None:
+    if not _expected_temp_path(lease.temp_path, final_path):
+        raise RuntimeError(
+            f"Refusing to recover test venv from unsafe temp_path {lease.temp_path}; "
+            f"expected a sibling named {final_path.name}.build-* beside {final_path}."
+        )
+    _remove_path_without_following_symlinks(lease.temp_path)
+
+
+def _lease_owned_by(lease: _BootstrapLease | None, owner: _BootstrapLease) -> bool:
+    return bool(
+        lease is not None
+        and lease.owner_pid == owner.owner_pid
+        and lease.process_start_token == owner.process_start_token
+        and lease.temp_path == owner.temp_path
+        and lease.environment_hash == owner.environment_hash
+    )
+
+
+def _heartbeat_bootstrap_lease(
+    state_path: Path,
+    lock_path: Path,
+    owner: _BootstrapLease,
+    stop: threading.Event,
+    interval: float,
+) -> None:
+    while not stop.wait(interval):
+        try:
+            with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+                lease = _read_bootstrap_lease(state_path)
+                if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
+                    return
+                _write_bootstrap_lease(state_path, lease.with_state("BUILDING", heartbeat_at=now_epoch()))
+        except (OSError, RuntimeError, Timeout):
+            # A missed heartbeat is recoverable. Repeated misses eventually make
+            # the lease stale, while the owning process remains independently
+            # identifiable by its start token.
+            continue
+
+
+def _claim_bootstrap_lease(
+    project_root: Path,
+    source_version: str,
+    *,
+    validate: Callable[[Path, str], bool],
+    lease_seconds: float,
+) -> tuple[Path | None, _BootstrapLease | None, _BootstrapLease | None]:
+    final_path = project_root / _VENV_CACHE_PATH
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    environment_hash = _test_venv_environment_hash(project_root, source_version)
+    now = now_epoch()
+    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+        if validate(final_path, source_version):
+            return final_path, None, None
+
+        lease = _read_bootstrap_lease(state_path)
+        if lease is not None and lease.state in {"BUILDING", "VALIDATED"}:
+            if _lease_is_live_and_fresh(lease, now):
+                return None, None, lease
+            _remove_recorded_temp(lease, final_path)
+
+        if final_path.exists() or final_path.is_symlink():
+            _remove_path_without_following_symlinks(final_path)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = Path(tempfile.mkdtemp(prefix=f"{final_path.name}.build-", dir=final_path.parent))
+        process_token = _process_start_token(os.getpid())
+        if process_token is None:
+            shutil.rmtree(temp_path, ignore_errors=True)
+            raise RuntimeError(f"Cannot identify test-venv builder process {os.getpid()}.")
+        owner = _BootstrapLease(
+            state="BUILDING",
+            owner_pid=os.getpid(),
+            process_start_token=process_token,
+            heartbeat_at=now,
+            lease_seconds=lease_seconds,
+            temp_path=temp_path,
+            source_version=source_version,
+            environment_hash=environment_hash,
+        )
+        _write_bootstrap_lease(state_path, owner)
+        return None, owner, None
+
+
+def _publish_bootstrap_lease(
+    project_root: Path,
+    source_version: str,
+    owner: _BootstrapLease,
+    *,
+    validate: Callable[[Path, str], bool],
+) -> Path:
+    final_path = project_root / _VENV_CACHE_PATH
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+        lease = _read_bootstrap_lease(state_path)
+        if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
+            raise RuntimeError("Test-venv builder lost lease ownership before publication.")
+        if not validate(owner.temp_path, source_version):
+            raise RuntimeError(f"Test-venv validation failed before publication: {owner.temp_path}")
+
+        validated = lease.with_state("VALIDATED", heartbeat_at=now_epoch())
+        _write_bootstrap_lease(state_path, validated)
+        if final_path.exists() or final_path.is_symlink():
+            if validate(final_path, source_version):
+                _remove_recorded_temp(validated, final_path)
+                _write_bootstrap_lease(
+                    state_path,
+                    validated.with_state("PUBLISHED", heartbeat_at=now_epoch()),
+                )
+                return final_path
+            _remove_path_without_following_symlinks(final_path)
+        owner.temp_path.rename(final_path)
+        _write_bootstrap_lease(
+            state_path,
+            validated.with_state("PUBLISHED", heartbeat_at=now_epoch()),
+        )
+        return final_path
+
+
+def _cleanup_failed_bootstrap(project_root: Path, owner: _BootstrapLease) -> None:
+    lock_path = project_root / _VENV_LOCK_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    try:
+        with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+            lease = _read_bootstrap_lease(state_path)
+            if _lease_owned_by(lease, owner):
+                _remove_recorded_temp(owner, project_root / _VENV_CACHE_PATH)
+                state_path.unlink(missing_ok=True)
+    except (OSError, RuntimeError, Timeout):
+        return
+
+
+def _ensure_test_venv(
+    project_root: Path,
+    source_version: str,
+    *,
+    _build: Callable[[Path, str], None] | None = None,
+    _validate: Callable[[Path, str], bool] | None = None,
+    _heartbeat_interval: float = _HEARTBEAT_INTERVAL_S,
+    _lease_seconds: float = _LEASE_SECONDS,
+    _wait_timeout: float = _WAIT_TIMEOUT_S,
+    _poll_interval: float = _WAIT_POLL_INTERVAL_S,
+) -> Path:
+    """Create or reuse a validated shared venv through a recoverable lease."""
+    build = _create_test_venv if _build is None else _build
+    validate = _venv_is_valid if _validate is None else _validate
+    final_path = project_root / _VENV_CACHE_PATH
+    state_path = project_root / _VENV_STATE_PATH
+    deadline = time.monotonic() + _wait_timeout
+    last_observed: _BootstrapLease | None = None
+
+    while time.monotonic() < deadline:
+        try:
+            ready, owner, observed = _claim_bootstrap_lease(
+                project_root,
+                source_version,
+                validate=validate,
+                lease_seconds=_lease_seconds,
+            )
+        except Timeout:
+            time.sleep(_poll_interval)
+            continue
+        if ready is not None:
+            return ready
+        if owner is None:
+            last_observed = observed
+            time.sleep(_poll_interval)
+            continue
+
+        heartbeat_stop = threading.Event()
+        heartbeat = threading.Thread(
+            target=_heartbeat_bootstrap_lease,
+            args=(state_path, project_root / _VENV_LOCK_PATH, owner, heartbeat_stop, _heartbeat_interval),
+            name="spec-kitty-test-venv-heartbeat",
+            daemon=True,
+        )
+        heartbeat.start()
+        try:
+            build(owner.temp_path, source_version)
+            (owner.temp_path / "VERSION").write_text(source_version, encoding="utf-8")
+            return _publish_bootstrap_lease(
+                project_root,
+                source_version,
+                owner,
+                validate=validate,
+            )
+        except BaseException:
+            _cleanup_failed_bootstrap(project_root, owner)
+            raise
+        finally:
+            heartbeat_stop.set()
+            heartbeat.join(timeout=max(1.0, _heartbeat_interval * 2))
+
+    age = "unknown"
+    owner_summary = "unknown"
+    if last_observed is not None:
+        age = f"{max(0.0, now_epoch() - last_observed.heartbeat_at):.1f}s"
+        owner_summary = f"pid={last_observed.owner_pid} start={last_observed.process_start_token}"
+    raise RuntimeError(
+        f"Timed out waiting {_wait_timeout:.1f}s for shared test venv {final_path}; "
+        f"owner={owner_summary}, heartbeat_age={age}, state={state_path}. "
+        "Confirm the owner process is stopped, then inspect the state file before removing it."
+    )
 
 
 def _venv_site_packages(venv_dir: Path) -> Path:
@@ -625,25 +1231,27 @@ def _build_tool_available() -> bool:
 
 @pytest.fixture(scope="session")
 def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
-    """Build wheel + sdist once per session. Shared by all packaging tests."""
+    """Build wheel + sdist once per RUN. Shared by all packaging tests *and* all xdist workers.
+
+    A session-scoped fixture runs once per worker process, so this used to
+    spawn up to N concurrent ``python -m build`` runs on an N-worker CI runner.
+    The build now happens at most once per run, published atomically into a
+    lock-guarded run-scoped directory next to the basetemp
+    (``tests/_support/shared_build_artifacts.py``); every other worker reuses
+    it after validating it is complete (#80). The builder itself lives in that
+    module too — this file's definition names are pinned by
+    ``tests/architectural/test_home_owner_behaviour.py``.
+    """
     if not _build_tool_available():
         pytest.skip("python -m build not available")
 
-    outdir = tmp_path_factory.mktemp("build")
-    result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
-        cwd=REPO_ROOT,
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"Build failed: {result.stderr}")
-
-    wheels = sorted(outdir.glob("spec_kitty_cli-*.whl"))
-    sdists = sorted(outdir.glob("spec_kitty_cli-*.tar.gz"))
-    if not wheels or not sdists:
-        pytest.skip("Build did not produce expected wheel/sdist artifacts")
-
-    return {"wheel": wheels[-1], "sdist": sdists[-1]}
+    try:
+        return ensure_shared_build_artifacts(
+            run_scoped_shared_root(tmp_path_factory),
+            default_wheel_sdist_builder,
+        )
+    except SharedBuildError as error:
+        pytest.skip(str(error))
 
 
 @pytest.fixture(scope="session")
@@ -1051,6 +1659,7 @@ def test_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    scrub_repo_mission_overrides(project)
 
     # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
@@ -1605,8 +2214,16 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     _register_test_home_atexit_reaper(config)
 
 
-def pytest_sessionfinish(session: pytest.Session) -> None:
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """T007-T009: controller-gated REPO_ROOT reap-then-assert + prompt sweep.
+
+    Also records this session's outcome for run_basetemp.py's (#76)
+    outcome-gated tmp-tree reaper: ``mark_session_outcome`` is called with the
+    incoming *exitstatus* first, then again with ``succeeded=False`` if the
+    leaked-residue check below forces a failure — so a run that looked green
+    until this hook caught residue still retains its tmp tree. A no-op if
+    ``install_run_basetemp`` never installed a reaper against this config
+    (xdist worker, or an explicit ``--basetemp``).
 
     The N1 test-HOME removal is intentionally NOT done here — it runs from the
     ``atexit`` handler registered at ``pytest_sessionstart`` so it fires after
@@ -1620,6 +2237,8 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
     config = session.config
     if not _is_reaper_controller(config):
         return  # NFR-001: a worker must never reap the shared REPO_ROOT
+
+    mark_session_outcome(config, succeeded=exitstatus == pytest.ExitCode.OK)
 
     baseline = getattr(config, _REAPER_SNAPSHOT_ATTR, None)
     if baseline is None:
@@ -1638,3 +2257,4 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
         if reporter is not None:
             reporter.write_line(str(exc), red=True, bold=True)
         session.exitstatus = 1
+        mark_session_outcome(config, succeeded=False)

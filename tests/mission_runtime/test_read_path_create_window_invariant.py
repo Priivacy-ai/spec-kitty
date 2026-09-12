@@ -383,7 +383,10 @@ class TestCreateWindowCommitBoundaryNFR001:
         from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
         from specify_cli.coordination import workspace as ws_module
         from mission_runtime import MissionArtifactKind
-        from specify_cli.coordination.commit_router import commit_for_mission
+        from specify_cli.coordination.commit_router import (
+            CoordWorktreeResolutionError,
+            commit_for_mission,
+        )
         from specify_cli.git.protection_policy import ProtectionPolicy
         from mission_runtime import CommitTarget
         from unittest.mock import patch
@@ -418,12 +421,14 @@ class TestCreateWindowCommitBoundaryNFR001:
 
         # Stub the kind-aware resolver to return COORDINATION so commit_for_mission
         # actually tries to materialise (the coord path on a protected primary). A
-        # COORD kind (ANALYSIS_REPORT) is used because write-surface-coherence WP02
+        # COORD kind (ACCEPTANCE_MATRIX) is used because write-surface-coherence WP02
         # routes primary kinds straight to the primary surface (no materialisation);
         # the materialisation-at-commit-boundary invariant lives on the coord path.
+        # (Exemplar swapped from ANALYSIS_REPORT, re-homed PRIMARY by FR-003 — it
+        # would now trip the DECISION-8 coord-staging guard — to a still-COORD kind.)
         _coord_branch = f"kitty/mission-{_MISSION_DIR}"
-        report_path = primary_dir / "analysis-report.md"
-        report_path.write_text("# Analysis\n\nFirst write.\n", encoding="utf-8")
+        report_path = primary_dir / "acceptance-matrix.json"
+        report_path.write_text("{}\n", encoding="utf-8")
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
@@ -436,15 +441,26 @@ class TestCreateWindowCommitBoundaryNFR001:
             lambda _root, _slug: _MID8,
         ):
             # Phase 2: COMMIT boundary - materialisation MUST occur here.
+            #
+            # The spy records the CoordinationWorkspace.resolve call at the START of
+            # resolution, BEFORE the real resolve shells out to ``git worktree list``.
+            # This minimal fixture is not a real git repo, so that real resolve now
+            # fails loud (``CoordWorktreeResolutionError`` — WP04 #2533/#2300, refusing
+            # to silently misroute a coordination-kind write to primary) instead of
+            # being swallowed by the now-retired silent primary-fallback. The invariant
+            # this test proves — materialisation is ATTEMPTED at the commit boundary,
+            # not at read time — is unaffected: the spy fires regardless of whether the
+            # subsequent git resolution succeeds.
             policy = ProtectionPolicy.resolve(tmp_path)
-            commit_for_mission(
-                repo_root=tmp_path,
-                mission_slug=_BARE_SLUG,
-                files=(report_path,),
-                message="analysis: first write",
-                policy=policy,
-                kind=MissionArtifactKind.ANALYSIS_REPORT,
-            )
+            with pytest.raises(CoordWorktreeResolutionError):
+                commit_for_mission(
+                    repo_root=tmp_path,
+                    mission_slug=_BARE_SLUG,
+                    files=(report_path,),
+                    message="acceptance-matrix: first write",
+                    policy=policy,
+                    kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+                )
 
         calls_after_commit = len(materialise_calls)
         assert calls_after_commit > 0, (

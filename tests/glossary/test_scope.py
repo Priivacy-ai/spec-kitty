@@ -20,7 +20,7 @@ from glossary.scope import (
     validate_seed_file,
 )
 
-from datetime import datetime
+from kernel.clock import UTC, now_utc
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ def _make_sense(
         definition=definition,
         provenance=Provenance(
             actor_id="system:test",
-            timestamp=datetime.now(),
+            timestamp=now_utc(),
             source="test",
         ),
         confidence=confidence,
@@ -175,6 +175,26 @@ class TestLoadSeedFile:
     def test_missing_file_returns_empty(self, tmp_path: Path) -> None:
         result = load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
         assert result == []
+
+    def test_loaded_sense_provenance_timestamp_is_aware_utc(
+        self, tmp_path: Path
+    ) -> None:
+        """kernel-clock-single-door FR-011: the seed-load provenance timestamp
+        is aware-UTC, not naive local time.
+
+        Regression guard for the naive `datetime.now()` site formerly in
+        `scope.load_seed_file` (research/migration-notes.md): a naive
+        timestamp here would silently mislabel local time as if it were an
+        absolute instant once serialized (`TermSense.timestamp.isoformat()`
+        in glossary/models.py). Non-vacuity: reverting the door's
+        `now_utc()` call back to a bare `datetime.now()` makes
+        `tzinfo` come back `None` and this assertion fails.
+        """
+        _write_seed(tmp_path, GlossaryScope.SPEC_KITTY_CORE, VALID_SEED_YAML)
+        senses = load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
+
+        assert senses[0].provenance.timestamp.tzinfo is not None
+        assert senses[0].provenance.timestamp.tzinfo is UTC
 
     def test_non_normalized_surface_raises_seed_file_validation_error(
         self, tmp_path: Path

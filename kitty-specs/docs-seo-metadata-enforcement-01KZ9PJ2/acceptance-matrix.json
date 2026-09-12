@@ -1,0 +1,228 @@
+{
+  "mission_slug": "docs-seo-metadata-enforcement-01KZ9PJ2",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Evidence-based audit of the built site",
+      "proof_type": "automated_test",
+      "evidence": "scripts/docs/seo_verify.py --json emits AuditRecord; tests/docs/test_seo_verify.py (33 tests)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05. Deterministic report; two runs byte-identical."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Gate page set derived from docfx.json content globs",
+      "proof_type": "automated_test",
+      "evidence": "scripts/docs/_published_pages.py; gate now checks 672 pages (was 16)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP01+WP06. Reviewer measured the retired glob list at 16 pages, 7 of 10 patterns matching nothing."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Gate is non-vacuous by construction",
+      "proof_type": "automated_test",
+      "evidence": "test_gate_asserts_the_floor_independently_of_the_resolver; test_empty_page_set_is_red",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP01 floor + WP06 _assert_coverage. Reviewer neutered _assert_coverage and confirmed the direct-call test goes red."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Every ADR page carries a unique hand-authored description",
+      "proof_type": "automated_test",
+      "evidence": "0 of 151 docs/adr pages lack a description; gate 672/0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP02 (51) + WP03 (48) + WP04 (49). Hand-authored per C-008; reviewers verified no templating."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Render emits a meta description on every indexable page",
+      "proof_type": "automated_test",
+      "evidence": "seo_postprocess.seo_block emit_description; test_postprocess_emits_description",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05. Conditional: never overwrites an authored DocFX description."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Boilerplate fallback treated as equivalent to missing",
+      "proof_type": "automated_test",
+      "evidence": "test_boilerplate_set_matches_seo_postprocess; boilerplate reason distinct from missing",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP06. Probes seo_postprocess.extract_description rather than retyping the string."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Description uniqueness enforced across indexable pages",
+      "proof_type": "automated_test",
+      "evidence": "gate found 4 real DUPLICATE violations pre-fix; now 672/0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP06. Violations name all peers (I-07). Exposed two byte-identical published page pairs."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Canonical address and social metadata verified on built output",
+      "proof_type": "automated_test",
+      "evidence": "seo_verify V-08/V-09; test_wrong_canonical_is_red, test_og_mismatch_is_red, test_og_title_mismatch_is_red",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "High-intent pages reachable from top-level navigation",
+      "proof_type": "manual_verification",
+      "evidence": "docs/index.md lines 27,29 link install guide and slash-command reference",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP07. docs/toc.yml unmodified - prior mission's 2-zone/<=6 design preserved."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Documented verification procedure against deployed output",
+      "proof_type": "manual_verification",
+      "evidence": "seo_verify.py CLI; quickstart.md section 4 curl/grep recipes",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Stale-URL finding recorded for issue #1652",
+      "proof_type": "automated_test",
+      "evidence": "seo_verify._finding_note three observation branches; test_stale_url_finding_note_states_only_what_was_observed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05. Reports Confirmed/Not observed/Both present from measured classifications, never asserted."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Redirect stubs stay non-indexable and out of the sitemap",
+      "proof_type": "automated_test",
+      "evidence": "test_stub_is_not_indexable, test_stub_absent_from_sitemap; test_redirect_stub_generator.py 15 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Exclusions explicitly enumerated with reasons",
+      "proof_type": "automated_test",
+      "evidence": "Exclusion.__post_init__ enforces non-empty reason; test_every_exclusion_carries_a_reason",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP01."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "100% of indexable pages have a non-default title",
+      "proof_type": "automated_test",
+      "evidence": "0 of 674 published pages lacked a title; seo_verify title rule + test_absent_title_is_red",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP05."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "100% description coverage, no boilerplate",
+      "proof_type": "automated_test",
+      "evidence": "description_length_check: checked 672 page(s); 0 violation(s)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": ""
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "All descriptions within 50-180 chars inclusive",
+      "proof_type": "automated_test",
+      "evidence": "gate 672/0; 49/181-red and 50/180-green boundary proofs preserved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": ""
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Zero duplicate descriptions among indexable pages",
+      "proof_type": "automated_test",
+      "evidence": "gate 672/0 after deduplicating two byte-identical page pairs",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "Orchestrator-applied content fix (91c42a2ec), reviewed and endorsed by WP06's reviewer."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Gate covers >=99% of indexable built pages",
+      "proof_type": "automated_test",
+      "evidence": "672 of 672 published pages checked",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": ""
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "Gate has red-first boundary proofs",
+      "proof_type": "automated_test",
+      "evidence": "6 mechanisms neutered, all matching proofs went red (verified by reviewer)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "missing / 49 / 181 / boilerplate / duplicate / coverage-assertion."
+    },
+    {
+      "criterion_id": "NFR-007",
+      "description": "Gate completes within 30 seconds",
+      "proof_type": "automated_test",
+      "evidence": "description_length_check CLI: 0.92s over 672 pages",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": ""
+    },
+    {
+      "criterion_id": "NFR-008",
+      "description": "Documentation build wall-clock increase <=10%",
+      "proof_type": "automated_test",
+      "evidence": "seo_verify 0.07s over 700-page _site vs 83-189s CI docs-pages builds -> +0.08%",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-05",
+      "notes": "MEASURED. Marginal cost of the added verifier step: 0.07s (best of 3) over a synthetic 700-page / 2.7 MB _site, against real docs-pages CI build durations of 83-189s (6 most recent successes) -> +0.08% worst case, far inside the 10% ceiling. Scope: NFR-008 constrains the *increase*, and the increase is what was timed. The only other build change is seo_postprocess emitting one extra meta tag inside a pass that already existed. A full end-to-end before/after DocFX build was not run because .NET/DocFX is unavailable in this environment."
+    },
+    {
+      "criterion_id": "NFR-009",
+      "description": "High-intent pages within 1 click of the docs home",
+      "proof_type": "manual_verification",
+      "evidence": "docs/index.md links both targets directly; verified not to be redirect-map keys",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-05",
+      "notes": "WP07."
+    }
+  ]
+}

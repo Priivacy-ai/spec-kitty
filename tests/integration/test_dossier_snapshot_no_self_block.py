@@ -206,7 +206,7 @@ def snapshot_repo(tmp_path: Path) -> tuple[Path, Path, str]:
 
 def _make_minimal_snapshot(mission_slug: str) -> MissionDossierSnapshot:
     """Build a minimal valid :class:`MissionDossierSnapshot` for tests."""
-    from datetime import UTC, datetime
+    from kernel.clock import now_utc
 
     return MissionDossierSnapshot(
         mission_slug=mission_slug,
@@ -220,7 +220,7 @@ def _make_minimal_snapshot(mission_slug: str) -> MissionDossierSnapshot:
         parity_hash_sha256="0" * 64,
         parity_hash_components=[],
         artifact_summaries=[],
-        computed_at=datetime.now(UTC),
+        computed_at=now_utc(),
     )
 
 

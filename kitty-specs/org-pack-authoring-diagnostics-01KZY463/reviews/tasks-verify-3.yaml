@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      T018 step 7 now instructs a ceiling-override invocation
+      (`ruff check src/specify_cli/doctrine/pack_validator.py --select C901
+      --config "lint.mccabe.max-complexity=1"`) instead of `--statistics`; empirically
+      re-run, it reports "`validate_pack` is too complex (9 > 1)" unconditionally
+      (confirmed 9, matching pre-mission complexity), and the DoD checklist item now
+      explicitly says "via the forced-ceiling-override invocation, not plain
+      `--statistics`", closing the original gap.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >-
+      T017 step 1 now cites the lazy import at
+      `src/specify_cli/cli/commands/doctrine.py:961-964` with the call site cited
+      separately at `:966`; reading the live file confirms the import statement
+      (`from ... import (` through the closing `)`) spans exactly lines 961-964, a
+      blank line sits at 965, and `result = validate_pack(pack_path)` is exactly at
+      966 — the citation now matches the file precisely and separates the two
+      logically distinct locations as the finding requested.

@@ -1,0 +1,83 @@
+# BUG (34)
+  [python:S5779] src/specify_cli/cli/commands/charter/lint.py:127  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] src/specify_cli/cli/commands/init.py:838  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] src/specify_cli/cli/commands/sync.py:1129  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] src/specify_cli/sync/events.py:78  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/cross_cutting/versioning/test_version_detection.py:350  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/cross_cutting/versioning/test_version_detection.py:150  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/cross_cutting/versioning/test_version_detection.py:151  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/cross_cutting/versioning/test_version_detection.py:349  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/cross_cutting/versioning/test_version_fallback.py:50  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/next/test_plan_mission_runtime.py:208  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/specify_cli/coordination/test_transaction.py:157  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/specify_cli/migration/test_strip_frontmatter.py:178  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/specify_cli/skills/test_command_renderer.py:573  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5779] tests/status/test_status_read_worktree_resolution.py:193  Don't use assert inside a try-except that catches AssertionError.
+  [python:S5863] tests/_support/git_template/test_git_template.py:42  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/audit/test_audit_serializer.py:157  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/core/test_batch_partition.py:60  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/cross_cutting/encoding/test_contextive_traceability.py:157  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/doctrine/missions/test_step_projection.py:106  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/glossary/test_drg_builder.py:86  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/runtime/test_tmp_prompt_namespace.py:62  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/specify_cli/lanes/test_resolve_lanes_dir.py:53  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/specify_cli/skills/test_manifest_store.py:510  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/specify_cli/tool_surface/profiles/test_renderers.py:387  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/specify_cli/tool_surface/profiles/test_renderers.py:393  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/specify_cli/tool_surface/profiles/test_renderers.py:399  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/sync/test_clock.py:209  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/sync/test_leak_guard_fingerprint_3115.py:70  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/sync/test_namespace.py:120  Replace this assertion to not have the same actual and expected expression.
+  [python:S5863] tests/sync/tracker/test_origin_models.py:64  Replace this assertion to not have the same actual and expected expression.
+  [python:S8998] tests/architectural/test_compat_shims.py:96  Add at least one case to the parametrize values.
+  [python:S8998] tests/architectural/test_compat_shims.py:104  Add at least one case to the parametrize values.
+  [pythonbugs:S2583] src/runtime/next/runtime_bridge.py:1497  Fix this condition that always evaluates to true.
+  [pythonbugs:S2583] src/specify_cli/compat/remediation.py:445  Fix this condition that always evaluates to true.
+
+# BLOCKER (7)
+  [python:S3516] src/charter/pack_manager.py:559  Refactor this method to not always return the same value.
+  [python:S3516] src/specify_cli/cli/commands/_command_surface_doctor.py:164  Refactor this method to not always return the same value.
+  [python:S3516] src/specify_cli/core/file_lock.py:271  Refactor this method to not always return the same value.
+  [python:S3516] src/specify_cli/status/reducer.py:751  Refactor this method to not always return the same value.
+  [pythonsecurity:S2083] src/specify_cli/merge/bookkeeping_projection.py:212  Change this code to not construct the path from user-controlled data.
+  [pythonsecurity:S2083] src/specify_cli/merge/bookkeeping_projection.py:346  Change this code to not construct the path from user-controlled data.
+  [pythonsecurity:S2083] src/specify_cli/skills/verifier.py:402  Change this code to not construct the path from user-controlled data.
+
+# HIGH in doctrine/charter/sync (117)
+  rule breakdown: {'python:S3776': 57, 'python:S1192': 56, 'python:S5779': 2, 'python:S8572': 2}
+
+  ## doctrine (63): {'python:S1192': 39, 'python:S3776': 24}
+      36  src/doctrine/drg/migration/hand_authored_overlay.py
+       6  src/specify_cli/doctrine/pack_validator.py
+       6  src/specify_cli/doctrine/pack_assembler.py
+       3  src/doctrine/drg/migration/extractor.py
+       2  src/specify_cli/doctrine/sources/https_source.py
+       2  src/specify_cli/doctrine/sources/api_source.py
+       1  src/doctrine/drg/merge.py
+       1  src/doctrine/drg/validator.py
+       1  src/doctrine/agent_profiles/repository.py
+       1  src/doctrine/drg/org_pack_loader.py
+
+  ## charter (35): {'python:S3776': 26, 'python:S1192': 8, 'python:S5779': 1}
+       3  src/specify_cli/cli/commands/charter/_status_collectors.py
+       3  src/charter/context_renderers/profile_sections.py
+       2  src/specify_cli/cli/commands/charter/pack.py
+       2  src/charter/context.py
+       2  src/specify_cli/cli/commands/charter/list_cmd.py
+       2  src/specify_cli/cli/commands/charter/lint.py
+       1  src/charter/context_renderers/token_budget.py
+       1  src/charter/kind_vocabulary.py
+       1  src/charter/pack_manager.py
+       1  src/charter/context_renderers/artifact_bodies.py
+
+  ## sync (19): {'python:S1192': 9, 'python:S3776': 7, 'python:S8572': 2, 'python:S5779': 1}
+       4  src/specify_cli/sync/__init__.py
+       3  src/specify_cli/sync/dossier_pipeline.py
+       2  src/specify_cli/sync/queue.py
+       2  src/specify_cli/sync/body_queue.py
+       1  src/specify_cli/sync/background.py
+       1  src/specify_cli/sync/classification.py
+       1  src/specify_cli/sync/orphan_sweep.py
+       1  src/specify_cli/sync/owner.py
+       1  src/specify_cli/sync/runtime_event_emitter.py
+       1  src/specify_cli/sync/sharing_client.py

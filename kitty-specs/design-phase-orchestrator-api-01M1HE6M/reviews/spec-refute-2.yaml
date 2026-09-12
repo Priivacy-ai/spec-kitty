@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "spec.md:116 and :332-334 both literally say \"agent mission-run check-prerequisites --json --include-tasks\", the .kittify/overrides copy at analyze.md:27 uses the same stale \"mission-run\" wording, the canonical packs/built-in/.../analyze/prompt.md:28 says \"mission check-prerequisites ... --mission <mission-slug>\", and grep confirms no `mission-run` Typer command group exists anywhere in src/ (agent/__init__.py:23 registers only `mission`, and mission_check_prerequisites.py's own docstring examples say `agent mission check-prerequisites`)."
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: "spec.md's FR table gives every other FR a concrete cited service function (Clarifications #1/#2) but FR-010 (line 277) and its US4 section (lines 191-230) cite none beyond an analogy to list-ready's event-log pattern (line 305), while src/runtime/next/_internal_runtime/planner.py:216-256 (`resolve_next_workflow_action`) is confirmed to be exactly the DAG engine that already resolves \"next action\" for a mission, and commands.py's mission-state (756-816) is confirmed to only reduce WP/lane state, not design-phase status — the citation gap and duplication risk are real."
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: "grep confirms commands.py's only non-git subprocess usage is git (lines 514-693, zero verbs shell out); mission_record_analysis.py:384-388 wraps the dossier-sync trigger in bare `contextlib.suppress(Exception)` which cannot bound a hang; layout_generation.py:676-694's `_await_publish_or_loud` is a bounded-iteration wait; and SPEC-KITTY-LEDGER.md's SK-93 entry (lines 1185-1266) documents exactly this call chain hanging in 3 of 4 first-hand occurrences (shapes 1/3/4), with the one clean exit-124 traced to an operator-imposed `timeout 300` wrapper per the entry's own \"Working protocol\" (step 2), not a signal the in-process Python call itself produces — matching the finding's claim that NFR-004/SC-005's exit-code framing does not fit the real in-process hang hazard."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "spec.md's AC2/NFR-004 text (confirmed verbatim, lines ~118-121 and NFR-004 row) instructs verifying success by re-reading and comparing only the `verdict` field, explicitly telling implementers not to trust the underlying return value/exit code; mission_record_analysis.py:203-292 confirms multiple early-exit failure branches (DIRTY_WORKTREE, FEATURE_CONTEXT_UNRESOLVED, empty body) that return/raise before write_analysis_report is reached, leaving a prior analysis-report.md untouched; analysis_report.py:505-524 confirms richer fields (generated_at, input_artifacts hashes) exist but AC2 only names verdict; and VERDICT_READY/VERDICT_BLOCKED (analysis_report.py:80-81) confirm only two live submitted values, making a stale-verdict coincidental match a real, not contrived, risk the spec's Acceptance Scenarios never address."
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: "spec.md's Edge Cases section (lines 247-251) contains exactly one idempotent-retry case and it is scoped to \"called twice with the same verdict\"; no Edge Case or Acceptance Scenario anywhere in User Story 2 (lines 109-136) addresses a retry that submits a different verdict than what is currently persisted, confirming the gap as described."
+  - id: SPEC-VERIFY-005
+    verdict: refuted
+    reason: "AC3 (success:true, no error_code) and AC4 (success:false, structured error_code) are confirmed verbatim and are coherently testable as written — success/failure plus error_code presence already distinguishes the two scenarios per NFR-002's generic structured-error_code contract, so a test can assert success:false with a non-null error_code on the failure path without needing a literal example value; the finding's \"cannot derive... what the distinguishing comparison checks\" and \"conflation\" framing overstates a genuine but minor completeness gap (no example error_code like FR-012's \"e.g. INVALID_ORIGIN_FLOW\") into an unfalsifiability claim the text does not support."

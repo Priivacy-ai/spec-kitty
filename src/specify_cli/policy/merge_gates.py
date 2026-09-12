@@ -17,10 +17,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
-from specify_cli.status import Lane
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 
 class GateVerdict(StrEnum):
@@ -127,13 +127,19 @@ def evaluate_merge_gates(
 
     if policy.require_risk_check:
         evaluation.gates.append(
-            _evaluate_risk_gate(feature_dir, is_blocking)
+            _evaluate_risk_gate(feature_dir, is_blocking, repo_root, mission_slug)
         )
 
     if policy.require_deps_complete:
         evaluation.gates.append(
-            _evaluate_dependency_gate(feature_dir, wp_ids, is_blocking)
+            _evaluate_dependency_gate(
+                feature_dir, wp_ids, is_blocking, repo_root, mission_slug
+            )
         )
+
+    evaluation.gates.append(
+        _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking)
+    )
 
     return evaluation
 
@@ -141,21 +147,32 @@ def evaluate_merge_gates(
 def _evaluate_evidence_gate(
     feature_dir: Path, wp_ids: list[str], is_blocking: bool,
 ) -> GateResult:
-    """Check that all WPs have reviewer approval in the event log."""
+    """Check that every WP is at an acceptable mission ending in the event log.
+
+    FR-009 merge face: routed through the single acceptable-ending authority
+    (:func:`~specify_cli.status_lanes.is_acceptable_ending`) over the reduced
+    per-WP snapshot lane — ``approved``/``done`` are evidence-complete
+    unconditionally, and a ``canceled`` WP carrying operator-authored provenance
+    (read via :func:`~specify_cli.status_lanes.has_operator_provenance`) is an
+    acceptable ending too, so a legitimately-canceled WP is not reported as
+    missing approval. A synthetic (non-provenance) cancellation still fails here.
+    """
     try:
-        from specify_cli.status import read_events
+        from specify_cli.status import read_events, reduce
 
-        events = read_events(feature_dir)
-        # Find WPs that reached 'approved' lane.
-        approved_wps: set[str] = set()
-        for event in events:
-            data = event if isinstance(event, dict) else event.__dict__
-            if data.get("to_lane") in (Lane.APPROVED, Lane.DONE):
-                wp = data.get("wp_id")
-                if wp:
-                    approved_wps.add(wp)
+        snapshot = reduce(read_events(feature_dir))
+        work_packages = snapshot.work_packages if hasattr(snapshot, "work_packages") else {}
 
-        missing = sorted(set(wp_ids) - approved_wps)
+        missing: list[str] = []
+        for wp_id in wp_ids:
+            wp_snapshot = work_packages.get(wp_id)
+            lane = str(wp_snapshot.get("lane", "")) if isinstance(wp_snapshot, dict) else ""
+            provenance = has_operator_provenance(
+                wp_snapshot if isinstance(wp_snapshot, dict) else None
+            )
+            if not is_acceptable_ending(lane, has_provenance=provenance):
+                missing.append(wp_id)
+        missing.sort()
         if missing:
             return GateResult(
                 gate_name="evidence",
@@ -179,15 +196,29 @@ def _evaluate_evidence_gate(
 
 
 def _evaluate_risk_gate(
-    feature_dir: Path, is_blocking: bool,
+    feature_dir: Path, is_blocking: bool, repo_root: Path, mission_slug: str,
 ) -> GateResult:
-    """Check that parallelization risk score is below threshold."""
+    """Check that parallelization risk score is below threshold.
+
+    #3439 / FR-003 / C-001: LANE_STATE is a PRIMARY-partition kind. On a
+    coord-topology mission the ``feature_dir`` handed in by the merge flow is
+    the STATUS-only ``-coord`` husk, which carries no ``lanes.json`` — so a
+    direct ``read_lanes_json(feature_dir)`` returned ``None`` and the gate
+    silently SKIPped. Route the LANE_STATE read through the canonical placement
+    seam (the existing SSOT — no predicate fork) so the gate evaluates real
+    lane data on every topology. STATUS-partition reads are untouched (C-002).
+    """
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.lanes.persistence import read_lanes_json
         from specify_cli.policy.config import load_policy_config
         from specify_cli.policy.risk_scorer import compute_risk_report
 
-        lanes_manifest = read_lanes_json(feature_dir)
+        lane_state_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
+        )
+        lanes_manifest = read_lanes_json(lane_state_dir)
         if lanes_manifest is None:
             return GateResult(
                 gate_name="risk",
@@ -196,8 +227,8 @@ def _evaluate_risk_gate(
                 blocking=False,
             )
 
-        # Load risk policy from repo root (navigate up from feature_dir).
-        repo_root = feature_dir.parent.parent
+        # Load risk policy from the threaded repo root (never re-derived from
+        # feature_dir, which is the coord husk on a coord-topology mission).
         policy = load_policy_config(repo_root)
         report = compute_risk_report(lanes_manifest, policy=policy.risk)
 
@@ -228,30 +259,61 @@ def _evaluate_risk_gate(
 
 def _evaluate_dependency_gate(
     feature_dir: Path, wp_ids: list[str], is_blocking: bool,
+    repo_root: Path, mission_slug: str,
 ) -> GateResult:
-    """Check that all WP dependencies are in done lane."""
+    """Check that all WP dependencies are in done lane.
+
+    #3439 / FR-003 / C-001/C-002 per-leg split. The dependency GRAPH is built
+    from WORK_PACKAGE_TASK (``tasks/``) — a PRIMARY-partition kind absent on the
+    coord husk, so a direct ``build_dependency_graph(feature_dir)`` saw an EMPTY
+    graph and treated every dependency as satisfied. Route that read through the
+    placement seam (PRIMARY). The per-WP LANE snapshot stays on the coord-aware
+    STATUS_STATE surface: ``read_events`` keeps reading the handed-in
+    ``feature_dir`` (the coord husk on a coord mission) — do NOT over-correct the
+    STATUS read to PRIMARY (C-002).
+    """
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
+
         from specify_cli.core.dependency_graph import build_dependency_graph
         from specify_cli.status import reduce
         from specify_cli.status import read_events
 
-        graph = build_dependency_graph(feature_dir)
+        work_package_task_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        graph = build_dependency_graph(work_package_task_dir)
         # Merge gate evaluation must remain read-only. Writing status.json here
-        # dirties the repo and can block repeated merge attempts.
+        # dirties the repo and can block repeated merge attempts. STATUS_STATE
+        # stays on the coord-aware feature_dir (C-002).
         snapshot = reduce(read_events(feature_dir))
 
         wp_lanes: dict[str, str] = {}
+        wp_provenance: dict[str, bool] = {}
         if snapshot and hasattr(snapshot, "work_packages"):
             for wp_id_key, wp_data in snapshot.work_packages.items():
-                lane_val = wp_data.get("lane") if isinstance(wp_data, dict) else getattr(wp_data, "lane", None)
+                if isinstance(wp_data, dict):
+                    lane_val = wp_data.get("lane")
+                    wp_provenance[wp_id_key] = has_operator_provenance(wp_data)
+                else:
+                    lane_val = getattr(wp_data, "lane", None)
+                    wp_provenance[wp_id_key] = False
                 if lane_val:
                     wp_lanes[wp_id_key] = str(lane_val)
 
+        # FR-009 merge face: a dependency counts as resolved when it is an
+        # acceptable ending — ``approved``/``done``, OR a ``canceled`` dependency
+        # with operator-authored provenance. Routed through the single
+        # ``is_acceptable_ending`` authority so a canceled-with-provenance
+        # dependency does not strand a surviving dependent at merge (the claim
+        # face is owned by the dependency-readiness gate).
         incomplete_deps: list[str] = []
         for wp_id in wp_ids:
             for dep_id in graph.get(wp_id, []):
                 dep_lane = wp_lanes.get(dep_id, "unknown")
-                if dep_lane not in (Lane.DONE, Lane.APPROVED):
+                if not is_acceptable_ending(
+                    dep_lane, has_provenance=wp_provenance.get(dep_id, False)
+                ):
                     incomplete_deps.append(f"{dep_id} (lane={dep_lane})")
 
         if incomplete_deps:
@@ -273,4 +335,66 @@ def _evaluate_dependency_gate(
             verdict=GateVerdict.SKIP,
             details=f"Dependency check unavailable: {exc}",
             blocking=False,
+        )
+
+
+def _evaluate_issue_matrix_completeness_gate(
+    feature_dir: Path, is_blocking: bool,
+) -> GateResult:
+    """Check that every discovered issue reference has an issue-matrix row.
+
+    T030 (WP08, FR-004, #1738): a net-new reader for ``merge_gates`` — this
+    module is not a WP05 migration target, it gains its first issue-matrix
+    read here. Uses the SAME two canonical definitions the finalization/
+    approval path uses (no third/fourth definition): WP08's multi-file
+    :func:`~specify_cli.tasks.issue_reference_discovery.
+    discover_issue_references` for "what is referenced", and WP05's
+    dir-based :func:`~specify_cli.tasks.issue_matrix_migration.
+    load_issue_matrix` for "what the matrix says".
+
+    Fail-closed only when references exist: zero discovered references is a
+    PASS (nothing to enforce). WP09 owns the formal ``not_applicable``
+    Gate-4 verdict for the post-merge review surface; this merge gate's
+    zero-reference branch is intentionally the simpler "nothing to check"
+    case, not a re-definition of ``not_applicable``.
+    """
+    try:
+        from specify_cli.tasks.issue_matrix_migration import load_issue_matrix
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+
+        refs = discover_issue_references(feature_dir)
+        if not refs:
+            return GateResult(
+                gate_name="issue_matrix_completeness",
+                verdict=GateVerdict.PASS,
+                details="No issue references discovered — nothing to enforce",
+                blocking=False,
+            )
+
+        referenced_issues = {f"#{ref.number}" for ref in refs}
+        matrix_issues = {row.issue for row in load_issue_matrix(feature_dir)}
+        missing_issues = sorted(referenced_issues - matrix_issues)
+
+        if missing_issues:
+            return GateResult(
+                gate_name="issue_matrix_completeness",
+                verdict=GateVerdict.FAIL,
+                details=(
+                    "Issue-matrix is missing rows for referenced issue(s): "
+                    f"{', '.join(missing_issues)}"
+                ),
+                blocking=is_blocking,
+            )
+        return GateResult(
+            gate_name="issue_matrix_completeness",
+            verdict=GateVerdict.PASS,
+            details=f"All {len(referenced_issues)} referenced issue(s) have matrix rows",
+            blocking=False,
+        )
+    except Exception as exc:
+        return GateResult(
+            gate_name="issue_matrix_completeness",
+            verdict=GateVerdict.FAIL,
+            details=f"Could not evaluate issue-matrix completeness: {exc}",
+            blocking=is_blocking,
         )

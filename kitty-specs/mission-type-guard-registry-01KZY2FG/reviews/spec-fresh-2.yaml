@@ -1,0 +1,47 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-2
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: SPEC-FRESH2-001
+    lens: fresh-eyes-citation-audit
+    severity: 3
+    title: "FR-004's new WARNING-precedent citation is verified accurate but claims a same-file convention that does not hold at the composed path's real implementation site"
+    evidence:
+      - artifact: "spec.md § Requirements → FR-004: '...matching the existing degrade-and-continue logging convention at runtime_bridge.py:348-354 ... the genuine precedent for a WARNING-level \"problem detected, continuing anyway\" log in this file...'"
+      - code: "src/runtime/next/runtime_bridge.py:348-354 — confirmed accurate: logger.warning('DecisionGitLog construction failed for mission %s; falling back to plain emitter.', ...) then return emitter. This part of the round-2 fix is correct and verified against live code."
+      - code: "src/runtime/next/runtime_bridge.py:878-890 — the `_check_composed_action_guard` defined in THIS file is only a 'Thin compat delegate' whose docstring says it 'forwards to :func:`runtime_bridge_composition._check_composed_action_guard`'; it contains no guard logic and never calls `evaluate_guards` itself."
+      - code: "src/runtime/next/runtime_bridge_composition.py:427-486 — the REAL `_check_composed_action_guard`, which calls `_cores.evaluate_guards(snapshot)` directly. This is the function C-001/FR-005's binding 'call-site shape' paragraph (added in the R4 fix round, User Story 3) requires to be the direct caller of the composed path's tolerant wrapper — i.e. this is where FR-004's neutral-degrade WARNING log must actually be added."
+      - code: "src/runtime/next/runtime_bridge_composition.py:101 — this sibling file has its own `logger = logging.getLogger(...)`, and its own existing exception-and-continue convention at line 567 is `logger.exception(...)` (ERROR-equivalent) for 'unexpected exception in composition', not a WARNING-level degrade — i.e. the file where the fix actually lands has no WARNING precedent of its own, and its one analogous convention uses a different level."
+    claim: >
+      This round's fix correctly replaced the false-precedent citation with a real one
+      (runtime_bridge.py:348-354 genuinely is a WARNING-level degrade-and-continue log, verified
+      against live code) — no fabrication here, DIRECTIVE_048 is satisfied for the citation
+      itself. But the new phrase "the genuine precedent ... in this file" implicitly asserts that
+      the composed-path fix and its citation share one file's logging convention. They do not:
+      `_check_composed_action_guard` as defined in runtime_bridge.py (the same file as the
+      citation) is a bodyless compat shim; the function that actually calls `evaluate_guards` and
+      that C-001/FR-005 requires to be the direct caller of the new tolerant wrapper lives in
+      runtime_bridge_composition.py, a different module with its own logger and a *different*
+      existing convention (ERROR-level `logger.exception`, not WARNING) for its one analogous
+      "problem happened, keep going" case. Neither FR-003 nor FR-004 name
+      runtime_bridge_composition.py anywhere, so an implementer reading FR-004 literally has no
+      signal that the file holding the cited precedent is not the file where the new log line
+      belongs, or that the destination file's own local convention actually differs in level from
+      the one FR-004 asks for. This is a fresh gap introduced by this round's edit: the previous
+      (false-precedent) citation didn't carry this same-file implication as sharply, because it
+      was already known to be wrong; this round's textually-accurate replacement newly bakes in
+      an implicit locality claim that the mission's own already-binding call-site-shape
+      requirement (User Story 3 / C-001, untouched by this round) contradicts.
+    remediation: >
+      Drop or soften the "in this file" framing in FR-004, and add the same explicit locality
+      note C-001/FR-005 already carry for the legacy path: state that the composed path's
+      WARNING-level log is added inside runtime_bridge_composition.py's `_check_composed_action_guard`
+      (the function that actually calls `evaluate_guards`), not the same-named compat delegate in
+      runtime_bridge.py — and note explicitly that this destination file's own existing
+      exception-and-continue convention is ERROR-level (`logger.exception`), so FR-004's
+      WARNING-or-above bar is a deliberate departure from local file convention, not a
+      continuation of it, chosen because this case is an intended degrade rather than an
+      unexpected crash.

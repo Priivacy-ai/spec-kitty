@@ -19,7 +19,7 @@ from typing import Any, cast
 import pytest
 from ruamel.yaml import YAML
 
-from charter.schemas import (
+from charter.activation.schemas import (
     Directive,
     DirectivesConfig,
     DoctrineSelectionConfig,

@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "18bec174fa62cef9ef8a359230d7232fcb7c4f06",
   "baseline_merge_commit": "1d276a73c89a0a9a531881e158571f543cc84f1a",
-  "coordination_branch": "kitty/mission-consolidate-charter-bundle-01KXSYB9",
   "created_at": "2026-07-18T06:24:17.769129+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Consolidate the Compiled Charter Bundle",
   "mission_id": "01KXSYB9B87MZ34K476BNTR3FV",
   "mission_number": null,
@@ -28,7 +27,7 @@
   "slug": "consolidate-charter-bundle-01KXSYB9",
   "status_phase": "1",
   "target_branch": "feat/consolidate-charter-bundle",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-18T09:30:46.703064+00:00"
 }

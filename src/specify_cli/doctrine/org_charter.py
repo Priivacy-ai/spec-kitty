@@ -15,7 +15,7 @@ for the pack registry and (b) call into the pure ``charter`` data helper
 that performs the YAML side-effect.
 
 The pure side-effect (writing to ``answers.yaml``) is implemented in
-``charter.interview.apply_org_charter_pre_fill_to_answers``.  That charter
+``charter.activation.interview.apply_org_charter_pre_fill_to_answers``.  That charter
 helper accepts the merged policy data as plain Python (dict + list) so it
 never imports from this layer — the WP07 ``_resolve_org_root`` pattern.
 
@@ -40,17 +40,16 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
-from charter.activations import ActivationEntry, _activation_identity_key
-from charter.default_pack import load_default_pack_activation_ids
-from charter.kind_vocabulary import (
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-    resolve_config_id,
+from charter.activation.activations import ActivationEntry, _activation_identity_key
+from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.kind_vocabulary import (
+    UnrepresentableDirectiveIdError,
+    resolve_selected_id_to_stem,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
 __all__ = [
     "GovernancePolicy",
@@ -63,6 +62,7 @@ __all__ = [
     "load_org_charter_policies",
     "apply_org_charter_pre_fill",
     "apply_org_charter_to_interview",
+    "validate_org_required_directive_stems",
 ]
 
 
@@ -70,7 +70,7 @@ __all__ = [
 # Constants — the canonical list of artifact kinds an org pack can mandate.
 #
 # Naming parity rule (Mission B WP01 + WP06): every entry here corresponds
-# to a ``selected_<kind>`` field on :class:`charter.schemas.DoctrineSelectionConfig`
+# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.DoctrineSelectionConfig`
 # and a ``required_<kind>`` field on :class:`OrgCharterPolicy`.  The
 # byte-identical parity is pinned by
 # ``tests/architectural/test_artifact_selection_completeness.py``.
@@ -91,6 +91,8 @@ REQUIRED_KIND_FIELDS: tuple[str, ...] = (
     "procedures",
     "agent_profiles",
     "mission_step_contracts",
+    "glossary_packs",
+    "assets",
 )
 
 
@@ -124,7 +126,7 @@ class OrgCharterPolicy(BaseModel):
     Mission B WP06 extends this model with one ``required_<kind>`` list
     per :data:`REQUIRED_KIND_FIELDS` entry.  Each list mirrors the
     matching ``selected_<kind>`` field on
-    :class:`charter.schemas.DoctrineSelectionConfig` (parity pinned by
+    :class:`charter.activation.schemas.DoctrineSelectionConfig` (parity pinned by
     ``tests/architectural/test_artifact_selection_completeness.py``).
     Empty defaults preserve NFR-005 backward compatibility — existing
     ``org-charter.yaml`` files that only declare ``required_directives``
@@ -161,6 +163,8 @@ class OrgCharterPolicy(BaseModel):
     required_procedures: list[str] = Field(default_factory=list)
     required_agent_profiles: list[str] = Field(default_factory=list)
     required_mission_step_contracts: list[str] = Field(default_factory=list)
+    required_glossary_packs: list[str] = Field(default_factory=list)
+    required_assets: list[str] = Field(default_factory=list)
     governance_policies: list[GovernancePolicy] = Field(default_factory=list)
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Org-pack-level activation registry (FR-008 / WP06 T028).  Each pack
@@ -186,9 +190,7 @@ class OrgCharterPolicy(BaseModel):
             return v
         if isinstance(v, str):
             return int(v)
-        raise ValueError(
-            f"schema_version must be an int or numeric string, got {type(v).__name__}"
-        )
+        raise ValueError(f"schema_version must be an int or numeric string, got {type(v).__name__}")
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +210,7 @@ class MissingDoctrinePackError(RuntimeError):
 
     The exception message is also rendered into the bootstrap charter
     context text as a hard-error diagnostic (see
-    :mod:`charter.context._missing_pack_diagnostic`) so callers that do
+    :mod:`charter.activation.context._missing_pack_diagnostic`) so callers that do
     not catch the exception still surface the error in the prompt body.
     """
 
@@ -232,9 +234,7 @@ class OrgCharterCycleError(Exception):
 
     def __init__(self, cycle_path: list[str]) -> None:
         self.cycle_path = list(cycle_path)
-        super().__init__(
-            f"Cycle detected in extends: chain: {' → '.join(self.cycle_path)}"
-        )
+        super().__init__(f"Cycle detected in extends: chain: {' → '.join(self.cycle_path)}")
 
 
 class OrgCharterExtensionError(Exception):
@@ -248,10 +248,7 @@ class OrgCharterExtensionError(Exception):
     def __init__(self, missing_pack: str, chain: list[str]) -> None:
         self.missing_pack = missing_pack
         self.chain = list(chain)
-        super().__init__(
-            f"Base pack '{missing_pack}' not found. "
-            f"Chain: {' → '.join(self.chain)}"
-        )
+        super().__init__(f"Base pack '{missing_pack}' not found. Chain: {' → '.join(self.chain)}")
 
 
 # ---------------------------------------------------------------------------
@@ -267,76 +264,65 @@ def _yaml() -> YAML:
 # ---------------------------------------------------------------------------
 # T014 — org-required union into the project's activation source
 #
-# ``promote_activations`` (charter.activation_engine, WP06) is the single
+# ``promote_activations`` (charter.activation.activation_engine, WP06) is the single
 # append-only write path used below. It never re-derives the built-in id
 # universe itself (C-008: default ids arrive as caller-supplied data), so
 # this module loads the shipped default pack directly.
 #
 # consolidate-charter-bundle WP02: the write target itself (``config.yaml``
 # vs the migrated ``charter.yaml``) is resolved by
-# :func:`charter.pack_manager.resolve_activation_write_target` — the single
+# :func:`charter.activation.pack_manager.resolve_activation_write_target` — the single
 # shared pointer-resolution implementation on the write side (INV-2/INV-5),
 # so this module no longer maintains its own config-loading duplicate.
 # ---------------------------------------------------------------------------
 
 
-def _resolve_required_id_to_stem(
-    kind: ArtifactKind, raw_id: str, *, doctrine_root: Path
-) -> str | None:
-    """Best-effort normalize *raw_id* (already-stem OR canonical id) to config-stem form.
-
-    Org packs may declare ``required_<kind>`` entries in either the
-    config/file-stem form (``"001-architectural-integrity-standard"``) or the
-    artefact's canonical ``id:`` field (``"DIRECTIVE_001"``) — the same
-    two-form ambiguity :func:`~specify_cli.upgrade.migrations.m_unify_charter_activation.resolve_selected_id_to_stem`
-    resolves for ``answers.selected_<kind>`` (WP01, C-006). Tries *raw_id* as
-    a config stem first (the already-normalized, idempotent case — the common
-    path once this normalization has run once), then falls back to treating
-    it as the canonical ``id:`` value. Returns ``None`` when neither
-    direction resolves — the caller passes the id through verbatim rather
-    than dropping it, so an org author's malformed/unknown id still fails
-    loudly downstream (at derivation) instead of vanishing silently here.
-    """
-    try:
-        resolve_artifact_urn(kind, raw_id, doctrine_root=doctrine_root)
-        return raw_id
-    except UnknownArtifactIdError:
-        pass
-    try:
-        return resolve_config_id(f"{kind.value}:{raw_id}", doctrine_root=doctrine_root)
-    except (ValueError, UnknownArtifactIdError):
-        return None
-
-
 def _normalize_required_ids(
-    kind_plural: str, raw_ids: list[str], *, doctrine_root: Path | None
+    kind_plural: str,
+    raw_ids: list[str],
+    *,
+    doctrine_root: Path | None,
+    org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
+    warnings: list[str] | None = None,
 ) -> list[str]:
     """Normalize every id in *raw_ids* (a ``required_<kind_plural>`` list) to stem form.
 
     ``config.activated_<kind>`` stores config/file-stem ids and the
-    derivation reads stems (:mod:`charter.compiler`,
-    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) — promoting an
+    derivation reads stems (:mod:`charter.activation.compiler`,
+    :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) — promoting an
     org-required id verbatim in its natural canonical form
     (e.g. ``DIRECTIVE_001``) writes a value the derivation can never match,
-    crashing the compiled reference set even for a built-in org-required
-    directive (squad finding #2529). When *doctrine_root* could not be
-    resolved (best-effort — see the call site), or an individual id resolves
-    in neither direction, that id is passed through unchanged rather than
-    dropped.
+    historically crashing the compiled reference set (#2529). Declared
+    directive IDs remain readable for recovery, but producers always write
+    stems. An unavailable *doctrine_root* or unknown ID preserves the raw
+    input for existing downstream validation. A known identity whose filenames
+    select another directive raises instead; promotion callers may collect
+    warnings and skip only that ambiguous identity.
     """
     if doctrine_root is None:
         return list(raw_ids)
     kind = ArtifactKind.from_plural(kind_plural)
     normalized: list[str] = []
     for raw_id in raw_ids:
-        stem = _resolve_required_id_to_stem(kind, raw_id, doctrine_root=doctrine_root)
+        try:
+            stem = resolve_selected_id_to_stem(
+                kind,
+                raw_id,
+                doctrine_root=doctrine_root,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            )
+        except UnrepresentableDirectiveIdError as exc:
+            if warnings is None:
+                raise
+            warnings.append(f"Could not promote org-required directive {raw_id!r}; skipped. {exc}")
+            continue
         normalized.append(stem if stem is not None else raw_id)
     return normalized
 
 
-def _promote_org_required_to_config(
-    policy: OrgCharterPolicy, repo_root: Path
-) -> list[str]:
+def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -> list[str]:
     """Union every ``required_<kind>`` in *policy* into ``config.activated_<kind>``.
 
     Mechanism note (squad finding): ``apply_org_charter_to_interview`` used to
@@ -346,7 +332,7 @@ def _promote_org_required_to_config(
     inert — org-required artefacts would silently stop reaching the compiled
     reference set. This promotes the SAME ids directly into
     ``.kittify/config.yaml`` through
-    :func:`charter.activation_engine.promote_activations`, the shared
+    :func:`charter.activation.activation_engine.promote_activations`, the shared
     append-only primitive (WP06) — the only write path used here (no
     hand-rolled second writer, no direct ``save`` call).
 
@@ -361,36 +347,47 @@ def _promote_org_required_to_config(
     Only kinds with a non-empty ``required_<kind>`` are included in the
     promotion set, so kinds the org pack does not mandate are left in their
     existing three-state ``config.yaml`` shape — an absent key still means
-    "all built-ins active" (:meth:`charter.pack_context.PackContext.from_config`)
+    "all built-ins active" (:meth:`charter.activation.pack_context.PackContext.from_config`)
     for those kinds.
 
     Absent-key safety: for a kind whose ``activated_<kind>`` key is not yet
     present in ``config.yaml``, ``promote_activations`` needs the real
     built-in id set as ``default_ids`` or it would write a bare restrictive
     list and silently drop every other built-in for that kind (the WP06
-    LAND-BLOCKER). :func:`~charter.default_pack.load_default_pack_activation_ids`
+    LAND-BLOCKER). :func:`~charter.activation.default_pack.load_default_pack_activation_ids`
     supplies that real set — never an empty/omitted default.
     """
     required_by_kind: dict[str, list[str]] = {
-        kind: list(getattr(policy, f"required_{kind}"))
-        for kind in REQUIRED_KIND_FIELDS
-        if getattr(policy, f"required_{kind}")
+        kind: list(getattr(policy, f"required_{kind}")) for kind in REQUIRED_KIND_FIELDS if getattr(policy, f"required_{kind}")
     }
     if not required_by_kind:
         return []
 
-    from charter.activation_engine import promote_activations
-    from charter.catalog import resolve_doctrine_root
-    from charter.pack_manager import resolve_activation_write_target
+    from charter.activation.activation_engine import promote_activations
+    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.pack_manager import resolve_activation_write_target
 
     try:
         doctrine_root: Path | None = resolve_doctrine_root()
     except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
         doctrine_root = None
 
+    from specify_cli.cli.commands.charter._layer_roots import (
+        resolve_layer_roots,
+        resolve_org_root_chain,
+    )
+
+    org_roots = resolve_org_root_chain(repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
+    warnings: list[str] = []
     promotions: dict[str, list[str]] = {
         f"activated_{kind}": _normalize_required_ids(
-            kind, raw_ids, doctrine_root=doctrine_root
+            kind,
+            raw_ids,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+            warnings=warnings,
         )
         for kind, raw_ids in required_by_kind.items()
     }
@@ -406,12 +403,7 @@ def _promote_org_required_to_config(
         default_ids=default_ids,
     )
 
-    return [
-        f"Promoted {len(plan.activated)} org-required id(s) into "
-        f"{plan.yaml_key} (config-authority)."
-        for plan in plans
-        if plan.activated
-    ]
+    return warnings + [f"Promoted {len(plan.activated)} org-required id(s) into {plan.yaml_key} (config-authority)." for plan in plans if plan.activated]
 
 
 def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:
@@ -474,7 +466,7 @@ def _resolve_chain(
 
     Delegates the topology walk (cycle detection, missing-base detection,
     base-first ordering) to the canonical charter-layer resolver
-    :func:`charter.org_extends.resolve_extends_order`. This module no longer
+    :func:`charter.activation.org_extends.resolve_extends_order`. This module no longer
     maintains its own depth-first walk — per C-005 / R-10 there is a single
     ``extends:`` resolution mechanism, and the charter-layer functions are it
     (FR-008). This loader only maps the resolved order back to the loaded
@@ -504,7 +496,7 @@ def _resolve_chain(
     OrgCharterCycleError
         When a cycle is detected (a pack already in the chain re-appears).
     """
-    from charter.org_extends import (
+    from charter.activation.org_extends import (
         ExtendsBaseNotFoundError,
         ExtendsCycleError,
         resolve_extends_order,
@@ -567,9 +559,7 @@ def _fold_policies(
     if not policies:
         return OrgCharterPolicy()
 
-    resolved_schema_version = _resolve_fold_schema_version(
-        policies, strict_schema_version=strict_schema_version
-    )
+    resolved_schema_version = _resolve_fold_schema_version(policies, strict_schema_version=strict_schema_version)
 
     merged_interview_defaults: dict[str, str | bool] = {}
     merged_required: dict[str, list[str]] = {kind: [] for kind in REQUIRED_KIND_FIELDS}
@@ -601,23 +591,21 @@ def _fold_policies(
         required_procedures=merged_required["procedures"],
         required_agent_profiles=merged_required["agent_profiles"],
         required_mission_step_contracts=merged_required["mission_step_contracts"],
+        required_glossary_packs=merged_required["glossary_packs"],
+        required_assets=merged_required["assets"],
         governance_policies=_dedupe_governance(merged_governance),
         activations=list(activation_dedup.values()),
     )
 
 
-def _resolve_fold_schema_version(
-    policies: list[OrgCharterPolicy], *, strict_schema_version: bool
-) -> int:
+def _resolve_fold_schema_version(policies: list[OrgCharterPolicy], *, strict_schema_version: bool) -> int:
     """Resolve the merged ``schema_version`` for a fold (see :func:`_fold_policies`)."""
     if strict_schema_version:
         # --- T059: schema_version must match across the chain -------------
         versions = {p.schema_version for p in policies}
         if len(versions) > 1:
             raise ValueError(
-                "schema_version mismatch in extends: chain. "
-                f"Versions found: {sorted(versions)}. All packs in a chain "
-                "must share the same schema_version."
+                f"schema_version mismatch in extends: chain. Versions found: {sorted(versions)}. All packs in a chain must share the same schema_version."
             )
         return next(iter(versions))
     # Lenient: last truthy schema_version wins; 1 fallback (see NOTE).
@@ -628,9 +616,7 @@ def _resolve_fold_schema_version(
     return last_truthy if last_truthy is not None else 1
 
 
-def _accumulate_required(
-    merged_required: dict[str, list[str]], policy: OrgCharterPolicy
-) -> None:
+def _accumulate_required(merged_required: dict[str, list[str]], policy: OrgCharterPolicy) -> None:
     """Union ``required_<kind>`` from *policy* into *merged_required* (first-seen order)."""
     for kind in REQUIRED_KIND_FIELDS:
         for item in getattr(policy, f"required_{kind}"):
@@ -686,7 +672,7 @@ def load_org_charter_policies(
     repo_root:
         Repository root containing ``.kittify/config.yaml``.
     pack_context:
-        Optional pre-validated :class:`charter.pack_context.PackContext`
+        Optional pre-validated :class:`charter.activation.pack_context.PackContext`
         (FR-001 / WP09 T061-sig).  When supplied, pack discovery and
         ``extends:`` chain resolution use
         :attr:`PackContext.pack_roots` instead of reading
@@ -703,7 +689,7 @@ def load_org_charter_policies(
     if not registry.packs:
         return OrgCharterPolicy()
 
-    from doctrine.drg.org_pack_config import (
+    from charter.offering.drg.org_pack_config import (
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
@@ -790,7 +776,7 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     ``charter`` layer (which cannot import ``specify_cli``) so the
     dependency direction is preserved.
     """
-    from charter.invocation_context import ProjectContext
+    from charter.activation.invocation_context import ProjectContext
     from specify_cli.doctrine.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
@@ -805,16 +791,13 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
         pass
 
     merged_policy = load_org_charter_policies(repo_root, pack_context=pack_context)
-    if (
-        not merged_policy.interview_defaults
-        and not _policy_has_any_required(merged_policy)
-    ):
+    if not merged_policy.interview_defaults and not _policy_has_any_required(merged_policy):
         return []
 
     answers_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
 
     # The pure data helper lives in the charter layer.
-    from charter.interview import apply_org_charter_pre_fill_to_answers
+    from charter.activation.interview import apply_org_charter_pre_fill_to_answers
 
     result: list[str] = apply_org_charter_pre_fill_to_answers(
         answers_path=answers_path,
@@ -865,10 +848,7 @@ def apply_org_charter_to_interview(
         return []
 
     merged_policy = load_org_charter_policies(repo_root, pack_context=pack_context)
-    if (
-        not merged_policy.interview_defaults
-        and not _policy_has_any_required(merged_policy)
-    ):
+    if not merged_policy.interview_defaults and not _policy_has_any_required(merged_policy):
         return []
 
     messages: list[str] = []
@@ -887,9 +867,7 @@ def apply_org_charter_to_interview(
             continue
         # Initialise the selection attribute defensively — legacy interview
         # shapes may not declare every Mission-B-added selection field.
-        if not hasattr(interview_data, f"selected_{kind}") or getattr(
-            interview_data, f"selected_{kind}"
-        ) is None:
+        if not hasattr(interview_data, f"selected_{kind}") or getattr(interview_data, f"selected_{kind}") is None:
             try:
                 setattr(interview_data, f"selected_{kind}", [])
             except (AttributeError, TypeError):
@@ -900,15 +878,10 @@ def apply_org_charter_to_interview(
         if new_required:
             selected_list.extend(new_required)
             label = "directive(s)" if kind == "directives" else f"{kind}"
-            messages.append(
-                f"Pre-selected {len(new_required)} {label} from org charter "
-                f"required_{kind}."
-            )
+            messages.append(f"Pre-selected {len(new_required)} {label} from org charter required_{kind}.")
 
     if prefilled:
-        messages.append(
-            f"Pre-filled {prefilled} interview default(s) from org charter."
-        )
+        messages.append(f"Pre-filled {prefilled} interview default(s) from org charter.")
 
     return messages
 
@@ -936,3 +909,27 @@ def org_charter_to_json_block(policy: OrgCharterPolicy) -> dict[str, Any]:
         "governance_policies": governance_dump,
         "required_directives": list(policy.required_directives),
     }
+
+
+def validate_org_required_directive_stems(repo_root: Path) -> None:
+    """Reject ambiguous mandatory directives before charter/config writes.
+
+    Interview promotion is advisory and can preserve valid siblings while
+    reporting skipped identities. Generation rechecks current org policy so
+    required ambiguity cannot disappear behind an earlier warning. Input reads
+    may still append encoding-provenance ledger entries. Unknown-ID validation
+    retains its existing path.
+    """
+    from charter.activation.catalog import resolve_doctrine_root
+
+    from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots, resolve_org_root_chain
+
+    policy = load_org_charter_policies(repo_root)
+    if policy.required_directives:
+        _normalize_required_ids(
+            "directives",
+            list(policy.required_directives),
+            doctrine_root=resolve_doctrine_root(),
+            org_roots=resolve_org_root_chain(repo_root),
+            layer_roots=resolve_layer_roots(repo_root),
+        )

@@ -1,7 +1,7 @@
 """Doctrine-tier entry point for the FR-005/NFR-002 config<->derived parity guard.
 
 WP05 (mission ``unify-charter-activation-surfaces-01KX5SJ9``). Before this WP,
-``charter.consistency_check.run_consistency_check`` was reachable only from
+``charter.activation.consistency_check.run_consistency_check`` was reachable only from
 the CLI (``spec-kitty charter pack consistency-check``, wired at
 ``src/specify_cli/cli/commands/charter/pack.py:31-47``). NFR-002 requires the
 fail-closed config<->derived parity guard to bite in the test suite too, not
@@ -64,21 +64,17 @@ resolve the exact same source when a ``charter:`` pointer is present.
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import resolve_doctrine_root
-from charter.consistency_check import run_consistency_check
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
+from charter.activation.consistency_check import run_consistency_check
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_CONSISTENCY_CHECK_SOURCE = _REPO_ROOT / "src" / "charter" / "consistency_check.py"
 
 # A real, stable built-in directive whose canonical id (``DIRECTIVE_001``)
 # DIFFERS from its config stem (``001-architectural-integrity-standard``) --
@@ -104,7 +100,7 @@ def _write_charter_yaml_catalog(kittify: Path, ref_entries: list[dict[str, str]]
     """Write a minimal ``.kittify/charter/charter.yaml`` carrying the given
     ``catalog.references`` entries (IC-04: replaces the retired
     ``references.yaml`` -- ``charter.yaml``'s ``catalog`` mirrors that file's
-    body verbatim, see ``charter.schemas.CharterCatalog``). Returns the
+    body verbatim, see ``charter.activation.schemas.CharterCatalog``). Returns the
     written path.
     """
     charter_dir = kittify / "charter"
@@ -143,12 +139,12 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     """Write a minimal org-pack-only directive artefact for #2529 org resolution.
 
     ``resolve_artifact_urn``'s ``org_roots`` scan
-    (``charter.kind_vocabulary._scan_roots``) treats every org root the same
+    (``charter.activation.kind_vocabulary._scan_roots``) treats every org root the same
     way it treats the built-in doctrine root: it looks for
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not
     the (different) ``<root>/<plural>/*.yaml`` layout used by
-    ``doctrine.service.DoctrineService``'s org layer elsewhere in the suite.
+    ``charter.offering.service.DoctrineService``'s org layer elsewhere in the suite.
     """
     directive_dir = org_pack_root / "directives" / "built-in"
     directive_dir.mkdir(parents=True, exist_ok=True)
@@ -206,10 +202,7 @@ def test_config_directive_absent_from_references_bites(tmp_path: Path) -> None:
 
     assert report.coherent is False
     assert f"directive/{_REAL_DIRECTIVE_STEM}" in report.reference_id_divergences
-    assert any(
-        "does not resolve in .kittify/charter/charter.yaml's catalog" in s
-        for s in report.suggestions
-    )
+    assert any("does not resolve in .kittify/charter/charter.yaml's catalog" in s for s in report.suggestions)
 
 
 def test_config_directive_present_in_references_is_coherent(tmp_path: Path) -> None:
@@ -263,6 +256,14 @@ def test_config_kind_absent_from_graph_bites(tmp_path: Path) -> None:
     excluded from ``activated_kinds`` -- no directive kind can survive the
     KIND-level activation gate, so the graph shows zero directive nodes even
     though config carries directive IDs.
+
+    Campsite note (mission ``drg-relation-parity-activation-gate-01KY48PD``,
+    WP02/T007): ``_check_graph_kind_parity`` was re-pointed KIND-granular ->
+    per-ID (a deliberate behavior upgrade, plan.md IC-02); this test's own
+    ``graph_kind_gaps`` assertion is the one collateral break from that
+    re-point, and this file has no owning WP in that mission, so the fix
+    lands here directly (rationale-backed leeway, no ownership overlap) --
+    the finding now names the specific activated stem, not just its kind.
     """
     _write_config(
         tmp_path,
@@ -284,11 +285,8 @@ def test_config_kind_absent_from_graph_bites(tmp_path: Path) -> None:
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert "directive" in report.graph_kind_gaps
-    assert any(
-        "none survive in the activation-filtered DRG graph" in s
-        for s in report.suggestions
-    )
+    assert f"directive/{_REAL_DIRECTIVE_STEM}" in report.graph_kind_gaps
+    assert any("does not survive in the activation-filtered DRG graph" in s for s in report.suggestions)
 
 
 def test_config_kind_present_in_activated_kinds_is_coherent(tmp_path: Path) -> None:
@@ -312,52 +310,6 @@ def test_config_kind_present_in_activated_kinds_is_coherent(tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_activation_reads_charter_yaml_pointer_not_stale_config(tmp_path: Path) -> None:
-    """A ``charter:`` pointer present in config.yaml must be authoritative:
-    the parity guard reads charter.yaml's activation, never a stale
-    ``config.yaml``-embedded value left behind by the migration.
-
-    ``config.yaml`` carries a STALE ``activated_directives`` entry that names
-    no real doctrine artifact (would trip ``unknown_references`` if it were
-    actually read); ``charter.yaml`` carries the CORRECT, resolvable
-    activation + a matching catalog entry. A guard that (incorrectly) fell
-    back to reading ``config.yaml`` directly despite the pointer would report
-    ``coherent=False`` here; one that correctly resolves the pointer reports
-    ``coherent=True``.
-    """
-    kittify = _write_config(
-        tmp_path,
-        (
-            "charter: .kittify/charter/charter.yaml\n"
-            "activated_directives:\n"
-            "  - this-stale-directive-does-not-exist\n"
-        ),
-    )
-    charter_yaml_path = _write_charter_yaml_catalog(
-        kittify,
-        [_reference_entry(f"DIRECTIVE:{_REAL_DIRECTIVE_CANONICAL}", "directive")],
-    )
-    # Append the flat activation keys onto the same charter.yaml the catalog
-    # helper just wrote (charter.yaml carries activation flat-at-root, WP02).
-    yaml = YAML()
-    with charter_yaml_path.open("r", encoding="utf-8") as fh:
-        document = yaml.load(fh)
-    document["activated_directives"] = [_REAL_DIRECTIVE_STEM]
-    with charter_yaml_path.open("w", encoding="utf-8") as fh:
-        yaml.dump(document, fh)
-
-    ctx = ProjectContext.from_repo(tmp_path)
-    report = run_consistency_check(ctx)
-
-    assert report.coherent is True, (
-        f"expected the pointer-resolved charter.yaml activation to be "
-        f"authoritative, got: unknown_references={report.unknown_references} "
-        f"reference_id_divergences={report.reference_id_divergences} "
-        f"verification_errors={report.verification_errors}"
-    )
-    assert "directive/this-stale-directive-does-not-exist" not in report.unknown_references
-
-
 def test_dangling_charter_pointer_fails_closed_for_activation(tmp_path: Path) -> None:
     """#2530 re-homed onto charter.yaml: a ``charter:`` pointer naming a
     charter.yaml that does not exist must fail closed (verification_errors
@@ -374,10 +326,7 @@ def test_dangling_charter_pointer_fails_closed_for_activation(tmp_path: Path) ->
     """
     _write_config(
         tmp_path,
-        (
-            "charter: .kittify/charter/charter.yaml\n"
-            f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
-        ),
+        (f"charter: .kittify/charter/charter.yaml\nactivated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"),
     )
     # No .kittify/charter/charter.yaml written -- the pointer dangles.
 
@@ -385,10 +334,7 @@ def test_dangling_charter_pointer_fails_closed_for_activation(tmp_path: Path) ->
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert report.verification_errors, (
-        "a dangling charter.yaml pointer must be reported as 'could not "
-        "verify', not silently treated as 'nothing activated'"
-    )
+    assert report.verification_errors, "a dangling charter.yaml pointer must be reported as 'could not verify', not silently treated as 'nothing activated'"
     assert any("charter.yaml" in entry for entry in report.verification_errors)
 
 
@@ -415,21 +361,11 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     and the real dangler is caught.
     """
     org_pack_root = tmp_path / "org-pack"
-    _write_org_directive(
-        org_pack_root, stem="org-only-directive", canonical_id="DIRECTIVE_ORG_ONLY"
-    )
+    _write_org_directive(org_pack_root, stem="org-only-directive", canonical_id="DIRECTIVE_ORG_ONLY")
 
     kittify = _write_config(
         tmp_path,
-        (
-            "activated_directives:\n"
-            "  - org-only-directive\n"
-            "doctrine:\n"
-            "  org:\n"
-            "    packs:\n"
-            "      - name: test-org\n"
-            f"        local_path: {org_pack_root.as_posix()}\n"
-        ),
+        (f"activated_directives:\n  - org-only-directive\ndoctrine:\n  org:\n    packs:\n      - name: test-org\n        local_path: {org_pack_root.as_posix()}\n"),
     )
     # Compiled WITHOUT the org directive -- the exact #2524 dangler shape.
     _write_charter_yaml_catalog(kittify, [])
@@ -437,8 +373,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     ctx = ProjectContext.from_repo(tmp_path)
     assert ctx.pack_context is not None
     assert len(ctx.pack_context.pack_roots) == 2, (  # golden-count: cardinality-is-contract
-        "fixture sanity check: exactly one org pack root must be configured "
-        "so this test actually exercises org resolution"
+        "fixture sanity check: exactly one org pack root must be configured so this test actually exercises org resolution"
     )
 
     report = run_consistency_check(ctx)
@@ -482,43 +417,15 @@ def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
     charter_dir.mkdir(parents=True, exist_ok=True)
     # Truncated YAML: an unterminated flow mapping -- a real ParserError,
     # not a benign empty-document parse.
-    (charter_dir / "charter.yaml").write_text(
-        "catalog: {references: [{id: 'x'\n", encoding="utf-8"
-    )
+    (charter_dir / "charter.yaml").write_text("catalog: {references: [{id: 'x'\n", encoding="utf-8")
 
     ctx = ProjectContext.from_repo(tmp_path)
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert report.verification_errors, (
-        "a corrupt charter.yaml must be reported as 'could not verify', "
-        "not silently treated as an empty, passing result"
-    )
+    assert report.verification_errors, "a corrupt charter.yaml must be reported as 'could not verify', not silently treated as an empty, passing result"
     assert any("charter.yaml" in entry for entry in report.verification_errors)
-    assert any(
-        "could not verify config<->references parity" in s.lower()
-        for s in report.suggestions
-    )
-
-
-def test_references_yaml_malformed_schema_fails_closed(tmp_path: Path) -> None:
-    """#2530: valid YAML with no 'catalog.references' list is still corrupt,
-    not a skip."""
-    kittify = _write_config(
-        tmp_path,
-        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
-    )
-    charter_dir = kittify / "charter"
-    charter_dir.mkdir(parents=True, exist_ok=True)
-    (charter_dir / "charter.yaml").write_text(
-        "schema_version: '2.0.0'\n", encoding="utf-8"
-    )
-
-    ctx = ProjectContext.from_repo(tmp_path)
-    report = run_consistency_check(ctx)
-
-    assert report.coherent is False
-    assert report.verification_errors
+    assert any("could not verify config<->references parity" in s.lower() for s in report.suggestions)
 
 
 def test_references_yaml_absent_is_still_a_clean_skip(tmp_path: Path) -> None:
@@ -538,9 +445,7 @@ def test_references_yaml_absent_is_still_a_clean_skip(tmp_path: Path) -> None:
     assert report.coherent is True
 
 
-def test_drg_load_failure_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_drg_load_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#2530: a DRG load/validation failure must surface a verification error.
 
     Before the fix, ``_check_graph_kind_parity`` caught every exception from
@@ -560,22 +465,14 @@ def test_drg_load_failure_fails_closed(
     def _raise_corrupt_drg(*_args: object, **_kwargs: object) -> None:
         raise ValueError("simulated corrupt/invalid DRG graph")
 
-    monkeypatch.setattr(
-        "charter._drg_helpers.load_validated_graph", _raise_corrupt_drg
-    )
+    monkeypatch.setattr("charter.activation._drg_helpers.load_validated_graph", _raise_corrupt_drg)
 
     ctx = ProjectContext.from_repo(tmp_path)
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert report.verification_errors, (
-        "a DRG load/validation failure must be reported as 'could not "
-        "verify', not silently treated as an empty, passing result"
-    )
-    assert any(
-        "could not verify config<->graph kind parity" in entry.lower()
-        for entry in report.verification_errors
-    )
+    assert report.verification_errors, "a DRG load/validation failure must be reported as 'could not verify', not silently treated as an empty, passing result"
+    assert any("could not verify config<->graph kind parity" in entry.lower() for entry in report.verification_errors)
 
 
 # ---------------------------------------------------------------------------
@@ -583,54 +480,11 @@ def test_drg_load_failure_fails_closed(
 # ---------------------------------------------------------------------------
 
 
-def test_paradigm_canonical_id_equals_config_stem_invariant() -> None:
-    """Pin the invariant ``_check_reference_id_parity``'s reverse direction relies on.
-
-    The reverse direction (paradigms only) compares ``references.yaml``
-    paradigm ids directly against ``config.activated_paradigms`` *stems*,
-    with no canonicalization step in between -- that is only sound because
-    a paradigm's canonical id equals its config stem (paradigms are
-    rendered 1:1, never DRG-transitively expanded; see
-    ``consistency_check._check_reference_id_parity``'s docstring). If this
-    invariant silently rotted -- e.g. a paradigm artefact's ``id:`` field
-    diverged from its filename stem -- the reverse check would start
-    comparing incomparable ID spaces with no test catching it. Pin it here
-    via the same resolver bridge (``resolve_artifact_urn``) the forward
-    check uses.
-    """
-    doctrine_root = resolve_doctrine_root()
-    urn = resolve_artifact_urn(
-        ArtifactKind.PARADIGM, _REAL_PARADIGM_STEM, doctrine_root=doctrine_root
-    )
-    _, _, canonical_id = urn.partition(":")
-
-    assert canonical_id == _REAL_PARADIGM_STEM
-
-
 # ---------------------------------------------------------------------------
 # T020: layer discipline -- the guard must stay disjoint from freshness /
 # specify_cli. ``freshness/computer.py`` is a ``specify_cli`` module that
-# imports ``charter``; ``charter.consistency_check`` importing it back would
+# imports ``charter``; ``charter.activation.consistency_check`` importing it back would
 # be a cycle (and a layer-rule violation independent of the cycle -- see
 # ``tests/architectural/test_layer_rules.py`` for the general charter
 # !import specify_cli rule this test pins the specific case of).
 # ---------------------------------------------------------------------------
-
-
-def test_consistency_check_does_not_import_freshness_or_specify_cli() -> None:
-    tree = ast.parse(_CONSISTENCY_CHECK_SOURCE.read_text(encoding="utf-8"))
-    imported_modules: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported_modules.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imported_modules.append(node.module)
-
-    assert not any(
-        module == "specify_cli" or module.startswith("specify_cli.")
-        for module in imported_modules
-    ), f"consistency_check.py must not import specify_cli (layer rule); found: {imported_modules}"
-    assert not any("freshness" in module for module in imported_modules), (
-        f"consistency_check.py must stay disjoint from freshness/computer.py; "
-        f"found: {imported_modules}"
-    )

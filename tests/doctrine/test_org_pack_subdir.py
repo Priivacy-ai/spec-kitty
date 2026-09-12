@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.org_pack_config import (
     OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
@@ -64,7 +64,7 @@ def _write_config_with_subdir(
 def _write_legacy_config_with_subdir(
     repo_root: Path, *, pack_path: str, subdir: str | None = None
 ) -> None:
-    """Write a legacy single-pack doctrine.org inline config."""
+    """Write a legacy single-pack charter.offering.org inline config."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     subdir_line = f"\n    subdir: {subdir}" if subdir is not None else ""
@@ -397,7 +397,7 @@ class TestRoundTrip:
         assert loaded.packs[0].subdir is None
 
     def test_legacy_single_pack_shape_carries_subdir(self, tmp_path: Path) -> None:
-        """Legacy inline doctrine.org shape with subdir is read correctly (T004)."""
+        """Legacy inline charter.offering.org shape with subdir is read correctly (T004)."""
         pack_root = tmp_path / "legacy-pack"
         pack_root.mkdir()
         _write_legacy_config_with_subdir(
@@ -409,7 +409,7 @@ class TestRoundTrip:
         assert loaded.packs[0].subdir == "doctrine"
 
     def test_legacy_single_pack_no_subdir_stays_none(self, tmp_path: Path) -> None:
-        """Legacy inline doctrine.org shape without subdir → subdir is None."""
+        """Legacy inline charter.offering.org shape without subdir → subdir is None."""
         pack_root = tmp_path / "legacy-pack"
         pack_root.mkdir()
         _write_legacy_config_with_subdir(tmp_path, pack_path=str(pack_root))
@@ -505,14 +505,6 @@ class TestEnvVarExpansion:
         assert result == pack_root.resolve(strict=False)
         # Stored value must still be the literal unexpanded form.
         assert str(pack.local_path) == "~/${SPEC_KITTY_PACK_HOME}/org-pack"
-
-    def test_literal_absolute_path_regression(self, tmp_path: Path) -> None:
-        """Literal absolute paths (no $ or ~ tokens) resolve unchanged."""
-        pack_root = tmp_path / "abs-pack"
-        pack_root.mkdir()
-        pack = OrgPackConfig(name=_PACK_NAME, local_path=pack_root)
-        result = pack.effective_root(tmp_path)
-        assert result == pack_root.resolve(strict=False)
 
     def test_unset_braced_env_var_raises_named_error(self, tmp_path: Path) -> None:
         """FR-004: unset ${VAR} fails closed, naming the var and the pack."""

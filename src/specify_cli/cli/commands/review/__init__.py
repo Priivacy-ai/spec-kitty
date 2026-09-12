@@ -30,18 +30,18 @@ from specify_cli.cli.commands._test_env_check import (  # noqa: F401
     ENV_SKEW_REMEDIATION,
     EnvSkew,
     PackageSkew,
-    ResidualSelectorNotFound,
     TestExtraMissing,
     assert_pytest_available,
     assert_typer_click_lock_parity,
     format_env_skew_message,
-    run_local_residual_selection,
 )
 from specify_cli.compat._detect.install_method import InstallMethod  # noqa: F401
 from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runtime
 from specify_cli.compat.remediation import RemediationCommand, plan_remediation, RemediationIntent
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
+from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
@@ -64,10 +64,7 @@ def _fail_missing_test_extra(console: object) -> None:
     remediation = _missing_test_extra_remediation()
     diagnostic = {
         "diagnostic_code": str(diagnostic_code),
-        "message": (
-            "pytest is not importable from the active Python interpreter. "
-            f"Run `{remediation}` to install pytest into that interpreter, then retry."
-        ),
+        "message": (f"pytest is not importable from the active Python interpreter. Run `{remediation}` to install pytest into that interpreter, then retry."),
         "remediation": remediation,
     }
     console.print(  # type: ignore[attr-defined]
@@ -95,9 +92,7 @@ def _missing_test_extra_remediation() -> str:
     runtime: InstalledCliRuntime = detect_runtime()
     if runtime.install_method != InstallMethod.UV_TOOL:
         return "uv sync --extra test"
-    cmd: RemediationCommand = plan_remediation(
-        runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=get_version()
-    )
+    cmd: RemediationCommand = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=get_version())
     try:
         rendered: str = cmd.render(runtime.platform)
         return rendered
@@ -139,27 +134,6 @@ def _check_env_skew(console: object, repo_root: Path) -> list[PackageSkew]:
             f"  [yellow]![/yellow]  {format_env_skew_message(mismatches)}"
         )
     return mismatches
-
-
-def _run_local_residual_and_exit(console: object, repo_root: Path) -> None:
-    """Run the CI residual `(unit or contract)` selection locally, then exit.
-
-    Standalone local command (FR-002): mirrors the CI `unit-contract-residual`
-    job's marker selection, read live from the CI workflow so it can never
-    hand-copy a divergent `-m` string (NFR-002). Skips the rest of the
-    mission-scoped review gates -- this is a pre-push hygiene check, not a
-    mission review.
-    """
-    console.print(  # type: ignore[attr-defined]
-        "\nRunning the local CI-residual selection over tests/ "
-        "((unit or contract) and not (...))...\n"
-    )
-    try:
-        result = run_local_residual_selection(repo_root)
-    except ResidualSelectorNotFound as exc:
-        console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
-        raise typer.Exit(2) from exc
-    raise typer.Exit(result.returncode)
 
 
 def _resolve_repo_root(console: object) -> Path:
@@ -299,25 +273,54 @@ def _evaluate_issue_matrix(
     console: object,
     findings: list[dict[str, str]],
 ) -> bool | Literal["not_applicable"]:
+    """Gate 4: issue-matrix enforcement.
+
+    FR-005 / #3035: ``not_applicable`` is a first-class Gate-4 verdict, not a
+    fabricated matrix or a hard fail. A mission that declares ZERO canonical
+    issue references (per WP08's :func:`discover_issue_references` -- the
+    SAME multi-file completeness definition finalization/merge-gates use, not
+    a local re-scan) has nothing for an issue-matrix to enforce, so this
+    returns ``not_applicable`` rather than failing on a matrix the mission
+    never needed. When references DO exist, fail-closed behaviour is
+    retained: a mission with no rows the reader can load is a hard failure.
+
+    C-008 / B-1 (#3035, T044): presence is checked via WP05's dir-based
+    :func:`~specify_cli.tasks.issue_matrix_migration.
+    issue_matrix_artifact_present` (JSON-first, ``.md`` failover) -- NOT a
+    hardcoded ``issue-matrix.md`` ``.exists()`` precheck, which wrongly
+    hard-failed a JSON-only (B3) mission before ever consulting the failover
+    reader. ``issue_matrix_artifact_present`` is an EXISTENCE check, not a
+    "has rows" check (a structurally malformed ``.md`` exists but may parse
+    to zero valid rows) -- so a present-but-invalid matrix still reaches
+    :func:`validate_issue_matrix` below for its specific schema diagnostic,
+    rather than being misreported as merely "missing".
+    """
     if review_mode is not MissionReviewMode.POST_MERGE:
         return "not_applicable"
 
-    issue_matrix_path = feature_dir / "issue-matrix.md"
-    if not issue_matrix_path.exists():
+    if not discover_issue_references(feature_dir):
+        console.print(  # type: ignore[attr-defined]
+            "  [green]✓[/green]  Issue matrix: not_applicable (mission declares zero canonical issue references)"
+        )
+        return "not_applicable"
+
+    if not issue_matrix_artifact_present(feature_dir):
         console.print(  # type: ignore[attr-defined]
             f"  [red]✗[/red]  Issue matrix: "
             f"{MissionReviewDiagnostic.ISSUE_MATRIX_MISSING}: "
-            "issue-matrix.md not found (required in post-merge mode)"
+            "issue-matrix not found (required in post-merge mode when "
+            "canonical issue references exist)"
         )
         findings.append(
             {
                 "type": "issue_matrix_violation",
                 "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_MISSING),
-                "message": "issue-matrix.md is required in post-merge mode",
+                "message": ("issue-matrix is required in post-merge mode when canonical issue references exist"),
             }
         )
         return False
 
+    issue_matrix_path = feature_dir / "issue-matrix.md"
     matrix_result = validate_issue_matrix(issue_matrix_path)
     if not matrix_result.passed:
         for diag in matrix_result.diagnostics:
@@ -333,8 +336,7 @@ def _evaluate_issue_matrix(
             )
     else:
         console.print(  # type: ignore[attr-defined]
-            f"  [green]✓[/green]  Issue matrix: "
-            f"{len(matrix_result.rows)} row(s) validated"
+            f"  [green]✓[/green]  Issue matrix: {len(matrix_result.rows)} row(s) validated"
         )
     return True
 
@@ -356,18 +358,6 @@ def review_mission(
             show_default=False,
         ),
     ] = None,
-    check_residual: Annotated[
-        bool,
-        typer.Option(
-            "--check-residual",
-            help=(
-                "Run the CI residual (unit or contract) marker selection "
-                "locally over tests/, then exit -- skips the mission-scoped "
-                "review gates. The -m expression is read live from the CI "
-                "workflow, never hand-copied."
-            ),
-        ),
-    ] = False,
 ) -> None:
     """Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
@@ -383,9 +373,6 @@ def review_mission(
     except TestExtraMissing:
         _fail_missing_test_extra(console)
     _check_env_skew(console, repo_root)
-
-    if check_residual:
-        _run_local_residual_and_exit(console, repo_root)
 
     handle = _require_mission_handle(mission, console)
     resolved = resolve_mission_handle(handle, repo_root)
@@ -419,16 +406,22 @@ def review_mission(
         gates_recorded=gates_recorded,
     )
     _run_ble001_gate(repo_root, console, findings, gates_recorded)
+    # coord-commit-integrity SURFACE A #1c: ``issue-matrix.md`` is COORD-partition.
+    # Route the read through the shared placement seam so a coord/lanes-with-coord
+    # mission reads the coordination surface; ``coord_read_dir_for`` fails soft to
+    # ``None`` (→ primary ``feature_dir``) for coord-less missions AND for a
+    # post-merge mission whose coordination worktree has been consolidated away.
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
     issue_matrix_present = _evaluate_issue_matrix(
-        feature_dir=feature_dir,
+        feature_dir=issue_matrix_dir,
         review_mode=review_mode,
         console=console,
         findings=findings,
     )
     mission_exception_present: bool | Literal["not_applicable"] = (
-        (feature_dir / "mission-exception.md").exists()
-        if review_mode is MissionReviewMode.POST_MERGE
-        else "not_applicable"
+        (feature_dir / "mission-exception.md").exists() if review_mode is MissionReviewMode.POST_MERGE else "not_applicable"
     )
     write_review_report(
         feature_dir,

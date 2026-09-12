@@ -1,5 +1,6 @@
 ---
 title: Consistent Code Style Enforcement via Git Hooks
+description: Runs ruff format, ruff check, and mypy over staged files at commit time, accepting an opinionated formatter in exchange for feedback that beats the CI round trip.
 status: Accepted
 date: '2026-02-21'
 ---

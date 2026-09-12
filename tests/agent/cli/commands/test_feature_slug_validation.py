@@ -47,6 +47,7 @@ def test_mission_slug_starting_with_number_accepted(tmp_path, monkeypatch):
     # Run outside the repository so this acceptance check cannot create and commit
     # a real test mission in the shared checkout.
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     # The slug itself is valid; the CLI may reject for other reasons (not in a git repo,
     # worktree context, etc.) but NOT for the slug format.
     result = runner.invoke(app, ["create", slug, "--json"])
@@ -73,13 +74,20 @@ def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
     """Valid kebab-case slugs should be accepted."""
     # Arrange
     monkeypatch.chdir(tmp_path)
+    # The repo is created on ``main`` (protected); each accepted slug commits its
+    # mission meta.json there. The operator-owned-repo escape hatch is the ONE
+    # sanctioned waiver (#3673 made the protected-branch refusal fail loud rather
+    # than the pre-fix contextlib.suppress that let create silently no-op).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "checkout", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
-    (kittify_dir / "config.yaml").write_text("agents:\n  available: []\n")
+    (kittify_dir / "config.yaml").write_text(
+        "agents:\n  available: []\nmission_type_activations:\n  - software-dev\n"
+    )
     (kittify_dir / "metadata.yaml").write_text("project_name: test\n")
     (tmp_path / "kitty-specs").mkdir()
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)

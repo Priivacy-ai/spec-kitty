@@ -1,0 +1,17 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >
+      Commit 87669fc75 rewrote the #3395-overlap paragraph (tasks.md lines ~96-100) to
+      state the real two-hop chain, and a live read confirms every new citation is exact:
+      tasks_map_requirements.py:52-56 imports only TRACKER_ONLY_MODE, MappingPlan,
+      MappingRequest (never plan_mapping at module scope); the lazy
+      `from specify_cli.cli.commands.agent import tasks as _tasks` import sits at line 330
+      inside `_mr_plan` (def at line 328); the call is `_tasks.plan_mapping(...)` at line
+      355; and tasks.py:234 is precisely the `plan_mapping as plan_mapping,` re-export
+      line inside the `from ...tasks_mapping_core import (...)` block that supplies it
+      from tasks_mapping_core.py.

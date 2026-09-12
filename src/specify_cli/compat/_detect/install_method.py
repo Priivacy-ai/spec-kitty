@@ -62,6 +62,36 @@ class InstallMethod(StrEnum):
 _PACKAGE_NAME = "spec-kitty-cli"
 
 
+def _candidate_package_names() -> tuple[str, ...]:
+    """Distribution names to match, from the active profile (name + aliases).
+
+    A renamed fork's tool-venv dir, dist metadata, and receipt entries carry the
+    fork name, so detection must match any of ``{package_name, *aliases}`` rather
+    than the hardcoded upstream name (#2857 / #2872). Falls back to the stock
+    name; never raises (detection must stay robust).
+    """
+    try:
+        from specify_cli.distribution import resolve_distribution_profile
+
+        profile = resolve_distribution_profile()
+        names = tuple(dict.fromkeys(n for n in (profile.package_name, *profile.package_aliases) if n))
+        return names or (_PACKAGE_NAME,)
+    except Exception:  # noqa: BLE001
+        return (_PACKAGE_NAME,)
+
+
+def _load_first_distribution(
+    distribution_loader: Callable[[str], importlib.metadata.Distribution],
+) -> importlib.metadata.Distribution | None:
+    """Load metadata for the first candidate distribution that resolves."""
+    for name in _candidate_package_names():
+        try:
+            return distribution_loader(name)
+        except Exception:  # noqa: BLE001, S112 - try the next candidate name silently (a fork alias legitimately missing is not an error)
+            continue
+    return None
+
+
 def _is_source_install() -> bool:
     """Return True if the package is running from a source / editable checkout."""
     try:
@@ -99,7 +129,7 @@ def _is_uv_tool_install(executable: str) -> bool:
                 relative = exe_path.relative_to(Path(root_raw))
             except ValueError:
                 continue
-            if relative.parts[:1] == (_PACKAGE_NAME,):
+            if relative.parts[:1] and relative.parts[0] in _candidate_package_names():
                 return True
 
         return _has_uv_tool_receipt(exe_path)
@@ -192,7 +222,9 @@ def _is_brew_install(executable: str) -> bool:
 def _get_installer(distribution_loader: Callable[[str], importlib.metadata.Distribution]) -> str | None:
     """Return the INSTALLER text for spec-kitty-cli, or None on failure."""
     try:
-        dist = distribution_loader(_PACKAGE_NAME)
+        dist = _load_first_distribution(distribution_loader)
+        if dist is None:
+            return None
         installer_raw = dist.read_text("INSTALLER")
         if installer_raw is not None:
             return installer_raw.strip()
@@ -206,7 +238,9 @@ def _get_distribution_location(
 ) -> str | None:
     """Return the location string for the spec-kitty-cli distribution, or None."""
     try:
-        dist = distribution_loader(_PACKAGE_NAME)
+        dist = _load_first_distribution(distribution_loader)
+        if dist is None:
+            return None
         # importlib.metadata distributions expose their location via `_path` or
         # the first element of `files` parent walking, but the most portable
         # approach is to use the metadata_path attribute when available.

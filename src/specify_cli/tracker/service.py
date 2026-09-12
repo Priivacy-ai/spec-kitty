@@ -95,7 +95,18 @@ class TrackerService:
 
         config = load_tracker_config(self._repo_root)
         if config.provider != provider:
-            config = TrackerProjectConfig(provider=provider)
+            # FR-011 site A4 -- defence-in-depth, no production write path today
+            # (`apply_binding_upgrade` has zero callers in `src/`; every other
+            # `_persist_binding` call site is entered from `TrackerService.bind`,
+            # which builds its own service with `load_tracker_config`, never
+            # through here). Carrying `egress` (and `_extra`) forward means a
+            # future write-capable caller reached through this substitution
+            # cannot silently reintroduce the erasure this WP fixes elsewhere.
+            config = TrackerProjectConfig(
+                provider=provider,
+                egress=config.egress,
+                _extra=dict(config._extra),
+            )
         return SaaSTrackerService(self._repo_root, config)
 
     @staticmethod
@@ -160,7 +171,27 @@ class TrackerService:
                 select_n=select_n,
             )
         if provider in LOCAL_PROVIDERS:
-            return LocalTrackerService(self._repo_root, TrackerProjectConfig()).bind(**kwargs)
+            # FR-011 site A2 -- class A': `LocalTrackerService.bind` never reads
+            # `self._config` (it builds a fresh `TrackerProjectConfig` from its
+            # own keyword arguments and saves that), so handing it the loaded
+            # config here changes nothing on disk. Matches the SaaS branch above,
+            # which already loads before constructing its service.
+            #
+            # This is defence-in-depth with no executable pin, and it stays that
+            # way. An earlier draft said it changed nothing "until site A1 lands";
+            # A1 has since landed (WP04 T024) and it still changes nothing,
+            # because `LocalTrackerService.bind` closes the erasure by re-reading
+            # `load_tracker_config(self._repo_root)` itself rather than by
+            # consuming the config handed to the constructor. Measured after WP04:
+            # `self._config` has exactly one AST access in `local_service.py` -- the
+            # constructor's own `Store` -- and zero `Load`s, so making
+            # `LocalTrackerService` discard this argument entirely reds nothing in
+            # the tree. Kept anyway: it costs one already-required read, keeps this
+            # branch symmetric with the SaaS branch, and means a future `bind` that
+            # *does* read `self._config` inherits a loaded config instead of a
+            # default one. Do not cite it as the thing that preserves `egress`
+            # on disk -- that is site A1.
+            return LocalTrackerService(self._repo_root, load_tracker_config(self._repo_root)).bind(**kwargs)
         if provider in REMOVED_PROVIDERS:
             raise TrackerServiceError(f"Provider '{provider}' is no longer supported.")
         raise TrackerServiceError(f"Unknown provider: {provider}")

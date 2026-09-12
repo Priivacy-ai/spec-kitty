@@ -19,8 +19,8 @@ references to non-existent profile subcommands (FR-017).
 
 The :func:`test_doctrine_source_snippets_are_registered` guard (FR-011/FR-012)
 scans all ``spec-kitty …`` command snippets inside bash fences in the doctrine
-SOURCE (``src/doctrine/skills/**/*.md``,
-``src/doctrine/missions/mission-steps/**/*.md``) and asserts every extracted
+SOURCE (``src/charter/offering/skills/**/*.md``,
+``src/charter/offering/missions/mission-steps/**/*.md``) and asserts every extracted
 command path is a registered Typer surface.  Catches ``HARD`` drift (nonexistent
 command/group) introduced by skills and mission-step prompts; does NOT catch
 behavioral drift (e.g. a missing required flag whose absence triggers a resolver
@@ -44,7 +44,9 @@ import typer
 
 # CRITICAL: env flags MUST be set before importing specify_cli so that
 # the tracker / issue-search subtree is registered.
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is now set collection-wide in tests/conftest.py
+# pytest_configure (#3213), before any module import, so the gate decision is
+# selection-invariant; only the non-gate NO_UPGRADE flag remains per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 # Ensure scripts/docs is importable (matches tests/docs/conftest.py).
@@ -57,31 +59,31 @@ from scripts.docs.check_cli_reference_freshness import (  # noqa: E402
     extract_referenced_paths,
 )
 
-# ``docs_scoped``: reads the ``docs/reference/*.md`` CLI-reference files and
+# ``docs_scoped``: reads the ``docs/api/*.md`` CLI-reference files and
 # shipped skill docs, so a docs-only PR could newly-red it — it MUST run on the
 # arch pole's docs-only trim.
 pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 
-REFERENCE_PATH = _REPO_ROOT / "docs" / "reference" / "cli-commands.md"
-AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "reference" / "agent-subcommands.md"
+REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "cli-commands.md"
+AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "agent-subcommands.md"
 
 
 def _build_live_app() -> typer.Typer:
     """Mirror the discovery pattern used by ``test_safety_registry_completeness``."""
-    from specify_cli import app
-    from specify_cli.cli.commands import register_commands
+    import specify_cli
 
-    saved = sys.argv[:]
-    sys.argv = ["spec-kitty", "--help"]
-    try:
-        register_commands(app)
-    finally:
-        sys.argv = saved
-    # ``specify_cli.app`` is declared as a bare ``object`` at module level to
-    # avoid a circular import on the public surface.  It is always a Typer
-    # instance at runtime; the cast is safe and removes a long-standing mypy
-    # complaint (pre-existing before this WP).
+    # This reference covers every command, including feature-gated tracker
+    # commands. Build a fresh tree so an earlier sync-off import cannot narrow
+    # the documented surface. Construction performs no live sync operation.
+    with pytest.MonkeyPatch.context() as env:
+        env.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+        saved = sys.argv[:]
+        sys.argv = ["spec-kitty", "--help"]
+        try:
+            app = specify_cli._build_app()
+        finally:
+            sys.argv = saved
     assert isinstance(app, typer.Typer), "specify_cli.app must be a Typer instance"
     return app
 
@@ -118,11 +120,44 @@ def agent_reference_text() -> str:
     return _read_or_skip(AGENT_REFERENCE_PATH, wp_label="WP07")
 
 
+def test_reference_paths_are_present_and_generated() -> None:
+    """Mechanical not-skipped guard (FR-013 / WP14).
+
+    ``_read_or_skip`` lets ``test_visible_paths_match_reference`` SKIP
+    silently if either reference file is missing or ungenerated — a
+    half-fix (repointing only one of the two fixtures) reintroduces exactly
+    that silent skip. This test fails LOUDLY instead of skipping, so a
+    regression in either path is a red, not a quiet green-via-skip.
+    """
+    missing = [
+        str(path)
+        for path in (REFERENCE_PATH, AGENT_REFERENCE_PATH)
+        if not path.exists()
+    ]
+    assert not missing, (
+        "CLI reference doc(s) missing — the parity gate would silently "
+        f"SKIP instead of running: {missing}"
+    )
+    ungenerated = [
+        str(path)
+        for path in (REFERENCE_PATH, AGENT_REFERENCE_PATH)
+        if _WP07_GENERATOR_MARKER not in path.read_text(encoding="utf-8")
+    ]
+    assert not ungenerated, (
+        "CLI reference doc(s) missing the generator marker "
+        f"({_WP07_GENERATOR_MARKER!r}) — regenerate via "
+        f"scripts/docs/build_cli_reference.py: {ungenerated}"
+    )
+
+
+@pytest.mark.parametrize("sync_flag", ["0", "1"])
 def test_visible_paths_match_reference(
-    reference_text: str, agent_reference_text: str
+    reference_text: str, agent_reference_text: str, sync_flag: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every visible (non-hidden) command path must appear in one of the references."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", sync_flag)
     app = _build_live_app()
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == sync_flag
     entries = walk(app)
     live_visible = {e.path for e in entries if not e.hidden}
 
@@ -167,6 +202,17 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
     )
 
 
+def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
+    """The unreachable residual flag must not survive in help or docs."""
+    from typer.testing import CliRunner
+
+    result = CliRunner().invoke(_build_live_app(), ["review", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--check-residual" not in result.output
+    assert "--check-residual" not in reference_text
+
+
 # ---------------------------------------------------------------------------
 # FR-018: skill-doc / CLI parity guard for ``agent profile`` subcommands.
 # ---------------------------------------------------------------------------
@@ -176,7 +222,7 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
 #: agent copies under ``.claude/`` etc. propagate from it on upgrade, so they
 #: are intentionally out of scope here per C-006).
 _SKILL_DOCS = (
-    _REPO_ROOT / "src" / "doctrine" / "skills" / "ad-hoc-profile-load" / "SKILL.md",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "ad-hoc-profile-load" / "SKILL.md",
 )
 
 #: Match ``spec-kitty agent profile <sub>`` where ``<sub>`` is a command token
@@ -243,8 +289,8 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
 #: propagate from SOURCE on ``spec-kitty upgrade`` and must not be separately
 #: maintained.
 _DOCTRINE_SOURCE_GLOBS: tuple[str, ...] = (
-    "src/doctrine/skills/**/*.md",
-    "src/doctrine/missions/mission-steps/**/*.md",
+    "src/charter/offering/skills/**/*.md",
+    "src/charter/offering/missions/mission-steps/**/*.md",
 )
 
 #: Ratchet allow-list.  Start empty after WP07 lands all 15 SOURCE fixes.

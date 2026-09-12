@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 import threading
 from collections.abc import Iterator
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -54,9 +54,7 @@ from specify_cli.auth.session import StoredSession, Team
 
 
 @pytest.fixture
-def auth_store_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Path:
+def auth_store_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Return a ``tmp_path``-rooted auth directory with the lock redirected.
 
     The encrypted file storage backend (:class:`FileFallbackStorage`) accepts
@@ -94,7 +92,7 @@ def _build_seed_session(
     will trigger refresh, and a 30-day refresh-token TTL so the server-side
     expiry check never fires accidentally.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -119,7 +117,7 @@ def seed_session(auth_store_root: Path) -> StoredSession:
     """Persist a starter session under ``auth_store_root`` and return it.
 
     Uses the real :class:`FileFallbackStorage` so the on-disk artifacts
-    (``session.json`` ciphertext + ``session.salt``) match what the
+    (``session.json`` ciphertext + ``session.key``) match what the
     production code writes. Workers that load via ``SecureStorage``
     pointing at the same ``base_dir`` will read this session back.
     """
@@ -135,7 +133,7 @@ def seed_session(auth_store_root: Path) -> StoredSession:
 
 
 def _now_iso(seconds_from_now: int) -> str:
-    return (datetime.now(UTC) + timedelta(seconds=seconds_from_now)).isoformat()
+    return (now_utc() + timedelta(seconds=seconds_from_now)).isoformat()
 
 
 def _build_handler_class(
@@ -193,9 +191,7 @@ def _build_handler_class(
 
         def do_POST(self) -> None:  # noqa: N802 — http.server hook name
             if self.path != "/oauth/token":
-                self._send_json(
-                    HTTPStatus.NOT_FOUND, {"error": "not_found"}
-                )
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
                 return
             body = self._read_body()
             received_refresh_token = body.get("refresh_token", "")

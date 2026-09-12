@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,11 +25,11 @@ DENYLIST = (
     r"\brspec\b",
 )
 GENERIC_SURFACES = (
-    Path("src/doctrine/agent_profiles/built-in"),
-    Path("src/doctrine/skills"),
-    Path("src/doctrine/tactics/built-in"),
-    Path("src/doctrine/templates"),
-    Path("src/doctrine/missions/software-dev/templates"),
+    Path("packs/built-in/agent_profiles"),
+    Path("src/charter/offering/skills"),
+    Path("packs/built-in/tactics"),
+    Path("src/charter/offering/templates"),
+    Path("packs/built-in/missions/software-dev/templates"),
     Path("src/specify_cli/templates"),
     Path("src/charter/defaults.yaml"),
 )

@@ -1,0 +1,183 @@
+{
+  "schema_version": "wp06-sync-survivor-map/v1",
+  "immutable_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "wp02_harness_source": "c8494d69451cdea7c15866db2b6552979d2db279",
+  "head": "a23819fb1fda7d5326ddc6975b49b9578299db62",
+  "base_wp02": {
+    "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q --junit-xml=<artifact> <45 selected WP06 nodes> --tb=short",
+    "result": "12 failed, 33 passed in 171.37s",
+    "artifact": "raw/wp06-base-wp02-junit.xml",
+    "artifact_sha256": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+  },
+  "head_survivors": {
+    "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q --junit-xml=<artifact> <20 exact biting survivor nodes>",
+    "result": "20 passed in 0.88s",
+    "artifact": "raw/wp06-sync-survivor-junit.xml",
+    "artifact_sha256": "4c4ce85768768e9a01efb5e11835937b818d8387452b7dbee8adfadca07bafad"
+  },
+  "classifications": [
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_init_creates_identity",
+      "contract": "missing project identity is generated",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_generates_missing_fields",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_identity_is_idempotent",
+      "contract": "complete project identity is preserved idempotently",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_returns_existing_complete_identity",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_event_contains_identity",
+      "contract": "status events inject project identity",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_event_emission.py::TestIdentityInjection::test_wp_status_changed_includes_identity",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_implement_emits_status_change",
+      "contract": "implement transition emits WPStatusChanged",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged::test_planned_to_doing",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_unauthenticated_queues_only",
+      "contract": "missing identity/auth routes the event to the offline queue only",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_event_emission.py::TestMissingIdentityQueuesOnly::test_missing_identity_queues_only",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_runtime_no_websocket_when_unauthenticated",
+      "contract": "unauthenticated runtime does not create a websocket",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_existing_config",
+      "contract": "identity persistence preserves unrelated existing configuration",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestAtomicWriteConfig::test_preserves_existing_keys",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_partial_identity",
+      "contract": "partial identity is backfilled",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_backfills_partial_identity",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_fallback_existing_config",
+      "contract": "read-only identity configuration falls back without mutation",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_handles_read_only_filesystem",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_directory_fallback",
+      "contract": "a missing config in a read-only directory is detected as non-writable",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_project_identity.py::TestIsWritable::test_nonexistent_in_readonly_dir",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_single_emission_per_transition",
+      "contract": "implement emits once per transition",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_event_emission.py::TestNoDuplicateEmissions::test_implement_emits_once",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_causation_chain_no_duplicates",
+      "contract": "finalize-tasks batch has one causation chain without duplicate emissions",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_event_emission.py::TestFinalizeTasksEmitsBatch::test_feature_created_plus_wp_created",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_full_wp_lifecycle",
+      "contract": "fixture-authored seven-call emitter sequence and ordering",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "disposition": "stale_non_causal",
+      "reason": "The candidate directly invokes seven EventEmitter methods in fixture-authored order and reaches no workflow or orchestration entrypoint; changing real workflow ordering cannot make this oracle fail.",
+      "survivor": null,
+      "survivor_outcome": null
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+      "contract": "multiple offline events remain drainable until mark_synced removes them",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivors": [
+        "tests/sync/test_offline_queue.py::TestOfflineQueue::test_queue_multiple_events",
+        "tests/sync/test_offline_queue.py::TestOfflineQueue::test_drain_queue_fifo_order",
+        "tests/sync/test_offline_queue.py::TestOfflineQueue::test_mark_synced_removes_events"
+      ],
+      "proof": [
+        "multiple events are retained",
+        "drain returns them in FIFO order without removal",
+        "mark_synced removes the selected events"
+      ],
+      "survivor_outcome": "3 passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_wp_status_changed_payload",
+      "contract": "WPStatusChanged emits the canonical payload",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_events.py::TestWPStatusChanged::test_basic_emission",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_event_id_is_ulid",
+      "contract": "event identifiers are valid ULIDs",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_events.py::TestEventEnvelope::test_event_id_is_valid_ulid",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_timestamp_is_iso8601",
+      "contract": "event timestamps are ISO-8601",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/sync/test_events.py::TestEventEnvelope::test_timestamp_is_iso8601",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_dual_write_integration.py::TestDualWriteEventAndFrontmatterConsistent::test_dual_write_event_and_frontmatter_consistent",
+      "contract": "phase-1 lane mirror activation preserves canonical lane reads",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/specify_cli/status/test_cutover_byte_stability.py::test_lane_mirror_activation_does_not_change_lane_read",
+      "survivor_outcome": "passed"
+    },
+    {
+      "candidate": "tests/sync/test_dual_write_integration.py::TestDualWriteMultipleTransitions::test_dual_write_multiple_transitions",
+      "contract": "chained status transitions persist in canonical order",
+      "base_wp02_outcome": "passed",
+      "head_state": "deleted",
+      "survivor": "tests/status/test_emit.py::TestEmitStatusTransition::test_chained_transitions",
+      "survivor_outcome": "passed"
+    }
+  ]
+}

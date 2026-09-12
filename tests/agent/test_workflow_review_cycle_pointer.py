@@ -47,7 +47,6 @@ def review_pointer_repo(tmp_path: Path) -> tuple[Path, Path, str]:
         wp_id="WP01",
         mission_slug=mission_slug,
         reviewer_agent="codex",
-        verdict="rejected",
         reviewed_at="2026-04-10T06:36:14Z",
         affected_files=[AffectedFile(path="src/app.py", line_range="10-20")],
         reproduction_command="pytest tests/agent -q",

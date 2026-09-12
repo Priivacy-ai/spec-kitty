@@ -1,0 +1,79 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flipped to true after the yaml self-check passed
+phase: tasks
+lens_group: fresh-3
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: TASKS-FRESH3-001
+    lens: mechanism-verification
+    severity: 4
+    title: WP03's per-type field declaration (T002) is a closed, hand-maintained table naming exactly four built-in types, but T001/T008 require it to also resolve a genuinely custom `qa` type, and NFR-005 requires "any custom type" — no task specifies the extension mechanism
+    evidence:
+      - artifact: "spec.md § NFR-005"
+      - artifact: "spec.md § User Story 3, Independent Test / Acceptance Scenario 1"
+      - artifact: "plan.md § Decision 1"
+      - artifact: "research.md § R4.1 (header: \"Verified template field shapes (four mission types)\")"
+      - artifact: "tasks/WP03-substantive-gate.md § T002"
+      - artifact: "tasks/WP03-substantive-gate.md § T001"
+      - artifact: "tasks/WP03-substantive-gate.md § T008 (`qa (custom)` fixture row)"
+      - artifact: "tasks/WP03-substantive-gate.md § Definition of Done (\"NFR-005: ... every type proven ...\")"
+    claim: >
+      spec.md's NFR-005 requires the fixed gate to be "demonstrably CAPABLE of both PASSING
+      ... and FAILING ... for EVERY mission type covered by FR-006 (`software-dev`,
+      `documentation`, `research`, `plan`, and any custom type)" — "any custom type" is
+      listed as its own coverage category, not merely one example. spec.md's User Story 3
+      Independent Test and Acceptance Scenario 1 both make the `qa` custom type (whose
+      `test-plan-template.md` has eight sections, none named `Technical Context`, per
+      spec.md's own description) the concrete proof case: `is_substantive(plan_file,
+      "plan")` must derive its fields from "the `qa` mission type's own plan template" and
+      return `True`. But plan.md's Decision 1 commits the implementation to a **closed,
+      hand-maintained, checked-into-the-fix declaration table** — "a small, explicit
+      per-type table checked into the fix, co-located with ... the template it describes ...
+      not re-derived by scanning arbitrary structure at check time ... not re-parsed from
+      the template's own prose/comments at runtime" — and research.md §R4.1 verifies field
+      shapes for exactly "four mission types" (`software-dev`, `documentation`, `research`,
+      `plan`; no `qa` row, no `packs/built-in/missions/qa/` exists in this repo — verified,
+      no such directory or `test-plan-template.md` file exists anywhere in the checkout).
+      WP03's T002, the subtask that builds this declaration, instructs the implementer to
+      "Cover `software-dev`, `documentation`, `research`, `plan`" — four names, verbatim —
+      with no mention of `qa`, of a fifth/future/custom entry, or of any mechanism (sidecar
+      file shipped with a custom pack's own template, dynamic per-mission-type lookup, or
+      otherwise) by which a mission type NOT in this table gets a declaration. Yet T001
+      requires reproducing the bug "against a `qa`-type mission's plan.md, fully populated
+      per its own `test-plan-template.md`" and T008's fixture matrix requires, post-fix, a
+      `qa (custom)` row that "must PASS" when faithfully populated — with no alternative or
+      "optional" qualifier, unlike the research/plan alternative offered elsewhere in the
+      same T008. No subtask (T001-T010) states how the implementer is meant to give `qa` a
+      declaration entry consistent with T002's literal four-name scope, and no subtask
+      addresses what `is_substantive`/`describe_technical_context_gap` should do for a
+      mission type that is not in the declaration at all (distinct from the
+      malformed/missing/unresolvable-*template* fail-closed edge case in T008, which is
+      about template *resolution* failing, not about a resolved template's type having no
+      declaration entry). This leaves the WP03 implementer to either (a) silently expand
+      T002's scope by adding an undocumented fifth `qa` entry — which still does not deliver
+      "any custom type" support for a real third-party org-tier mission type an operator
+      installs later, only widening the hardcoded special-casing from one type
+      (`software-dev`) to five — or (b) invent an unspecified fallback with no task guidance
+      at all. Either way, WP03's own Definition of Done claim ("NFR-005: full non-vacuity
+      fixture matrix (T008) — every type proven to both PASS and FAIL") is not actually
+      achievable as the tasks are written: the fixture matrix as scoped can prove at most
+      five named types, not "any custom type" as NFR-005 literally requires, and the task
+      text gives no path to closing that gap.
+    remediation: >
+      Add an explicit subtask (or extend T002) that either (a) states plainly that the
+      per-type declaration mechanism is scoped to the four built-in types plus one
+      test-only `qa` fixture the WP itself constructs (with an explicit note on how that
+      fixture's declaration entry is sourced — e.g. added to the same in-repo table
+      alongside a synthetic `test-plan-template.md` under `tests/.../fixtures/`), and
+      records this as a documented, deliberate NFR-005 scope reduction (a "this NFR is
+      satisfied for built-ins + one proof-of-mechanism custom type, not literally every
+      custom type that will ever exist" reconciliation, analogous to how T007 already
+      documents the `kind="spec"` non-extension) rather than leaving NFR-005's "any custom
+      type" wording silently unmet; or (b) specify a real extension mechanism — e.g. a
+      declaration sidecar a custom pack ships alongside its own plan template, discovered
+      via the same `plan_template: ResolutionResult` already threaded into `is_substantive`
+      (T007) — so a genuinely third-party custom mission type gets a declaration without a
+      spec-kitty-repo code change. Either resolution must be stated in T002 (or a new
+      subtask) before implementation starts, not left for the WP03 implementer to guess
+      when T001's red-first repro or T008's `qa` fixture forces the question.

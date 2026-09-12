@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-30T06:08:14.929082+00:00",
+  "flattened": false,
   "friendly_name": "Charter Phase 7: Schema Versioning and Provenance Hardening",
   "mission_id": "01KQEG13YGZN77AMY6Q8DVNKQX",
   "mission_number": 108,
@@ -10,5 +11,6 @@
   "slug": "charter-p7-schema-versioning-provenance-01KQEG13",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

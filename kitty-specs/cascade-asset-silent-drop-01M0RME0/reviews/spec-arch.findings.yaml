@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: SPEC-ARCH-001
+    lens: mission-derived (single-shared-seam verification) / Contracts
+    severity: 3
+    title: "CascadeScope.selects() is kind-agnostic under --cascade all; nothing in the spec guards the new dropped-node data from being routed through it"
+    evidence:
+      - artifact: "spec.md § FR-002 (thread dropped nodes through CascadeActivationResult), § FR-007 (deactivation-side symmetry), § Edge Case 3 (\"regardless of scope\")"
+      - code: "src/charter/cascade.py:178 — CascadeScope.selects: `return self.is_all or kind in self.kinds` (True for ANY kind when is_all=True; it has no knowledge of CHARTER_ACTIVATABLE_KINDS)"
+      - code: "src/charter/cascade.py:373-374 — cascade_activation_targets: `bucket = activated if scope.selects(ref.kind) else skipped` (existing scope-gated bucketing loop)"
+      - code: "src/charter/cascade.py:533 — deactivation_plan: `for ref in _referenced_artifacts(graph, target_urn): if scope.selects(ref.kind): candidates.add(ref.urn)` (existing scope-gated candidate loop)"
+    claim: >
+      FR-001 asks _referenced_artifacts (or a sibling helper) to also return the nodes it
+      currently drops via the bare `continue` at cascade.py:292 (kind in {template, asset}).
+      FR-002 and FR-007 then require this dropped set to be threaded into new fields on
+      CascadeActivationResult and DeactivationPlan. The two existing call sites that would
+      naturally be extended to populate those fields (cascade_activation_targets's
+      activated/skipped bucketing loop at line 373-374, and deactivation_plan's candidate
+      loop at line 533) both gate on `scope.selects(ref.kind)` — and `selects()` returns
+      True unconditionally for `--cascade all` (is_all=True short-circuits before the kind
+      check). If an implementer threads the new dropped-node list through either of these
+      existing loops (e.g. by merging it back into the same iterable as the activatable
+      refs, which is the more copy-paste-natural extension of the current code), a
+      template/asset node under `--cascade all` would land in `activated` or `candidates`
+      and actually be (de)activated — a functional reversal of the C-001 exclusion at
+      runtime, not merely a rendering bug, even though CHARTER_ACTIVATABLE_KINDS itself is
+      never edited. Edge Case 3 states the general requirement in prose ("regardless of
+      scope... it must be reported as kind-filtered") but never points at this specific
+      code mechanism, so the guardrail is advisory, not structural.
+    remediation: >
+      Add an explicit constraint (or a plan-time implementation note under FR-001/FR-007)
+      stating that kind-filtered/dropped nodes must be collected and threaded to their new
+      result fields via a path that never passes through CascadeScope.selects() or the
+      existing activated/skipped_by_scope/candidates bucketing loops — they populate the new
+      field directly, independent of scope. Add a test asserting that under `--cascade all`
+      specifically (the scope value that masks this bug, since is_all=True selects
+      everything), a kind-filtered node never appears in `activated`, `skipped_by_scope`, or
+      `deactivate`/`candidates` — only in the new field.
+
+  - id: SPEC-ARCH-002
+    lens: mission-derived (single-shared-seam verification) / Canonical source (DIRECTIVE_044)
+    severity: 3
+    title: "FR-001's \"sibling helper\" option invites a second, parallel implementation of the CHARTER_ACTIVATABLE_KINDS exclusion test"
+    evidence:
+      - artifact: "spec.md § FR-001 (\"this function (or a sibling helper called alongside it) to also return the dropped nodes\"), § Key Entities (\"Kind-filtered node\")"
+      - code: "src/charter/cascade.py:266-295 — _referenced_artifacts: single forward-closure loop over `reachable`, with the exclusion test `if kind not in CHARTER_ACTIVATABLE_KINDS: continue` at line 291-292"
+    claim: >
+      FR-001 explicitly offers two equally-valid implementation shapes: (1) change
+      _referenced_artifacts's own return contract so a single pass over `reachable` yields
+      both partitions (activatable refs and dropped/kind-filtered nodes), or (2) add a
+      "sibling helper called alongside it." Option (2), if implemented as its own
+      traversal (re-running _forward_reference_closure and re-testing `kind not in
+      CHARTER_ACTIVATABLE_KINDS`), duplicates the exclusion predicate that today lives in
+      exactly one place (cascade.py:291-292). Two independently-maintained copies of "what
+      counts as kind-filtered" can drift (e.g. a future edit to CHARTER_ACTIVATABLE_KINDS or
+      to the pre-existing `_kind_of is None` filter that only updates one copy) — the
+      parallel-authority pattern DIRECTIVE_044 (cited in this review's own profile,
+      architect-alphonso.agent.yaml) requires converging on a single canonical surface for.
+      The mission's own premise (FR-001/002/005/007, C-002) rests on "one shared collection
+      point feeding three dataclasses"; leaving the collection mechanism itself
+      underspecified between a single-pass and a duplicated-pass implementation undercuts
+      that premise for whichever WP author picks option (2).
+    remediation: >
+      Tighten FR-001 to require the single-pass shape: _referenced_artifacts's existing loop
+      over `reachable` (cascade.py:266-295) is the one place that classifies a node's kind
+      against CHARTER_ACTIVATABLE_KINDS, and it returns both partitions (or a second output
+      list populated in the same loop) rather than being duplicated. If a "sibling helper"
+      is still permitted for API-ergonomics reasons, require it to call a single shared
+      kind-classification predicate (not reimplement the `kind not in
+      CHARTER_ACTIVATABLE_KINDS` test) so there is exactly one place in the codebase that
+      decides kind-filtered-vs-activatable.

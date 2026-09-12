@@ -16,7 +16,7 @@ All comparisons are pure datetime arithmetic.  No LLM calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, timedelta, UTC, now_utc, parse_iso
 from typing import Any
 
 from specify_cli.charter_runtime.lint.findings import LintFinding
@@ -35,7 +35,7 @@ def _parse_ts(value: Any) -> datetime | None:
         s = str(value).strip()
         # Python 3.11+ fromisoformat handles 'Z' suffix; earlier versions need replacement
         s = s.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(s)
+        dt = parse_iso(s)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
@@ -71,7 +71,7 @@ class StalenessChecker:
         if drg is None:
             return []
 
-        now = datetime.now(tz=UTC)
+        now = now_utc()
         node_urns: set[str] = {
             getattr(n, "urn", None) or "" for n in getattr(drg, "nodes", [])
         }

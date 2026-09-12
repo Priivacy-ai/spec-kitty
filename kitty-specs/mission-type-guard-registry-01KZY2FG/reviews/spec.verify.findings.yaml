@@ -1,0 +1,192 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: SPEC-VERIFY-001
+    lens: silent-success
+    severity: 4
+    title: "doctor mission-type's 'unknown' state, if built on the cited UnknownMissionTypeError precedent, is blind in exactly the governed projects (like this repo) most likely to run it"
+    evidence:
+      - artifact: "spec.md § FR-008 (\"matches the UnknownMissionTypeError FR-006/SC-003 distinction already made at src/charter/mission_type_profiles.py:193-210\")"
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 1 (fixture-tree test)"
+      - artifact: "spec.md § Out of Scope, item 1 (the doctrine-override hatch, independently named as a real, distinct, deferred defect)"
+      - code: "src/charter/mission_type_profiles.py:737-738 — `if not is_registered and not has_override: raise UnknownMissionTypeError(...)` (governance slot; the ONLY raise site for a genuinely unregistered type)"
+      - code: "src/charter/mission_type_profiles.py:788-789 — `_resolve_action_slot`: `if not is_registered: return []` (never raises for an unregistered type, override or not)"
+      - code: "src/charter/mission_type_profiles.py:1041 — `_project_has_doctrine_overrides`: True whenever `charter.yaml`'s `governance.doctrine` has any non-empty `selected_<kind>` list"
+      - code: "src/charter/mission_type_profiles.py:582-583 — `registered = existing_mission_types(repo_root); is_registered = type_key in registered` (this check IS override-hatch-independent)"
+    claim: >
+      FR-008 directs `doctor mission-type`'s taxonomy to match the existing
+      `UnknownMissionTypeError` distinction, and the Out-of-Scope section separately,
+      correctly, documents that `_project_has_doctrine_overrides` silences the
+      unregistered-type hard-fail "for every unknown type project-wide" once a
+      project has any governance selection. Tracing the actual raise site
+      (`_resolve_governance_slot`, line 737-738) confirms this precisely: for an
+      unregistered `mission_type`, `UnknownMissionTypeError` is raised ONLY when
+      `has_override` is False. This project's own charter.md documents 15 activated
+      catfooding doctrine artifacts — i.e. `has_override` is True in this very repo,
+      and in any comparably mature spec-kitty project. If `doctor mission-type`'s
+      `unknown`-state classification is implemented by calling
+      `resolve_mission_type_context` (or equivalent) and catching
+      `UnknownMissionTypeError` — the natural reading of FR-008's own citation — the
+      resulting audit would silently fail to detect unknown mission types in every
+      governed project, which is precisely the class of project the command exists
+      to protect (per User Story 4's own rationale: "the registry fix is invisible
+      until a mission actually hits the composed path's neutral-degrade log line —
+      this command lets an operator check proactively"). Worse, the ONE acceptance
+      scenario given for this FR (User Story 4 AC1, "a kitty-specs/ tree containing
+      ...one mission with an unrecognized custom mission_type") does not specify
+      whether that fixture project carries any charter governance selections — if
+      the fixture is a minimal/blank charter (the common test-fixture convention),
+      `has_override` would be False there, the exception WOULD raise correctly in
+      the test, and a naive UnknownMissionTypeError-based implementation would pass
+      the spec's own acceptance criterion while being silently broken in real,
+      governed usage (this repo included) — a classic case of the stated AC not
+      exercising the failure mode that matters, and the new diagnostic tool
+      reintroducing exactly the "reports success/omits the case instead of raising"
+      defect class this mission exists to close (per the Related Ledger Entry /
+      SK-06 framing).
+    remediation: >
+      Add an explicit implementation note to FR-008 (or a new NFR) stating that
+      `doctor mission-type`'s `unknown`/`activated-unresolvable` classification MUST
+      be computed via the override-hatch-independent membership check
+      (`type_key in existing_mission_types(repo_root)`, mirroring
+      `mission_type_profiles.py:582-583`) rather than by invoking
+      `resolve_mission_type_context` and catching `UnknownMissionTypeError` (which
+      is silenced by `_project_has_doctrine_overrides` for exactly the governed
+      projects this command targets). Add a second acceptance scenario to User
+      Story 4 that runs the fixture tree WITH at least one charter governance
+      selection present, to prove the audit still detects the unknown type in that
+      condition — closing the exact gap between "passes the stated AC" and "works
+      in this repo."
+
+  - id: SPEC-VERIFY-002
+    lens: silent-success
+    severity: 3
+    title: "Composed-path neutral degrade (FR-003/FR-004) is interface-indistinguishable from a genuine guard pass, and FR-004 pins no log level"
+    evidence:
+      - artifact: "spec.md § Key Entities — \"Guard evaluation result: A list[str] of human-readable failure descriptions, empty when all guards pass — the existing contract of evaluate_guards, unchanged in shape by this mission.\""
+      - artifact: "spec.md § FR-003 / FR-004 / User Story 1 AC2 (no log level specified in any of the three)"
+      - artifact: "spec.md § SC-002 (\"a log record is emitted naming the family\" — presence only, no level/visibility assertion)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:570-573 — existing precedent for a DIFFERENT failure mode (unexpected exception during composition) returns a non-empty, visible failure message (\"composition crashed for {mission}/{action}: ...\") rather than an empty list"
+      - code: "src/runtime/next/runtime_bridge.py:2239, 2249, 2268 — existing degrade-and-continue paths in this same module consistently use `logger.warning`, not `logger.info` or `logger.debug`"
+    claim: >
+      Because the Key Entities section explicitly pins the guard-evaluation return
+      type as unchanged (`list[str]`, empty means "all guards pass"), the only way
+      FR-003's "explicit neutral result" can satisfy both C-001 (must not raise, must
+      not block) and the shape constraint is to return `[]` — the same value a
+      genuinely passing mission returns. The log line (FR-004) is therefore the ONLY
+      differentiator between "your guards passed" and "we don't recognize your
+      mission type and evaluated nothing," and FR-004 does not specify a minimum log
+      level. A technically-compliant implementation could emit this at DEBUG level
+      (invisible at default CLI verbosity), satisfying the letter of FR-004 and
+      SC-002 ("a log record is emitted") while being operationally silent — the
+      exact SK-06-class defect this mission exists to close, reintroduced in its own
+      new composed-path surface. The spec also does not cross-reference FR-007
+      (`doctor mission-type`) inside FR-003/FR-004 as the intended compensating
+      control; that connection currently exists only in User Story 4's prose
+      rationale, one section away from the requirements an implementer will code
+      against.
+    remediation: >
+      Add a minimum log level to FR-004 (e.g. WARNING, matching the existing
+      degrade-and-continue precedent at runtime_bridge.py:2239/2249/2268) and state
+      it as part of SC-002's acceptance bar (assert the log record's level, not just
+      its presence). Add an explicit cross-reference from FR-003/FR-004 to FR-007
+      ("the neutral degrade's discoverability is delivered jointly by the WARNING
+      log line and `doctor mission-type`'s proactive audit") so the design's answer
+      to "how does a non-log-reading operator find out" is stated where the
+      requirement lives, not only in a separate user story's rationale.
+
+  - id: SPEC-VERIFY-003
+    lens: falsifiability
+    severity: 3
+    title: "plan's guard table (FR-002) doesn't name the artifact filenames for the research/plan steps, and no acceptance scenario exercises them"
+    evidence:
+      - artifact: "spec.md § FR-002 (\"artifact-presence checks for specify/research/plan mirroring the pattern used by the research and documentation tables\" — no filenames given)"
+      - artifact: "spec.md § User Story 2 Acceptance Scenarios (AC1 tests only the terminal `review` step; AC2 tests only the `specify` step's missing-artifact message; neither `research` nor `plan` steps are covered)"
+      - code: "packs/built-in/missions/plan/mission-runtime.yaml:9-33 — confirms the `specify → research → plan → review` sequence (spec's citation is accurate) but does not itself name step-level artifact tags"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:4 — the only place in the repo that names `research.md` as the research step's deliverable filename, discoverable only by cross-reference, not stated in spec.md"
+    claim: >
+      Every OTHER guard-table description in this same spec.md names its exact
+      artifact filenames (spec.md, plan.md, tasks.md, findings.md, gap-analysis.md,
+      audit-report.md, release.md, source-register.csv). FR-002 alone describes its
+      three artifact-presence checks (specify/research/plan) generically, without
+      naming which file each step checks for. The `research` step's expected
+      artifact (`research.md`) is discoverable only by cross-referencing
+      `plan-plan-skeleton.md`'s own input reference — not stated anywhere in this
+      spec — and the `plan` step's own guard is not tested by any acceptance
+      scenario at all (only `review`'s empty-list case and `specify`'s
+      missing-artifact case have ACs). An implementer following only this spec's
+      text has no falsifiable check for two of the three artifact-presence branches
+      FR-002 claims to add.
+    remediation: >
+      Add explicit filenames to FR-002 (specify→spec.md, research→research.md,
+      plan→plan.md) and add at least one acceptance scenario exercising the
+      `research` step's missing-artifact case, mirroring the existing AC2 pattern
+      for `specify`.
+
+  - id: SPEC-VERIFY-004
+    lens: taxonomy-exhaustiveness
+    severity: 3
+    title: "FR-008's typeless/unknown boundary is undefined for a mission_type key present but blank, null, or non-string"
+    evidence:
+      - artifact: "spec.md § FR-008 — \"typeless (no mission_type key at all — the pre-existing neutral case)\" and \"unknown (mission_type string present but not registered/activated anywhere)\" — both defined only for the key-absent vs. key-present-as-a-string cases"
+      - code: "src/specify_cli/mission.py:547-553 — `_canonical_meta_mission_type`'s own docstring/code: \"Non-string values (malformed metadata) and blank values are treated as absent\" (i.e. the existing runtime canonicalizer already collapses blank/null/non-string mission_type values to the same result as a missing key)"
+    claim: >
+      FR-008's prose defines `typeless` structurally ("no key at all") and `unknown`
+      as requiring a present "string." It does not say how a meta.json like
+      `{"mission_type": ""}`, `{"mission_type": null}`, or `{"mission_type": 42}`
+      should classify. Two equally natural implementations diverge on this input: a
+      literal structural key-presence check would call it `unknown` (empty string is
+      "present" but unregistered), while an implementation that reuses the existing
+      canonicalization convention already used elsewhere in this codebase (blank/
+      non-string treated as absent) would call it `typeless`. FR-008 states the
+      taxonomy is "exhaustive by construction," but this boundary is not resolved by
+      the text as written, and the two readings produce different classifications
+      for the identical input — exactly the kind of ambiguity the mission-derived
+      taxonomy-exhaustiveness lens is meant to catch.
+    remediation: >
+      Add one sentence to FR-008 stating whether `doctor mission-type` uses the same
+      blank/null/non-string-treated-as-absent canonicalization as the existing
+      runtime resolver (recommended, for consistency with `_canonical_meta_mission_type`),
+      and add a boundary test case (`mission_type: ""` or `null`) to the
+      `test_doctor_mission_type.py` suite named in C-005.
+
+  - id: SPEC-VERIFY-005
+    lens: baseline-honesty
+    severity: 3
+    title: "NFR-001/SC-004's 'all green' acceptance bar is not conditioned on a captured pre-mission baseline"
+    evidence:
+      - artifact: "spec.md § NFR-001 — \"...plus the ~16-estimate typeless-preservation tests, all green.\""
+      - artifact: "spec.md § SC-004 — \"pass unmodified (zero assertion-value changes)...verified directly by running both files and diffing them against their pre-mission state.\""
+      - artifact: "spec.md § Clarifications, Numbers-corrected table — the ~16-estimate typeless tests are explicitly labeled \"Directionally confirmed only, not a pinned count\" (i.e. not independently verified to currently be green)"
+      - artifact: "CLAUDE.md § Test-run baseline-red gotcha; charter.md Standing Order #9 (red-main-release-discipline)"
+    claim: >
+      I ran `tests/runtime/test_bridge_cores.py` and `tests/runtime/test_bridge_composition.py`
+      on this checkout (`PWHEADLESS=1 uv run pytest ... -q`): 71 passed, 0 failed —
+      so today, for these two specifically-named files, the "all green" bar is
+      currently achievable and NFR-001's core claim is honest as far as it goes.
+      However, NFR-001 also folds in "the ~16-estimate typeless-preservation tests,"
+      which the spec's own Clarifications table admits was never independently
+      pinned to an exact count or confirmed to currently be green — only
+      "directionally confirmed." NFR-001 states the bar as an unconditional "all
+      green," not a diff against a captured pre-mission baseline. Per charter
+      Standing Order #9 (never let an honest pre-existing red be silently
+      green-washed or block unrelated work) and CLAUDE.md's baseline-red-gotcha
+      doctrine (a broad-ish test run showing red that is not the current change's
+      fault must be attributed, not treated as this mission's failure), if any one
+      of that ~16-estimate set turns out to already be red on `main` for an
+      unrelated reason, NFR-001's stated bar becomes literally unsatisfiable through
+      no fault of this mission's implementation, and the spec gives no fallback
+      instruction (block the mission? file the Pre-existing Failure Reporting Rule
+      issue and proceed? treat that one test as out of scope?).
+    remediation: >
+      Reword NFR-001's acceptance bar from an unconditional "all green" to a
+      diff-against-captured-baseline formulation: capture the pass/fail state of the
+      named suites (including the typeless-preservation set, once enumerated) BEFORE
+      touching `runtime_bridge_cores.py`, and require zero NEW reds relative to that
+      baseline rather than zero reds absolute — consistent with how SC-004 already
+      frames its own check as a diff ("diffing them against their pre-mission
+      state"). Apply the same framing to NFR-001 for parity.

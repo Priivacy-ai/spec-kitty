@@ -16,7 +16,8 @@ Required-scope map (inline):
 
 Overlay loading:
     The walker loads ``.kittify/doctrine/overlays/calibration-<mission>.yaml``
-    (if present) alongside the built-in ``src/doctrine/graph.yaml``.  Overlay
+    (if present) alongside the built-in ``packs/built-in/*.graph.yaml``
+    fragments.  Overlay
     ``add_edge`` and ``remove_edge`` mutations are applied before resolution.
 """
 
@@ -146,6 +147,7 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         "toolguide:efficient-local-tooling",
     }),
     ("software-dev", "action:software-dev/review"): frozenset({
+        "directive:DIRECTIVE_003",
         "directive:DIRECTIVE_010",
         "directive:DIRECTIVE_024",
         "directive:DIRECTIVE_025",
@@ -481,15 +483,15 @@ def walk_mission(
     Args:
         mission_key: One of ``"software-dev"``, ``"research"``,
             ``"documentation"``, or ``"erp-custom"``.
-        repo_root: Repository root containing ``src/doctrine/graph.yaml``
-            and (optionally) ``.kittify/doctrine/overlays/``.
+        repo_root: Repository root containing the ``packs/built-in/*.graph.yaml``
+            fragments and (optionally) ``.kittify/doctrine/overlays/``.
 
     Returns:
         One :class:`CalibrationFinding` per step in the mission.
 
     Raises:
         KeyError: If *mission_key* is not in the built-in step registry.
-        ``doctrine.drg.DRGLoadError``: If the built-in graph cannot be loaded.
+        ``charter.offering.drg.DRGLoadError``: If the built-in graph cannot be loaded.
     """
     steps = _MISSION_STEPS[mission_key]
     graph = _build_graph(repo_root, mission_key)

@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZS7FHX5HPZN9GGMF3M5YP7T",
+  "completed_at": "2026-08-11T20:22:01.794872+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp05-analysis.md"
+}

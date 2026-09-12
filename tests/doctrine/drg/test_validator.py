@@ -8,16 +8,16 @@ Mission ``doctrine-tension-edges-01KY1WPC``, FR-004/FR-014:
   needed (Assumption A3).
 - T023 (INV-004): a ``rejects`` edge whose target is not a
   ``NodeKind.ANTI_PATTERN`` node must raise a validation error via
-  :func:`doctrine.drg.validator.validate_graph` /
-  :func:`doctrine.drg.validator.assert_valid`.
+  :func:`charter.offering.drg.validator.validate_graph` /
+  :func:`charter.offering.drg.validator.assert_valid`.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import (
     DRGValidationError,
     assert_valid,
     validate_graph,

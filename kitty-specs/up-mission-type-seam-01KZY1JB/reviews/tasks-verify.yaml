@@ -1,0 +1,56 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      WP01's Branch Strategy now cites tasks.md's real "PR Shape" section (added at the top of
+      tasks.md, lines 7-40), which states and reasons about the one-PR-per-mission decision with
+      mission-specific content (size class L, CL-003 atomicity across WP03/WP04/WP06, CL-004a
+      WP02/WP07 file-overlap coherence) rather than pointing at a section that does not exist.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >-
+      T020 is now present in all three places: WP07's own frontmatter subtasks list
+      (tasks/WP07-cli-surface-fixes.md lines 18-23), wps.yaml's WP07 entry (lines 241-246), and
+      tasks.md's WP07 summary line (line 114); verified by direct read of each file.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >-
+      The cyclic depends_on_lanes graph is genuinely mitigated with a real, actionable warning
+      in both wps.yaml's header comment (lines 58-76, full mechanism explanation) and WP07's own
+      prompt Branch Strategy section (concrete git log / git merge-base --is-ancestor verification
+      commands plus a fallback of bypassing automatic lane allocation), and
+      tracer-tooling-friction.md carries a substantive, evidence-grounded entry, not a one-liner,
+      tracing root cause in compute.py, confirming the mechanism is mechanically live via
+      worktree_allocator.py, and recording the mitigation applied plus a recommendation to file an
+      upstream issue; lanes.json itself was correctly left untouched (generated artifact, out of
+      scope), consistent with the remediation's own instruction not to hand-edit it.
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: >-
+      WP07's Context and Constraints section now explicitly names both open upstream PRs
+      (numbers 3166 and 2719) against src/specify_cli/cli/commands/doctrine.py, with a concrete
+      re-check instruction to re-run gh pr list before starting T018 and re-verify line
+      numbers/code shape, mirrored again in the Branch Strategy citation.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      WP04 now genuinely instructs T010's tests be written and committed FIRST: a callout at the
+      top of Subtasks & Detailed Guidance, T010's section reordered ahead of T008/T009 in the
+      document body, and its heading marked "write and commit FIRST, red-first", proven RED
+      against the pre-WP04 baseline for the specific hardcoded pack_context=None /
+      MissionTypeRepository.default() reasons, with an explicit reviewer-facing RED-on-base,
+      GREEN-on-final-commit verification statement in Test Strategy; a substantive reordering and
+      reasoning addition, not a relabeling.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      All of T016, T017, T018, T019, and T020 now carry explicit red-first instructions: a
+      mission-wide callout plus a "Red-first" numbered step 1 in each subtask specifying the exact
+      pre-fix failure mode to demonstrate, and T020 has an explicit note on how to approximate a
+      RED state despite being an integration capstone; Review Guidance now has a dedicated bullet
+      instructing the reviewer to check red-first compliance for T016-T019 and reject a PR showing
+      only "tests pass now" with no RED evidence. Checked every subtask individually, not a sample.

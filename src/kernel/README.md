@@ -13,9 +13,9 @@ Zero-dependency shared utilities for the spec-kitty ecosystem.
 Currently it contains:
 
 - **`kernel.atomic`** — `atomic_write(path, content, *, mkdir=False)`: writes files atomically via a temp file + rename, preventing partial writes on crashes or power loss.
-- **`kernel.glossary_types`** — canonical glossary primitive value types (`Strictness`, `ExtractedTerm`, `SemanticConflict`, `ScopeRef`, `GlossaryScope`); re-exported by `glossary` and `doctrine.shared`.
-- **`kernel.paths`** — `get_kittify_home()` and `get_package_asset_root()`: path resolution utilities used by both `specify_cli` and `charter`. `specify_cli.runtime.home` re-exports these for backward compatibility.
-- **`kernel.glossary_runner`** — plugin registry for the glossary runner. Defines `GlossaryRunnerProtocol`, `register()`, `get_runner()`, and `clear_registry()` (test-only). `glossary` registers the concrete `GlossaryAwarePrimitiveRunner` at import time; `doctrine` calls `get_runner()` without importing `specify_cli`.
+- **`kernel.glossary_types`** — canonical glossary primitive value types (`Strictness`, `ExtractedTerm`, `SemanticConflict`, `ScopeRef`, `GlossaryScope`); re-exported by `glossary` and `charter.offering.shared`.
+- **`kernel.paths`** — `get_kittify_home()`, the `SPEC_KITTY_PACKS_ROOT`-aware built-in-pack-root primitive `get_built_in_pack_root()`, and the single-door `get_package_asset_root()` (which resolves `<built-in-pack-root>/missions` through that primitive): path resolution utilities used by both `specify_cli` and `charter`. `get_package_asset_root()` is the one canonical resolution body — `specify_cli.runtime.home.get_package_asset_root` is a thin delegate to it (FR-005, DR-1), not a second resolver.
+- **`kernel.glossary_runner`** — plugin registry for the glossary runner. Defines `GlossaryRunnerProtocol`, `register()`, `get_runner()`, and `clear_registry()` (test-only; never called in production). Nobody registers eagerly: the consumer `charter.offering.missions.glossary_hook` lazily self-bootstraps the registry on first use (`get_runner()` → `None` → `import_module("glossary.attachment")` → `register(GlossaryAwarePrimitiveRunner)` → retry) and degrades only when `glossary.attachment` is unimportable; `doctrine` calls `get_runner()` without importing `specify_cli`.
 
 ## Why it exists
 

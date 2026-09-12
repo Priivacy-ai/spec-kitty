@@ -1,0 +1,65 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: refuted
+    reason: >-
+      The finding's own cited evidence ("no subclass in src/doctrine/*.py overrides
+      it" re: base.py's non-recursive _project_scan) is factually wrong: grep plus a
+      live execution check show StyleguideRepository (src/doctrine/styleguides/repository.py:59-61)
+      and AssetRepository (src/doctrine/assets/repository.py:130-132) both override
+      _project_scan to rglob; I constructed a StyleguideRepository with an org_dir
+      whose only content sat under <root>/styleguides/built-in/ and confirmed the
+      item loaded (id present in list_all()) -- so for styleguide kind the live
+      loader DOES read an org pack's nested built-in/ subdirectory, contradicting the
+      finding's universal "never, before or after this diff" claim. Independently,
+      the live file at current HEAD no longer contains the quoted "kept only for
+      backward compatibility" docstring text at all -- commit 7ac9b2fa0 already
+      reworded both the _scan_roots and _org_scan_dirs docstrings to state plainly
+      that DoctrineService/BaseDoctrineRepository's org-layer scan never reads the
+      legacy nested shape, which is exactly the finding's own requested remediation.
+  - id: PR-BOUNDARY-002
+    verdict: confirmed
+    reason: >-
+      Empirically reproduced on the live code: with org_roots=[rootA (legacy-only,
+      <root>/directives/built-in/<stem>.directive.yaml), rootB (flat-only,
+      <root>/directives/<stem>.directive.yaml)] and a colliding config stem,
+      resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, org_roots=[rootA, rootB])
+      returned "directive:DIRECTIVE_LEGACY_A", not rootB's flat "DIRECTIVE_FLAT_B" --
+      _org_scan_dirs (kind_vocabulary.py:239-247) is confirmed interleaved per root,
+      not globally flat-before-legacy. tests/charter/test_kind_vocabulary_scan_roots.py::test_same_config_stem_precedence_flat_wins
+      (current HEAD) still only passes org_roots=[org_root] (a single root) and its
+      docstring still asserts unqualified "never a result that depends on incidental
+      scan order" with no multi-root regression test added -- even after commit
+      7ac9b2fa0 reworded the _org_scan_dirs docstring to disclose the cross-root
+      limitation (spec.md C-001), that disclosure is documentation of a real,
+      unfixed, untested precedence gap, not a fix of it.
+  - id: PR-CONTRACT-001
+    verdict: refuted
+    reason: >-
+      Ground-truth run per the run constraint: `uv run pytest tests/architectural/test_built_in_location_authority.py -q`
+      -> "3 passed" (no failures) at current HEAD. Checked the current allowlist
+      entry directly (grep "kind_vocabulary.py" tests/architectural/test_built_in_location_authority.py)
+      -> now pins (Path("src/charter/kind_vocabulary.py"), 244), and the current
+      join line (grep '"built-in"' src/charter/kind_vocabulary.py) is exactly line
+      244 -- they match. Commit d6a297409 ("fix(architectural): refresh built-in-join
+      line-pin for _org_scan_dirs move (#3385)"), already on this branch, updated the
+      allowlist from the stale 206 to 244. The finding's own claimed line (224) was
+      itself already wrong for the code at HEAD (it is 244, one docstring expansion
+      later) and, more importantly, the claimed CI-failing state no longer exists --
+      the gate is green right now.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: >-
+      Reproduced the revert-and-see experiment myself (serially, restored after):
+      reverted _org_scan_dirs's body only to the pre-fix single-candidate shape,
+      ran `uv run pytest tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py -q`
+      -> "7 failed, 14 passed", and confirmed test_neither_dir_present_returns_empty_list
+      was NOT among the 7 failures (matches the finding's cited numbers exactly);
+      restored the body and reran -> "21 passed", `git status --porcelain -uno --
+      src/ tests/` clean. tests/charter/test_kind_vocabulary_scan_roots.py:127-131
+      does carry two pre-existing tests (test_none_org_roots_returns_empty_list,
+      test_missing_org_built_in_dir_skipped) covering functionally the same "nothing
+      to scan" outcome, so the duplication claim also holds.

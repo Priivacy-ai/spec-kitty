@@ -19,8 +19,9 @@ Strangler compatibility (C-004 / NFR-001): the historical flat
 (``feature_dir`` / ``target_branch`` / ``workspace_path`` / ``branch_name`` /
 ``execution_mode`` / ``mission_slug``) are preserved verbatim so consumers that
 have not yet been converted keep reading the same attributes. The fragments are
-*attached* to the same object; nothing is removed. ``ActionContext`` remains a
-re-exported alias of the canonical :class:`MissionExecutionContext` name.
+*attached* to the same object; nothing is removed. The historical
+``ActionContext`` alias of :class:`MissionExecutionContext` was retired once its
+last consumer was gone (mission dead-port-disposition-01M1TZVN, FR-014).
 
 Single-derivation invariants (T009 / FR-012 / C-CTX-3): ``mid8`` is derived
 **exactly once** (in :class:`IdentityFragment`, as ``mission_id[:8]``) and
@@ -37,19 +38,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from mission_runtime.artifacts import MissionArtifactKind
-
-
-class ExecutionMode(enum.Enum):
-    """How an action's execution context is resolved.
-
-    ``WORKTREE`` resolves against a lane worktree; ``CODE_CHANGE`` resolves
-    against an in-place checkout. The resolved string mode is surfaced on
-    :attr:`MissionExecutionContext.execution_mode` (which carries the raw workspace
-    string), so this enum is the typed vocabulary callers may compare against.
-    """
-
-    WORKTREE = "worktree"
-    CODE_CHANGE = "code_change"
 
 
 class MissionTopology(enum.Enum):
@@ -345,18 +333,10 @@ class MissionExecutionContext:
         return data
 
 
-# Transitional alias: the historical name used by ``core/execution_context`` and
-# its consumers. Kept so the Stage-C shim re-exports a single relocated type
-# rather than introducing a parallel implementation (NFR-002).
-ActionContext = MissionExecutionContext
-
-
 __all__ = [
-    "ActionContext",
     "ArtifactPlacementFragment",
     "BranchRefFragment",
     "CommitTarget",
-    "ExecutionMode",
     "IdentityFragment",
     "MissionArtifactContext",
     "MissionContext",

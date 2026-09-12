@@ -1,5 +1,5 @@
 {
-  "event_count": 25,
+  "event_count": 29,
   "last_event_id": "01KXP6BC65EA89SHD1XW012V5J",
   "materialized_at": "2026-07-16T19:27:11.557582+00:00",
   "mission_number": "",
@@ -19,31 +19,77 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KXP6AXBA87104QJFRDW67SD7",
-      "last_transition_at": "2026-07-16T19:26:56.362861+00:00"
+      "last_transition_at": "2026-07-16T19:26:56.362861+00:00",
+      "shell_pid": 2464605,
+      "shell_pid_created_at": "1784214813.3",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KXP6B21EE0MD2KP915THHXBT",
-      "last_transition_at": "2026-07-16T19:27:01.166484+00:00"
+      "last_transition_at": "2026-07-16T19:27:01.166484+00:00",
+      "shell_pid": 2617245,
+      "shell_pid_created_at": "1784217734.11",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KXP6B6VQ376VEWPJ4ZRBFZ5P",
-      "last_transition_at": "2026-07-16T19:27:06.103478+00:00"
+      "last_transition_at": "2026-07-16T19:27:06.103478+00:00",
+      "shell_pid": 2867801,
+      "shell_pid_created_at": "1784222042.1",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KXP6BC65EA89SHD1XW012V5J",
-      "last_transition_at": "2026-07-16T19:27:11.557582+00:00"
+      "last_transition_at": "2026-07-16T19:27:11.557582+00:00",
+      "shell_pid": 3014291,
+      "shell_pid_created_at": "1784224785.66",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",

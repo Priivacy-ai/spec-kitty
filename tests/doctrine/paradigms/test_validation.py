@@ -1,6 +1,6 @@
 """Unit tests for paradigm schema validation."""
 
-from doctrine.paradigms.validation import validate_paradigm
+from charter.offering.paradigms.validation import validate_paradigm
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

@@ -25,17 +25,33 @@ import typer
 _logger = logging.getLogger(__name__)
 
 
-def _find_project_root() -> Path | None:
-    """Walk up from cwd looking for a ``.kittify/`` directory.
+def _find_project_root(
+    start: Path | None = None,
+    *,
+    stop: Path | None = None,
+) -> Path | None:
+    """Walk up from *start* looking for a ``.kittify/`` directory.
 
-    Returns the first ancestor directory that contains a ``.kittify/`` subdirectory,
-    or ``None`` when no such directory is found (i.e. cwd is not inside a
-    spec-kitty project).
+    Returns the first directory at or above *start* that contains a
+    ``.kittify/`` subdirectory, or ``None`` when no such directory is found
+    (i.e. *start* is not inside a spec-kitty project). *start* defaults to the
+    cwd; the walk always terminates at the filesystem root.
+
+    *stop* bounds the walk: it names the last directory examined, so nothing
+    above it is ever read (when *stop* is not an ancestor of *start* the walk
+    simply runs to the filesystem root). Production callers keep the unbounded
+    default; tests pass an explicit *stop* because nothing above ``tmp_path``
+    is under test control — on a shared machine any ancestor can gain a stray
+    ``.kittify/`` from a sibling test, which would flip outside-project
+    verdicts non-deterministically (#130).
     """
-    current = Path.cwd().resolve()
+    current = (start if start is not None else Path.cwd()).resolve()
+    boundary = stop.resolve() if stop is not None else None
     while True:
         if (current / ".kittify").is_dir():
             return current
+        if boundary is not None and current == boundary:
+            return None
         parent = current.parent
         if parent == current:
             return None

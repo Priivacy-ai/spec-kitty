@@ -1,0 +1,32 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      WP01's Reviewer Guidance (line 525-528) now names exactly the 9
+      genuinely pytest-testable requirement_refs (FR-001-004, FR-008,
+      FR-009, FR-010, NFR-001, C-001) with explicit carve-outs for FR-011
+      (markdownlint/check_docs_freshness.py, not pytest), NFR-002/NFR-003
+      (spec.md-stated non-behaviors) and C-006 (reviewer-scope note); the 9
+      testable + 4 carved-out IDs sum to exactly the 13 entries in WP01's
+      own current frontmatter requirement_refs, and cross-checking each ID
+      against spec.md's FR/NFR/C table confirms none was dropped or
+      mis-scoped (FR-005/006/007 correctly remain out since they belong to
+      WP02/WP03, not WP01).
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      WP02's T009 step 5 and Context now explicitly scope the fail-fast
+      guard to to_dry_run_dict() only with an explicit "Do NOT add this
+      guard to to_dict()" instruction and named rationale (the
+      test_dispatch_recommendation.py _sample_payload() fixture's two
+      GREEN to_dict() calls), which is internally coherent against the live
+      executor.py (to_dict() at line 232 is still the generic
+      getattr(self, s, None)-over-__slots__ serializer described, and
+      to_dry_run_dict()/the alternatives slot do not exist yet, consistent
+      with pre-implementation state); T010's gate command now runs `pytest
+      tests/invocation/test_dispatch_recommendation.py -v` as an explicit
+      regression guard for this exact class, in addition to `pytest
+      tests/specify_cli/invocation/ -v`.

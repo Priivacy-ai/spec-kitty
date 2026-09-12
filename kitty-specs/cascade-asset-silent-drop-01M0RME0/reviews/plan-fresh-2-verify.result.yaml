@@ -1,0 +1,68 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: cascade-asset-silent-drop-01M0RME0
+round: 3
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    notes: >
+      Checked plan.md §2 (lines ~222-235, "How one seam feeds all three consumers" /
+      unpacking paragraph). The prior single unqualified `activatable, kind_filtered =
+      _referenced_artifacts(...)` sentence covering all three call sites is gone. It now
+      reads: "The exact binding differs per call site and per WP boundary" and spells out
+      `cascade_activation_targets` binds unqualified `activatable, kind_filtered = ...`
+      (populates the real field immediately), while `referenced_but_not_cascaded` and
+      `deactivation_plan` bind `activatable, _kind_filtered = ...` (leading underscore) "at
+      WP-A's own commit boundary," explicitly because ruff F841 would otherwise fire, with an
+      explicit forward pointer "see §12 WP-A for the full underscore-prefix rule and
+      WP-C/WP-D's later rename back to `kind_filtered`." Cross-checked against §12 WP-A's
+      bullet (lines ~632-660): identical three-call-site rule, same reasoning (F841,
+      no-noqa constraint), same rename-ownership split (WP-C renames in
+      `referenced_but_not_cascaded`, WP-D renames in `deactivation_plan`). No remaining
+      contradiction between §2 and §12; this is a substantive rewrite of the example, not a
+      restatement of the old text with a caveat bolted on.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    notes: >
+      Checked the Project Structure table (plan.md lines ~124-129). The
+      `tests/charter/test_cascade.py` comment now reads "engine-level ATDD tests land here
+      (WP-A, WP-D); pinned test at line 648 ...". This matches §12 WP-D's bullet (item 2,
+      "Engine-level, in `tests/charter/test_cascade.py`" — the deactivation-side half of the
+      C-006 required test) and §12's closing paragraph ("WP-A's and WP-D's engine-level tests
+      land in `tests/charter/test_cascade.py`"). All three locations (table, WP-D bullet,
+      closing paragraph) now agree; no lingering WP-A-only attribution remains.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    notes: >
+      Checked §12 WP-C's bullet (plan.md lines ~695-700). It now opens with "Rename
+      `_kind_filtered` to `kind_filtered` in `referenced_but_not_cascaded` (per WP-A's
+      instruction above) and thread the field through `NoCascadeReport`; call the SAME shared
+      helper from `_render_no_cascade_warning` ...", mirroring WP-D's bullet structure ("Rename
+      `_kind_filtered` to `kind_filtered` in `deactivation_plan` (per WP-A's instruction
+      above) and thread the field through `DeactivationPlan`; call the shared helper ..."). The
+      asymmetry flagged by the finding (WP-D restating the rename, WP-C omitting it) is gone —
+      both bullets now open with the same rename instruction pattern, honoring WP-A's own
+      promise that this is "an explicit, required step of WP-C's and WP-D's own diffs, not an
+      afterthought."
+broad_sanity_pass:
+  clean: true
+  notes: >
+    Read plan.md in full (743 lines) beyond the three flagged spots. Grepped every
+    `kind_filtered` occurrence (23 hits) and every WP1/WP2/WP3/WP4 legacy-numbering token (0
+    hits — no stale pre-rename WP labels remain anywhere). Verified: (1) the "shape, not final
+    code" snippet at lines ~200-208 (`kind_filtered.append(ref)` inside `_referenced_artifacts`
+    itself) is unaffected by the caller-side underscore convention — it's building the
+    partition list inside the shared function, a different scope from the three callers'
+    unpacking, so no contradiction there. (2) The three dataclass field definitions
+    (`CascadeActivationResult`/`NoCascadeReport`/`DeactivationPlan`, lines ~247-261) all use the
+    plain field name `not_cascaded_kind_filtered` consistently — field naming is a separate
+    concern from the local-variable underscore convention and shows no drift. (3) The closing
+    paragraph of §12 (lines ~733-739) correctly attributes WP-B/WP-C's CLI-level tests to
+      `test_charter_activate_commands_cascade_output.py` and WP-D's to
+      `test_charter_deactivate_commands.py` plus `test_cascade.py`, consistent with both the
+      Project Structure table and each WP's own bullet. (4) No other section (Contracts,
+      Generated artifacts, Gate set, Baseline, ATDD-first, Campsite-clean, Reflexivity, PR
+      shape, Scope discipline) references the underscore convention, the WP-A/WP-D shared
+      test-file split, or the WP-C/WP-D rename symmetry, so there was no further surface for
+      drift. Nothing new surfaced; the document reads internally consistent end to end.

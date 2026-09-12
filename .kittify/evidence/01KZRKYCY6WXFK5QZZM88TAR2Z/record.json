@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZRKYCY6WXFK5QZZM88TAR2Z",
+  "completed_at": "2026-08-11T15:02:04.038419+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp01-codex.jsonl"
+}

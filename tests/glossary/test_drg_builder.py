@@ -10,7 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -23,6 +22,7 @@ from glossary.drg_builder import (
 )
 from glossary.models import Provenance, SenseStatus, TermSense, TermSurface
 from glossary.store import GlossaryStore
+from kernel.clock import now_utc
 
 pytestmark = pytest.mark.fast
 
@@ -48,7 +48,7 @@ def _active_sense(surface: str, scope: str = "spec_kitty_core") -> TermSense:
         definition=f"Definition of {surface}",
         provenance=Provenance(
             actor_id="test",
-            timestamp=datetime.now(),
+            timestamp=now_utc(),
             source="test",
         ),
         confidence=1.0,
@@ -63,7 +63,7 @@ def _draft_sense(surface: str, scope: str = "spec_kitty_core") -> TermSense:
         definition=f"Draft definition of {surface}",
         provenance=Provenance(
             actor_id="test",
-            timestamp=datetime.now(),
+            timestamp=now_utc(),
             source="test",
         ),
         confidence=0.5,
@@ -83,7 +83,9 @@ def test_glossary_urn_lane() -> None:
 
 def test_glossary_urn_is_stable() -> None:
     """Same input always produces the same URN."""
-    assert glossary_urn("mission") == glossary_urn("mission")
+    first_urn = glossary_urn("mission")
+    second_urn = glossary_urn("mission")
+    assert first_urn == second_urn
 
 
 def test_glossary_urn_prefix() -> None:

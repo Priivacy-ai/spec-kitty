@@ -144,6 +144,13 @@ class TestFinalizeTasksBootstrap:
         """finalize-tasks invokes bootstrap_canonical_state after dependency parsing."""
         mission_slug = "060-test"
         feature_dir = _build_minimal_feature(tmp_path, mission_slug)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type (mission_number is deliberately still
+        # omitted, see the assertion note below).
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+        )
 
         mock_root.return_value = tmp_path
         mock_slug.return_value = mission_slug
@@ -169,12 +176,11 @@ class TestFinalizeTasksBootstrap:
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        # _build_minimal_feature does not write meta.json, so
+        # The fixture's meta.json omits mission_number, so
         # resolve_mission_identity() yields mission_number=None (JSON null).
         # Post-083, mission_number is display-only and pre-merge missions
         # legitimately have no numeric prefix. The canonical identity is
-        # mission_id, which is not asserted here because the fixture skips
-        # meta.json entirely.
+        # mission_id, which is not asserted here because the fixture omits it.
         assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
         assert "bootstrap" in data
@@ -195,7 +201,14 @@ class TestFinalizeTasksBootstrap:
     ) -> None:
         """--validate-only passes dry_run=True to bootstrap."""
         mission_slug = "060-test"
-        _build_minimal_feature(tmp_path, mission_slug)
+        feature_dir = _build_minimal_feature(tmp_path, mission_slug)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type (mission_number is deliberately still
+        # omitted, see the assertion note below).
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+        )
 
         mock_root.return_value = tmp_path
         mock_slug.return_value = mission_slug
@@ -215,7 +228,7 @@ class TestFinalizeTasksBootstrap:
         assert result.exit_code == 0, f"CLI error: {result.output}"
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        # Fixture omits meta.json — mission_number resolves to None (JSON null)
+        # Fixture's meta.json omits mission_number — resolves to None (JSON null)
         # per the post-083 canonical identity model (FR-044).
         assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
@@ -315,7 +328,6 @@ class TestBodyNotesNoLane:
         content = wp_file.read_text(encoding="utf-8")
         assert "lane=" not in content, f"Body note should not contain 'lane=' but got:\n{content}"
 
-    @patch("specify_cli.cli.commands.agent.tasks.emit_history_added")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -326,7 +338,6 @@ class TestBodyNotesNoLane:
         mock_slug: MagicMock,
         mock_root: MagicMock,
         mock_branch: MagicMock,
-        mock_emit_history: MagicMock,
         tmp_path: Path,
     ) -> None:
         """add_history entry must not contain 'lane='."""
@@ -384,7 +395,6 @@ class TestBodyNotesNoLane:
 class TestMoveTaskHardFail:
     """move_task must raise RuntimeError when WP has no canonical status."""
 
-    @patch("specify_cli.cli.commands.agent.tasks.emit_error_logged")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
     @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
@@ -403,7 +413,6 @@ class TestMoveTaskHardFail:
         mock_review_valid: MagicMock,
         mock_read_events_transactional: MagicMock,
         mock_lock: MagicMock,
-        _mock_emit_error_logged: MagicMock,
         tmp_path: Path,
     ) -> None:
         """move_task exits with error when WP has no canonical status events."""

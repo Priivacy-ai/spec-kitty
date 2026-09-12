@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from charter._diagnostics import CharterEncodingDiagnostic
-from charter._io import CharterContent, CharterEncodingError, load_charter_bytes, load_charter_file
+from charter.activation._diagnostics import CharterEncodingDiagnostic
+from charter.activation._io import CharterContent, CharterEncodingError, load_charter_bytes, load_charter_file
 
 pytestmark = pytest.mark.fast
 
@@ -76,7 +76,7 @@ def test_pure_utf8_ingest_records_provenance_without_normalization(tmp_path: Pat
     charter_file.write_bytes(_UTF8_BYTES)
 
     # Patch provenance routing to write into tmp_path so tests don't pollute CWD.
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -114,7 +114,7 @@ def test_cp1252_ingest_normalizes_and_records_provenance(tmp_path: Path) -> None
     charter_file = tmp_path / "charter.md"
     charter_file.write_bytes(_CP1252_BYTES)
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -150,7 +150,7 @@ def test_bom_sniff_recognized(tmp_path: Path) -> None:
     charter_file = tmp_path / "charter.md"
     charter_file.write_bytes(_BOM_BYTES)
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
 
     def _patched_route(source_path: Path | None) -> Path:
@@ -209,7 +209,7 @@ def test_ambiguous_content_raises_without_unsafe(tmp_path: Path) -> None:
     # around null bytes that typically confuse the detector below threshold.
     ambiguous = b"\x80" + b"\x00" * 10 + b"\x81" + b"\x00" * 10 + b"\x9f" + b"\x00" * 5
 
-    import charter._io as _io_mod
+    import charter.activation._io as _io_mod
     original_route = _io_mod._route_provenance_path
     provenance_file = tmp_path / "provenance.jsonl"
 

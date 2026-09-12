@@ -23,10 +23,11 @@ import os
 import sqlite3
 import sys
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from kernel.clock import UTC, datetime, now_epoch, parse_iso
 
 if TYPE_CHECKING:
     from specify_cli.compat._detect.install_method import InstallMethod
@@ -269,9 +270,7 @@ class UpgradeAttemptStore:
         tail until the first non-failure record (contracts/history-store-query.md).
         """
         try:
-            import time
-
-            cutoff = time.time() - window_seconds
+            cutoff = now_epoch() - window_seconds
             with contextlib.closing(self._connect()) as conn:
                 cursor = conn.execute(
                     """\
@@ -319,7 +318,7 @@ class UpgradeAttemptStore:
             if row is None:
                 return None
             (timestamp_utc,) = row
-            dt = datetime.fromisoformat(timestamp_utc)
+            dt = parse_iso(timestamp_utc)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt.astimezone(UTC)

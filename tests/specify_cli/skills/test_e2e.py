@@ -25,6 +25,7 @@ from specify_cli.skills.manifest import (
 )
 from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.verifier import repair_skills, verify_installed_skills
+from specify_cli.tool_surface.operations import ApplyConsent
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -74,11 +75,14 @@ def test_full_lifecycle(tmp_path: Path) -> None:
     """Install skills, verify ok, delete a file, verify detects missing, repair, verify ok again."""
     project, skills_root = _setup_project(tmp_path)
 
-    # Create a canonical skill with SKILL.md and a reference
+    # Create a canonical skill with SKILL.md and a reference. The name must
+    # NOT collide with a real packaged skill: verify's drift detection
+    # compares copy-delivered entries against the package registry, so a
+    # fixture reusing a real name with fake content reports as drifted.
     _create_skill_on_disk(
         skills_root,
-        "spec-kitty-setup-doctor",
-        skill_md_content="---\nname: spec-kitty-setup-doctor\n---\n# Setup Doctor\nDiagnostic skill.\n",
+        "e2e-doctor-skill",
+        skill_md_content="---\nname: e2e-doctor-skill\n---\n# Setup Doctor\nDiagnostic skill.\n",
         references={"troubleshooting.md": "# Troubleshooting\nCommon fixes.\n"},
     )
 
@@ -100,7 +104,7 @@ def test_full_lifecycle(tmp_path: Path) -> None:
     assert result.drifted == []
 
     # Step 3: Delete one installed file
-    skill_file = project / ".claude" / "skills" / "spec-kitty-setup-doctor" / "SKILL.md"
+    skill_file = project / ".claude" / "skills" / "e2e-doctor-skill" / "SKILL.md"
     assert skill_file.exists()
     skill_file.unlink()
 
@@ -109,7 +113,7 @@ def test_full_lifecycle(tmp_path: Path) -> None:
     assert result.ok is False
     assert len(result.missing) == 1
     assert result.missing[0].source_file == "SKILL.md"
-    assert result.missing[0].skill_name == "spec-kitty-setup-doctor"
+    assert result.missing[0].skill_name == "e2e-doctor-skill"
 
     # Step 5: Repair
     repaired, failed = repair_skills(project, result, registry)
@@ -252,8 +256,19 @@ def test_drift_detection_and_repair(tmp_path: Path) -> None:
     assert actual_hash == modified_hash
     assert actual_hash != original_hash
 
-    # Repair
-    repaired, failed = repair_skills(project, result, registry)
+    # A local override is preserved until this exact path is authorized.
+    assert repair_skills(project, result, registry) == (0, 1)
+    assert installed_file.read_text(encoding="utf-8") == "User modified this content!"
+
+    repaired, failed = repair_skills(
+        project,
+        result,
+        registry,
+        consent=ApplyConsent(
+            automatic=True,
+            overwrite_paths=(".claude/skills/drift-skill/SKILL.md",),
+        ),
+    )
     assert repaired == 1
     assert failed == 0
 
@@ -360,10 +375,11 @@ def test_multi_skill_pack_installs_all_skills(tmp_path: Path) -> None:
     """Two skills in the pack are both discovered and installed correctly."""
     project, skills_root = _setup_project(tmp_path)
 
-    _create_skill_on_disk(skills_root, "spec-kitty-setup-doctor")
+    # Names must not collide with real packaged skills (see test_full_lifecycle).
+    _create_skill_on_disk(skills_root, "e2e-doctor-skill")
     _create_skill_on_disk(
         skills_root,
-        "spec-kitty-runtime-next",
+        "e2e-runtime-skill",
         references={"runtime-result-taxonomy.md": "# Taxonomy\nResult types.\n"},
     )
 
@@ -376,13 +392,13 @@ def test_multi_skill_pack_installs_all_skills(tmp_path: Path) -> None:
     save_manifest(manifest, project)
 
     # Both skills should be installed
-    assert (project / ".claude" / "skills" / "spec-kitty-setup-doctor" / "SKILL.md").is_file()
-    assert (project / ".claude" / "skills" / "spec-kitty-runtime-next" / "SKILL.md").is_file()
-    assert (project / ".claude" / "skills" / "spec-kitty-runtime-next" / "references" / "runtime-result-taxonomy.md").is_file()
+    assert (project / ".claude" / "skills" / "e2e-doctor-skill" / "SKILL.md").is_file()
+    assert (project / ".claude" / "skills" / "e2e-runtime-skill" / "SKILL.md").is_file()
+    assert (project / ".claude" / "skills" / "e2e-runtime-skill" / "references" / "runtime-result-taxonomy.md").is_file()
 
     # Manifest should track all files for both skills
-    doctor_entries = manifest.find_by_skill("spec-kitty-setup-doctor")
-    runtime_entries = manifest.find_by_skill("spec-kitty-runtime-next")
+    doctor_entries = manifest.find_by_skill("e2e-doctor-skill")
+    runtime_entries = manifest.find_by_skill("e2e-runtime-skill")
     assert len(doctor_entries) >= 1
     assert len(runtime_entries) >= 2  # SKILL.md + reference
 

@@ -7,7 +7,7 @@ related:
 - docs/plans/engineering-notes/mission-notes/index.md
 - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
 - docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
-- docs/architecture/883-mission-type-authority-brief.md
+- docs/plans/engineering-notes/883-mission-type-authority-brief.md
 ---
 
 # Mission-Type Completion Arc — Pre-Spec Research

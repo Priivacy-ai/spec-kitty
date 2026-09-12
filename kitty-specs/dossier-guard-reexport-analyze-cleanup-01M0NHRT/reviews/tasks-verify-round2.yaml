@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: plan.md now has zero "six file(s)/touched/surfaces" occurrences (grep confirmed), the Write-scopes/open-PR-overlap section documents an actual re-run of gh pr diff against all 14 open PRs specifically for the 7th file rather than merely asserting it, and IC-03's Affected surfaces list now names the 7th file with its WP03/wps.yaml traceability.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: plan.md's Test-strategy NFR-002 row, Revert-discipline bullet, Reflexivity recovery-path paragraph, and IC-03 Concrete-shape (a new binding "NFR-002 proof shape" clause that explicitly supersedes the old single-test framing) all now describe two independently-reportable pytest functions with names that exactly match WP01's current T002/T003/T004 (test_write_analysis_report_raises_on_unrelativizable_path, test_check_analysis_report_current_reports_relativization_failure_without_raising).
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: all four WP prompt files' Concurrency-note paragraphs now state explicitly that a git-merge conflict on the shared tracer file remains possible/expected despite the timestamped heading (which only prevents duplicate heading text), plus a "keeping both entries" resolution instruction, verified verbatim in WP01, WP02, WP03, and WP04.

@@ -1,0 +1,28 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: PLAN-FRESH2-001
+    lens: correspondence (source cross-reference verification)
+    severity: 3
+    title: FR-005's fix-site is repeatedly named "the `active` command" in mission_type.py, but no such command exists — the actual command is `current`
+    evidence:
+      - artifact: "plan.md § Architecture — Seam Mapping, #3831 row (line 78): \"the one CLI call site, `mission_type.py`'s `active` command, already has a loud CLI-error pattern for this exact call\""
+      - artifact: "plan.md § Architecture — Seam Mapping elaboration (line 85): \"only one is a CLI command with an obvious console to print to — `acceptance/__init__.py` and `core/worktree.py` are not... command — the `active` command)\""
+      - artifact: "plan.md § Project Structure (line 668): \"src/specify_cli/cli/commands/mission_type.py # FR-005 CLI-visible surface at the one CLI call site (`active` command)...\""
+      - code: "src/specify_cli/cli/commands/mission_type.py:132 (`@app.command(\"current\")`), :133 (`def current_cmd(...)`) — the Typer-registered command name is `current`, not `active`. No `@app.command(\"active\")` or `def active` exists anywhere in the file (grep confirmed zero matches)."
+      - code: "src/specify_cli/cli/commands/mission_type.py:190-197 (the actual fix-site block cited by line number) sits inside `current_cmd`; the word \"active\" only appears descriptively in its docstring (\"Show currently active mission\") and in one error string (\"Failed to load active mission\") at line 197, not as a command name."
+    claim: Three separate places in plan.md (§Architecture — Seam Mapping's #3831 row, its elaboration paragraph, and §Project Structure) assert that FR-005's loud-CLI-signal fix lands on "the `active` command" in `mission_type.py`. Verified against the live file — there is no command named `active`; the command that contains the cited `get_mission_for_feature` call and its sibling `console.print` error handlers is registered as `@app.command("current")` (function `current_cmd`). The "active" wording appears to be borrowed from the command's docstring/error-message prose ("currently active mission" / "Failed to load active mission"), not the actual command name. A WP implementer who greps the codebase for `mission_type active` or `def active`/`"active"` to locate this fix site (the same verification discipline this plan uses elsewhere, e.g. its own "confirmed by grep" citations) will not find it, even though the given line numbers (190-197) do correctly point at the right code — the command-name label attached to those line numbers is simply wrong everywhere it appears.
+    remediation: "Replace every \"the `active` command\" reference in plan.md (lines 78, 85, 668) with \"the `current` command (`@app.command(\"current\")`, `current_cmd`)\", matching the live Typer registration."
+  - id: PLAN-FRESH2-002
+    lens: correspondence (source cross-reference verification)
+    severity: 2
+    title: The stale C-008 docstring citation for `_dn_composition_dispatch` is off by two lines — the claim actually spans runtime_bridge.py:1777-1779, not :1775-1777 as cited
+    evidence:
+      - artifact: "plan.md § Blast Radius, \"Drift note carried forward from spec.md\" (line ~445-446): \"`_dn_composition_dispatch`'s docstring making the identical stale claim lives at `runtime_bridge.py:1775-1777` — a **second file**...\""
+      - code: "src/runtime/next/runtime_bridge.py:1767 (`def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:`)"
+      - code: "src/runtime/next/runtime_bridge.py:1777-1779 is the actual span of the stale claim: line 1777 (\"`StepContractExecutionError`. C-008 hard-guards this on\"), line 1778 (\"`mission == \\\"software-dev\\\"`; every other mission falls through (returns\"), line 1779 (\"``None``) to composition unchanged so decision-materialize runs the\"). Lines 1775-1776 (\"failure surface (Decision.kind=blocked, guard_failures populated) is\" / \"used in lieu of a Python traceback when the executor raises\") contain no part of the C-008/hard-guard claim at all."
+    claim: 'This citation was added as part of the plan''s own "Verified file location of each comment" precision pass (the same pass that correctly cites `runtime_bridge_composition.py:127` for the sibling comment, confirmed accurate against source). For the second file, the cited range `1775-1777` does not contain the "hard-guarded on mission == software-dev" text at all — that text starts two lines later, at 1777, and runs through 1779. A WP implementer using the plan''s line numbers to jump straight to the campsite-clean edit target would land two lines short of the actual stale sentence.'
+    remediation: "Correct the citation in plan.md's Blast Radius drift note (and §Campsite-Clean Scope's cross-reference to the same location, if it repeats the range) from `runtime_bridge.py:1775-1777` to `runtime_bridge.py:1777-1779`."

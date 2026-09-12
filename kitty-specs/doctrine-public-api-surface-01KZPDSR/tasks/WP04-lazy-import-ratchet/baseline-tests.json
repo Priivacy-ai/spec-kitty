@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-08-10T19:48:51Z",
+  "base_branch": "feat/doctrine-public-api-surface",
+  "base_commit": "e888559ceee139f3f50223e98c6c0fe4106a24c0",
+  "test_runner": "pytest",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/text"
+}

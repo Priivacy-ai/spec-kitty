@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import DRGLoadError, load_graph, load_graph_or_dir
+from charter.offering.drg.loader import DRGLoadError, load_graph, load_graph_or_dir
 
 
 pytestmark = pytest.mark.fast

@@ -1,5 +1,6 @@
 ---
 title: 'PROPOSAL: Charter-content encoding chokepoint location (WP06)'
+description: 'Proposes a single charter-content read chokepoint that hard-fails on non-UTF-8 input with an opt-out flag, rather than retrofitting eighteen scattered read sites.'
 status: Proposed
 date: '2026-05-12'
 ---

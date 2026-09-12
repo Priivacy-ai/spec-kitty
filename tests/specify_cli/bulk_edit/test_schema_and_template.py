@@ -1,8 +1,8 @@
 """Tests for the occurrence-map JSON Schema + starter template resources.
 
 These tests pin the invariants the reviewer asked for on PR #616:
-the schema is stored explicitly under ``src/doctrine/schemas/``, the starter
-template is stored under ``src/doctrine/templates/``, and both are loaded
+the schema is stored explicitly under ``src/charter/offering/schemas/``, the starter
+template is stored under ``src/charter/offering/templates/``, and both are loaded
 through a Python API so the SKILL file cannot drift out of sync with what
 the runtime actually enforces.
 """

@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope
+    severity: 4
+    title: "Campsite-Clean Scope claims _validate_requirement_mapping has no complexity debt, but it already exceeds the charter's ceiling (15) and this mission is about to add a branch to it"
+    evidence:
+      - artifact: "plan.md § Campsite-Clean Scope (Standing Order 2)"
+      - artifact: "plan.md § Implementation Concern Map, IC-03"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:621-675 (_validate_requirement_mapping)"
+      - code: ".kittify/charter/charter.md § Sonar Expectations: \"Complexity ceiling is 15. ... When touching a function near that limit, keep it at <=15\""
+    claim: >
+      Plan.md's Campsite-Clean Scope section states: "None of the six functions this
+      mission will modify (_evaluate_tasks_packages_guard,
+      _evaluate_composed_tasks_packages_guard, _evaluate_composed_tasks_terminal_guard,
+      _evaluate_tasks_finalize_guard, _check_requirement_mapping_ready,
+      _validate_requirement_mapping, plan_mapping) is within reach of the repo's
+      complexity ceiling (15) by inspection -- each is a short, linear sequence of guard
+      checks." This is verifiably false for _validate_requirement_mapping
+      (mission_finalize.py:621-675): an AST-based McCabe-equivalent count (base 1, +1 per
+      If/For/While/ExceptHandler, +1 per BoolOp segment beyond the first, +1 per
+      comprehension plus one per comprehension `if`) gives cyclomatic complexity 16 --
+      already ONE OVER the charter's binding ceiling of 15 (CLAUDE.md "Sonar
+      Expectations": "Complexity ceiling is 15. Ruff C901 and Sonar S3776 are aligned").
+      This is not a "short, linear sequence" -- it has a nested for-loop with an inner
+      generator-expression-with-if, a 3-term boolean-OR early-return gate, and three
+      independent if/for report-formatting blocks. IC-03 (plan.md) explicitly schedules
+      this exact function to gain a new branch ("surfacing bare-prose ids as a distinct
+      payload field"), which will push it further over the ceiling unless refactored.
+      Standing Order 2 requires campsite-cleaning (resolving Sonar findings / extracting
+      over-long functions) on surfaces about to be functionally changed, as a distinct,
+      behaviour-preserving FIRST commit -- but the plan explicitly records "no
+      domain-matched debt worth folding was found," which is the specific claim this
+      spot-check the review brief required disproves for this one function. The other
+      six functions checked (the four runtime_bridge_cores.py guards and
+      _check_requirement_mapping_ready) genuinely are short/linear and match the plan's
+      characterization -- this is an isolated but real miss, not a wholesale failure of
+      the campsite-clean pass.
+    remediation: >
+      Amend the Campsite-Clean Scope section to name _validate_requirement_mapping as an
+      in-scope complexity debt item (it is both over-ceiling today and directly
+      touched by IC-03), and scope a behaviour-preserving extraction (e.g. split the
+      per-WP classification loop from the JSON/console report-formatting branch into two
+      helpers) into the campsite-clean FIRST commit before IC-03's functional addition
+      lands -- consistent with the "resolve their Sonar findings ... before the
+      functional change" wording of Standing Order 2 the same section already cites.
+      Re-verify complexity with `ruff check --select C901` (or the project's actual mypy
+      strict / ruff toolchain) once available, since this review's count is an
+      AST-based approximation of ruff's mccabe implementation.
+
+  - id: PLAN-GOV-002
+    lens: C-008 narrowing justification
+    severity: 3
+    title: "C-008's justification for option (b) treats the absence of a broadened-predicate FP measurement as an external constraint, when spec.md never forecloses the plan phase from taking that measurement itself"
+    evidence:
+      - artifact: "plan.md § C-008 decision: Constraints-heading (C-XXX) scoping — option (b), explicitly narrowed, not broadened"
+      - artifact: "spec.md § Constraints, row C-008"
+      - artifact: "spec.md § User Story 4, Independent Test / Acceptance Scenario 4 (false-negative sample only)"
+      - artifact: "plan.md § Implementation Concern Map, IC-07 (false-negative sample, informational)"
+    claim: >
+      Plan.md's C-008 justification is: "Broadening the heading predicate to also match
+      'constraint' would pull ~88% of the corpus's ### Constraints sections into the
+      blocking detector's scope ... with no corresponding false-positive re-measurement
+      performed or available." This is presented as though the absence of that
+      measurement is a fact discovered during the plan phase rather than a choice the
+      plan phase itself made. Spec.md's C-008 constraint row requires the plan phase to
+      pick (a) or (b) "with justification," and its only measurement obligation for this
+      edge case (Story 4 AC4) is a false-negative sample -- it never says a
+      broadened-predicate false-positive rate may not be measured at plan time, or that
+      doing so would "relitigate" the already-settled, distinct 9/368 document-scoped
+      figure (a different, already-settled measurement that nobody proposes re-running).
+      Nothing in spec.md forecloses the plan phase from running the same kind of
+      corpus-scan methodology it already used for IC-07's false-negative sample against
+      the broadened-heading case to get a real FP number, before choosing (a) vs (b). The
+      plan's own text conflates two distinct "no re-measurement" claims: (1) correctly
+      not re-measuring the settled 9/368 figure, and (2) not measuring a genuinely new,
+      never-taken figure (the broadened predicate's FP rate) and then treating that
+      self-chosen gap as if it were an externally-imposed reason to narrow. The
+      risk-based half of the argument (shipping an unmeasured-noise blocking gate is
+      inconsistent with the arbiter's own stated principle) is legitimate and load-bearing
+      on its own -- but the plan does not explain why gathering that data was out of
+      plan-phase scope/budget (e.g. a stated cost/effort estimate), which is the missing
+      piece that would make "with justification" fully responsive rather than
+      partly self-referential.
+    remediation: >
+      Either (1) perform the broadened-predicate FP measurement now, using the same
+      corpus-scan approach already demonstrated for IC-07's false-negative sample, and
+      use its actual result to justify (a) or (b) with real data, or (2) if that
+      measurement is judged out of plan-phase scope, state explicitly why (e.g. "per-flag
+      manual triage of ~325 Constraints sections to classify true/false positive is a
+      multi-hour effort disproportionate to plan-phase investigation budget, deferred to
+      the mission IC-07 already schedules for future informational use") rather than
+      describing the gap as simply "not performed or available." Keep the disposition (b)
+      if the cost argument holds -- the risk-based half of the reasoning is sound; only
+      the "no data available" framing needs to be owned as a choice, not a fact.

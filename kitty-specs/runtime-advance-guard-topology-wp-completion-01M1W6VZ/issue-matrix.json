@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#3283": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    },
+    "#3883": {
+      "evidence_ref": "https://github.com/Priivacy-ai/spec-kitty/pull/3923",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "out_of_scope_2026-09-07_operator_ruling",
+      "source_file": "spec.md",
+      "title": "Out of scope (2026-09-07 operator ruling): draft PR #3923 already fixes gather_artifact_presence's primary-partition anchoring independently, in runtime_bridge_io.py. A handover comment recording this has been posted on #3883. Not this mission's work.",
+      "verdict": "unknown",
+      "wp": null
+    },
+    "#3884": {
+      "evidence_ref": "<link or commit>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "unknown",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

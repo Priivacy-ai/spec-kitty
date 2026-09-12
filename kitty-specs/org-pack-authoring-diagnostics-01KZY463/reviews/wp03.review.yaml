@@ -1,0 +1,85 @@
+schema: wp-review/v1
+wp_id: WP03
+complete: true
+verdict: approved
+findings:
+  - id: WP03-001
+    severity: 2
+    lens: baseline
+    location: "kitty-specs/org-pack-authoring-diagnostics-01KZY463/reviews/wp03.review.yaml (this review's own baseline re-derivation)"
+    finding: >
+      Both the implementer's report and this WP's review brief state the two targeted
+      shards (tests/specify_cli/doctrine/test_pack_validator.py,
+      tests/doctrine/test_agent_profile_model_field.py) were "37 passed, 5 skipped" at
+      WP02's approved tip (30b8b5062), with WP03 raising that to 40/5 (a claimed +3
+      delta). Independently re-running the exact same shards at 30b8b5062 (via
+      `git worktree add`, `uv sync --extra test`) reproducibly measures 34 passed, 5
+      skipped, not 37/5 — verified twice, and cross-checked against `--collect-only`
+      (39 items collected pre-WP03 vs 45 post-WP03). The delta is therefore +6, not +3.
+      This does not indicate a defect: +6 is exactly the number of new test functions
+      WP03 actually added (T008's fixture-proof, T009's AC-1 regression, T010 step 5's
+      AC-4 call-assertion, T011's AC-2 dedup test, T012's AC-3 clean-pack test, T013's
+      AC-5 absent-directory test), so the load-bearing invariant this check exists to
+      protect — "no red is pre-existing, the delta is exactly WP03's own new tests" —
+      genuinely holds. Only the specific quoted numbers (37, +3) are inaccurate.
+    evidence: >
+      `git worktree add /tmp/wp03-review-baseline 30b8b5062 && cd
+      /tmp/wp03-review-baseline && uv sync --extra test -q && uv run pytest
+      tests/specify_cli/doctrine/test_pack_validator.py
+      tests/doctrine/test_agent_profile_model_field.py -q` => "34 passed, 5 skipped in
+      21.69s" (also reproduced via -v, and via --collect-only showing 39 items). At the
+      lane-b tip (0556cbeae), the same command reports "40 passed, 5 skipped, 1 warning
+      in 27.65s" (45 items). 40-34=6, matching the 6 new test functions added across the
+      diff's three owned files.
+    fix: >
+      No code change required — this is a reporting-accuracy nit against the
+      implementer's stated numbers, not a functional gap. Future WP reports quoting a
+      baseline should re-derive it from a fresh checkout rather than carrying a number
+      forward, since the delta arithmetic (+3 vs the actual +6) would have caught this
+      immediately had it been checked against the actual count of new test functions in
+      the diff.
+revert_test:
+  performed: true
+  result: >
+    Isolated the implementation-only hunk (`git diff 30b8b5062..0556cbeae --
+    src/specify_cli/doctrine/pack_validator.py`, 93 lines) and reverse-applied it in
+    place on the lane-b worktree (`git apply -R`), leaving the three new/changed test
+    files untouched. Running `uv run pytest
+    tests/specify_cli/doctrine/test_pack_validator.py
+    tests/doctrine/test_agent_profile_model_field.py -q` against the reverted code
+    fails collection entirely for test_pack_validator.py: "ImportError: cannot import
+    name '_check_profile_skipped_diagnostics' from
+    'specify_cli.doctrine.pack_validator'" (1 error during collection, 0 tests run from
+    that file) — because the module-level import at test_pack_validator.py:16 pulls in
+    the helper directly for T010 step 5's AC-4 call-assertion test and T013's AC-5
+    direct-call test. This is a stronger-than-normal revert signal: every one of the 5
+    new tests in that file (plus all 30 pre-existing tests in the same file) fails
+    under revert, not just the new ones narrowly. tests/doctrine/test_agent_profile_model_field.py
+    was run separately and still passes 9/9 under the same revert (as designed — T008
+    is a model-layer fixture-proof with no dependency on pack_validator.py, per C-004's
+    own "no new runtime code there" annotation). The reverse patch applied cleanly
+    (`git apply -R --check` succeeded) and was re-applied afterward with `git status
+    --porcelain -uno` clean before and after.
+runtime_parity:
+  uses_agent_profile_repository: true
+  evidence: >
+    src/specify_cli/doctrine/pack_validator.py:799 imports
+    `from doctrine.agent_profiles.repository import AgentProfileRepository` (lazy,
+    function-local, matching the file's existing precedent at lines 168-176, 516-517,
+    707, 1038-1042, 1170); :801 constructs
+    `AgentProfileRepository(org_dirs=[pack_dir / "agent_profiles"])`; :806 iterates
+    `repo.skipped_profiles()` directly with no intermediate re-derivation of skip
+    logic. No try/except wraps construction or the skipped_profiles() call, so a
+    genuine exception during repository load (as opposed to the per-file
+    _record_skip-and-continue handling already inside AgentProfileRepository._load_layer,
+    verified at src/doctrine/agent_profiles/repository.py:429-506) would propagate and
+    crash validate_pack() rather than silently reporting a clean pack — confirmed by
+    inspection, and the absent-directory safe-path (AC-5) is proven non-vacuously by
+    test_absent_agent_profiles_directory_is_safe_and_exercised's direct call to
+    `_check_profile_skipped_diagnostics(...) == []`. AC-4's own call-assertion test
+    (test_helper_calls_repository_skipped_profiles_directly) patches
+    `doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles`
+    (verified as a real, resolvable patch target via `uv run python3
+    scripts/check_patch_targets.py tests/specify_cli/doctrine/` => "All 1 patch()
+    targets valid") and asserts it was actually called, which is non-vacuous evidence
+    the helper is not a parallel/reimplemented scan.

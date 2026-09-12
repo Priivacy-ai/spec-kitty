@@ -1,0 +1,44 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-sweep-2
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PLAN-FRESH2-001
+    lens: CI job behavior citation spot-check (arch-adversarial Gate Set row)
+    severity: 2
+    title: "arch-adversarial row's new claim \"not a docs-only/non-docs-only path distinction\" is contradicted by the same job's own runtime docs-only trim step"
+    evidence:
+      - artifact: "plan.md § Gate Set, `tests/architectural/test_shared_package_boundary.py` / `test_pyproject_shape.py` row"
+      - code: ".github/workflows/ci-quality.yml:2144-2147 (job def + `if:` — no path filter, confirmed accurate)"
+      - code: ".github/workflows/ci-quality.yml:2189-2229 (\"Detect docs-only PR\" step + \"Run architectural + adversarial suite\" step: when `docs_only == true`, the pytest marker filter narrows to `-m '<shard> and docs_scoped and not windows_ci'`; comment at ~2226-2227 says \"Docs-only trims to the docs-relevant guards (-m docs_scoped) for speed; otherwise the full always-on selection runs UNCHANGED\")"
+      - code: "tests/architectural/test_shared_package_boundary.py:11 and tests/architectural/test_pyproject_shape.py:13 — both `pytestmark = pytest.mark.architectural`, neither carries `docs_scoped`"
+    claim: >
+      This round's rewrite of the row asserts "the only opt-outs are the
+      pr:deferred/pr:skip-ci PR labels, not a docs-only/non-docs-only path
+      distinction." That overstates what was verified: the job's *if:*
+      condition indeed has no path filter (correct, and the line citations
+      for that part are accurate), but the job's own run step contains a
+      second, runtime (diff-content-based) narrowing that IS a docs-only/
+      non-docs-only path distinction — when the PR's changeset is
+      docs-only, the pytest selection collapses to `-m 'docs_scoped and
+      not windows_ci'`. Neither `test_shared_package_boundary.py` nor
+      `test_pyproject_shape.py` carries the `docs_scoped` marker (both are
+      plain `architectural`), so in a hypothetical docs-only PR neither
+      file would run at all under this job — directly contradicting the
+      row's blanket claim. For this specific mission the practical
+      conclusion ("both expected to pass") still holds, because this
+      mission's real implementation PR touches `src/runtime/next/*` and
+      `src/specify_cli/cli/commands/*` and is therefore never docs-only —
+      so this is a rationale-accuracy defect, not a wrong outcome for the
+      mission's own gate expectations.
+    remediation: >
+      Soften the claim to something verifiably true: e.g. "the job's own
+      `if:` gate carries no path filter and always fires, but its run step
+      applies a second, diff-content-based docs-only narrowing
+      (`-m docs_scoped` only) that this mission's own PR never triggers,
+      because it touches src/runtime/next/* and
+      src/specify_cli/cli/commands/*, not a docs-only changeset." Drop or
+      qualify the "not a docs-only/non-docs-only path distinction" clause
+      so it doesn't read as a general claim about the job's behavior.

@@ -1,0 +1,72 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      Contracts section (plan.md lines 454-464) retracts the false "keeps the gate green" claim and
+      re-derives the decision honestly via RECONCILE_CHANGE_SCOPE_TENSIONS (lines 466-478, a
+      Boy-Scout/Locality-of-Change rationale independent of any CI-mandate claim), and IC-04's task
+      description (lines 638-643) plus the Gate Set table row (line 514) both now require running
+      "python scripts/generate_contextive_glossaries.py generate" and committing the regenerated
+      .contextive/*.yml diff in the same commit; verified against
+      scripts/generate_contextive_glossaries.py (cmd_check at lines 329-353 only diffs generated
+      files against docs/context, confirming the retracted claim was indeed false and the new
+      rationale is sound).
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >-
+      Plan.md now cites agent_retrospect.py line 593 (equivalently line 600) for the stderr
+      err_console plus error/detail JSON pattern and explicitly warns against copying the
+      approximately 408-419 stdout _console richer-schema branch; independently verified against
+      the live file that lines 593 and 600 are _err_console.print_json calls with an
+      error/detail dict, and that lines 408-419 use _console.print_json (stdout, imported at line
+      21) with the schema_version/command/status/outcome/error/handle/next_action shape - the
+      citation now matches the pattern exactly.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      The "Fd-sharing invariant" subsection (plan.md lines 244-259) explicitly commits to one fd
+      per poll_once() call with os.fstat(fd) for the size check and seek()/read() on that same fd
+      for the hash-check and drain reads, and IC-01's "Also required" bullet (lines 574-578) adds
+      an explicit test that monkeypatches Path.stat to raise if called from within poll_once(),
+      forcing the fd-only path - both the invariant statement and the enforcing test requirement
+      the finding demanded are now present.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      Gate Set table (plan.md line 523) adds a diff-coverage row correctly identifying
+      src/specify_cli/status/* (tail_reader.py) as an enforced critical path and
+      src/specify_cli/cli/commands/events.py as excluded from it; independently verified against
+      .github/workflows/ci-quality.yml that the diff-coverage job is defined at line 3308, the
+      enforced step at 3358, critical_paths (lines 3370-3396) includes 'src/specify_cli/status/*'
+      at line 3374 but no entry for cli/commands/events.py, and quality-gate's needs list includes
+      diff-coverage (within the 4276-4331 range) - all citations match the live file.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      IC-02's ATDD bullet (plan.md lines 589-610) now names a third top-level test explicitly for
+      the plain shape-(b) truncation - no regrow, remainder DOES parse as valid JSON (asserted so
+      the test itself fails if a mid-line tear is constructed by mistake), detected via the size
+      check specifically (current_size < O) independent of parse outcome - named
+      test_clean_boundary_truncation_detected_via_size_check_even_when_parseable, and the wording
+      ties it directly to the sibling mission's exact rejected defect (a reader gating the check
+      behind parse failure).
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >-
+      IC-02's ATDD bullet (plan.md line 589) now reads "THREE separate, independently-invokable
+      top-level pytest test functions - not parametrize cases sharing one function body, not
+      multiple asserts inside one function - named separately", which forecloses both weaker
+      interpretations the finding flagged and gives an unambiguous bar for WP author and reviewer.
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: >-
+      IC-02's third test description (plan.md lines 604-610) now requires the test itself to
+      assert its own precondition immediately before the poll_once()/tail_events() call under
+      test (e.g. asserting the file's current size is greater than or equal to O) so the "cannot
+      pass by accident via the size check alone" guarantee is self-evident from the test body
+      rather than requiring a reviewer to reconstruct byte-size arithmetic from the Truncation
+      Detection Design prose.

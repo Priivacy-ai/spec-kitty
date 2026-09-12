@@ -1,0 +1,69 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FIT-001
+    status: resolved
+    reason: >-
+      Live code confirms _should_advance_wp_step (runtime_bridge.py:738-780) reads
+      its own unanchored feature_dir/tasks; the plan now extracts a shared
+      resolve_primary_anchor_dir helper reused by both gather_artifact_presence and
+      _should_advance_wp_step, correctly threads repo_root/mission_slug through all
+      three real call sites (_check_cli_guards:858, _dn_dependency_gate:1680,
+      _check_composed_action_guard:557 verified at those exact lines), correctly
+      identifies 2 genuinely-new FR-006 catch sites given the live try/except
+      boundaries around gather_artifact_presence at composition.py:543-549 (verified
+      the :557 call sits outside that try), and the no-op trace for a plan-family
+      mission (anchored or not) holds because PRIMARY_METADATA resolution is
+      content-independent (mission_runtime/resolution.py PlacementSeam.read_dir).
+  - id: PLAN-FIT-002
+    status: resolved
+    reason: >-
+      runtime_bridge_composition.py:646-663 verified to contain exactly the
+      `except StepContractExecutionError` (646) / `except Exception as exc:` (650)
+      pair through its closing return at 663; plan.md lines 292/378/590 now cite
+      646-663 instead of the wrong 672-682.
+  - id: PLAN-FIT-003
+    status: resolved
+    reason: >-
+      wp_state.py:673 verified to be the `"uninitialized": UninitializedState,`
+      dict entry; plan.md line 482 now cites :673 instead of :672.
+  - id: PLAN-SEQ-001
+    status: unresolved
+    remaining_severity: 3
+    reason: >-
+      WP1a/WP1b are correctly made production-code-independent of WP2, but the
+      fix introduces a new, unflagged contradiction in the Test Strategy: reproduction
+      #3 (WP1a) and reproduction #4 (WP1b, "against unmodified production code")
+      both call _should_advance_wp_step(..., repo_root=..., mission_slug=...) —
+      keyword args that do not exist on the live/pre-fix signature
+      (runtime_bridge.py:738, confirmed `def _should_advance_wp_step(step_id, feature_dir)`
+      with no such params, only added by WP2's Seam-2 extension) — so calling it
+      "pre-fix" would raise TypeError, not return True as the plan asserts; this
+      contradicts the plan's own claim that WP1a/WP1b run independently of and
+      before WP2's anchoring work.
+  - id: PLAN-SEQ-002
+    status: resolved
+    reason: >-
+      Explicit "Write scopes / Lane coordination" note added, correctly citing the
+      dependencies:[WP1a, WP1b] edge on WP2 (introduced by the PLAN-FIT-001 fix) as
+      the mechanism that serializes the shared runtime_bridge.py edits into one lane.
+  - id: PLAN-SEQ-003
+    status: resolved
+    reason: >-
+      Explicit "no CI-gate/migration-chain/schema serialization point applies"
+      statement added plus the test-venv-lock (#3283/NFR-003) scheduling note advising
+      against concurrent WP pytest runs in separate lanes.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      Call (b) now names test_cli_guard_family.py:487's
+      test_cli_pre_check_threads_real_repo_root pattern explicitly (construct
+      DecideNextContext by hand, call rb._dn_dependency_gate(ctx) directly) — verified
+      that exact test at that exact line does exactly this, matching the plan's claim.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      Gate Set's SonarCloud row now cites charter.md:262's actual "pytest with 90%+
+      test coverage for new code" floor (verified at that line) and the Test Strategy
+      adds an explicit six-group new-lines-vs-named-tests accounting.

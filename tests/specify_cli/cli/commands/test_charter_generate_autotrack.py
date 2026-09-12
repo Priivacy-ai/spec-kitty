@@ -71,7 +71,7 @@ def _git_initial_commit(repo: Path) -> None:
 def _write_minimal_interview(repo: Path) -> None:
     """Place a minimal interview answers.yaml so charter generate can run.
 
-    The interview file shape is what ``charter.interview.read_interview_answers``
+    The interview file shape is what ``charter.activation.interview.read_interview_answers``
     parses. We supply only the fields ``compile_charter`` consults.
     """
     interview_dir = repo / ".kittify" / "charter" / "interview"
@@ -245,9 +245,17 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
     )
 
 
-def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> None:
+def test_generate_from_interview_fails_when_answers_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``--from-interview`` must not silently fall back to defaults."""
     _git_init(tmp_path)
+    # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
+    # (e.g. a developer's home-dir kittify root, or another test's litter
+    # under the OS temp dir): without an interview file at ``tmp_path`` yet,
+    # ``locate_project_root``'s walk-up would otherwise happily resolve to
+    # that ambient ancestor instead of this fixture's repo.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
     old_cwd = os.getcwd()
     try:
@@ -264,9 +272,13 @@ def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> N
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 
-def test_generate_from_interview_missing_answers_json_is_parseable(tmp_path: Path) -> None:
+def test_generate_from_interview_missing_answers_json_is_parseable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``--json`` error output must stay machine-parseable."""
     _git_init(tmp_path)
+    # See the hermeticity note in test_generate_from_interview_fails_when_answers_missing.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
     old_cwd = os.getcwd()
     try:
@@ -535,9 +547,105 @@ def test_generic_safe_commit_targets_current_git_worktree(tmp_path: Path) -> Non
 def test_charter_template_uses_safe_commit_command() -> None:
     """Slash prompt must route commits through Spec Kitty, not raw git commit."""
     template = Path(
-        "src/doctrine/missions/mission-steps/software-dev/charter/prompt.md"
+        "packs/built-in/missions/mission-steps/software-dev/charter/prompt.md"
     ).read_text(encoding="utf-8")
 
     assert "spec-kitty safe-commit" in template
     assert "git commit" not in template
     assert "Listen intently" in template
+
+
+# ---------------------------------------------------------------------------
+# #2940 — the interview -> generate round-trip must hold, and a present-but-
+# malformed answers.yaml must be reported HONESTLY (distinct from "missing"),
+# not conflated into the "run the interview" remediation.
+# ---------------------------------------------------------------------------
+
+
+def test_interview_then_generate_consumes_answers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Close-by-construction (#2940): answers written by ``charter interview``
+    are consumed by ``charter generate --from-interview`` in the same repo.
+
+    The round-trip is correct on current main; this pins it so it can never
+    silently regress. Invokes the REAL ``interview`` command (not a
+    hand-written file) so the write->read seam is exercised end-to-end.
+    """
+    _git_init(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / ".home"))
+    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", "1")
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        interview = runner.invoke(
+            charter_app,
+            [
+                "interview", "--mission-type", "software-dev",
+                "--profile", "minimal", "--defaults", "--json",
+            ],
+            catch_exceptions=False,
+        )
+        assert interview.exit_code == 0, interview.stdout
+        assert (tmp_path / ".kittify/charter/interview/answers.yaml").exists()
+
+        generate = runner.invoke(
+            charter_app,
+            ["generate", "--from-interview", "--mission-type", "software-dev", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert generate.exit_code == 0, generate.stdout
+    payload = json.loads(generate.stdout)
+    assert payload["result"] == "success"
+    # The answers were CONSUMED, not silently replaced by defaults.
+    assert payload["interview_source"] == "interview"
+    assert "No charter interview answers found" not in generate.stdout
+
+
+def test_generate_from_interview_reports_malformed_answers_distinctly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2940 honesty: a present-but-malformed ``answers.yaml`` must NOT be
+    reported as 'No charter interview answers found'.
+
+    That message sends the operator to re-run the interview, when the real
+    problem is a corrupt/wrong-shape file that a fresh interview would just
+    overwrite — masking the actual fault. The diagnostic must name the file
+    and its malformed shape instead.
+    """
+    _git_init(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    interview_dir = tmp_path / ".kittify" / "charter" / "interview"
+    interview_dir.mkdir(parents=True, exist_ok=True)
+    # Parses as valid YAML, but the top level is a list, not a mapping —
+    # exactly the shape ``read_interview_answers`` degrades to ``None`` on.
+    (interview_dir / "answers.yaml").write_text(
+        "- not\n- a\n- mapping\n", encoding="utf-8"
+    )
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        result = runner.invoke(
+            charter_app, ["generate", "--from-interview", "--json"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code != 0
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["result"] == "error"
+    # Honest: names the file + its malformed shape, NOT the missing-file message.
+    assert "No charter interview answers found" not in payload["error"]
+    assert "answers.yaml" in payload["error"]
+    assert (
+        "malformed" in payload["error"].lower()
+        or "not a mapping" in payload["error"].lower()
+    )

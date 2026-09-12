@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "mission_slug": "chain-b-consent-bypass-3167-01KZ63HK",
+  "mission_id": "01KZ63HKFH4Y9HDA0HT3PHR4DR",
+  "mission_branch": "kitty/mission-chain-b-consent-bypass-3167-01KZ63HK",
+  "target_branch": "feat/chain-b-consent-bypass-3167",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/verify_batch_retirement_3167.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/batch.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_batch_drain_retired_3167.py",
+        "tests/architectural/test_batch_split_single_authority.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/sync/test_batch_error_surfacing.py",
+        "tests/sync/test_batch_sync.py",
+        "tests/sync/test_integration.py",
+        "tests/sync/test_offline_replay.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/sync/_leak_guard.py",
+        "tests/sync/conftest.py",
+        "tests/sync/test_no_queue_drain_constructed_3030.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/context/orchestration.md",
+        "src/specify_cli/sync/runtime.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-04T22:00:30.720065+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "21927f4a7359de7524b2295172506cf77b03699b"
+}

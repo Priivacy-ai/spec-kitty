@@ -161,6 +161,26 @@ def actor_identity_str(actor: ActorField) -> str:
 
 
 @dataclass(frozen=True)
+class CurrentWpState:
+    """Current WP state resolved from a single in-transaction reduction.
+
+    Returned by ``read_current_wp_state_transactional`` and derived by
+    ``wp_lane_actor_from_events`` from the SAME reduction (C-002: no second
+    reduce, no split-brain identity reader). ``role`` is the already-reduced
+    resolved-binding ``role`` slot — carried, never re-derived by splitting the
+    actor string (#2861). It may be blank/``None`` (a binding-less claim records
+    no role, so collision detection downstream is best-effort).
+
+    An unseeded WP (no events / absent from the snapshot) yields
+    ``CurrentWpState(Lane.GENESIS, None, None)``.
+    """
+
+    lane: Lane
+    actor: str | None
+    role: str | None
+
+
+@dataclass(frozen=True)
 class RepoEvidence:
     """Evidence of code changes in a repository."""
 
@@ -323,6 +343,15 @@ class StatusEvent:
     force: bool
     execution_mode: str  # "worktree" or "direct_repo"
     reason: str | None = None
+    # Provenance discriminator for the human ``reason`` (FR-001, mission
+    # completion-terminal-state). ``"operator"`` iff the reason was authored by
+    # the operator (a non-empty ``--note``); ``"synthetic"`` for the CLI's
+    # auto-backfilled default (``"Force move to <lane>"`` / ``"move-task: …"``).
+    # ``None`` for legacy events written before this field existed (NFR-002) and
+    # for transitions where provenance is not tracked (only cancellations set it
+    # today). Emitted to the wire only when populated so pre-existing event-log
+    # lines stay byte-identical.
+    reason_source: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
     review_result: ReviewResult | None = None
@@ -352,6 +381,10 @@ class StatusEvent:
         }
         if self.review_result is not None:
             d["review_result"] = self.review_result.to_dict()
+        # Emit only when populated so legacy event-log lines (and their golden
+        # fixtures) stay byte-identical — mirrors mission_id / review_result.
+        if self.reason_source is not None:
+            d["reason_source"] = self.reason_source
         if self.mission_id is not None:
             d["mission_id"] = self.mission_id
         return d
@@ -382,6 +415,8 @@ class StatusEvent:
             force=data["force"],
             execution_mode=data["execution_mode"],
             reason=data.get("reason"),
+            # None for legacy events written before reason_source existed (NFR-002).
+            reason_source=data.get("reason_source"),
             review_ref=data.get("review_ref"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
             review_result=(
@@ -413,6 +448,22 @@ class ReviewOverride:
     def complete(self) -> bool:
         """True only when all four fields are non-empty."""
         return bool(self.at and self.actor and self.wp_id and self.reason)
+
+    @property
+    def is_release_sentinel(self) -> bool:
+        """True only when ALL four fields are empty.
+
+        This is the narrow "release" shape ``_mt_emit_runtime_state`` emits on
+        a ``--to planned`` rollback to explicitly clear a stale override (see
+        the reducer's ``_apply_annotation_delta`` docstring). It is
+        deliberately narrower than ``not complete``: a *partially*-filled
+        override (e.g. ``at``/``actor``/``wp_id`` present but a blank
+        ``reason``, #2684 WP09) is incomplete but NOT a release sentinel — it
+        must still be persisted in the snapshot (so its non-completeness keeps
+        blocking the merge gate) rather than silently discarded as if no
+        override attempt had ever been recorded.
+        """
+        return not (self.at or self.actor or self.wp_id or self.reason)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -493,11 +544,33 @@ class WPInnerStateDelta:
     agent_profile_version: str | None = None
     model: str | None = None
     provider: str | None = None
+    # Explicit claim-release marker (WP: partition-authority residuals, #2960
+    # follow-up). A bare ``agent=""`` (or any blank scalar) is, by design, a
+    # NO-OP over the reducer's blank-protection guard (see __post_init__ /
+    # _apply_annotation_delta) — it must never clobber a real recorded value.
+    # But a legitimate claim RELEASE (e.g. ``move-task --to planned``) needs a
+    # way to say "clear the claim triple for real", which a per-field string
+    # sentinel cannot express cleanly because the group is mixed-type
+    # (``shell_pid`` is ``int | None``, not ``str | None``). This single
+    # explicit ``bool`` flag is that signal: when ``True`` the reducer clears
+    # ``agent``/``shell_pid``/``shell_pid_created_at`` (the claim triple,
+    # FR-004) to falsy, distinct from — and unaffected by — the bare
+    # empty-string no-op guard. It is a first-class part of the delta
+    # contract: any caller can emit it, and the reducer honors it regardless
+    # of which transition (or no transition at all) accompanies the
+    # annotation. Not a member of ``_SCALAR_FIELDS`` (it is not a ``str |
+    # None`` scalar) and not folded through ``_REPLACE_SLOTS`` — it is applied
+    # as its own explicit step in ``_apply_annotation_delta`` (reducer.py).
+    release_runtime_claim: bool = False
 
     #: Single authoritative list of the pure ``str | None`` scalar fields that
     #: round-trip trivially on the wire. Backs ``to_dict``/``from_dict`` (one
     #: source of truth — D-14). A new scalar slot is added here once; the two
     #: serializers pick it up as data. NOT a dataclass field (``ClassVar``).
+    #: ``release_runtime_claim`` is deliberately EXCLUDED: it is a ``bool``,
+    #: not a ``str | None`` scalar, and it must never be routed through the
+    #: ``""`` -> ``None`` blank-protection normalization below (a ``bool`` has
+    #: no ``""`` state to normalize).
     _SCALAR_FIELDS: ClassVar[tuple[str, ...]] = (
         "shell_pid_created_at",
         "agent",
@@ -509,13 +582,40 @@ class WPInnerStateDelta:
         "provider",
     )
 
+    def __post_init__(self) -> None:
+        """Write-boundary normalization (#2960 / FR-014).
+
+        An empty-string scalar runtime slot is meaningless — it carries no
+        attribution. Normalize ``""`` -> ``None`` for every ``str | None`` scalar
+        field so the append-only log **never records a blanking delta**: a stray
+        ``agent: ""`` (or any blank scalar) can no longer clobber a real recorded
+        value when the reducer folds it. This is the durable net; the reducer's
+        empty-string no-op guard is the read-side belt-and-braces for logs that
+        were written before this normalization existed.
+        """
+        for name in self._SCALAR_FIELDS:
+            if getattr(self, name) == "":
+                object.__setattr__(self, name, None)
+
     def is_empty(self) -> bool:
         """True when the delta touches no slot (all fields ``None``).
 
         Iterates the dataclass fields directly, so a newly-added optional field
         is covered automatically with no hand-maintained list to keep in sync.
+
+        ``release_runtime_claim`` is the one field this scan does NOT apply the
+        ``is None`` check to: it is a ``bool`` (default ``False``, never
+        ``None``), so it is checked separately — ``True`` alone makes the delta
+        non-empty (a real claim-release request must actually be emitted); the
+        default ``False`` never manufactures a non-empty delta on its own.
         """
-        return all(getattr(self, f.name) is None for f in fields(self))
+        if self.release_runtime_claim:
+            return False
+        return all(
+            getattr(self, f.name) is None
+            for f in fields(self)
+            if f.name != "release_runtime_claim"
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Emit only present fields so the reducer's "absent leaves slot
@@ -542,6 +642,8 @@ class WPInnerStateDelta:
             value = getattr(self, name)
             if value is not None:
                 d[name] = value
+        if self.release_runtime_claim:
+            d["release_runtime_claim"] = True
         return d
 
     @classmethod
@@ -567,6 +669,7 @@ class WPInnerStateDelta:
                 else None
             ),
             review=review,
+            release_runtime_claim=bool(data.get("release_runtime_claim", False)),
             **scalars,
         )
 
@@ -754,6 +857,10 @@ class TransitionRequest:
     to_lane: str | None = None
     force: bool = False
     reason: str | None = None
+    # Provenance discriminator carried onto the emitted event's ``reason_source``
+    # (FR-001). Set to ``"operator"`` / ``"synthetic"`` at the cancel emit site;
+    # ``None`` (the default) for every transition that does not track provenance.
+    reason_source: str | None = None
     # Actor
     actor: ActorField | None = None
     execution_mode: str = "worktree"
@@ -771,6 +878,7 @@ class TransitionRequest:
     # this transition. Emitters persist it in the same atomic/transactional
     # unit as the lane event, so a resolved binding can never lag its claim.
     annotation_delta: WPInnerStateDelta | None = None
+    effective_root: Path | None = None
 
 
 @dataclass
@@ -793,6 +901,16 @@ class GuardContext:
     force: bool = False
     review_result: Any = None
     current_actor: str | None = None
+    # Dependency readiness verdict (FR-012, tri-state). ``None`` = no verdict
+    # supplied => the guard PASSES (fail-OPEN, C-004 / decision Q8
+    # ``01M1V8HVDQH36X06JDK22SZV02``): the crash-recovery progression probe and
+    # the FR-015 backward-edge probe build bare contexts on exactly the guarded
+    # edges. ``False`` refuses ``planned -> claimed`` and
+    # ``claimed -> in_progress`` (force with actor+reason bypasses at
+    # ``check_transition``); ``True`` passes. The emit shells always supply a
+    # verdict, resolved in-lock against their write surface (FR-013). Do NOT
+    # copy ``subtasks_complete``'s fail-closed ``is not True`` polarity here.
+    dependency_ready: bool | None = None
 
 
 # ---------------------------------------------------------------------------

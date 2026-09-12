@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-09-08'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -29,14 +29,14 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool. |
+| **Definition** | A tool-visible artifact or configuration entry that Spec Kitty installs, verifies, repairs, or packages for a concrete execution tool. This is `surface` **Sense 1** — the tool-facing sense, one of two unrelated domains that share the word. Realized in code by the `ToolSurfaceKind` enum in `src/specify_cli/tool_surface/enums.py` (members `COMMAND_SKILL`, `DOCTRINE_SKILL`, `CONTEXT_FILE`, `RULE`, `HOOK`, `AGENT_PROFILE`, `PLUGIN_MANIFEST`, `NATIVE_CONFIG`, `COMMAND_FILE`), renamed from the bare `SurfaceKind` per ADR [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md). |
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
 | **Examples** | slash command file, skill directory, custom agent profile file, hook config, MCP config, plugin manifest |
 | **Use when** | Describing install/config/doctor/plugin ownership for Claude Code, Codex, Copilot, Cursor, Windsurf, Kiro, or another concrete tool. |
-| **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. |
-| **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent) |
+| **Do NOT use when** | Describing logical collaborator identity, assignment, handoff, or role; use [Agent](./identity.md#agent) or [Agent Profile](./identity.md#agent-profile) instead. The concept is the physical tree a mission artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface) (`surface` **Sense 2**). Never write bare "surface" in governed prose; name the sense ("tool surface" / "topology surface"). |
+| **Related terms** | [Tool](#tool), [Slash Command](#slash-command), [Agent](./identity.md#agent), [Topology Surface](./orchestration.md#topology-surface) |
 
 ---
 
@@ -233,7 +233,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Materialization trigger** | First concrete actor-kind-mismatch bug, or first feature requiring cross-log (status/retrospective/run) actor identity join |
-| **Placement when materialized** | `src/specify_cli/kernel/actor.py` (Shared Kernel layer) |
+| **Placement when materialized** | `src/kernel/` (Shared Kernel layer) |
 | **Related terms** | [communication artefact](#communication-artefact) |
 | **ADR** | `docs/adr/3.x/2026-06-03-3-effector-actor-model.md` |
 
@@ -261,5 +261,20 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Symbols unchanged this slice** | This entry canonicalizes the prose term only. The underlying code symbols (`primary_feature_dir_*` and the rest of the Sense-C checkout cluster) are **not** renamed in this mission; the code rename is Track 2 (#2730). |
-| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](./orchestration.md#primary-partition). The concept is the repository's default integration branch — use [Primary Branch](./orchestration.md#primary-branch). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Avoid the retired aliases "primary surface" and "primary checkout". |
-| **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [Primary Branch](./orchestration.md#primary-branch) |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](./orchestration.md#primary-partition). The concept is the repository's default integration branch — use [primary branch](./orchestration.md#primary-branch). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Avoid the retired aliases "primary surface" and "primary checkout". |
+| **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [primary branch](./orchestration.md#primary-branch) |
+
+---
+
+### Shadow Clone (Isolated Dev Environment)
+
+| | |
+|---|---|
+| **Definition** | A contributor/maintainer practice for developing Spec Kitty itself: a standalone repository-root checkout of the Spec Kitty codebase whose CLI and runtime state are pinned to that checkout, so it does not interfere with a machine-global install or with sibling checkouts. Isolation has two axes — **code** (a clone-local `.venv` editable install placed first on `PATH`, so `spec-kitty` runs the checkout's live `src/`) and **state** (`SPEC_KITTY_HOME` pointed at a clone-local root so the offline queue, sync daemon, event journal, auth, gate-locks, and trackers do not land in the shared `~/.spec-kitty`). It is the non-containerised isolation option, chosen for speed over the stronger isolation of a container. |
+| **Context** | Execution |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Examples** | A stable *primary* checkout backing the machine-global `spec-kitty`, plus one or more *shadow* checkouts each activated per-session against its own `.venv` and `SPEC_KITTY_HOME`. |
+| **Use when** | Describing how a maintainer runs several Spec Kitty checkouts on one machine without cross-mission pollution, or the `SPEC_KITTY_HOME` / clone-local `.venv` isolation levers that make that safe. |
+| **Do NOT use when** | The concept is a per-work-package worktree under [`.worktrees/`](./configuration-project-structure.md#worktrees) inside a single checkout (that is intra-mission execution isolation, not a separate clone). The concept is the canonical [repository root checkout](#repository-root-checkout) of a *consumer* project rather than a maintainer's isolated development copy of Spec Kitty. |
+| **Related terms** | [repository root checkout](#repository-root-checkout), [Lane](./orchestration.md#lane), [Build](./orchestration.md#build) |

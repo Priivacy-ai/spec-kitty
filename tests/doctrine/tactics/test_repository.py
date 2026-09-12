@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.tactics.repository import TacticRepository
+from charter.offering.tactics.repository import TacticRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -30,12 +30,6 @@ class TestTacticRepository:
         repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         assert repo.get("nonexistent-tactic") is None
 
-    def test_load_from_custom_shipped_dir(self, tmp_tactic_dir: Path) -> None:
-        repo = TacticRepository(built_in_dir=tmp_tactic_dir)
-        tactics = repo.list_all()
-        assert {t.id for t in tactics} == {"test-tactic"}
-        assert tactics[0].id == "test-tactic"
-
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
         shipped = tmp_path / "built-in"
@@ -51,7 +45,7 @@ class TestTacticRepository:
     def test_save_writes_valid_yaml(
         self, tmp_path: Path, sample_tactic_data: dict
     ) -> None:
-        from doctrine.tactics.models import Tactic
+        from charter.offering.tactics.models import Tactic
 
         project_dir = tmp_path / "project"
         repo = TacticRepository(
@@ -71,7 +65,7 @@ class TestTacticRepository:
     def test_save_raises_without_project_dir(
         self, tmp_path: Path, sample_tactic_data: dict
     ) -> None:
-        from doctrine.tactics.models import Tactic
+        from charter.offering.tactics.models import Tactic
 
         repo = TacticRepository(built_in_dir=tmp_path / "empty")
         tactic = Tactic.model_validate(sample_tactic_data)
@@ -145,7 +139,7 @@ class TestTacticRepository:
         self, tmp_path: Path, enriched_tactic_data: dict
     ) -> None:
         """Acceptance: saving and reloading preserves all fields."""
-        from doctrine.tactics.models import Tactic
+        from charter.offering.tactics.models import Tactic
 
 
         project_dir = tmp_path / "project"

@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: Both citations (Clarifications Q&A at spec.md:195 and FR-010 table at spec.md:375) now read "lines 317-342", which matches the actual span of test_preserves_legacy_positional_order (def at line 317, closing brace at line 342) verified directly in tests/dossier/test_events.py.

@@ -1,0 +1,87 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/mission.schema.yaml
+title: Mission
+description: Minimal schema for doctrine mission definitions.
+type: object
+additionalProperties: false
+required:
+- schema_version
+- key
+- name
+definitions:
+  mission_step:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - display_name
+    - step_type
+    - prompt_template
+    properties:
+      id:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      display_name:
+        type: string
+        minLength: 1
+      step_type:
+        type: string
+        minLength: 1
+        enum:
+        - agent
+        - human_in_loop
+        - integration
+      prompt_template:
+        type: string
+        minLength: 1
+      agent-profile:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      guidance:
+        type: string
+      delegates_to:
+        type: array
+        items:
+          type: string
+      depends_on:
+        type: array
+        items:
+          type: string
+      sequence_index:
+        type: integer
+      in_action_sequence:
+        type: boolean
+        default: false
+      recommended_model_tier:
+        type: string
+      template:
+        $ref: '#/definitions/mission_step_template_ref'
+  mission_step_template_ref:
+    type: object
+    additionalProperties: false
+    required:
+    - artifact_key
+    - template_file
+    properties:
+      artifact_key:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      template_file:
+        type: string
+        minLength: 1
+properties:
+  schema_version:
+    type: string
+    pattern: ^1\.0$
+  key:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+  name:
+    type: string
+    minLength: 1
+  description:
+    type: string
+  steps:
+    type: array
+    items:
+      $ref: '#/definitions/mission_step'

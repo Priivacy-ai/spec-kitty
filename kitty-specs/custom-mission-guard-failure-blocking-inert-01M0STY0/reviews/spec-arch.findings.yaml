@@ -1,0 +1,111 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: SPEC-ARCH-001
+    lens: MISSION-DERIVED — repo_root-threading layering check
+    severity: 4
+    title: "FR-004/FR-008 describe the repo_root-optional-parameter shape but never require threading the already-in-scope repo_root through the intermediate call chain, so a literal implementation can leave the org tier unreached at every real runtime call site"
+    evidence:
+      - artifact: "spec.md § FR-004 (lines 268-278): \"an optional repo_root: Path | None = None-shaped parameter... so this fix does not require every current call site to change shape simultaneously\""
+      - artifact: "spec.md § FR-003 (lines 260-266): names the tolerant wrapper, the composed-action guard, and both of runtime_bridge.py's pre-check blocks as the \"three call sites\" that must converge"
+      - artifact: "spec.md § User Story 2 / AC1 (lines 173-177) and SC-003 (lines 401-403): the org manifest must actually be \"the manifest actually consulted\" by the live guard evaluation"
+      - code: "src/runtime/next/runtime_bridge_io.py:841 — _presence_filenames_for(mission_family: str) takes no repo_root/project_dir"
+      - code: "src/runtime/next/runtime_bridge_io.py:931 — gather_artifact_presence(feature_dir, *, mission_family, step_id, legacy_step_id=None) takes no repo_root either"
+      - code: "src/runtime/next/runtime_bridge.py (CLI/WP-iteration pre-check function): _check_cli_guards(current_step_id, feature_dir) is called at ~line 1608 and ~line 1632 with no repo_root, even though repo_root is already a live local in the SAME enclosing function — e.g. `resolve_mission_path(mission_type, repo_root)` a few lines earlier and `_build_wp_iteration_decision(..., repo_root, ...)` right after the pre-check"
+      - code: "src/runtime/next/runtime_bridge_composition.py:504 — _dispatch_via_composition(*, repo_root: Path, ..., feature_dir: Path, ...) already receives repo_root as a REQUIRED keyword param, yet its own call to the guard at line 626 (`_rb._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)`) drops it"
+      - code: "src/specify_cli/dossier/manifest.py:193-194 — the cited precedent, ManifestRegistry.load_manifest(mission_type, repo_root: Path | None = None), for comparison"
+    claim: >
+      FR-004/FR-008 accurately describe the repo_root-optional-parameter SHAPE of the
+      ManifestRegistry.load_manifest precedent (verified real at dossier/manifest.py:193-194,
+      including its documented org-roots-existence-filtering behavior in
+      charter/org_expected_artifacts.py). Investigation for this review confirms repo_root IS
+      genuinely available, unresolved, at every real production call site that reaches the
+      guard-evaluation chain today: the enclosing CLI/WP-iteration dispatch function in
+      runtime_bridge.py already holds repo_root as a local (used moments before AND after the
+      two `_check_cli_guards(current_step_id, feature_dir)` calls), and
+      `_dispatch_via_composition` in runtime_bridge_composition.py already receives repo_root
+      as a required keyword parameter before it calls the composed-action guard. So the
+      layering concern the lens was written to probe (missing repo_root, forcing a wider
+      signature change) does NOT materialize — this is the good half of the finding. The bad
+      half: FR-004's own permissive framing ("does not require every current call site to
+      change shape simultaneously") gives an implementer explicit license to add the optional
+      parameter to `_presence_filenames_for` / `required_artifacts_for` without also updating
+      `gather_artifact_presence`, `_check_cli_guards`, and `_check_composed_action_guard` (the
+      three-plus sites FR-003 itself names as the convergence set) to actually pass the
+      already-available repo_root down through the chain. None of FR-003, FR-004, or FR-008
+      states — as a requirement, not just a possibility — that these specific intermediate
+      functions' signatures MUST gain a repo_root parameter and MUST forward the real value
+      they already hold. An implementation that adds the optional parameter deep in the call
+      stack, satisfies FR-004's literal text, and passes NFR-001 byte-compat for the four
+      built-in families (which never exercise the org branch) could still leave every
+      production caller passing repo_root=None (i.e., unchanged built-in-only behavior) — which
+      would make User Story 2 / AC1 and SC-003 (the org-tier manifest actually being consulted
+      by the live runtime guard) fail, silently reproducing the exact "ships but nothing
+      consumes it" defect class SK-79 already diagnosed for `required_artifacts_for` itself.
+    remediation: >
+      Add an explicit FR (or strengthen FR-004) stating that `gather_artifact_presence`,
+      `_check_cli_guards`, and `_check_composed_action_guard` (runtime_bridge.py /
+      runtime_bridge_composition.py) MUST each gain a `repo_root: Path | None = None`
+      parameter and MUST forward the real, already-in-scope repo_root value from their own
+      callers (name the two concrete sites: the CLI/WP-iteration dispatch function in
+      runtime_bridge.py, and `_dispatch_via_composition` in runtime_bridge_composition.py) all
+      the way down to `_presence_filenames_for` and `required_artifacts_for` — not merely that
+      the leaf functions accept an optional parameter. Add an acceptance scenario or NFR that
+      pins this end-to-end wiring directly (e.g., a test that patches `resolve_org_roots` and
+      asserts it was invoked with the real repo_root when the CLI/WP-iteration path runs a
+      custom family with an org-tier manifest), so "the parameter exists" cannot be mistaken
+      for "the parameter is populated with a real value at every production call site."
+  - id: SPEC-ARCH-002
+    lens: Layering (kernel/doctrine/CLI seams) + Contracts
+    severity: 4
+    title: "FR-001/FR-003/FR-006 imply the new manifest-consulting evaluation logic runs inside runtime_bridge_cores.py, which is bound by an active, non-vacuous architectural gate forbidding any non-stdlib import"
+    evidence:
+      - artifact: "spec.md § FR-001 (lines 239-245): \"When _GUARD_TABLES.get(snapshot.mission_family) ... has no entry ... guard evaluation MUST consult that manifest's blocking requirements ... instead of raising / degrading to []\" — describing the exact branch `evaluate_guards_strict` already implements at runtime_bridge_cores.py:693-696"
+      - artifact: "spec.md § FR-003 (lines 260-262): explicitly names \"the tolerant wrapper (evaluate_guards, runtime_bridge_cores.py:699-716)\" as one of the sites that must \"reach the same FR-001 evaluation\""
+      - artifact: "spec.md § FR-006 (lines 289-297): \"the new FR-001 evaluator consulting required_artifacts_for(step, mission_type) ... against the family-scoped presence snapshot FR-005 gathers\" — required_artifacts_for is an I/O-performing, non-stdlib-importing resolver.py function"
+      - code: "src/runtime/next/runtime_bridge_cores.py:676-696 — _GUARD_TABLES / evaluate_guards_strict, verified matching the FR-001-cited line range exactly"
+      - code: "tests/architectural/test_bridge_cores_import_boundary.py:1-27 — \"Import-boundary gate for runtime_bridge_cores.py's zero-dependency-leaf invariant (WP04, C-007, IC-08)\": an AST-walk (catches in-function/in-try imports, not just module-level) asserting zero non-stdlib import edges out of runtime_bridge_cores.py other than runtime.next.decision; this is a currently-passing, non-vacuous gate, not aspirational docstring text"
+      - code: "src/runtime/next/runtime_bridge_cores.py:354-360 — the module's own _ArtifactPresenceSnapshotLike Protocol docstring: \"cores.py stays a stdlib-only pure leaf (research.md §Import DAG: no runtime_bridge_io import here)\""
+      - code: "src/specify_cli/runtime/resolver.py:634-654 — required_artifacts_for calls _load_expected_artifact_manifest, which imports charter.missions.{ExpectedArtifactManifest,MissionTemplateRepository} (non-stdlib) to do disk I/O"
+    claim: >
+      FR-001's text describes the new behavior as replacing the exact raise/degrade branch
+      that lives inside `evaluate_guards_strict` (runtime_bridge_cores.py:693-696, confirmed
+      the cited line range 676-681 for `_GUARD_TABLES` is accurate). FR-003 goes further and
+      explicitly names `runtime_bridge_cores.evaluate_guards` itself (not just its callers) as
+      one of the sites that must "reach the same FR-001 evaluation." FR-006 says that
+      evaluation "consult[s] required_artifacts_for(step, mission_type)" — a resolver.py
+      function whose only production implementation today performs disk I/O and imports
+      `charter.missions` (confirmed non-stdlib). But `runtime_bridge_cores.py` is the subject
+      of an ACTIVE, currently-green architectural gate (`tests/architectural/
+      test_bridge_cores_import_boundary.py`, referencing constraints C-007/IC-08 from the prior
+      `runtime-bridge-degod` mission) that walks the full AST — including in-function and
+      in-`try` imports, not just module-level ones — and fails on ANY non-stdlib import out of
+      that file other than `runtime.next.decision`. If an implementer follows FR-001/FR-003/
+      FR-006 literally and adds the manifest-consulting fallback (which needs
+      `required_artifacts_for`, hence `charter.missions`/`doctrine.missions`, hence non-stdlib
+      imports) directly into `evaluate_guards_strict` or `evaluate_guards` in cores.py, this
+      currently-green gate goes red immediately — a genuine contradiction between what the FRs
+      literally ask for and what the codebase's own enforced invariant permits. The spec never
+      states the correct resolution (most likely: the required-blocking-artifact-name set must
+      be computed during the I/O-gathering phase in runtime_bridge_io.py and threaded into
+      ArtifactPresenceSnapshot as a NEW field, e.g. `blocking_artifact_names`, so cores.py's
+      evaluator stays a pure function of snapshot data it is merely handed — never a caller of
+      `required_artifacts_for` itself), so this design decision is currently left to whichever
+      WP implementer discovers the gate failure, rather than being settled at spec/plan time.
+    remediation: >
+      Either (a) amend FR-006 to state explicitly that the manifest's blocking-filtered
+      filename set is computed in the I/O layer (runtime_bridge_io.py, alongside
+      `_presence_filenames_for`) and passed into `ArtifactPresenceSnapshot` as a new field —
+      keeping `runtime_bridge_cores.py`'s evaluator a pure function of the snapshot, so
+      `test_bridge_cores_import_boundary.py` stays green by construction — and update FR-001/
+      FR-003's wording so they no longer read as if the manifest consultation happens inside
+      `evaluate_guards_strict`/`evaluate_guards` themselves; or (b) if the intent genuinely is
+      to relax the cores.py zero-dependency-leaf invariant for this one case, say so explicitly
+      as a Non-Goal exception with its own FR, name `test_bridge_cores_import_boundary.py` as a
+      test that must be updated (with the ADR/C-007/IC-08 rationale it enforces reconciled),
+      and get that reclassification decided at spec/plan time rather than discovered mid-WP.
+      Either way, add data-model.md language (at plan phase) pinning where the new field/data
+      lives so no two WP implementers make different choices.

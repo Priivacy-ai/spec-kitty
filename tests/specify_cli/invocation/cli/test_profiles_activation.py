@@ -69,7 +69,7 @@ def _write_project_doctrine_profile(repo_root: Path, profile_id: str = _PROJECT_
     """Write a project-doctrine profile under the charter synthesis path."""
     profiles_dir = repo_root / ".kittify" / "doctrine" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
-    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    source = Path("packs/built-in/agent_profiles/reviewer-renata.agent.yaml")
     text = source.read_text(encoding="utf-8")
     text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
     text = text.replace("name: Reviewer Renata", "name: Local Lena")
@@ -81,7 +81,7 @@ def _write_org_doctrine_profile(repo_root: Path, profile_id: str = _ORG_ID) -> P
     org_root = repo_root / "org-pack"
     profiles_dir = org_root / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
-    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    source = Path("packs/built-in/agent_profiles/reviewer-renata.agent.yaml")
     text = source.read_text(encoding="utf-8")
     text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
     text = text.replace("name: Reviewer Renata", "name: Org Olivia")
@@ -119,7 +119,28 @@ class TestListActivationFilter:
     def test_unconfigured_output_is_byte_identical_to_unfiltered_descriptors(
         self, tmp_path: Path
     ) -> None:
-        """NFR-001: default JSON for an unconfigured project == unfiltered baseline."""
+        """NFR-001: default JSON for an unconfigured project == unfiltered baseline.
+
+        Baseline: descriptors built directly from the registry (the pre-WP04
+        data source and schema).
+
+        Restored (landing-fold regression fix, charter-sole-door-bypass-
+        closure-01KZ3WAA): WP01 unified ``ProfileRegistry``'s builder to
+        always compute ``active_languages=infer_repo_languages(repo_root)``.
+        A prior revision of that unification made ``infer_repo_languages``
+        return an *explicitly empty* list for an unconfigured project (no
+        ``charter.yaml``, no interview answers), which narrowed
+        ``ProfileRegistry``'s catalog down to language-agnostic profiles only
+        (e.g. ``frontend-freddy`` dropped out) — breaking byte-identity with
+        the unfiltered baseline and forcing this test to stop using
+        ``ProfileRegistry`` as the stand-in. ``infer_repo_languages`` now
+        resolves that "truly nothing configured yet" case to ``None``
+        ("unknown" — admits every scoped profile) instead, so
+        ``ProfileRegistry(tmp_path).list_all()`` is byte-identical to a bare
+        ``AgentProfileRepository().list_all()`` again for an unconfigured
+        project, and the original, stricter, non-fakeable baseline (built
+        from the real data source the CLI itself composes from) is restored.
+        """
         (tmp_path / ".kittify").mkdir(parents=True)
 
         # Baseline: descriptors built directly from the registry (the pre-WP04
@@ -339,7 +360,7 @@ def _profile_with_parent() -> tuple[str, str] | None:
     which case the lineage-warning tests skip (the warning path is exercised
     only when real lineage exists).
     """
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
 
     repo = AgentProfileRepository()
     for profile_id in sorted(p.profile_id for p in repo.list_all()):

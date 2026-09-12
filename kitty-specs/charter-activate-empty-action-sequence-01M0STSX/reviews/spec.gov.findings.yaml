@@ -1,0 +1,85 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: SPEC-GOV-001
+    lens: non-goals-boundary-accuracy
+    severity: 3
+    title: Non-goal claim for #3701/PR#3707 omits a real, verified overlap with this mission's own targeted test file
+    evidence:
+      - artifact: "spec.md § Non-goals — \"#3701 / PR #3707\" bullet"
+      - artifact: "spec.md § C-004 (Targeted test surface — names `tests/charter/test_mission_type_profiles.py` as this mission's own primary test target)"
+      - code: "PR #3707 (`gh pr diff 3707`), diff hunk to `tests/charter/test_mission_type_profiles.py` (helper `_write_org_mission_step_yaml` signature change to optional args, plus one new `_write_org_mission_step_yaml(...)` call added inside `TestPackContextProjection::test_org_pack_type_projects_real_action_sequence_and_template_set`)"
+    claim: >
+      The spec's non-goals bullet for #3701/PR#3707 states "It touches a
+      different package tier (`doctrine/`, not `charter/` or
+      `specify_cli/`)". Verified against the live, open PR #3707's diff,
+      this is inaccurate: PR #3707 also modifies
+      `tests/charter/test_mission_type_profiles.py` — a file squarely under
+      the `charter/` test tier, and the exact file C-004 names as this
+      mission's own primary test target. This is the same category of
+      overlap the very next non-goals bullet (#3703/PR#3708) correctly
+      flags ("shares only a test file
+      (`tests/charter/test_mission_type_profiles.py`) with this mission");
+      PR #3707 shares that same file too, but the spec's own methodology
+      for calling out shared-file rebase risk is applied inconsistently —
+      present for #3703/PR#3708, silently dropped for #3701/PR#3707. A
+      reader relying on the "different package tier" framing would not
+      expect any touch-point in `tests/charter/`, and would be surprised by
+      a rebase/merge collision in the exact file this mission's own FR-004
+      regression tests and SC-002 message-comparison test are meant to
+      land in.
+    remediation: >
+      Add a parallel caveat to the #3701/PR#3707 non-goals bullet, mirroring
+      the #3703/PR#3708 bullet's phrasing: note that PR #3707 also touches
+      `tests/charter/test_mission_type_profiles.py` (a small, localized
+      change — an optional-args signature tweak plus one added test call —
+      not the same region this mission's new tests would occupy) and that a
+      routine rebase on that file is expected, same as already stated for
+      PR #3711 and PR #3708. Narrow "different package tier" to explicitly
+      scope it to the *production* diff only.
+  - id: SPEC-GOV-002
+    lens: Scope
+    severity: 3
+    title: C-003 and C-007 disagree about which files may carry the fail-closed check
+    evidence:
+      - artifact: "spec.md § C-003 (Plan/commit seam awareness)"
+      - artifact: "spec.md § C-007 (Two-file blast radius)"
+      - code: "src/charter/pack_manager.py:630-642 (`CharterPackManager.activate()` — the only call site where `plan = plan_activation(...)` is immediately followed by `commit_plan(...)`)"
+      - code: "src/charter/activation_engine.py:193 (`plan_activation`, docstring: \"Compute the post-state for activating *artifact_id* — purely (FR-011/012)\")"
+    claim: >
+      C-003 explicitly offers "inside `plan_activation`" as one of two
+      named, legitimate call-site options for the new fail-closed check —
+      `plan_activation` lives in `src/charter/activation_engine.py`, not in
+      either of the two files C-007 lists. C-007 ("Two-file blast radius")
+      then states flatly that "the production change is scoped to
+      `src/specify_cli/cli/commands/charter/activate.py` ... and
+      `src/charter/mission_type_profiles.py`", which structurally forecloses
+      the "inside `plan_activation`" option C-003 just offered, without
+      acknowledging or reconciling the conflict. Verified against the
+      current code: `plan_activation`/`commit_plan` are called back-to-back
+      only inside `CharterPackManager.activate()` in
+      `src/charter/pack_manager.py` — a third file neither C-003's
+      "guard evaluated before `commit_plan` runs" phrasing nor C-007's file
+      list actually names, deepening the ambiguity about where a guard
+      "evaluated before `commit_plan` runs" (as opposed to "inside
+      `plan_activation`") is meant to live. A plan-phase author who follows
+      C-003's own suggested seam (arguably the cleaner design, since
+      `plan_activation` already embodies exactly the
+      validate-before-any-post-state pattern FR-001 wants) would violate
+      C-007; one who honors C-007's two-file list forecloses an option C-003
+      names as valid, without the spec saying so.
+    remediation: >
+      Reconcile the two constraints in the plan phase before implementation:
+      either (a) narrow C-003 to name only the call-site option compatible
+      with C-007's two-file scope (a guard added in `activate_cmd`,
+      mirroring the existing `_emit_step_removal_warnings` precedent at
+      `activate.py:155-212`, which already resolves the incoming action
+      sequence via `resolve_layered_roster`/`mission_type_profiles` without
+      an inline `kind == "mission-type"` branch), explicitly ruling out
+      "inside `plan_activation`"; or (b) widen C-007 to acknowledge
+      `src/charter/pack_manager.py` and/or `src/charter/activation_engine.py`
+      as in-scope, conditional on the plan phase's call-site decision.

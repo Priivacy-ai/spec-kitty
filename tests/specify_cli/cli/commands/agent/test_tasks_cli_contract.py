@@ -9,8 +9,9 @@ byte-identical against this frozen baseline.
 It pins the five invariants from
 ``kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/contracts/cli-surface-contract.md``:
 
-* **CONTRACT-1** -- ``agent tasks --help`` exposes exactly the 9 documented
-  commands (no additions/removals/renames).
+* **CONTRACT-1** -- ``agent tasks --help`` exposes exactly the 10 documented
+  commands (no additions/removals/renames). ``check-terminability`` (#3590,
+  WP05) is the tenth: an advisory post-integration authoring-warning scan.
 * **CONTRACT-2** -- each command exposes (at least) the documented flags with
   unchanged names.
 * **CONTRACT-3** -- exit codes are unchanged: ``0`` success, ``1``
@@ -48,9 +49,14 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.cli.commands import _apply_short_help_options
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
+from tests.specify_cli.cli.commands._help_snapshot import (
+    force_wide_help_console,
+    normalize_help,
+)
 
 # Every test in this file drives the ``app`` object in-process via
 # ``CliRunner`` — no subprocess, no git — so it is a sub-second ``fast`` test
@@ -59,16 +65,32 @@ pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 
+# This standalone characterization app is the same singleton registered under
+# the root CLI. Apply the root's help policy explicitly so the golden contract
+# is deterministic regardless of test collection/import order.
+_apply_short_help_options(app)
+
 FIXTURES = Path(__file__).parent / "fixtures" / "tasks_cli"
 HELP_FIXTURES = FIXTURES / "help"
 JSON_FIXTURES = FIXTURES / "json"
 
-# Fixed terminal width keeps Rich's help rendering deterministic across
-# machines, terminal sizes, and CI; it must match the width used to generate
-# the committed help fixtures.
-HELP_ENV = {"COLUMNS": "100", "TERM": "dumb", "NO_COLOR": "1"}
 
-# The 9 frozen commands (CONTRACT-1).
+@pytest.fixture(autouse=True)
+def _wide_help_console(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force wrap-free, colourless ``--help`` rendering so the help fixtures are
+    width-invariant.
+
+    Rich sizes ``--help`` to the ambient terminal, and on the TTY-less CI path it
+    falls back to 80 columns while ignoring ``COLUMNS`` — so a fixed ``COLUMNS``
+    env pin (the previous approach) disagreed between local and CI wrap points.
+    Pinning the help console to a fixed wide, colour-free size removes the
+    ambient terminal from the comparison entirely; :func:`normalize_help` then
+    collapses each option/usage entry to one logical line.
+    """
+    force_wide_help_console(monkeypatch)
+
+# The 10 frozen commands (CONTRACT-1). ``check-terminability`` (#3590, WP05)
+# joined the surface as the advisory post-integration authoring-warning scan.
 COMMANDS = (
     "move-task",
     "mark-status",
@@ -79,6 +101,7 @@ COMMANDS = (
     "validate-workflow",
     "status",
     "list-dependents",
+    "check-terminability",
 )
 
 # The documented flags per command (CONTRACT-2). The live command may expose
@@ -101,7 +124,13 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
         "--auto-commit",
         "--json",
     ),
-    "mark-status": ("--status", "--mission", "--auto-commit", "--json"),
+    "mark-status": (
+        "--status",
+        "--mission",
+        "--owned-checkout",
+        "--auto-commit",
+        "--json",
+    ),
     "list-tasks": ("--lane", "--mission", "--json"),
     "add-history": ("--note", "--mission", "--agent", "--shell-pid", "--json"),
     "finalize-tasks": ("--mission", "--json", "--validate-only"),
@@ -118,6 +147,7 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
     "validate-workflow": ("--mission", "--json"),
     "status": ("--mission", "--json", "--stale-threshold"),
     "list-dependents": ("--mission", "--json"),
+    "check-terminability": ("--mission", "--json"),
 }
 
 
@@ -152,25 +182,25 @@ def _command_flags(name: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_top_level_help_lists_exactly_the_nine_commands() -> None:
-    """CONTRACT-1: the command group exposes exactly the 9 frozen commands."""
+def test_top_level_help_lists_exactly_the_ten_commands() -> None:
+    """CONTRACT-1: the command group exposes exactly the 10 frozen commands."""
     assert set(_click_group().commands.keys()) == set(COMMANDS)
 
 
 def test_group_help_matches_golden_fixture() -> None:
-    result = runner.invoke(app, ["--help"], env=HELP_ENV)
+    result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     fixture = (HELP_FIXTURES / "_group.help").read_text(encoding="utf-8")
-    assert result.stdout == fixture
+    assert normalize_help(result.stdout) == fixture.splitlines()
 
 
 @pytest.mark.parametrize("command", COMMANDS)
 def test_command_help_matches_golden_fixture(command: str) -> None:
-    """CONTRACT-2 (text): each command's rendered help is byte-frozen."""
-    result = runner.invoke(app, [command, "--help"], env=HELP_ENV)
+    """CONTRACT-2 (text): each command's rendered help is frozen (width-invariant)."""
+    result = runner.invoke(app, [command, "--help"])
     assert result.exit_code == 0, result.stdout
     fixture = (HELP_FIXTURES / f"{command}.help").read_text(encoding="utf-8")
-    assert result.stdout == fixture
+    assert normalize_help(result.stdout) == fixture.splitlines()
 
 
 def test_help_fixtures_avoid_dependabot_requirements_trap() -> None:
@@ -307,12 +337,18 @@ def _build_demo_mission(tmp_path: Path) -> str:
     ],
 )
 def test_error_envelope_shape(case: str) -> None:
-    """CONTRACT-3 + CONTRACT-4: mission-not-found envelope keys and exit code."""
+    """CONTRACT-3 + CONTRACT-4: mission-not-found envelope keys, exit code, and stream."""
     spec = _envelopes()[case]
     result = runner.invoke(app, spec["argv"])
     assert result.exit_code == spec["exit_code"]
     out, err = _result_streams(result)
-    blob = err if err.strip() else out
+    streams = {"stdout": out, "stderr": err}
+    blob = streams[spec["stream"]]
+    other_stream = "stderr" if spec["stream"] == "stdout" else "stdout"
+    assert streams[other_stream].strip() == "", (
+        f"expected the envelope only on {spec['stream']!r}, "
+        f"but {other_stream!r} was not empty: {streams[other_stream]!r}"
+    )
     payload = json.loads(blob)
     assert _shape(payload) == spec["json_shape"]
 

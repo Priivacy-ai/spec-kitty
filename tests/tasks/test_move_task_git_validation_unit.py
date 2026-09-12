@@ -36,13 +36,6 @@ def _disable_move_task_sync_side_effects(monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.tasks.emit_error_logged",
-        lambda *args, **kwargs: None,
-    )
-
-
 @pytest.fixture
 def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     """Create a git repository with a worktree for testing.
@@ -318,10 +311,6 @@ class TestMoveTaskGitValidation:
             status_store,
             "_append_serialized_atomic",
             lambda _feature_dir, _payloads: None,
-        )
-        monkeypatch.setattr(
-            "specify_cli.cli.commands.agent.tasks.emit_error_logged",
-            lambda *args, **kwargs: None,
         )
 
         result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])

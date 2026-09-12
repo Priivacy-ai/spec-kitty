@@ -41,6 +41,7 @@ from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionInvalidError,
+    StorageDecryptionError,
 )
 from .refresh_transaction import (
     RefreshLockTimeoutError,
@@ -68,6 +69,30 @@ _REFRESH_BUFFER_SECONDS = 5
 
 # Hard ceiling for the bounded refresh transaction (NFR-002).
 _REFRESH_MAX_HOLD_S = 10.0
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SessionAssessment:
+    """Invocation-local result of evaluating the canonical stored session.
+
+    ``usable_session`` is deliberately nullable only when evaluation did not
+    complete.  The value carries no session data or exception text and is not
+    an authentication state machine; callers that need the historical Boolean
+    contract should continue to use :attr:`TokenManager.is_authenticated`.
+    """
+
+    completed: bool
+    usable_session: bool | None
+    reason: str
+
+    def __post_init__(self) -> None:
+        """Enforce completion/presence invariants at construction time."""
+        if self.completed and self.usable_session is None:
+            raise ValueError("completed assessment requires a Boolean session verdict")
+        if not self.completed and self.usable_session is not None:
+            raise ValueError("failed assessment cannot contain a session verdict")
+        if not self.reason:
+            raise ValueError("assessment reason must be non-empty")
 
 
 def _refresh_lock_path() -> Path:
@@ -106,6 +131,11 @@ class TokenManager:
         self._storage = storage
         self._session: StoredSession | None = None
         self._hot_path_summary: SessionHotPathSummary | None = None
+        self._session_assessment = SessionAssessment(
+            completed=False,
+            usable_session=None,
+            reason="not_evaluated",
+        )
         self._refresh_lock: asyncio.Lock | None = None
         # WP02 (private-teamspace-ingress-safeguards): sync rehydrate state.
         # The threading.Lock serializes sync rehydrate callers (batch.py /
@@ -144,16 +174,36 @@ class TokenManager:
         if summary is not None:
             self._session = None
             self._hot_path_summary = summary
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="session_materialization_pending",
+            )
             return
 
         try:
             self._session = self._storage.read()
             self._hot_path_summary = None
+            self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
-        except Exception as exc:  # noqa: BLE001 — never crash on stale credentials
-            log.warning("Could not load session from storage: %s", exc)
+        except StorageDecryptionError:
+            log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
             self._session = None
             self._hot_path_summary = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_decryption_failed",
+            )
+        except Exception:  # noqa: BLE001 — never crash on stale credentials
+            log.warning("Could not evaluate session from storage")
+            self._session = None
+            self._hot_path_summary = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_read_failed",
+            )
 
     def set_session(self, session: StoredSession) -> None:
         """Persist a new session (called by AuthorizationCodeFlow / DeviceCodeFlow).
@@ -168,7 +218,16 @@ class TokenManager:
         self._membership_negative_cache = False
         self._session = session
         self._hot_path_summary = None
-        self._storage.write(session)
+        try:
+            self._storage.write(session)
+        except Exception:  # noqa: BLE001 — record failed storage assessment, then re-raise unchanged
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_write_failed",
+            )
+            raise
+        self._record_current_session_assessment()
 
     def clear_session(self) -> None:
         """Delete the current session (called by logout or on session-invalid).
@@ -178,7 +237,20 @@ class TokenManager:
         """
         self._session = None
         self._hot_path_summary = None
-        self._storage.delete()
+        try:
+            self._storage.delete()
+        except Exception:  # noqa: BLE001 — record failed storage assessment, then re-raise unchanged
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_delete_failed",
+            )
+            raise
+        self._session_assessment = SessionAssessment(
+            completed=True,
+            usable_session=False,
+            reason="session_cleared",
+        )
 
     def get_current_session(self) -> StoredSession | None:
         """Return the in-memory session (for ``auth status`` and diagnostics)."""
@@ -195,12 +267,46 @@ class TokenManager:
         treats the session as still authenticated — the next refresh attempt
         will reveal any server-side expiry via ``400 invalid_grant``.
         """
+        assessment = self.session_assessment
+        return assessment.completed and assessment.usable_session is True
+
+    @property
+    def session_assessment(self) -> SessionAssessment:
+        """Return the canonical no-network assessment for this invocation.
+
+        A hot-path summary is only an optimization hint.  Before returning an
+        affirmative or negative session verdict, materialize the durable
+        encrypted session so a failed read remains distinguishable from a
+        conclusive logged-out result.
+        """
+        if self._session is None and self._hot_path_summary is not None:
+            self._materialize_session_from_storage_sync()
+        return self._session_assessment
+
+    def _record_current_session_assessment(self) -> None:
+        """Evaluate the loaded session and retain only stable, non-secret facts."""
         if self._session is None:
-            if self._hot_path_summary is not None:
-                self._materialize_session_from_storage_sync()
-            if self._session is None:
-                return False
-        return not self._session.is_refresh_token_expired()
+            self._session_assessment = SessionAssessment(
+                completed=True,
+                usable_session=False,
+                reason="session_absent",
+            )
+            return
+        try:
+            refresh_expired = self._session.is_refresh_token_expired()
+        except Exception:  # noqa: BLE001 — assessment must never raise
+            log.warning("Could not evaluate loaded session")
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="session_evaluation_failed",
+            )
+            return
+        self._session_assessment = SessionAssessment(
+            completed=True,
+            usable_session=not refresh_expired,
+            reason="refresh_token_expired" if refresh_expired else "session_usable",
+        )
 
     def _load_hot_path_summary(self) -> SessionHotPathSummary | None:
         store_path = self._storage_store_path()
@@ -217,10 +323,24 @@ class TokenManager:
     def _materialize_session_from_storage_sync(self) -> None:
         try:
             self._session = self._storage.read()
+            self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
-        except Exception as exc:  # noqa: BLE001 — materialization failure downgrades to unauthenticated
-            log.warning("Could not materialize session from storage: %s", exc)
+        except StorageDecryptionError:
+            log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
             self._session = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_decryption_failed",
+            )
+        except Exception:  # noqa: BLE001 — assessment failure is retained
+            log.warning("Could not materialize session from storage")
+            self._session = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="session_materialization_failed",
+            )
         finally:
             self._hot_path_summary = None
 
@@ -251,9 +371,7 @@ class TokenManager:
         if self._session is None:
             self._materialize_session_from_storage_sync()
         if self._session is None:
-            raise NotAuthenticatedError(
-                "No active session. Run `spec-kitty auth login` to authenticate."
-            )
+            raise NotAuthenticatedError("No active session. Run `spec-kitty auth login` to authenticate.")
         if self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
             await self.refresh_if_needed()
         # After refresh, _session is still non-None (refresh_if_needed raises on failure).
@@ -400,14 +518,10 @@ class TokenManager:
             # while we were waiting for our turn.
             if self._session is None:
                 raise NotAuthenticatedError("No session to refresh")
-            if not self._session.is_access_token_expired(
-                buffer_seconds=_REFRESH_BUFFER_SECONDS
-            ):
+            if not self._session.is_access_token_expired(buffer_seconds=_REFRESH_BUFFER_SECONDS):
                 return False  # already refreshed by a previous caller
             if self._session.is_refresh_token_expired():
-                raise RefreshTokenExpiredError(
-                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
-                )
+                raise RefreshTokenExpiredError("Refresh token expired. Run `spec-kitty auth login` to log in again.")
 
             # Lazy import to avoid circular dependencies: auth.flows.refresh
             # imports from specify_cli.auth (session/errors/config).
@@ -433,16 +547,19 @@ class TokenManager:
                 # storage.write happened inside the transaction.
                 assert result.session is not None
                 self._session = result.session
+                self._record_current_session_assessment()
                 self._apply_post_refresh_membership_hook(result.session)
                 return True
             if outcome is RefreshOutcome.ADOPTED_NEWER:
                 assert result.session is not None
                 self._session = result.session
+                self._record_current_session_assessment()
                 self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.LOCK_TIMEOUT_ADOPTED:
                 assert result.session is not None
                 self._session = result.session
+                self._record_current_session_assessment()
                 self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.STALE_REJECTION_PRESERVED:
@@ -450,6 +567,7 @@ class TokenManager:
                 # persisted session, do NOT clear.
                 assert result.session is not None
                 self._session = result.session
+                self._record_current_session_assessment()
                 self._apply_post_refresh_membership_hook(result.session)
                 return False
             if outcome is RefreshOutcome.CURRENT_REJECTION_CLEARED:
@@ -459,14 +577,14 @@ class TokenManager:
                 # original rejection — preserves FR-020 (auth status output
                 # unchanged) and the existing pattern at auth/transport.py.
                 self._session = None
-                if result.rejection_cause is RefreshRejectionCause.SESSION_INVALID:
-                    raise SessionInvalidError(
-                        "Session has been invalidated server-side. "
-                        "Run `spec-kitty auth login` to re-authenticate."
-                    )
-                raise RefreshTokenExpiredError(
-                    "Refresh token expired. Run `spec-kitty auth login` to log in again."
+                self._session_assessment = SessionAssessment(
+                    completed=True,
+                    usable_session=False,
+                    reason="session_cleared",
                 )
+                if result.rejection_cause is RefreshRejectionCause.SESSION_INVALID:
+                    raise SessionInvalidError("Session has been invalidated server-side. Run `spec-kitty auth login` to re-authenticate.")
+                raise RefreshTokenExpiredError("Refresh token expired. Run `spec-kitty auth login` to log in again.")
             # outcome is RefreshOutcome.LOCK_TIMEOUT_ERROR
             if result.lock_timeout_message is not None:
                 raise RefreshLockTimeoutError(result.lock_timeout_message)

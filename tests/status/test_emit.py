@@ -9,14 +9,18 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import specify_cli.status.emit as emit_module
+import specify_cli.status.transition_pipeline as _pipeline_module
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status import adapters
 from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.emit import (
     TransitionError,
@@ -37,8 +41,9 @@ from specify_cli.status.models import (
     ReviewResult,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
 )
-from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
+from specify_cli.status.store import EVENTS_FILENAME, append_event, read_event_stream, read_events
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
@@ -52,8 +57,6 @@ def feature_dir(tmp_path: Path) -> Path:
     fd = tmp_path / "kitty-specs" / "034-test-feature"
     fd.mkdir(parents=True)
     return fd
-
-
 
 
 @pytest.fixture
@@ -325,13 +328,15 @@ class TestEmitStatusTransition:
     def test_happy_path_planned_to_claimed(self, feature_dir: Path):
         """Basic transition from planned to claimed persists and returns event."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="claude-opus",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="claude-opus",
+            )
+        )
 
         assert isinstance(event, StatusEvent)
         assert event.from_lane == Lane.PLANNED
@@ -353,31 +358,33 @@ class TestEmitStatusTransition:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
 
         with pytest.raises(TransitionError, match="Illegal transition: planned -> genesis"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="genesis",
-                actor="admin",
-                force=True,
-                reason="force regression",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="genesis",
+                    actor="admin",
+                    force=True,
+                    reason="force regression",
+                )
+            )
 
         events = read_events(feature_dir)
-        assert [(str(event.from_lane), str(event.to_lane)) for event in events] == [
-            ("genesis", "planned")
-        ]
+        assert [(str(event.from_lane), str(event.to_lane)) for event in events] == [("genesis", "planned")]
 
     def test_snapshot_materialized(self, feature_dir: Path):
         """Snapshot file is written after successful emit."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="claude-opus",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="claude-opus",
+            )
+        )
 
         snapshot_path = feature_dir / "status.json"
         assert snapshot_path.exists()
@@ -445,7 +452,6 @@ class TestEmitStatusTransition:
                 repo_root=lock_root,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
 
         assert event.to_lane == Lane.CLAIMED
@@ -454,23 +460,27 @@ class TestEmitStatusTransition:
     def test_chained_transitions(self, feature_dir: Path):
         """Multiple transitions chain correctly, deriving from_lane."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        e1 = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        ))
+        e1 = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
+        )
         assert e1.from_lane == Lane.PLANNED
         assert e1.to_lane == Lane.CLAIMED
 
-        e2 = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="agent-1",
-        ))
+        e2 = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="agent-1",
+            )
+        )
         assert e2.from_lane == Lane.CLAIMED
         assert e2.to_lane == Lane.IN_PROGRESS
 
@@ -478,14 +488,16 @@ class TestEmitStatusTransition:
         # (fail-open removal) -- this test exercises chaining, not the
         # subtasks-completeness gate, so it supplies the input explicitly like
         # a real caller with known-complete subtasks would.
-        e3 = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="agent-1",
-            subtasks_complete=True,
-        ))
+        e3 = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="agent-1",
+                subtasks_complete=True,
+            )
+        )
         assert e3.from_lane == Lane.IN_PROGRESS
         assert e3.to_lane == Lane.FOR_REVIEW
 
@@ -497,49 +509,59 @@ class TestEmitStatusTransition:
         """'doing' alias resolves to 'in_progress'."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         # First move to claimed
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
+        )
         # Now use 'doing' alias
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="doing",
-            actor="agent-1",
-        ))
-        assert event.to_lane == Lane.IN_PROGRESS
-
-    def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
-        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="doing",
-            actor="agent-1",
-        ))
-
-        with caplog.at_level("INFO"):
-            event = emit_status_transition(TransitionRequest(
+        event = emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="doing",
                 actor="agent-1",
-            ))
+            )
+        )
+        assert event.to_lane == Lane.IN_PROGRESS
+
+    def test_alias_collapse_noop_returns_without_new_event(self, feature_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Legacy alias to the current lane is a locked no-op, not a duplicate event."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="doing",
+                actor="agent-1",
+            )
+        )
+
+        with caplog.at_level("INFO"):
+            event = emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="doing",
+                    actor="agent-1",
+                )
+            )
 
         assert event.from_lane == Lane.IN_PROGRESS
         assert event.to_lane == Lane.IN_PROGRESS
@@ -551,13 +573,15 @@ class TestEmitStatusTransition:
     def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
         """Invalid transition raises TransitionError and persists nothing."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="done",
-                actor="agent-1",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="agent-1",
+                )
+            )
 
         # Verify nothing was persisted
         events_path = feature_dir / EVENTS_FILENAME
@@ -566,45 +590,53 @@ class TestEmitStatusTransition:
     def test_invalid_lane_rejected(self, feature_dir: Path):
         """Unknown lane value raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="invalid_lane",
-                actor="agent-1",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="invalid_lane",
+                    actor="agent-1",
+                )
+            )
 
     def test_execution_mode_direct_repo(self, feature_dir: Path):
         """Non-default execution_mode is recorded in event."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-            execution_mode="direct_repo",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+                execution_mode="direct_repo",
+            )
+        )
         assert event.execution_mode == "direct_repo"
 
     def test_multiple_wps_independent(self, feature_dir: Path):
         """Events for different WPs are independent."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         _seed_planned(feature_dir, "WP02", slug="034-test-feature")
-        e1 = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        ))
-        e2 = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP02",
-            to_lane="claimed",
-            actor="agent-2",
-        ))
+        e1 = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
+        )
+        e2 = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP02",
+                to_lane="claimed",
+                actor="agent-2",
+            )
+        )
 
         assert e1.wp_id == "WP01"
         assert e2.wp_id == "WP02"
@@ -626,15 +658,17 @@ class TestForceTransitions:
 
     def test_force_illegal_transition_succeeds(self, feature_dir: Path):
         """Force allows normally-illegal transitions (e.g. planned -> done)."""
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="done",
-            actor="admin",
-            force=True,
-            reason="Emergency fix deployed directly",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="done",
+                actor="admin",
+                force=True,
+                reason="Emergency fix deployed directly",
+            )
+        )
         assert event.to_lane == Lane.DONE
         assert event.force is True
         assert event.reason == "Emergency fix deployed directly"
@@ -642,93 +676,107 @@ class TestForceTransitions:
     def test_force_without_actor_rejected(self, feature_dir: Path):
         """Force transition without actor raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="done",
-                actor="",
-                force=True,
-                reason="Some reason",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="",
+                    force=True,
+                    reason="Some reason",
+                )
+            )
 
     def test_force_without_reason_rejected(self, feature_dir: Path):
         """Force transition without reason raises TransitionError."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="done",
-                actor="admin",
-                force=True,
-                reason=None,
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="admin",
+                    force=True,
+                    reason=None,
+                )
+            )
 
     def test_force_with_invalid_lane_rejected(self, feature_dir: Path):
         """Force does not bypass invalid lane names."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="imaginary",
-                actor="admin",
-                force=True,
-                reason="testing",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="imaginary",
+                    actor="admin",
+                    force=True,
+                    reason="testing",
+                )
+            )
 
     def test_force_no_persistence_on_failure(self, feature_dir: Path):
         """Force transition that fails validation persists nothing."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="done",
-                actor="",
-                force=True,
-                reason="some reason",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="",
+                    force=True,
+                    reason="some reason",
+                )
+            )
         events_path = feature_dir / EVENTS_FILENAME
         assert not events_path.exists()
 
     def test_force_from_done_state(self, feature_dir: Path):
         """Force can exit the terminal done state."""
         # First force to done
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="done",
-            actor="admin",
-            force=True,
-            reason="Initial done",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="done",
+                actor="admin",
+                force=True,
+                reason="Initial done",
+            )
+        )
         # Force back to in_progress
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="admin",
-            force=True,
-            reason="Reopening for fixes",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="admin",
+                force=True,
+                reason="Reopening for fixes",
+            )
+        )
         assert event.from_lane == Lane.DONE
         assert event.to_lane == Lane.IN_PROGRESS
 
     def test_force_to_done_without_evidence(self, feature_dir: Path):
         """Force to done bypasses evidence requirement."""
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="done",
-            actor="admin",
-            force=True,
-            reason="Emergency override, no evidence needed",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="done",
+                actor="admin",
+                force=True,
+                reason="Emergency override, no evidence needed",
+            )
+        )
         assert event.to_lane == Lane.DONE
         assert event.evidence is None
 
@@ -749,97 +797,117 @@ class TestDoneEvidence:
 
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
-        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
-        # blocks; these tests exercise the done/evidence guards downstream of
-        # for_review, not the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="a",
-            subtasks_complete=True,
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer",
-        ))
-
-        # in_review → done requires both review_result AND evidence
-        with pytest.raises(TransitionError, match="review_result|evidence"):
-            emit_status_transition(TransitionRequest(
+        emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
                 wp_id="WP01",
-                to_lane="done",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="a",
+                subtasks_complete=True,
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
                 actor="reviewer",
-            ))
+            )
+        )
+
+        # in_review → done requires both review_result AND evidence
+        with pytest.raises(TransitionError, match="review_result|evidence"):
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="reviewer",
+                )
+            )
 
     def test_done_with_valid_evidence(self, feature_dir: Path, valid_evidence_dict: dict):
         """Transition to done with valid evidence via in_review succeeds."""
         from specify_cli.status.models import ReviewResult
 
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
         # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
         # blocks; these tests exercise the done/evidence guards downstream of
         # for_review, not the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="a",
-            subtasks_complete=True,
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="a",
+                subtasks_complete=True,
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
+                actor="reviewer",
+            )
+        )
 
         review_result = ReviewResult(verdict="approved", reviewer="reviewer-1", reference="PR#42")
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="done",
-            actor="reviewer",
-            evidence=valid_evidence_dict,
-            review_result=review_result,
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="done",
+                actor="reviewer",
+                evidence=valid_evidence_dict,
+                review_result=review_result,
+            )
+        )
         assert event.to_lane == Lane.DONE
         assert event.evidence is not None
         assert event.evidence.review.reviewer == "reviewer-1"
@@ -850,50 +918,60 @@ class TestDoneEvidence:
         from specify_cli.status.models import ReviewResult
 
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
-        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
-        # blocks; these tests exercise the done/evidence guards downstream of
-        # for_review, not the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="a",
-            subtasks_complete=True,
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer",
-        ))
-
-        review_result = ReviewResult(verdict="approved", reviewer="reviewer", reference="PR#1")
-        with pytest.raises(TransitionError, match="review.reviewer"):
-            emit_status_transition(TransitionRequest(
+        emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
                 wp_id="WP01",
-                to_lane="done",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="a",
+                subtasks_complete=True,
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
                 actor="reviewer",
-                evidence={"not_review": "data"},
-                review_result=review_result,
-            ))
+            )
+        )
+
+        review_result = ReviewResult(verdict="approved", reviewer="reviewer", reference="PR#1")
+        with pytest.raises(TransitionError, match="review.reviewer"):
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",
+                    actor="reviewer",
+                    evidence={"not_review": "data"},
+                    review_result=review_result,
+                )
+            )
 
         # Verify no done event was persisted (genesis->planned seed + 4 prior events)
         events = read_events(feature_dir)
@@ -1056,39 +1134,47 @@ class TestPhase1CompatibilityBridge:
     ) -> None:
         """in_review is now a first-class lane; transition for_review -> in_review works."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="agent-1",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="agent-1",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent-1",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="agent-1",
+            )
+        )
         # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
         # blocks; this test exercises the for_review -> in_review alias, not
         # the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="agent-1",
-            subtasks_complete=True,
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="agent-1",
+                subtasks_complete=True,
+            )
+        )
 
-        event = emit_status_transition(TransitionRequest(
-            mission_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer-1",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                mission_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
+                actor="reviewer-1",
+            )
+        )
 
         assert event.to_lane == Lane.IN_REVIEW
         assert event.from_lane == Lane.FOR_REVIEW
@@ -1098,19 +1184,26 @@ class TestPhase1CompatibilityBridge:
         feature_dir: Path,
     ) -> None:
         with pytest.raises(TypeError, match="feature_dir/mission_dir"):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="claimed",
+                )
+            )
 
 
 # ── SaaS Fan-Out Tests ───────────────────────────────────────
 
 
 class TestSaasFanOut:
-    """Tests for _saas_fan_out."""
+    """Tests for _saas_fan_out.
+
+    The fan-out seam is the status/adapters handler registry: production
+    registrants died with the sync transport (issue #5), so these tests
+    register a capturing handler exactly the way a future E3 emitter would.
+    """
 
     def _make_event(
         self,
@@ -1130,52 +1223,51 @@ class TestSaasFanOut:
             execution_mode="worktree",
         )
 
-    def test_import_error_silently_skipped(self):
-        """ImportError from sync module is silently skipped."""
-        event = self._make_event()
-        import sys
-
-        # Temporarily remove the sync module to simulate ImportError
-        saved = sys.modules.get("specify_cli.sync.events")
-        sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
-        try:
-            # Should not raise
-            _saas_fan_out(event, "034-test-feature", None)
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.sync.events"] = saved
-            else:
-                sys.modules.pop("specify_cli.sync.events", None)
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        adapters.reset_handlers()
+        yield
+        adapters.reset_handlers()
 
     def test_saas_called_when_available(self):
-        """emit_wp_status_changed is called when sync module is available."""
+        """A registered fan-out handler receives the full canonical call shape."""
+        from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
+
         event = self._make_event(
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
         )
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "034-test-feature", None)
+        captured: list[dict] = []
 
+        def _handler(**kwargs):
+            captured.append(dict(kwargs))
+
+        adapters.register_saas_fanout_handler(_handler)
+        _saas_fan_out(event, "034-test-feature", None)
+
+        assert len(captured) == 1, "fan-out handler must be invoked exactly once"
         # ``occurred_at`` is the canonical local lane-transition time threaded
         # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
-        mock_emit.assert_called_once_with(
-            wp_id="WP01",
-            from_lane="claimed",
-            to_lane="in_progress",
-            actor="test-actor",
-            mission_slug="034-test-feature",
-            mission_id=None,
-            causation_id="01HXYZ0000000000000000SAAS",
-            policy_metadata=None,
-            force=False,
-            reason=None,
-            review_ref=None,
-            execution_mode="worktree",
-            evidence=None,
-            occurred_at=event.at,
-            ensure_daemon=True,
-        )
+        assert captured[0] == {
+            "wp_id": "WP01",
+            "from_lane": "claimed",
+            "to_lane": "in_progress",
+            "actor": "test-actor",
+            "mission_slug": "034-test-feature",
+            "mission_id": None,
+            "metadata": WPStatusChangeMetadata(
+                causation_id="01HXYZ0000000000000000SAAS",
+                policy_metadata=None,
+                force=False,
+                reason=None,
+                review_ref=None,
+                execution_mode="worktree",
+                evidence=None,
+                occurred_at=event.at,
+            ),
+            "ensure_daemon": True,
+            "repo_root": None,
+        }
 
     def test_planned_to_claimed_now_emits(self):
         """planned->claimed now emits (no longer collapsed to no-op)."""
@@ -1183,10 +1275,10 @@ class TestSaasFanOut:
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
         )
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "034-test-feature", None)
-        mock_emit.assert_called_once()
+        captured: list[dict] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _saas_fan_out(event, "034-test-feature", None)
+        assert len(captured) == 1
 
     def test_saas_exception_does_not_propagate(self):
         """Exception from SaaS emit is caught and logged."""
@@ -1194,37 +1286,39 @@ class TestSaasFanOut:
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
         )
-        with (
-            patch(
-                "specify_cli.sync.events.emit_wp_status_changed",
-                side_effect=RuntimeError("network error"),
-            ),
-            patch("specify_cli.status.adapters.logger") as mock_logger,
-        ):
+
+        def _boom(**kwargs):
+            raise RuntimeError("network error")
+
+        with patch("specify_cli.status.adapters.logger") as mock_logger:
             # Should not raise. After P1.3 the warning is logged by the
             # adapter (specify_cli.status.adapters) rather than by
             # status.emit, since the try/except moved into fire_saas_fanout.
+            adapters.register_saas_fanout_handler(_boom)
             _saas_fan_out(event, "034-test-feature", None)
             mock_logger.warning.assert_called_once()
 
     def test_saas_failure_does_not_block_emit(self, feature_dir: Path):
         """Full emit succeeds even when SaaS fan-out fails."""
+
+        def _boom(**kwargs):
+            raise RuntimeError("network down")
+
+        adapters.register_saas_fanout_handler(_boom)
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed",
-            side_effect=RuntimeError("network down"),
-        ):
-            event = emit_status_transition(TransitionRequest(
+        event = emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
-            ))
-            assert event.to_lane == Lane.CLAIMED
-            # Event was still persisted (genesis->planned seed + planned->claimed)
-            events = read_events(feature_dir)
-            assert len(events) == 2
+            )
+        )
+        assert event.to_lane == Lane.CLAIMED
+        # Event was still persisted (genesis->planned seed + planned->claimed)
+        events = read_events(feature_dir)
+        assert len(events) == 2
 
 
 # ── Pipeline Order Tests ─────────────────────────────────────
@@ -1236,13 +1330,15 @@ class TestPipelineOrder:
     def test_validation_before_persistence(self, feature_dir: Path):
         """Validation failure means nothing is written to disk."""
         with pytest.raises(TransitionError):
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="done",  # illegal from planned
-                actor="agent-1",
-            ))
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="done",  # illegal from planned
+                    actor="agent-1",
+                )
+            )
 
         events_path = feature_dir / EVENTS_FILENAME
         assert not events_path.exists()
@@ -1256,13 +1352,15 @@ class TestPipelineOrder:
             "specify_cli.status.emit._reducer.materialize",
             side_effect=OSError("disk error during materialize"),
         ):
-            event = emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-test-feature",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="agent-1",
-            ))
+            event = emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="claimed",
+                    actor="agent-1",
+                )
+            )
 
         # Event was persisted even though materialize failed (seed + claimed)
         events = read_events(feature_dir)
@@ -1298,95 +1396,115 @@ class TestReviewRefGuard:
     def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
         """in_review -> in_progress without review_result is rejected."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
-        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
-        # blocks; these tests exercise the done/evidence guards downstream of
-        # for_review, not the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="a",
-            subtasks_complete=True,
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer",
-        ))
-
-        with pytest.raises(TransitionError, match="review_result"):
-            emit_status_transition(TransitionRequest(
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="in_progress",
+                actor="a",
+            )
+        )
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="a",
+                subtasks_complete=True,
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
                 actor="reviewer",
-            ))
+            )
+        )
+
+        with pytest.raises(TransitionError, match="review_result"):
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test-feature",
+                    wp_id="WP01",
+                    to_lane="in_progress",
+                    actor="reviewer",
+                )
+            )
 
     def test_in_review_to_in_progress_with_review_result(self, feature_dir: Path):
         """in_review -> in_progress with review_result succeeds."""
         from specify_cli.status.models import ReviewResult
 
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
         # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
         # blocks; these tests exercise the done/evidence guards downstream of
         # for_review, not the subtasks-completeness gate itself.
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="for_review",
-            actor="a",
-            subtasks_complete=True,
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_review",
-            actor="reviewer",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="a",
+                subtasks_complete=True,
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_review",
+                actor="reviewer",
+            )
+        )
 
         review_result = ReviewResult(verdict="changes_requested", reviewer="reviewer", reference="PR#42-comment-3")
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test-feature",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="reviewer",
-            review_result=review_result,
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="reviewer",
+                review_result=review_result,
+            )
+        )
         assert event.from_lane == Lane.IN_REVIEW
         assert event.to_lane == Lane.IN_PROGRESS
 
@@ -1400,70 +1518,79 @@ class TestReasonGuard:
     def test_in_progress_to_planned_requires_reason(self, feature_dir: Path):
         """in_progress -> planned without reason is rejected."""
         _seed_planned(feature_dir, "WP01", slug="034-test")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
 
         with pytest.raises(TransitionError, match="reason"):
-            emit_status_transition(TransitionRequest(
+            emit_status_transition(
+                TransitionRequest(
+                    feature_dir=feature_dir,
+                    mission_slug="034-test",
+                    wp_id="WP01",
+                    to_lane="planned",
+                    actor="a",
+                )
+            )
+
+    def test_in_progress_to_planned_with_reason(self, feature_dir: Path):
+        """in_progress -> planned with reason succeeds."""
+        _seed_planned(feature_dir, "WP01", slug="034-test")
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="a",
+            )
+        )
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="034-test",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="a",
+            )
+        )
+
+        event = emit_status_transition(
+            TransitionRequest(
                 feature_dir=feature_dir,
                 mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="planned",
                 actor="a",
-            ))
-
-    def test_in_progress_to_planned_with_reason(self, feature_dir: Path):
-        """in_progress -> planned with reason succeeds."""
-        _seed_planned(feature_dir, "WP01", slug="034-test")
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test",
-            wp_id="WP01",
-            to_lane="claimed",
-            actor="a",
-        ))
-        emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test",
-            wp_id="WP01",
-            to_lane="in_progress",
-            actor="a",
-        ))
-
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug="034-test",
-            wp_id="WP01",
-            to_lane="planned",
-            actor="a",
-            reason="Needs more planning",
-        ))
+                reason="Needs more planning",
+            )
+        )
         assert event.reason == "Needs more planning"
         assert event.to_lane == Lane.PLANNED
 
 
 class TestMergeLightweightEmit:
-    def test_emit_status_transition_can_skip_dossier_sync_and_daemon_start(
+    def test_emit_status_transition_can_skip_daemon_start(
         self,
         feature_dir: Path,
     ) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with (
-            patch.object(emit_module, "_saas_fan_out") as mock_fanout,
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled") as mock_dossier,
-        ):
+        with patch.object(emit_module, "_saas_fan_out") as mock_fanout:
             event = emit_status_transition(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
@@ -1472,18 +1599,19 @@ class TestMergeLightweightEmit:
                 actor="merge",
                 repo_root=feature_dir.parent.parent,
                 ensure_sync_daemon=False,
-                sync_dossier=False,
             )
 
         assert event.to_lane == Lane.CLAIMED
         mock_fanout.assert_called_once()
         assert mock_fanout.call_args.kwargs["ensure_sync_daemon"] is False
-        mock_dossier.assert_not_called()
 
 
 class TestBatchEmit:
     def test_empty_batch_returns_empty(self) -> None:
         assert emit_status_transition_batch([]) == []
+
+    def test_empty_batch_accepts_retired_326_dossier_keyword(self) -> None:
+        assert emit_status_transition_batch([], sync_dossier=False) == []
 
     def test_batch_requires_first_request_identity(self) -> None:
         with pytest.raises(TypeError, match="requires feature_dir"):
@@ -1612,7 +1740,6 @@ class TestBatchEmit:
                         reason="ready for review",
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
@@ -1674,7 +1801,6 @@ class TestBatchEmit:
                         evidence=valid_evidence_dict,
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert done[-1].evidence is not None
@@ -1696,7 +1822,6 @@ class TestBatchEmit:
                         actor="agent",
                     )
                 ],
-                sync_dossier=False,
             )
 
         assert len(events) == 1
@@ -1759,13 +1884,9 @@ class TestGenesisSaasFanOutCompatibilityGate:
                 _saas_fan_out(genesis_event, "test-feature", None)
 
             # The skip path must fire: no handler was called
-            assert len(captured) == 0, (
-                "SaaS fan-out handler must NOT be called for genesis when events lacks genesis"
-            )
+            assert len(captured) == 0, "SaaS fan-out handler must NOT be called for genesis when events lacks genesis"
             # The explicit skip log must be present — NOT a ValidationError
-            assert "Skipping SaaS fan-out for genesis transition" in caplog.text, (
-                "Explicit skip log must be emitted when genesis fan-out is gated out"
-            )
+            assert "Skipping SaaS fan-out for genesis transition" in caplog.text, "Explicit skip log must be emitted when genesis fan-out is gated out"
             assert "genesis lane (needs >=6.0.0)" in caplog.text
             # Canonical persistence is unaffected — no StoreError, the feature dir is intact
             assert feature_dir.exists()
@@ -1808,9 +1929,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
                 _saas_fan_out(genesis_event, "test-feature", None)
 
             # The handler must have been called exactly once
-            assert len(captured) == 1, (
-                "SaaS fan-out handler must be called when events supports genesis"
-            )
+            assert len(captured) == 1, "SaaS fan-out handler must be called when events supports genesis"
             call = captured[0]
             assert call["wp_id"] == "WP01"
             assert call["from_lane"] == "genesis"
@@ -1849,9 +1968,7 @@ class TestGenesisSaasFanOutCompatibilityGate:
                 )
                 _saas_fan_out(normal_event, "test-feature", None)
 
-            assert len(captured) == 1, (
-                "Normal (non-genesis) transition must still fan out with genesis-unaware events"
-            )
+            assert len(captured) == 1, "Normal (non-genesis) transition must still fan out with genesis-unaware events"
             call = captured[0]
             assert call["from_lane"] == "planned"
             assert call["to_lane"] == "claimed"
@@ -1887,8 +2004,263 @@ class TestGenesisSaasFanOutCompatibilityGate:
                 )
                 _saas_fan_out(normal_event, "test-feature", None)
 
-            assert len(captured) == 1, (
-                "Normal (non-genesis) transition must still fan out with genesis-aware events"
-            )
+            assert len(captured) == 1, "Normal (non-genesis) transition must still fan out with genesis-aware events"
         finally:
             _adapters.reset_handlers()
+
+
+# ── WP02 (fsm-write-path-integrity): flat/primary shell composition pins ─────
+#
+# The shells compose ``status/transition_pipeline.py::prepare_transition``
+# (contract ``emit-pipeline.md`` §2). These tests pin the shell contract:
+# the fan-out seam, the FR-004 lock key, exactly one ``validate_transition``
+# per emit, and the batch door's single lock acquisition (FR-018) with its
+# all-or-nothing failure policy.
+
+
+def _wp02_request(feature_dir: Path, to_lane: str, **overrides: Any) -> TransitionRequest:
+    base: dict[str, Any] = {
+        "feature_dir": feature_dir,
+        "mission_slug": "034-test-feature",
+        "wp_id": "WP01",
+        "to_lane": to_lane,
+        "actor": "agent-1",
+    }
+    base.update(overrides)
+    return TransitionRequest(**base)
+
+
+@contextmanager
+def _recording_lock(record: dict[str, object]) -> Iterator[Path]:
+    """Stand-in ``feature_status_lock`` that records its key and hold state."""
+    record["held"] = True
+    yield Path("/nonexistent.lock")
+    record["held"] = False
+
+
+class TestFlatShellFanOutSeam:
+    """``fan_out=False`` skips step 7 entirely; persistence is unchanged.
+
+    ``tests/status/conftest.py`` neuters ``_saas_fan_out`` for this file, so
+    these pins observe the seam at the shell's own call sites; the adapter-
+    registry (zero handler calls) proof lives in
+    ``tests/status/test_emit_fanout_after_adapter.py``.
+    """
+
+    def test_single_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            event = emit_status_transition(
+                _wp02_request(
+                    feature_dir,
+                    "claimed",
+                    annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                ),
+                fan_out=False,
+            )
+        assert event.to_lane == Lane.CLAIMED
+        saas_fan_out.assert_not_called()
+        binding_fan_out.assert_not_called()
+        # Persistence is untouched by the seam: transition + annotation landed.
+        stream = read_event_stream(feature_dir)
+        assert stream.transitions[-1].event_id == event.event_id
+        assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+
+    def test_single_fan_out_default_fires_after_release(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            event = emit_status_transition(
+                _wp02_request(
+                    feature_dir,
+                    "claimed",
+                    annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                ),
+            )
+        saas_fan_out.assert_called_once()
+        assert saas_fan_out.call_args.args[0] is event
+        binding_fan_out.assert_called_once()
+
+    def test_batch_fan_out_false_skips_both_fan_out_calls(self, feature_dir: Path) -> None:
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with (
+            patch.object(emit_module, "_saas_fan_out") as saas_fan_out,
+            patch.object(emit_module, "_resolved_binding_fan_out") as binding_fan_out,
+        ):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(
+                        feature_dir,
+                        "claimed",
+                        annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                    ),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ],
+                fan_out=False,
+            )
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+        saas_fan_out.assert_not_called()
+        binding_fan_out.assert_not_called()
+        assert len(read_event_stream(feature_dir).annotations) == 1
+
+
+class TestFlatShellLockAndValidation:
+    def test_single_lock_is_keyed_on_feature_dir_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-004: the lock key is the mission directory NAME, not the slug."""
+        feature_dir = tmp_path / "kitty-specs" / "demo-mission-01ABCDEF"
+        feature_dir.mkdir(parents=True)
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        keys: list[str] = []
+
+        @contextmanager
+        def recording_lock(repo_root: Path, key: str) -> Iterator[Path]:
+            keys.append(key)
+            yield repo_root / key
+
+        monkeypatch.setattr(emit_module, "feature_status_lock", recording_lock)
+        with patch.object(emit_module, "_saas_fan_out"):
+            emit_status_transition(_wp02_request(feature_dir, "claimed"))
+        assert keys == ["demo-mission-01ABCDEF"]
+
+    def test_validate_transition_runs_exactly_once_per_emit(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P-2: the shell never validates itself; the pipeline validates once."""
+        calls: list[tuple[object, ...]] = []
+        real = _pipeline_module.validate_transition
+
+        def counting(*args: object, **kwargs: object) -> object:
+            calls.append(args)
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(_pipeline_module, "validate_transition", counting)
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"):
+            emit_status_transition(_wp02_request(feature_dir, "claimed"))
+        assert len(calls) == 1
+        assert calls[0][:2] == (Lane.PLANNED, Lane.CLAIMED)
+
+
+class TestBatchShellLock:
+    def test_batch_holds_feature_lock_across_derive_prepare_and_append(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-018: ONE acquisition covers derive, prepare, append, materialize, mirror."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        state: dict[str, object] = {"held": False}
+        acquisitions: list[tuple[Path, str]] = []
+        observed: list[str] = []
+
+        @contextmanager
+        def tracking_lock(repo_root: Path, key: str) -> Iterator[Path]:
+            acquisitions.append((repo_root, key))
+            with _recording_lock(state):
+                yield repo_root / key
+
+        real_derive = emit_module._derive_from_lane
+        real_prepare = emit_module.prepare_transition
+        real_append = emit_module._store.append_event_stream_atomic_verified
+        real_materialize = emit_module._reducer.materialize
+        real_mirror = emit_module._mirror_phase1_frontmatter_lane
+
+        def spy(name: str, real: Callable[..., object]) -> Callable[..., object]:
+            def wrapped(*args: object, **kwargs: object) -> object:
+                assert state["held"] is True, f"{name} ran outside the lock"
+                observed.append(name)
+                return real(*args, **kwargs)
+
+            return wrapped
+
+        monkeypatch.setattr(emit_module, "feature_status_lock", tracking_lock)
+        monkeypatch.setattr(emit_module, "_derive_from_lane", spy("derive", real_derive))
+        monkeypatch.setattr(emit_module, "prepare_transition", spy("prepare", real_prepare))
+        monkeypatch.setattr(emit_module._store, "append_event_stream_atomic_verified", spy("append", real_append))
+        monkeypatch.setattr(emit_module._reducer, "materialize", spy("materialize", real_materialize))
+        monkeypatch.setattr(emit_module, "_mirror_phase1_frontmatter_lane", spy("mirror", real_mirror))
+
+        with patch.object(emit_module, "_saas_fan_out") as fan_out:
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ]
+            )
+
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+        assert acquisitions == [(feature_dir.parent.parent, feature_dir.name)]
+        assert observed == ["derive", "prepare", "prepare", "append", "materialize", "mirror", "mirror"]
+        # Fan-out fires after release, once per event.
+        assert fan_out.call_count == 2
+        assert state["held"] is False
+
+    def test_batch_mid_sequence_refusal_persists_nothing(self, feature_dir: Path) -> None:
+        """Failure policy (C-007): a refused member aborts before ANY append."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        before = read_events(feature_dir)
+        with pytest.raises(TransitionError, match="Illegal transition"):
+            emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "done", actor="reviewer"),
+                ]
+            )
+        assert read_events(feature_dir) == before
+
+    def test_batch_claimed_to_in_progress_without_workspace_context_is_refused(self, feature_dir: Path) -> None:
+        """Fail-closed pin (#946; D-2 in design-notes/WP02-pipeline.md; mission-review DRIFT-3).
+
+        The plain batch door deliberately does NOT synthesise the
+        ``<execution_mode>:<root>`` workspace-context default on
+        ``claimed -> in_progress`` (#946). Mission
+        ``fsm-write-path-integrity-01M1TZV6`` WP02 dropped that skip for
+        parity with the other doors; the operator reverted it on 2026-09-07
+        (DRIFT-3). The pipeline stays the single validation authority: the
+        batch door passes ``default_workspace_context=False`` and the guard
+        refuses with the historical message, persisting nothing. Production
+        callers always supply ``workspace_context`` for this edge
+        (``status/work_package_lifecycle.py``); the flat single door and both
+        transactional doors keep applying the default.
+        """
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        before = read_events(feature_dir)
+        with patch.object(emit_module, "_saas_fan_out"), pytest.raises(TransitionError, match="requires workspace context"):
+            emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress"),
+                ]
+            )
+        assert read_events(feature_dir) == before
+
+    def test_batch_claimed_to_in_progress_with_explicit_workspace_context_succeeds(self, feature_dir: Path) -> None:
+        """The #946 refusal is only for an OMITTED context; an explicit one passes."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(feature_dir, "claimed"),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ]
+            )
+        assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
+
+    def test_batch_annotation_shares_its_transition_timestamp(self, feature_dir: Path) -> None:
+        """D-3: a batch annotation is stamped with its own transition's ``at``."""
+        _seed_planned(feature_dir, "WP01", slug="034-test-feature")
+        with patch.object(emit_module, "_saas_fan_out"), patch.object(emit_module, "_resolved_binding_fan_out"):
+            events = emit_status_transition_batch(
+                [
+                    _wp02_request(
+                        feature_dir,
+                        "claimed",
+                        annotation_delta=WPInnerStateDelta(role="implementer", agent_profile="python-pedro"),
+                    ),
+                    _wp02_request(feature_dir, "in_progress", workspace_context="worktree:/nonexistent/wp01"),
+                ]
+            )
+        stream = read_event_stream(feature_dir)
+        assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+        assert stream.annotations[0].at == events[0].at
+        snapshot = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
+        assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"

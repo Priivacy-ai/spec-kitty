@@ -1,0 +1,3496 @@
+{
+  "schema_version": "test-sanitation/v1",
+  "dispositions": [
+    {
+      "candidate": {
+        "id": "wp06-config-exact-count",
+        "members": [
+          "tests/charter/test_config_stem_parity.py::test_config_declares_exactly_the_expected_directive_count"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/charter/test_config_stem_parity.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/charter/test_config_stem_parity.py::test_config_declares_exactly_the_expected_directive_count",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "exact activated-directive cardinality is generated-dataset shape, not a behavioral contract"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/charter/test_config_stem_parity.py::test_config_declares_exactly_the_expected_directive_count against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "exact activated-directive cardinality is generated-dataset shape, not a behavioral contract",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/charter/test_config_stem_parity.py::test_config_declares_exactly_the_expected_directive_count'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale exact-count pin; round-trip and malformed-input oracles survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-config-roundtrip-reconcile-change-scope-tensions",
+        "members": [
+          "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/charter/test_config_stem_parity.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/doctrine/config.py"
+        ],
+        "oracle": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+        "contract_claim": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/doctrine/config.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[reconcile-change-scope-tensions]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-config-roundtrip-use-c4-model-techniques",
+        "members": [
+          "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/charter/test_config_stem_parity.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/doctrine/config.py"
+        ],
+        "oracle": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+        "contract_claim": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/doctrine/config.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/charter/test_config_stem_parity.py::test_every_activated_directive_stem_round_trips_to_canonical_urn[use-c4-model-techniques]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST remove invalid DIRECTIVE_ prefix assumption; retain exact stem-to-URN round trip",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-reachability-action-d1",
+        "members": [
+          "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d1_is_the_pinned_membership"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/doctrine/drg/test_reachability.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d1_is_the_pinned_membership",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d1_is_the_pinned_membership against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d1_is_the_pinned_membership'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale membership/count pin; causal positive/negative traversal controls survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-reachability-action-d2",
+        "members": [
+          "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d2_is_the_pinned_membership"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/doctrine/drg/test_reachability.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d2_is_the_pinned_membership",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d2_is_the_pinned_membership against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/doctrine/drg/test_reachability.py::TestActionChannelReachability::test_unreachable_at_d2_is_the_pinned_membership'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale membership/count pin; causal positive/negative traversal controls survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-reachability-normalization-25",
+        "members": [
+          "tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_normalization_delta_is_the_declared_25_swing"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/doctrine/drg/test_reachability.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_normalization_delta_is_the_declared_25_swing",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_normalization_delta_is_the_declared_25_swing against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/doctrine/drg/test_reachability.py::TestC009NormalizationSwingExcluded::test_normalization_delta_is_the_declared_25_swing'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale membership/count pin; causal positive/negative traversal controls survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-reachability-profile-membership",
+        "members": [
+          "tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_unreachable_is_the_pinned_membership"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/doctrine/drg/test_reachability.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_unreachable_is_the_pinned_membership",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_unreachable_is_the_pinned_membership against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ever-growing exact membership/count pin fails on valid doctrine additions and cannot isolate graph traversal defects",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/doctrine/drg/test_reachability.py::TestProfileChannelReachability::test_profile_unreachable_is_the_pinned_membership'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale membership/count pin; causal positive/negative traversal controls survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-extractor-orphan-acceptability",
+        "members": [
+          "tests/doctrine/drg/migration/test_extractor_projection.py::TestDRGZeroDelta::test_activated_but_unreachable_orphans_are_really_activated"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/doctrine/drg/migration/test_extractor_projection.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/doctrine/drg/migration/test_extractor_projection.py::TestDRGZeroDelta::test_activated_but_unreachable_orphans_are_really_activated",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "hard-coded acceptable-orphan partition only enrolls new #3009 members; freshness/set invariants already dominate it"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/doctrine/drg/migration/test_extractor_projection.py::TestDRGZeroDelta::test_activated_but_unreachable_orphans_are_really_activated against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "hard-coded acceptable-orphan partition only enrolls new #3009 members; freshness/set invariants already dominate it",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/doctrine/drg/migration/test_extractor_projection.py::TestDRGZeroDelta::test_activated_but_unreachable_orphans_are_really_activated'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE stale orphan acceptability ledger pin; graph freshness and disjoint/total partition survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-completion-500ms-root",
+        "members": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty ]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty ]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "slow",
+        "cost_evidence": {
+          "identity": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty ]",
+          "result": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate"
+        },
+        "causal_probe": {
+          "kind": "threshold perturbation",
+          "fault": "run the unchanged behavior on the #3284 runner where the wall/size threshold is crossed",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty ]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE brittle 500ms threshold; functional completion contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-completion-500ms-agent",
+        "members": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent ]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent ]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "slow",
+        "cost_evidence": {
+          "identity": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent ]",
+          "result": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate"
+        },
+        "causal_probe": {
+          "kind": "threshold perturbation",
+          "fault": "run the unchanged behavior on the #3284 runner where the wall/size threshold is crossed",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent ]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE brittle 500ms threshold; functional completion contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-completion-500ms-mission",
+        "members": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent mission ]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/specify_cli/cli/commands/test_completion_fast_path.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent mission ]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "slow",
+        "cost_evidence": {
+          "identity": "tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent mission ]",
+          "result": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate"
+        },
+        "causal_probe": {
+          "kind": "threshold perturbation",
+          "fault": "run the unchanged behavior on the #3284 runner where the wall/size threshold is crossed",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "single-runner min-of-five 500ms wall threshold has no owned representative-environment authority; functional parity/import/mutation tests dominate",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/specify_cli/cli/commands/test_completion_fast_path.py::test_completion_latency_within_budget[spec-kitty agent mission ]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE brittle 500ms threshold; functional completion contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-doctor-restart-functional",
+        "members": [
+          "tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_completes_under_nfr_002_threshold"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/commands/doctor.py"
+        ],
+        "oracle": "FIX_TEST replace arbitrary elapsed threshold with distinct-PID and healthy-control-plane restart contract",
+        "contract_claim": "FIX_TEST replace arbitrary elapsed threshold with distinct-PID and healthy-control-plane restart contract",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_completes_under_nfr_002_threshold",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_completes_under_nfr_002_threshold'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST replace arbitrary elapsed threshold with distinct-PID and healthy-control-plane restart contract"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/cli/commands/doctor.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST replace arbitrary elapsed threshold with distinct-PID and healthy-control-plane restart contract",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_completes_under_nfr_002_threshold'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST replace arbitrary elapsed threshold with distinct-PID and healthy-control-plane restart contract",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-console-test-set-plain-false-restores-colour",
+        "members": [
+          "tests/cli/test_cli_console.py::test_set_plain_false_restores_colour"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/cli/test_cli_console.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/console.py"
+        ],
+        "oracle": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "contract_claim": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/cli/test_cli_console.py::test_set_plain_false_restores_colour",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_set_plain_false_restores_colour'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ambient runner terminal policy must not make the output oracle vacuous"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/cli/console.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ambient runner terminal policy must not make the output oracle vacuous",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_set_plain_false_restores_colour'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-console-test-set-plain-true-strips-colour-from-human-output",
+        "members": [
+          "tests/cli/test_cli_console.py::test_set_plain_true_strips_colour_from_human_output"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/cli/test_cli_console.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/console.py"
+        ],
+        "oracle": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "contract_claim": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/cli/test_cli_console.py::test_set_plain_true_strips_colour_from_human_output",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_set_plain_true_strips_colour_from_human_output'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ambient runner terminal policy must not make the output oracle vacuous"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/cli/console.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ambient runner terminal policy must not make the output oracle vacuous",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_set_plain_true_strips_colour_from_human_output'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-console-test-vanilla-console-print-json-would-leak-ansi",
+        "members": [
+          "tests/cli/test_cli_console.py::test_vanilla_console_print_json_would_leak_ansi"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/cli/test_cli_console.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/cli/console.py"
+        ],
+        "oracle": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "contract_claim": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/cli/test_cli_console.py::test_vanilla_console_print_json_would_leak_ansi",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_vanilla_console_print_json_would_leak_ansi'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "ambient runner terminal policy must not make the output oracle vacuous"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/cli/console.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "ambient runner terminal policy must not make the output oracle vacuous",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/cli/test_cli_console.py::test_vanilla_console_print_json_would_leak_ansi'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST force terminal/color inputs and isolate NO_COLOR/TERM negotiation; retain JSON no-ANSI and plain-toggle contracts",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-mission-resolution-documentation",
+        "members": [
+          "tests/integration/test_mission_type_resolution_integration.py::test_documentation_mission_resolves_authored_templates"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/integration/test_mission_type_resolution_integration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/mission_types/resolver.py"
+        ],
+        "oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "contract_claim": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/integration/test_mission_type_resolution_integration.py::test_documentation_mission_resolves_authored_templates",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_documentation_mission_resolves_authored_templates'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/mission_types/resolver.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_documentation_mission_resolves_authored_templates'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-mission-resolution-plan",
+        "members": [
+          "tests/integration/test_mission_type_resolution_integration.py::test_plan_mission_resolves_authored_templates"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/integration/test_mission_type_resolution_integration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/mission_types/resolver.py"
+        ],
+        "oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "contract_claim": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/integration/test_mission_type_resolution_integration.py::test_plan_mission_resolves_authored_templates",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_plan_mission_resolves_authored_templates'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/mission_types/resolver.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_plan_mission_resolves_authored_templates'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-mission-resolution-research",
+        "members": [
+          "tests/integration/test_mission_type_resolution_integration.py::test_research_mission_resolves_authored_templates"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/integration/test_mission_type_resolution_integration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/mission_types/resolver.py"
+        ],
+        "oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "contract_claim": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/integration/test_mission_type_resolution_integration.py::test_research_mission_resolves_authored_templates",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_research_mission_resolves_authored_templates'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/mission_types/resolver.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/integration/test_mission_type_resolution_integration.py::test_research_mission_resolves_authored_templates'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST isolate SPEC_KITTY_HOME so package-default precedence is evaluated without leaked global templates",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-compact-size-minimal-md",
+        "members": [
+          "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[minimal.md]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/contract/test_charter_compact_includes_section_anchors.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[minimal.md]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "slow",
+        "cost_evidence": {
+          "identity": "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[minimal.md]",
+          "result": "compact output length on tiny fixtures measures fixed framing overhead, not semantic preservation or an authoritative budget"
+        },
+        "causal_probe": {
+          "kind": "threshold perturbation",
+          "fault": "run the unchanged behavior on the #3284 runner where the wall/size threshold is crossed",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "compact output length on tiny fixtures measures fixed framing overhead, not semantic preservation or an authoritative budget",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[minimal.md]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE non-causal byte-size threshold; directive/tactic/section preservation contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-compact-size-multidirective-md",
+        "members": [
+          "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[multidirective.md]"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/contract/test_charter_compact_includes_section_anchors.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[multidirective.md]",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "slow",
+        "cost_evidence": {
+          "identity": "tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[multidirective.md]",
+          "result": "compact output length on tiny fixtures measures fixed framing overhead, not semantic preservation or an authoritative budget"
+        },
+        "causal_probe": {
+          "kind": "threshold perturbation",
+          "fault": "run the unchanged behavior on the #3284 runner where the wall/size threshold is crossed",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "compact output length on tiny fixtures measures fixed framing overhead, not semantic preservation or an authoritative budget",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/contract/test_charter_compact_includes_section_anchors.py::test_compact_view_is_meaningfully_smaller_than_charter[multidirective.md]'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE non-causal byte-size threshold; directive/tactic/section preservation contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-safe-commit-hook-mask",
+        "members": [
+          "tests/cli/commands/test_agent_mission_commit_to_branch.py::test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/cli/commands/test_agent_mission_commit_to_branch.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/cli/commands/test_agent_mission_commit_to_branch.py::test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "fixture installs a failing pre-commit hook then expects generic git-commit failure to be normalized as unchanged, masking a real delivery failure"
+          }
+        ],
+        "causal_probe": {
+          "kind": "isolated stale-oracle replay",
+          "fault": "replay tests/cli/commands/test_agent_mission_commit_to_branch.py::test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty against current generated/configured data",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "fixture installs a failing pre-commit hook then expects generic git-commit failure to be normalized as unchanged, masking a real delivery failure",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/cli/commands/test_agent_mission_commit_to_branch.py::test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE unsafe non-causal hook-failure mask; clean/no-change and successful-commit contracts survive",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-charter-e2e",
+        "members": [
+          "tests/e2e/test_charter_epic_golden_path.py::test_charter_epic_golden_path"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/e2e/test_charter_epic_golden_path.py"
+        ],
+        "production_paths": [
+          "tests/conftest.py"
+        ],
+        "oracle": "KEEP after WP02 shared-venv portability repair; golden path passes",
+        "contract_claim": "KEEP after WP02 shared-venv portability repair; golden path passes",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/e2e/test_charter_epic_golden_path.py::test_charter_epic_golden_path",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/e2e/test_charter_epic_golden_path.py::test_charter_epic_golden_path'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "KEEP after WP02 shared-venv portability repair; golden path passes"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant tests/conftest.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "KEEP after WP02 shared-venv portability repair; golden path passes",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/e2e/test_charter_epic_golden_path.py::test_charter_epic_golden_path'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "KEEP after WP02 shared-venv portability repair; golden path passes",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-upgrade-e2e",
+        "members": [
+          "tests/e2e/test_upgrade_post_state.py::test_upgrade_then_branch_context_does_not_gate"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/e2e/test_upgrade_post_state.py"
+        ],
+        "production_paths": [
+          "tests/conftest.py"
+        ],
+        "oracle": "KEEP after WP02 shared-venv portability repair; upgrade post-state passes",
+        "contract_claim": "KEEP after WP02 shared-venv portability repair; upgrade post-state passes",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/e2e/test_upgrade_post_state.py::test_upgrade_then_branch_context_does_not_gate",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/e2e/test_upgrade_post_state.py::test_upgrade_then_branch_context_does_not_gate'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "KEEP after WP02 shared-venv portability repair; upgrade post-state passes"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant tests/conftest.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "KEEP after WP02 shared-venv portability repair; upgrade post-state passes",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/e2e/test_upgrade_post_state.py::test_upgrade_then_branch_context_does_not_gate'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "KEEP after WP02 shared-venv portability repair; upgrade post-state passes",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-sync-e2e-spent-scaffold",
+        "members": [
+          "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_init_creates_identity",
+          "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_identity_is_idempotent",
+          "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_event_contains_identity",
+          "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_implement_emits_status_change",
+          "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_unauthenticated_queues_only",
+          "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_runtime_no_websocket_when_unauthenticated",
+          "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_existing_config",
+          "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_partial_identity",
+          "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_fallback_existing_config",
+          "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_directory_fallback",
+          "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_single_emission_per_transition",
+          "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_causation_chain_no_duplicates",
+          "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+          "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_wp_status_changed_payload",
+          "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_event_id_is_ulid",
+          "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_timestamp_is_iso8601"
+        ],
+        "granularity": "duplicate_cluster",
+        "source_paths": [
+          "tests/sync/test_sync_e2e_integration.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": "wp06-sync-e2e-spent-scaffold",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_init_creates_identity",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.055,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_identity_is_idempotent",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.05,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_event_contains_identity",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.096,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_implement_emits_status_change",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.084,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_unauthenticated_queues_only",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.084,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_runtime_no_websocket_when_unauthenticated",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.039,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_existing_config",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.051,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_partial_identity",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.05,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_fallback_existing_config",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.05,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_directory_fallback",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.047,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_single_emission_per_transition",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.092,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_causation_chain_no_duplicates",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.092,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.093,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_wp_status_changed_payload",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.087,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_event_id_is_ulid",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.087,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_timestamp_is_iso8601",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.085,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ],
+        "equivalence": {
+          "production_path": "retired internal-mock integration scaffold",
+          "oracle": "same contract asserted through current public-boundary survivor",
+          "outcome": "passed on immutable base plus WP02",
+          "route_role": "full-parallel owner",
+          "cost_class": "unknown",
+          "platform": "macos",
+          "disposition": "DELETE"
+        },
+        "divergent_dimensions": [
+
+        ]
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_init_creates_identity",
+            "right": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_generates_missing_fields",
+            "result": "missing project identity is generated; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_identity_is_idempotent",
+            "right": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_returns_existing_complete_identity",
+            "result": "complete project identity is preserved idempotently; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_event_contains_identity",
+            "right": "tests/sync/test_event_emission.py::TestIdentityInjection::test_wp_status_changed_includes_identity",
+            "result": "status events inject project identity; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestIdentityAwareFlow::test_implement_emits_status_change",
+            "right": "tests/sync/test_event_emission.py::TestImplementEmitsWPStatusChanged::test_planned_to_doing",
+            "result": "implement transition emits WPStatusChanged; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_unauthenticated_queues_only",
+            "right": "tests/sync/test_event_emission.py::TestMissingIdentityQueuesOnly::test_missing_identity_queues_only",
+            "result": "missing identity/auth routes the event to the offline queue only; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestUnauthenticatedGracefulDegradation::test_runtime_no_websocket_when_unauthenticated",
+            "right": "tests/sync/test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated",
+            "result": "unauthenticated runtime does not create a websocket; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_existing_config",
+            "right": "tests/sync/test_project_identity.py::TestAtomicWriteConfig::test_preserves_existing_keys",
+            "result": "identity persistence preserves unrelated existing configuration; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestConfigBackfill::test_backfill_partial_identity",
+            "right": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_backfills_partial_identity",
+            "result": "partial identity is backfilled; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_fallback_existing_config",
+            "right": "tests/sync/test_project_identity.py::TestEnsureIdentity::test_handles_read_only_filesystem",
+            "result": "read-only identity configuration falls back without mutation; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestReadOnlyFallback::test_readonly_directory_fallback",
+            "right": "tests/sync/test_project_identity.py::TestIsWritable::test_nonexistent_in_readonly_dir",
+            "result": "a missing config in a read-only directory is detected as non-writable; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_single_emission_per_transition",
+            "right": "tests/sync/test_event_emission.py::TestNoDuplicateEmissions::test_implement_emits_once",
+            "result": "implement emits once per transition; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestNoDuplicateEmissions::test_causation_chain_no_duplicates",
+            "right": "tests/sync/test_event_emission.py::TestFinalizeTasksEmitsBatch::test_feature_created_plus_wp_created",
+            "result": "finalize-tasks batch has one causation chain without duplicate emissions; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+            "right": "tests/sync/test_offline_queue.py::TestOfflineQueue::test_queue_multiple_events",
+            "result": "multiple events are retained; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+            "right": "tests/sync/test_offline_queue.py::TestOfflineQueue::test_drain_queue_fifo_order",
+            "result": "drain returns them in FIFO order without removal; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_events_queued_when_offline",
+            "right": "tests/sync/test_offline_queue.py::TestOfflineQueue::test_mark_synced_removes_events",
+            "result": "mark_synced removes the selected events; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_wp_status_changed_payload",
+            "right": "tests/sync/test_events.py::TestWPStatusChanged::test_basic_emission",
+            "result": "WPStatusChanged emits the canonical payload; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_event_id_is_ulid",
+            "right": "tests/sync/test_events.py::TestEventEnvelope::test_event_id_is_valid_ulid",
+            "result": "event identifiers are valid ULIDs; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_sync_e2e_integration.py::TestEventPayloadValidation::test_timestamp_is_iso8601",
+            "right": "tests/sync/test_events.py::TestEventEnvelope::test_timestamp_is_iso8601",
+            "result": "event timestamps are ISO-8601; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          }
+        ],
+        "causal_probe": {
+          "kind": "survivor fault comparison",
+          "fault": "violate any mapped contract at its current public boundary",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "the mapped exact survivor fails for each contract regression",
+          "intended_oracle_failed": true,
+          "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q <20 combined exact biting survivor nodes; 18 cover this cluster>",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4c4ce85768768e9a01efb5e11835937b818d8387452b7dbee8adfadca07bafad"
+        },
+        "authority_evidence": [
+          {
+            "reference": "raw/wp06-sync-survivor-map.json@sha256:95decfac07315d5f60a37afe2a63882830e476bc8317cb7e578a973b0edefa87",
+            "result": "all candidate-to-survivor mappings and proof roles are content-addressed"
+          }
+        ]
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE 16-node dominated internal-mock scaffold; content-addressed map names every biting survivor and proof role",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-sync-full-workflow-noncausal",
+        "members": [
+          "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_full_wp_lifecycle"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/sync/test_sync_e2e_integration.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_sync_e2e_integration.py::TestFullWorkflowIntegration::test_full_wp_lifecycle",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.096,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "structural",
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "The candidate directly invokes seven EventEmitter methods in fixture-authored order and reaches no workflow or orchestration entrypoint; changing real workflow ordering cannot make this oracle fail."
+          },
+          {
+            "reference": "raw/wp06-sync-survivor-map.json@sha256:95decfac07315d5f60a37afe2a63882830e476bc8317cb7e578a973b0edefa87",
+            "result": "the stale/non-causal classification is content-addressed"
+          }
+        ],
+        "causal_probe": {
+          "kind": "call-graph non-causality inspection",
+          "fault": "reorder or remove a real workflow orchestration step while leaving EventEmitter methods unchanged",
+          "authority_violated": "a workflow test must reach a workflow or orchestration entrypoint",
+          "act_reached": true,
+          "intended_oracle": "the candidate should fail on a real workflow-ordering regression",
+          "intended_oracle_failed": true,
+          "command": "git show 28ae75ea998c898aba57364db7a06d2088bd2af2:tests/sync/test_sync_e2e_integration.py",
+          "environment": "immutable base plus WP02 repaired harness; static call-graph inspection and passing base replay",
+          "raw_artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+        }
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE non-causal synthetic sequence: it authors the asserted order by direct EventEmitter calls and cannot observe real workflow ordering",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-dual-write-spent-scaffold",
+        "members": [
+          "tests/sync/test_dual_write_integration.py::TestDualWriteEventAndFrontmatterConsistent::test_dual_write_event_and_frontmatter_consistent",
+          "tests/sync/test_dual_write_integration.py::TestDualWriteMultipleTransitions::test_dual_write_multiple_transitions"
+        ],
+        "granularity": "duplicate_cluster",
+        "source_paths": [
+          "tests/sync/test_dual_write_integration.py"
+        ],
+        "production_paths": [
+
+        ],
+        "oracle": null,
+        "contract_claim": null,
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": "wp06-dual-write-spent-scaffold",
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dual_write_integration.py::TestDualWriteEventAndFrontmatterConsistent::test_dual_write_event_and_frontmatter_consistent",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.211,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          },
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dual_write_integration.py::TestDualWriteMultipleTransitions::test_dual_write_multiple_transitions",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.357,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ],
+        "equivalence": {
+          "production_path": "retired internal-mock integration scaffold",
+          "oracle": "same contract asserted through current public-boundary survivor",
+          "outcome": "passed on immutable base plus WP02",
+          "route_role": "full-parallel owner",
+          "cost_class": "unknown",
+          "platform": "macos",
+          "disposition": "DELETE"
+        },
+        "divergent_dimensions": [
+
+        ]
+      },
+      "evidence": {
+        "profile": "duplicate",
+        "overlap_evidence": [
+          {
+            "left": "tests/sync/test_dual_write_integration.py::TestDualWriteEventAndFrontmatterConsistent::test_dual_write_event_and_frontmatter_consistent",
+            "right": "tests/specify_cli/status/test_cutover_byte_stability.py::test_lane_mirror_activation_does_not_change_lane_read",
+            "result": "phase-1 lane mirror activation preserves canonical lane reads; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          },
+          {
+            "left": "tests/sync/test_dual_write_integration.py::TestDualWriteMultipleTransitions::test_dual_write_multiple_transitions",
+            "right": "tests/status/test_emit.py::TestEmitStatusTransition::test_chained_transitions",
+            "result": "chained status transitions persist in canonical order; candidate passed on base+WP02 and biting survivor passed on HEAD"
+          }
+        ],
+        "causal_probe": {
+          "kind": "survivor fault comparison",
+          "fault": "violate any mapped contract at its current public boundary",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "the mapped exact survivor fails for each contract regression",
+          "intended_oracle_failed": true,
+          "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q <20 combined exact biting survivor nodes; 2 cover this cluster>",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4c4ce85768768e9a01efb5e11835937b818d8387452b7dbee8adfadca07bafad"
+        },
+        "authority_evidence": [
+          {
+            "reference": "raw/wp06-sync-survivor-map.json@sha256:95decfac07315d5f60a37afe2a63882830e476bc8317cb7e578a973b0edefa87",
+            "result": "all candidate-to-survivor mappings and proof roles are content-addressed"
+          }
+        ]
+      },
+      "verdict": "DELETE",
+      "state": "terminal",
+      "action": "DELETE 2-node dominated internal-mock scaffold; content-addressed map names each biting survivor and proof role",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-dual-write-alias-persistence",
+        "members": [
+          "tests/sync/test_dual_write_integration.py::TestDualWriteAliasResolvedEverywhere::test_dual_write_alias_resolved_everywhere"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/sync/test_dual_write_integration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/status/emit.py",
+          "src/specify_cli/status/models.py",
+          "src/specify_cli/status/reducer.py",
+          "src/specify_cli/status/store.py"
+        ],
+        "oracle": "doing canonicalizes to in_progress across the returned event, typed journal, raw JSONL, and materialized snapshot",
+        "contract_claim": "doing canonicalizes to in_progress across the returned event, typed journal, raw JSONL, and materialized snapshot",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dual_write_integration.py::TestDualWriteAliasResolvedEverywhere::test_dual_write_alias_resolved_everywhere",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.234,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q 'tests/sync/test_dual_write_integration.py::TestDualWriteAliasResolvedEverywhere::test_dual_write_alias_resolved_everywhere'",
+            "result": "focused strengthened persistence replay reached the behavioral Act and passed"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "doing canonicalizes to in_progress across the returned event, typed journal, raw JSONL, and materialized snapshot"
+          }
+        ],
+        "causal_probe": {
+          "kind": "owned strengthened persistence oracle",
+          "fault": "retain canonical in_progress only in the return object while persisting raw doing in JSONL or snapshot",
+          "authority_violated": "doing canonicalizes to in_progress across the returned event, typed journal, raw JSONL, and materialized snapshot",
+          "act_reached": true,
+          "intended_oracle": "the strengthened node fails at the exact returned, serialized, or materialized boundary",
+          "intended_oracle_failed": true,
+          "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q 'tests/sync/test_dual_write_integration.py::TestDualWriteAliasResolvedEverywhere::test_dual_write_alias_resolved_everywhere'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "KEEP lean strengthened alias-persistence oracle; delete unrelated dual-write scaffold",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-dual-write-force-persistence",
+        "members": [
+          "tests/sync/test_dual_write_integration.py::TestDualWriteForceTransitionRecorded::test_dual_write_force_transition_recorded"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/sync/test_dual_write_integration.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/status/emit.py",
+          "src/specify_cli/status/models.py",
+          "src/specify_cli/status/reducer.py",
+          "src/specify_cli/status/store.py"
+        ],
+        "oracle": "forced transition actor and reason persist across return, typed journal, raw JSONL, and snapshot force-count reduction",
+        "contract_claim": "forced transition actor and reason persist across return, typed journal, raw JSONL, and snapshot force-count reduction",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_dual_write_integration.py::TestDualWriteForceTransitionRecorded::test_dual_write_force_transition_recorded",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0.817,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q 'tests/sync/test_dual_write_integration.py::TestDualWriteForceTransitionRecorded::test_dual_write_force_transition_recorded'",
+            "result": "focused strengthened persistence replay reached the behavioral Act and passed"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "forced transition actor and reason persist across return, typed journal, raw JSONL, and snapshot force-count reduction"
+          }
+        ],
+        "causal_probe": {
+          "kind": "owned strengthened persistence oracle",
+          "fault": "drop or rewrite force actor/reason at serialization, readback, or snapshot reduction",
+          "authority_violated": "forced transition actor and reason persist across return, typed journal, raw JSONL, and snapshot force-count reduction",
+          "act_reached": true,
+          "intended_oracle": "the strengthened node fails at the exact returned, serialized, or materialized boundary",
+          "intended_oracle_failed": true,
+          "command": "PWHEADLESS=1 PYTHONHASHSEED=11 .venv/bin/pytest -q 'tests/sync/test_dual_write_integration.py::TestDualWriteForceTransitionRecorded::test_dual_write_force_transition_recorded'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "KEEP lean strengthened force-metadata persistence oracle; delete unrelated lifecycle setup",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-daemon-sigterm",
+        "members": [
+          "tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/sync/test_daemon_self_retirement.py"
+        ],
+        "production_paths": [
+          "src/specify_cli/sync/daemon.py"
+        ],
+        "oracle": "FIX_TEST atomically transfer a bound listener fd to the child; retain real SIGTERM/serve_forever deadlock and owner-cleanup oracle",
+        "contract_claim": "FIX_TEST atomically transfer a bound listener fd to the child; retain real SIGTERM/serve_forever deadlock and owner-cleanup oracle",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown",
+            "collection_state": "collected",
+            "outcome": "passed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "71277a4148c69dbc4e1d1e39cb5d978c9be7bb69cd1d299587f73a819feaa328"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "contract",
+        "caller_evidence": [
+          {
+            "command": ".venv/bin/pytest -q 'tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown'",
+            "result": "focused repaired-harness replay reached the behavioral Act"
+          }
+        ],
+        "authority_evidence": [
+          {
+            "reference": "issue:#3284",
+            "result": "FIX_TEST atomically transfer a bound listener fd to the child; retain real SIGTERM/serve_forever deadlock and owner-cleanup oracle"
+          }
+        ],
+        "causal_probe": {
+          "kind": "controlled incompatible behavior",
+          "fault": "force the relevant src/specify_cli/sync/daemon.py seam to violate its contract",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "FIX_TEST atomically transfer a bound listener fd to the child; retain real SIGTERM/serve_forever deadlock and owner-cleanup oracle",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "4a1376c1ce4d7c61b2957be6e7f2c0df871f2809d7af27952d5cb89da35bc736"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "FIX_TEST atomically transfer a bound listener fd to the child; retain real SIGTERM/serve_forever deadlock and owner-cleanup oracle",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP06",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    },
+    {
+      "candidate": {
+        "id": "wp06-handoff-wp07-ci-path-filter",
+        "members": [
+          "tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection"
+        ],
+        "granularity": "node",
+        "source_paths": [
+          "tests/architectural/test_ci_quality_path_filters.py"
+        ],
+        "production_paths": [
+          ".github/workflows/ci-quality.yml"
+        ],
+        "oracle": "HANDOFF WP07: exact machine-readable owner; WP06 does not mutate or aggregate this CI-route node",
+        "contract_claim": "HANDOFF WP07: exact machine-readable owner; WP06 does not mutate or aggregate this CI-route node",
+        "authority": [
+          "issue:#3284"
+        ],
+        "duplicate_group": null,
+        "route_memberships": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            }
+          }
+        ],
+        "platforms": [
+          "macos"
+        ],
+        "observations": [
+          {
+            "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849",
+            "nodeid": "tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection",
+            "collection_state": "collected",
+            "outcome": "failed",
+            "skip_reason": null,
+            "markers": [
+              "integration"
+            ],
+            "duration": {
+              "collection": 0,
+              "setup": 0,
+              "call": 0,
+              "cost_class": "unknown"
+            },
+            "artifact_hash": "169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1"
+          }
+        ]
+      },
+      "evidence": {
+        "profile": "route",
+        "routing_evidence": [
+          {
+            "route_id": "full-parallel",
+            "role": "owner",
+            "required": true,
+            "events": [
+              "local"
+            ],
+            "selector": {
+              "paths": [
+                "tests/"
+              ],
+              "markers": [
+
+              ],
+              "ignores": [
+                "tests/sync/test_orphan_sweep.py"
+              ],
+              "environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+            },
+            "result": "exact node assigned to WP07 CI-route authority"
+          }
+        ],
+        "cost_evidence": {
+          "identity": "tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection",
+          "result": "base route probe timed out at 240s"
+        },
+        "causal_probe": {
+          "kind": "frozen-route selection fault",
+          "fault": "remove a legacy-selection owner from core/misc plus E2E routes",
+          "authority_violated": "candidate claim evaluated against #3284 and current mission authorities",
+          "act_reached": true,
+          "intended_oracle": "route coverage equality fails",
+          "intended_oracle_failed": true,
+          "command": ".venv/bin/pytest -q 'tests/architectural/test_ci_quality_path_filters.py::test_core_misc_shards_plus_e2e_owner_cover_legacy_selection'",
+          "environment": "macOS 15.7.7 arm64; CPython 3.11.15; WP02 repaired harness",
+          "raw_artifact_hash": "169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1"
+        }
+      },
+      "verdict": "KEEP",
+      "state": "terminal",
+      "action": "HANDOFF WP07: exact machine-readable owner; WP06 does not mutate or aggregate this CI-route node",
+      "survivor": null,
+      "issue": "#3284",
+      "owner": "WP07",
+      "expires": null,
+      "hic_approval": null,
+      "review": {
+        "implementer": "codex/debugger-debbie",
+        "independent_reviewer": "unassigned-at-implementation-handoff",
+        "verdict": "pending-independent-review",
+        "timestamp": "2026-08-10T13:05:00Z"
+      }
+    }
+  ]
+}

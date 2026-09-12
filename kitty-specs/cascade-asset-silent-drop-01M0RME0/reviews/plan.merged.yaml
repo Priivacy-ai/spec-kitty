@@ -1,0 +1,117 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: cascade-asset-silent-drop-01M0RME0
+source_files:
+  - plan-gov.findings.yaml
+  - plan-arch.findings.yaml
+  - plan-verify.findings.yaml
+findings:
+  - id: PLAN-GOV-001
+    lens: campsite-scope
+    lens_group: gov
+    severity: 2
+    title: "Plan §8 overclaims zero lint suppressions in the three touched CLI render functions"
+    evidence:
+      - artifact: "plan.md § 8 Campsite-clean scope (standing order 2)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:297"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:395"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:153"
+    claim: >
+      Plan §8 asserts, of the three CLI render functions this mission's WPs edit:
+      "_render_cascade_activation, _render_no_cascade_warning,
+      _render_cascade_deactivation are similarly clean — no dead branches, no
+      suppressed warnings, no TODO markers." Read live, this is inaccurate: every
+      one of the three carries a `# noqa: PLC0415` lint suppression on its deferred
+      `from charter._drg_helpers import load_validated_graph` import
+      (activate.py:297 inside `_render_cascade_activation`; activate.py:395 inside
+      `_render_no_cascade_warning`; deactivate.py:153 inside
+      `_render_cascade_deactivation`). The suppression is a pre-existing,
+      repo-wide lazy-import convention unrelated to this mission's domain (kind-
+      filtered reporting), so it does not change the plan's ultimate "no
+      campsite-clean commit" decision — but the specific evidentiary claim used to
+      support that decision is false as written.
+    remediation: >
+      Correct plan §8's bullet to state that each of the three render functions
+      carries one pre-existing `# noqa: PLC0415` (a deferred local import, a
+      repo-wide lazy-import convention) rather than "no suppressed warnings," and
+      note explicitly that this is judged non-domain-matched debt (import-
+      ordering style, unrelated to the kind-filtered-node reporting this mission
+      adds) — so the no-campsite-clean-commit decision still stands, but on an
+      accurate record rather than an overclaim.
+
+  - id: PLAN-ARCH-001
+    lens: mission-specific (C-002/C-006 sequencing correctness)
+    lens_group: arch
+    severity: 4
+    title: >-
+      WP-A's own scope statement ("does not touch NoCascadeReport or
+      DeactivationPlan yet") is incompatible with WP-A's own required edit to the
+      shared private `_referenced_artifacts` — the two deferred call sites break
+      immediately, not at mission end
+    evidence:
+      - artifact: "plan.md § 12, WP-A bullet (lines 611-623): \"Change\
+          `_referenced_artifacts`'s return shape... Does NOT touch\
+          `NoCascadeReport` or `DeactivationPlan` yet — that is WP-C/WP-D's job.\""
+      - artifact: "plan.md § 2 (lines 180-234), esp. lines 216-234: \"All three\
+          public functions already call `_referenced_artifacts` exactly once\
+          each\" and \"Each of these three call sites unpacks BOTH partitions\
+          from the single updated call\""
+      - artifact: "plan.md § 12 (lines 593-606): \"there is no shared mutable\
+          state or partially-applied migration that would leave an inconsistent\
+          half-state mid-sequence\""
+      - code: "src/charter/cascade.py:266 — `_referenced_artifacts` is a single\
+          function body, not per-caller specialized"
+      - code: "src/charter/cascade.py:350-351 (cascade_activation_targets) —\
+          `for ref in _referenced_artifacts(graph, source_urn):`"
+      - code: "src/charter/cascade.py:432-433 (referenced_but_not_cascaded) —\
+          `for ref in _referenced_artifacts(graph, source_urn):` (identical\
+          unqualified-iteration pattern)"
+      - code: "src/charter/cascade.py:531-533 (deactivation_plan) — `for ref in\
+          _referenced_artifacts(graph, target_urn): if scope.selects(ref.kind):\
+          candidates.add(ref.urn)` (same pattern, third call site)"
+      - code: "tests/charter/test_cascade.py:283-406, 603-845+ — existing, already\
+          -green tests directly exercise `referenced_but_not_cascaded` (line 285,\
+          298, 612) and `deactivation_plan` (lines 313, 332, 346, 361, 386, 688)"
+    claim: >-
+      All three consumers (`cascade_activation_targets`,
+      `referenced_but_not_cascaded`, `deactivation_plan`) call the SAME shared
+      private function `_referenced_artifacts` via the identical unqualified
+      pattern `for ref in _referenced_artifacts(...): ... ref.kind ...` — there
+      is exactly one function body, not three. WP-A's plan is to change
+      `_referenced_artifacts`'s return type from `list[ReferencedArtifact]` to
+      `tuple[list[ReferencedArtifact], list[ReferencedArtifact]]` in WP-A, while
+      explicitly declining to touch `referenced_but_not_cascaded` or
+      `deactivation_plan` until WP-C/WP-D land. Because Python has one function
+      body shared by all callers, this is not possible: the moment WP-A's commit
+      changes the return type, the two unmigrated call sites break immediately —
+      `for ref in (list1, list2):` binds `ref` to `list1` then `list2` (whole
+      list objects), and `ref.kind` raises `AttributeError` on the very first
+      access. This is a hard runtime crash in code paths that already have
+      dozens of existing, currently-green tests, so WP-A's own final commit
+      would fail the plan's own baseline-diff procedure (§6: "green in baseline
+      but red post-WP → introduced by this mission — must be fixed before the
+      WP is done"). WP-A as scoped literally cannot land cleanly; the WP-C/WP-D
+      deferral described in §12 is not achievable without either (a) WP-A also
+      making a minimal unpacking fix to the other two call sites (undocumented,
+      and never mentioned despite being mandatory), or (b) collapsing the WP
+      boundary so all three call sites are migrated together. Either way, §12's
+      claim "no shared mutable state or partially-applied migration that would
+      leave an inconsistent half-state mid-sequence" is incorrect.
+    remediation: >-
+      Re-scope WP-A to complete the full `_referenced_artifacts` signature
+      migration for ALL THREE call sites in the same WP/commit — i.e., WP-A
+      updates `cascade_activation_targets`, `referenced_but_not_cascaded`, and
+      `deactivation_plan` to each unpack
+      `activatable, kind_filtered = _referenced_artifacts(...)` and iterate
+      `activatable` exactly as before (a mechanical, behavior-preserving change
+      for the latter two), while only `CascadeActivationResult` gains the new
+      field's real value in WP-A. WP-C/WP-D then only need to add
+      `not_cascaded_kind_filtered=kind_filtered` to their respective dataclass
+      construction plus the CLI render call — not touch the already-updated
+      iteration/unpacking logic. Update plan.md §12's WP-A bullet to state this
+      explicitly (the current "Does NOT touch NoCascadeReport or
+      DeactivationPlan yet" wording must be qualified: "does not populate their
+      new field yet, but must adjust their call-site unpacking so they keep
+      compiling/passing"), and correct the "no shared mutable state" claim to
+      acknowledge and resolve this dependency instead of asserting it away.

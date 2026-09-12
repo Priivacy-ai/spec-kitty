@@ -1,7 +1,8 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.3.0
+> Version: 1.4.0
+> Updated: 2026-08-08 — activated the writing-comms & diagramming doctrine set (see "Writing, Communication & Diagramming Doctrine"; rehome-writing-comms-doctrine / PR #2918)
 > Updated: 2026-07-01 — interactive charter intake (doctrine-catfooding-2196-01KWE16N)
 >
 > **v1.3.0 note:** retains the full v1.1.5 substance; adds the activated catfooding
@@ -80,9 +81,9 @@ the cheapest point in the lifecycle.
    improvise or copy an older mission; chase unification, not parity; a missing
    command is a gap to file upstream; guard the terminology canon. → `DIRECTIVE_044`,
    `canonical-source-unification`, `terminology-guard`.
-7. **Git & workflow discipline.** PRs only, the operator merges; read intent before
-   any high-risk op; isolate PR-touching agents in a worktree; no version numbers
-   in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
+7. **Git & workflow discipline.** PRs only, the programme merge agent merges;
+   read intent before any high-risk op; isolate PR-touching agents in a worktree;
+   no version numbers in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
 8. **Mission hygiene.** Reviewer and implementer are distinct roles; every addressed
    issue gets an issue-matrix row + claim + tracker comment naming the mission;
    give implementers ownership-map leeway (no-overlap is the real guard); apply
@@ -101,6 +102,46 @@ All 15 catfooding artifacts are activated (`.kittify/config.yaml`) and
 directive-reachable, so each resolves in the compiled reference set
 (`references.yaml`). This section states the rules; the referenced artifacts carry
 the detailed procedures, examples, and anti-patterns.
+
+### Reconciling change-scope tensions (small diff ↔ boy-scout ↔ locality)
+
+Three activated rules each bound the size of a change from a *different* angle, and
+by design they are **not fully compatible** — the tension is real and intentionally
+left unresolved at the rule level, then reconciled per-change:
+
+- **`change-apply-smallest-viable-diff`** (tactic) minimizes the *diff itself* — the
+  smallest file set and smallest edit within each file that achieves the stated goal;
+  stop once the goal is met.
+- **`DIRECTIVE_025` Boy Scout Rule** licenses *opportunistic in-place improvement* of
+  areas you already touched — fix the failing test/lint/type error surfaced there by
+  default, and at planning point-cuts fold *domain-matched* debt. This pulls the change
+  *larger*.
+- **`DIRECTIVE_024` Locality of Change** minimizes *blast radius* — keep edits close to
+  the problem, separate opportunistic cleanup from functional work, resist scope creep.
+
+These genuinely pull in different directions, so the default pack does **not** pick a
+silent winner. `RECONCILE_CHANGE_SCOPE_TENSIONS` (directive, advisory — active) is the
+single place to weigh all three on a specific change, with this resolution order:
+
+1. **Smallest-viable-diff picks the file set and edit size first** — the minimal files
+   and minimal edit for the stated goal.
+2. **Boy Scout Rule then governs cleanup strictly *inside* that file set** — fix
+   touched-area breakage and apply proportional tidy-up, **without adding files** to the
+   set chosen in step 1.
+3. **Locality of Change is the brake** — it stops either rule from *growing the file
+   set*. Any extension beyond the touched area must be directly connected to the goal,
+   proportional, and carry a one-line rationale (a tracker reference for anything
+   genuinely broad).
+
+Record what was folded in and what was deferred, and why, in task/review context rather
+than silently picking a side. The reconciler resolves the tension for a given change; it
+does **not** retire, weaken, or supersede any of the three rules — all remain
+independently valid and co-activatable. Note the interaction with Standing Order #2's
+*tidy-first* sequencing: an opening campsite-clean is a **distinct, behavior-preserving
+step that precedes** the functional change (and may legitimately open its own surfaces
+for that purpose); the reconciliation order above governs the *functional* change that
+follows. → `RECONCILE_CHANGE_SCOPE_TENSIONS`, `DIRECTIVE_024`, `DIRECTIVE_025`,
+`change-apply-smallest-viable-diff`.
 
 ## Agent Operating Discipline
 
@@ -127,14 +168,12 @@ How missions are executed between the operator (human-in-command) and the agent 
   mission's tickets (assign the operator + a comment naming the mission), **plans**
   (spec → plan → tasks, with an adversarial squad at each planning point-cut), and
   **runs** the implement→review loop to completion.
-- **Draft PR first.** Completed mission work is opened as a DRAFT pull request to the
-  protected branch, with history compressed (admin bunched, code by slice).
-- **Ready-for-review only when green.** The agent marks the PR ready-for-review **only
-  after** self-review (an adversarial review pass, findings folded) AND CI pass — i.e.
-  it prepares the PR merge-ready (green, un-drafted, issues linked) and hands off.
-- **The operator merges.** Agents never merge to protected main; the human-in-command
-  performs the merge. → git/workflow discipline (`DIRECTIVE_045`), Agent Operating
-  Discipline above.
+- **Issue branch first.** Completed mission work is opened from an
+  `issue-<n>-<slug>` branch as a pull request targeting `main`, with compact history.
+- **Ready for squad only when complete.** The implementer runs the required tests and
+  self-review, then labels the PR `ready-for-squad`; fleet agents own CI and review.
+- **The merge agent merges.** Implementers never merge. → git/workflow discipline
+  (`DIRECTIVE_045`), Agent Operating Discipline above.
 
 ## Governance by Workflow Action
 
@@ -151,8 +190,59 @@ context for the detail).
 - **Review** — reviewer ≠ implementer; run the FULL compliance suite (not a subset);
   verify no duplicate authority, no dead code, and live evidence; apply tiered rigour;
   grant ownership-map leeway (no-overlap is the real guard).
-- **Merge** — PRs only, the operator merges; isolated PR-review agents; post-merge full
-  arch-gate sweep with a cross-base pre-existing check; issue-matrix + tracker hygiene.
+- **Merge** — PRs only, the programme merge agent merges; isolated PR-review
+  agents; post-merge full arch-gate sweep with a cross-base pre-existing check;
+  issue-matrix + tracker hygiene.
+
+## Writing, Communication & Diagramming Doctrine
+
+Activated 2026-08-08 from the built-in writing-comms doctrine set ("The Magnificent
+7", rehomed via PR #2918). These rules bind agent-authored prose, documentation, and
+diagrams; the full how-to lives in each referenced artifact. Enforcement levels are
+noted where they bind harder than advisory.
+
+- **Audience-oriented writing.** Any artifact meant for a human reader must name its
+  target persona *before* drafting and calibrate vocabulary, detail, and structure to
+  that reader — not to the author's own familiarity. Prefer persona-specific variants
+  over one artifact that serves everyone and therefore no one. Pick a reader from the
+  shipped persona catalog rather than inventing one ad hoc. → `DIRECTIVE_047`
+  (advisory), `writing-audience-catalog` tactic (+ audience personas:
+  software-engineer, line-manager, nontech-educator, automation-agent,
+  agentic-framework-core-team), `plain-language` + `professional-communications`
+  styleguides.
+- **Documentation structure.** Builds on the already-active common-docs doctrine
+  (`DIRECTIVE_042`, `common-docs` styleguide, `common-docs-*` tactics). One document is
+  exactly one Divio quadrant (Tutorial / How-To / Reference / Explanation), declared in
+  frontmatter; every non-decorative image/diagram carries descriptive alt text; every
+  page carries an `updated: YYYY-MM-DD` freshness date (pages without one are treated
+  as stale); code is the source of truth and docs mirror *shipped* behaviour (a
+  doc/code disagreement is a doc defect). → `divio-type-discipline`,
+  `docs-accessibility`, `docs-freshness-sla`, `publication-authority` styleguides.
+- **Diagramming.** Model and reason about architecture with the C4 model's progressive
+  zoom — System Context → Container → Component → Code — so each diagram serves one
+  audience at one level instead of one all-in-one picture. Draw only the levels that
+  earn their keep. This composes with the already-active Mermaid and PlantUML rendering
+  toolguides and the `architecture-diagram-review-checklist` tactic. → `USE_C4_MODEL_TECHNIQUES`
+  (lenient-adherence), `mermaid-diagramming` + `plantuml-diagramming` toolguides.
+- **Communication governance.** Cite the current canonical version of any versioned
+  artifact (glossary, spec, doctrine, released document), never a cached/stale copy —
+  stale analysis is confidently wrong, not merely lower-quality. A specialist agent
+  opens with a short role/scope declaration so a mismatch can be caught early.
+  Authentication credentials (tokens, keys, passwords, session cookies) must never be
+  logged, echoed, or written into output, errors, or artifacts. → `DIRECTIVE_048`
+  version-governance (**required**), `DIRECTIVE_049` agent self-introduction (advisory),
+  `DIRECTIVE_050` credential-handling (**required**).
+- **Supporting workflows.** Run continuous term capture/triage against the living
+  glossary so terminology drift is caught early rather than in a big periodic cleanup;
+  every factual claim in a research output is traceable to a named source (an unsourced
+  claim is a hypothesis and must be labelled one). → `glossary-maintenance-workflow`
+  procedure, `research-citation-discipline` styleguide.
+- **Charter-blessed profiles.** The writing-comms specialist profiles are activated for
+  governed delegation: `comms-cleo` (professional communications), `diagram-daisy`
+  (diagramming), `analyst-annie` (analysis), `lexical-larry` (glossary/terminology),
+  `minutes-maker-mahad` (meeting minutes), `scribe-sally` (documentation), and
+  `synthesizer-sam` (synthesis). The meeting-minutes format styleguide and pipeline
+  procedure were intentionally left un-activated.
 
 ## Technical Standards
 
@@ -252,11 +342,15 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 - The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
 - Do not hardcode branch names in templates or scaffolding; use the resolved branch context
 
-### CI and Branch Protection
+### Programme PR Workflow
 
 **All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
 
-`main` has a **Protect Main Branch** GitHub Actions workflow that enforces this. A "Protect Main Branch: failure" on CI is a real failure, not an expected artifact. It means code bypassed the PR requirement and must be addressed.
+Nothing on GitHub enforces this workflow: there is no branch protection or required
+review. The leftover workflow files still run and post check results, but nothing
+requires them to pass — a failing run has no power to block a PR. The binding process is
+[`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
+§5–§9.
 
 ### Agent Push Authorization (binding)
 
@@ -264,24 +358,24 @@ Agents are **not allowed** to push directly to `origin/main` under any circumsta
 
 **Required workflow for mission merges:**
 1. Run `spec-kitty merge` locally — this merges lane branches into local `main`.
-2. Immediately create a PR branch: `git checkout -b pr/<mission-slug>`
-3. Push the PR branch: `git push origin pr/<mission-slug>`
+2. Create the ticket branch: `git checkout -b issue-<n>-<slug>`
+3. Push it: `git push origin issue-<n>-<slug>`
 4. Open a PR targeting `main`: `gh pr create --title "..." --body "..."`
-5. Do **not** run `spec-kitty merge --push` or `git push origin main`.
+5. Do **not** merge it; the programme merge agent owns that step.
 
 **Required workflow for all other changes (hotfixes, docs, config):**
 1. Start work on a named branch, never on `main` directly.
 2. Push the branch and open a PR.
 3. Never push `main` directly.
 
-**When `safe_commit` refuses on a protected branch, agents must:**
+**When `safe_commit` refuses on a locally guarded branch, agents must:**
 1. Use the mission lane branch/worktree as intended by the workflow.
-2. If planning artifacts need to land on `main`, create a PR branch instead of bypassing the guard.
+2. If planning artifacts need to land on `main`, create an `issue-<n>-<slug>` branch instead of bypassing the guard.
 3. Never silently work around the guard with raw git commands or `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`.
 
 ### Historical Context
 
-The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
+The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../docs/adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
 
 ---
 
@@ -289,9 +383,9 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 
 ### Pull Request Requirements
 
-- **1 approval required** (self-merge allowed for maintainer)
-- **CI checks must pass** (tests, type checking, linting)
-- **Pre-commit hooks** must pass (UTF-8 encoding validation)
+- Use the exact PR body sections from programme `PROGRAM.md` §5.
+- Run the implementer tests from §6 and label complete work `ready-for-squad`.
+- Implementers never merge; the fleet owns CI, squad review, and merge.
 
 **Readable and consistent PRs are binding** (directive `046-readable-consistent-prs`, active). Every mission branch / PR an agent hands the operator must be:
 
@@ -373,7 +467,7 @@ When work in this program touches the SaaS repository, all contributors and agen
 - Primary commands: `make docker-app-up`, `make docker-auth-check`, `make docker-app-down`
 
 Mandatory gate:
-- A `prod-like` authenticated preflight must pass before Fly promotion and before considering SaaS integration work complete.
+- A `prod-like` authenticated preflight must pass before considering SaaS integration work complete.
 
 Operational reference:
 - `spec-kitty-saas/docs/docker-development-modes.md` (sibling SaaS repo checkout)
@@ -466,14 +560,10 @@ template sets, tools, or authority directories.
 template_set: software-dev-default
 available_tools: [git, spec-kitty, pytest, mypy, ruff]
 authority_paths:
-  # Mission B dual-read (C-003): legacy + new homes listed together so the
-  # authority-path read resolves both before and after the docs/ fold (WP03).
-  # The legacy branches are dropped in WP08's reference sweep.
-  - glossary/contexts/        # canonical terminology (legacy home)
-  - docs/context/             # canonical terminology (new home, FR-009)
-  - architecture/3.x/adr/    # canonical architectural decisions (legacy, 3.x era)
-  - docs/adr/3.x/             # canonical architectural decisions (new home)
-  - architecture/adrs/        # active ADR directory (legacy de-facto convention)
+  # Common Docs fold complete: legacy homes dropped, canonical new homes only
+  # (matches charter.yaml/governance.yaml; keeps `charter sync` idempotent).
+  - docs/context/             # canonical terminology (FR-009)
+  - docs/adr/3.x/             # canonical architectural decisions
 ```
 
 ---

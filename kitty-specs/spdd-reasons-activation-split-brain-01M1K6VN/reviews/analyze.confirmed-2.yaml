@@ -1,0 +1,18 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: confirmed-round2
+complete: true
+findings:
+- id: ANALYZE-FRESH-001
+  severity: 3
+  source: R5b fresh sweep
+- id: ANALYZE-FRESH-002
+  severity: 2
+  source: R5b fresh sweep
+- id: ANALYZE-FRESH-003
+  severity: 1
+  source: R5b fresh sweep
+- id: ANALYZE-VERIFY2-001
+  severity: 1
+  source: R5a anchored verification (new finding)

@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: Decision 1 now contains a full "Why the peer field is `Data Sources`, not a cheaper same-container alternative" paragraph citing spec.md Decision 3's binding three-name list, NFR-004's anti-subset rule, and ruling #1's explicit anchoring of Data Sources to the nested-heading detector, with no stale reference implying the cheaper Research-Context-peer option (a) was adopted instead.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: "§Constitution Check now states a named deviation sentence — \"One named, deliberate deviation, recorded rather than silently passed through this gate\" — explicitly naming C-003, both files (runtime_bridge.py, mission_type.py), and the Boy Scout Rule/Locality of Change justification, not a vague acknowledgment."
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: research.md §R3 now cites the fully-qualified `src/specify_cli/runtime/resolver.py` in both occurrences within that section, matching §R1.4's citation exactly.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: Both plan.md §Decision 4 ("17-entry") and research.md §R4.2 ("17 entries") now say 17, matching an independent recount of the 17 re.compile(...) entries in src/specify_cli/missions/_substantive.py:32-48.

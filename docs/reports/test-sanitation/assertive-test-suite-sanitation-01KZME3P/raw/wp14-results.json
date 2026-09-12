@@ -1,0 +1,1359 @@
+{
+  "schema_version": "test-sanitation-wp-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP14",
+  "profile": "architect-alphonso",
+  "generated_at": "2026-08-10T17:45:52Z",
+  "implementation_cycle": 2,
+  "review_cycle_limit": 3,
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "implementation_head_before_commit": "bbcdb7926feb32dbd83ea263975a447675bd597b",
+  "tracker": {
+    "reference": "#1931",
+    "state": "OPEN",
+    "assignee": "robertDouglass",
+    "mission_comment_author": "robertDouglass",
+    "mission_comment_verified": true
+  },
+  "environment": {
+    "platform": "macOS-15.7.7-arm64-arm-64bit-Mach-O",
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "ruff": "0.15.12",
+    "mypy": "1.20.2",
+    "cache_provider": false,
+    "architectural_environment_id": "041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c",
+    "full_parallel_environment_id": "99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849"
+  },
+  "census": {
+    "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/base-census.json",
+    "source_branch": "kitty/mission-assertive-test-suite-sanitation-01KZME3P-lane-a",
+    "sha256": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    "assigned_test_paths": 46,
+    "reconciled_test_paths": 46,
+    "scanner_candidates_reconciled": 46,
+    "base_source_units": 557,
+    "base_nodes": 698,
+    "unowned": []
+  },
+  "baseline": {
+    "authority": "WP01 immutable base census",
+    "command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <46 owned test paths>",
+    "collected_nodes": 698,
+    "source_lines": 21714,
+    "execution_note": "WP01 census is immutable; no redundant pre-reduction execution."
+  },
+  "head": {
+    "command": ".venv/bin/pytest -q -p no:cacheprovider <25 surviving owned test paths>",
+    "collection_command": ".venv/bin/pytest --collect-only -q -p no:cacheprovider <25 surviving owned test paths>",
+    "collected_nodes": 390,
+    "collection_seconds": 42.35,
+    "wall_seconds": 84.62,
+    "pytest_summary": {
+      "passed": 390,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "exit_code": 0
+    },
+    "live_test_files": 25,
+    "live_source_functions": 326,
+    "live_source_lines": 12082
+  },
+  "delta": {
+    "whole_files_deleted": 21,
+    "reduced_files": 22,
+    "unchanged_live_files": 3,
+    "deleted_base_source_units": 232,
+    "net_nodes_removed": 308,
+    "node_reduction_percent": 44.13,
+    "source_lines_removed": 9632,
+    "source_line_reduction_percent": 44.36,
+    "tracked_test_diff_insertions": 69,
+    "tracked_test_diff_deletions": 9693
+  },
+  "parallel_harness_observation": {
+    "command": ".venv/bin/pytest -q -n 4 --dist loadfile -p no:cacheprovider <28 then-surviving paths>",
+    "passed": 77,
+    "setup_errors": 328,
+    "classification": "PRE_ACT_INFRASTRUCTURE",
+    "cause": "Known #3283 lock-timeout cascade because approved WP02 harness changes remain isolated in lane-b until mission merge.",
+    "wp14_product_failures": 0,
+    "serial_replay": "PASS"
+  },
+  "typecheck": {
+    "base_command": "mypy <46 base owned paths>",
+    "base_errors": 60,
+    "base_error_files": 13,
+    "head_command": "mypy <25 surviving owned paths>",
+    "head_errors": 41,
+    "head_error_files": 6,
+    "new_error_signatures": [],
+    "non_regression": true,
+    "note": "Deletion reduced pre-existing annotation debt; no new signature was introduced."
+  },
+  "lint": {
+    "command": ".venv/bin/ruff check <23 modified surviving Python paths>",
+    "errors": 0,
+    "exit_code": 0
+  },
+  "ledger_validation": {
+    "command": ".venv/bin/python <WP01-audit.py> validate <frozen-base-census.json> <frozen-base-workloads.yaml> dispositions/WP14.yaml",
+    "schema_version": "test-sanitation/v1",
+    "terminal_rows": 557,
+    "unique_exact_census_members": 557,
+    "base_nodes_observed": 698,
+    "keep_rows": 325,
+    "delete_rows": 232,
+    "keep_base_nodes": 389,
+    "delete_base_nodes": 309,
+    "errors": [],
+    "exit_code": 0
+  },
+  "deleted_paths": [
+    "tests/next/test_retrospective_terminus_wiring.py",
+    "tests/runtime/test_bridge_compat_surface.py",
+    "tests/runtime/test_runtime_bridge_family_arch.py",
+    "tests/specify_cli/cli/commands/agent/test_record_analysis_double_resolution.py",
+    "tests/specify_cli/cli/commands/agent/test_tasks_coreless_orchestration.py",
+    "tests/specify_cli/cli/commands/agent/test_workflow_placement_routing.py",
+    "tests/specify_cli/coordination/test_commit_router_planning_residue.py",
+    "tests/specify_cli/status/test_inert_field_reduction.py",
+    "tests/specify_cli/test_clock_consolidation.py",
+    "tests/specify_cli/workspace/test_context_worktree_routing.py",
+    "tests/architectural/test_commit_target_kind_guard.py",
+    "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
+    "tests/architectural/test_no_phantom_worktree_repair.py",
+    "tests/architectural/test_no_raw_mission_spec_paths.py",
+    "tests/architectural/test_no_tracked_test_feature_missions.py",
+    "tests/architectural/test_pre_review_scope_singlesource.py",
+    "tests/architectural/test_safe_commit_import_boundary.py",
+    "tests/architectural/test_status_command_guidance.py",
+    "tests/architectural/test_tasks_command_surface.py",
+    "tests/architectural/test_verdict_seam_census.py",
+    "tests/architectural/test_worktrees_index_clean.py"
+  ],
+  "renamed_paths": [],
+  "reduced_paths": [
+    {
+      "path": "tests/mission_runtime/test_write_target_degrade.py",
+      "base_nodes": 9,
+      "head_nodes": 8,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/runtime/test_bridge_decide_next.py",
+      "base_nodes": 36,
+      "head_nodes": 34,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/runtime/test_bridge_engine.py",
+      "base_nodes": 15,
+      "head_nodes": 13,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/runtime/test_bridge_retrospective.py",
+      "base_nodes": 26,
+      "head_nodes": 24,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/runtime/test_setup_plan_sync_evidence.py",
+      "base_nodes": 10,
+      "head_nodes": 6,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+      "base_nodes": 21,
+      "head_nodes": 19,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+      "base_nodes": 61,
+      "head_nodes": 59,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_daemon_doctor.py",
+      "base_nodes": 10,
+      "head_nodes": 9,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
+      "base_nodes": 26,
+      "head_nodes": 25,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py",
+      "base_nodes": 16,
+      "head_nodes": 15,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+      "base_nodes": 11,
+      "head_nodes": 9,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/coordination/test_wp05_status_read_contract.py",
+      "base_nodes": 8,
+      "head_nodes": 7,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/specify_cli/status/test_wp_state.py",
+      "base_nodes": 85,
+      "head_nodes": 77,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/status/test_aggregate_surface_resolution.py",
+      "base_nodes": 13,
+      "head_nodes": 12,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_coord_rollback_coherence_guard.py",
+      "base_nodes": 6,
+      "head_nodes": 3,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_events_tracker_public_imports.py",
+      "base_nodes": 4,
+      "head_nodes": 1,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_mission_runtime_surface.py",
+      "base_nodes": 7,
+      "head_nodes": 6,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_no_worktree_name_guess.py",
+      "base_nodes": 11,
+      "head_nodes": 5,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_session_reaper.py",
+      "base_nodes": 14,
+      "head_nodes": 13,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_status_module_boundary.py",
+      "base_nodes": 7,
+      "head_nodes": 5,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_status_sync_boundary.py",
+      "base_nodes": 2,
+      "head_nodes": 1,
+      "verdict": "KEEP_REDUCED"
+    },
+    {
+      "path": "tests/architectural/test_verdict_vocab_single_source.py",
+      "base_nodes": 31,
+      "head_nodes": 24,
+      "verdict": "KEEP_REDUCED"
+    }
+  ],
+  "unchanged_paths": [
+    "tests/coordination/test_verdict_dir_co_resolution.py",
+    "tests/architectural/test_no_production_worktree_guard_bypass.py",
+    "tests/architectural/test_resume_non_reemission_guard.py"
+  ],
+  "survivor_proofs": [
+    {
+      "family": "tests-coordination-test-verdict-dir-co-resolution-py",
+      "path": "tests/coordination/test_verdict_dir_co_resolution.py",
+      "corpus": [
+        "src/specify_cli/coordination/placement_seam.py",
+        "src/specify_cli/cli/commands/agent/review_cycle.py"
+      ],
+      "nonzero": true,
+      "fault": "Pass a divergent partition kind or caller-selected directory to one consumer.",
+      "control": "Default and sanctioned-kind calls resolve the same directory.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 8
+    },
+    {
+      "family": "tests-mission-runtime-test-write-target-degrade-py",
+      "path": "tests/mission_runtime/test_write_target_degrade.py",
+      "corpus": [
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/git/bookkeeping_commit.py"
+      ],
+      "nonzero": true,
+      "fault": "Lose CoordinationBranchDeleted/ActionContext cause or silently invent a target for missing mission metadata.",
+      "control": "Resolvable mission and explicit branch select their declared target.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 8
+    },
+    {
+      "family": "tests-runtime-test-bridge-decide-next-py",
+      "path": "tests/runtime/test_bridge_decide_next.py",
+      "corpus": [
+        "src/runtime/next/runtime_bridge.py"
+      ],
+      "nonzero": true,
+      "fault": "Continue after a blocking phase or persist buffered state after retrospective refusal.",
+      "control": "Accepted terminal and non-terminal decisions materialize once.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 34
+    },
+    {
+      "family": "tests-runtime-test-bridge-engine-py",
+      "path": "tests/runtime/test_bridge_engine.py",
+      "corpus": [
+        "src/runtime/next/runtime_bridge_engine.py"
+      ],
+      "nonzero": true,
+      "fault": "Skip prior-step completion, duplicate a decision event, or bypass the terminal retrospective gate.",
+      "control": "Valid step and terminal transitions append one coherent event sequence.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 13
+    },
+    {
+      "family": "tests-runtime-test-bridge-retrospective-py",
+      "path": "tests/runtime/test_bridge_retrospective.py",
+      "corpus": [
+        "src/runtime/next/runtime_bridge_retrospective.py",
+        "src/specify_cli/retrospective/gate.py"
+      ],
+      "nonzero": true,
+      "fault": "Swallow a strict failure, emit an unclassified failure, or write when disabled.",
+      "control": "Enabled capture writes/emits; disabled policy no-ops.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 24
+    },
+    {
+      "family": "tests-runtime-test-setup-plan-sync-evidence-py",
+      "path": "tests/runtime/test_setup_plan_sync_evidence.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/setup_plan.py"
+      ],
+      "nonzero": true,
+      "fault": "Write with missing auth, owner mismatch, or orphan owner record.",
+      "control": "Authenticated coherent ownership reaches the scoped write.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 6
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-agent-test-tasks-cli-contract-coord-py",
+      "path": "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/review/arbiter.py"
+      ],
+      "nonzero": true,
+      "fault": "Approve a rejected/stale review or fabricate approval during an arbiter override.",
+      "control": "Current review evidence and legal transition persist the intended event.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 19
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-coordination-doctor-py",
+      "path": "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/coordination_doctor.py",
+        "src/specify_cli/coordination/coherence.py"
+      ],
+      "nonzero": true,
+      "fault": "Treat a live strand or pruned worktree as healthy, or silently skip an unreadable mission.",
+      "control": "Healthy/stale-marker topologies stay clean and fixes are idempotent.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 59
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-daemon-doctor-py",
+      "path": "tests/specify_cli/cli/commands/test_daemon_doctor.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/daemon_doctor.py"
+      ],
+      "nonzero": true,
+      "fault": "Report an orphan as clean or claim restart success for a failed state.",
+      "control": "No-orphan and successful restart paths emit clean outcomes.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 9
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-mission-state-doctor-py",
+      "path": "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/mission_state_doctor.py"
+      ],
+      "nonzero": true,
+      "fault": "Accept conflicting modes, invalid severity, or a missing mission as a clean audit.",
+      "control": "One valid mode dispatches the selected operation.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 25
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-workspace-husk-doctor-py",
+      "path": "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py",
+      "corpus": [
+        "src/specify_cli/cli/commands/workspace_husk_doctor.py"
+      ],
+      "nonzero": true,
+      "fault": "Delete a registered workspace or report a remaining husk as fixed.",
+      "control": "Clean and idempotent fixes stay clean.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 15
+    },
+    {
+      "family": "tests-specify-cli-coordination-test-partition-authority-characterization-py",
+      "path": "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+      "corpus": [
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/mission_runtime/placement.py"
+      ],
+      "nonzero": true,
+      "fault": "Route kind=None residue to coordination on one side but primary on the other.",
+      "control": "Primary and explicit coordination cases agree.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 9
+    },
+    {
+      "family": "tests-specify-cli-coordination-test-wp05-status-read-contract-py",
+      "path": "tests/specify_cli/coordination/test_wp05_status_read_contract.py",
+      "corpus": [
+        "src/specify_cli/coordination/status_service.py"
+      ],
+      "nonzero": true,
+      "fault": "Prefer a relayed value over stored topology or write metadata during a read.",
+      "control": "Primary, materialized coordination, deleted-branch, and corrupt-meta cases resolve explicitly.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 7
+    },
+    {
+      "family": "tests-specify-cli-status-test-wp-state-py",
+      "path": "tests/specify_cli/status/test_wp_state.py",
+      "corpus": [
+        "src/specify_cli/status/wp_state.py",
+        "src/specify_cli/status/transitions.py"
+      ],
+      "nonzero": true,
+      "fault": "Permit a disallowed/terminal transition or omit a required review/workspace/evidence guard.",
+      "control": "Every declared legal pair transitions with complete context.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 77
+    },
+    {
+      "family": "tests-status-test-aggregate-surface-resolution-py",
+      "path": "tests/status/test_aggregate_surface_resolution.py",
+      "corpus": [
+        "src/specify_cli/status/aggregate.py",
+        "src/specify_cli/missions/_read_path_resolver.py"
+      ],
+      "nonzero": true,
+      "fault": "Select the first ambiguous mid8 match or silently fall back after a deleted coordination branch.",
+      "control": "Unambiguous primary and pre-materialization windows resolve deterministically.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 12
+    },
+    {
+      "family": "tests-architectural-test-coord-rollback-coherence-guard-py",
+      "path": "tests/architectural/test_coord_rollback_coherence_guard.py",
+      "corpus": [
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/coordination/coherence.py"
+      ],
+      "nonzero": true,
+      "fault": "Stub persistence or strand authority to a no-op during rollback.",
+      "control": "The real marker and strand writer produce coherent state.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 3
+    },
+    {
+      "family": "tests-architectural-test-events-tracker-public-imports-py",
+      "path": "tests/architectural/test_events_tracker_public_imports.py",
+      "corpus": [
+        "src/specify_cli/"
+      ],
+      "nonzero": true,
+      "fault": "Add an import from spec_kitty_tracker._internal.store.",
+      "control": "Public package-root import remains accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 1
+    },
+    {
+      "family": "tests-architectural-test-mission-runtime-surface-py",
+      "path": "tests/architectural/test_mission_runtime_surface.py",
+      "corpus": [
+        "src/mission_runtime/",
+        "src/specify_cli/"
+      ],
+      "nonzero": true,
+      "fault": "Inject a direct mission_runtime internal-submodule import in CLI source.",
+      "control": "Package-root and TYPE_CHECKING-safe imports remain accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 6
+    },
+    {
+      "family": "tests-architectural-test-no-production-worktree-guard-bypass-py",
+      "path": "tests/architectural/test_no_production_worktree_guard_bypass.py",
+      "corpus": [
+        "src/"
+      ],
+      "nonzero": true,
+      "fault": "Plant allow_worktree_context=True in a production call.",
+      "control": "Default, omitted, and false values remain accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 2
+    },
+    {
+      "family": "tests-architectural-test-no-worktree-name-guess-py",
+      "path": "tests/architectural/test_no_worktree_name_guess.py",
+      "corpus": [
+        "src/mission_runtime/placement.py",
+        "src/specify_cli/workspace/"
+      ],
+      "nonzero": true,
+      "fault": "Plant f-string, slice, failover, or allowlisted-function name guessing.",
+      "control": "Seam-owned composition and unrelated strings remain accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 5
+    },
+    {
+      "family": "tests-architectural-test-resume-non-reemission-guard-py",
+      "path": "tests/architectural/test_resume_non_reemission_guard.py",
+      "corpus": [
+        "src/specify_cli/merge/done_bookkeeping.py",
+        "src/specify_cli/merge/state.py"
+      ],
+      "nonzero": true,
+      "fault": "Resume from any completed prefix and append done again.",
+      "control": "Missing suffix transitions emit exactly once.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 5
+    },
+    {
+      "family": "tests-architectural-test-session-reaper-py",
+      "path": "tests/architectural/test_session_reaper.py",
+      "corpus": [
+        "tests/conftest.py"
+      ],
+      "nonzero": true,
+      "fault": "Leak a current-run worktree/home or reap a pre-existing/registered worktree.",
+      "control": "Clean sessions and unrelated prior state remain untouched.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 13
+    },
+    {
+      "family": "tests-architectural-test-status-module-boundary-py",
+      "path": "tests/architectural/test_status_module_boundary.py",
+      "corpus": [
+        "src/specify_cli/status/",
+        "src/specify_cli/"
+      ],
+      "nonzero": true,
+      "fault": "Inject a direct submodule or submodule-object import.",
+      "control": "Facade and TYPE_CHECKING imports remain accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 5
+    },
+    {
+      "family": "tests-architectural-test-status-sync-boundary-py",
+      "path": "tests/architectural/test_status_sync_boundary.py",
+      "corpus": [
+        "src/specify_cli/status/"
+      ],
+      "nonzero": true,
+      "fault": "Plant from specify_cli.sync import emit in the scanned package.",
+      "control": "Status-facade import remains accepted.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 1
+    },
+    {
+      "family": "tests-architectural-test-verdict-vocab-single-source-py",
+      "path": "tests/architectural/test_verdict_vocab_single_source.py",
+      "corpus": [
+        "src/specify_cli/status/verdict_vocab.py",
+        "src/specify_cli/status/reducer.py"
+      ],
+      "nonzero": true,
+      "fault": "Recreate inline equivalence, import without calling the bridge, or emit an arbiter-only override as review result.",
+      "control": "Known inbound/artifact values round-trip and scoped approved/rejected emissions succeed.",
+      "act_reached": true,
+      "intended_oracle_failed": true,
+      "head_nodes": 24
+    }
+  ],
+  "wp07_handoff": {
+    "central_map_edited": false,
+    "deleted_paths": [
+      "tests/next/test_retrospective_terminus_wiring.py",
+      "tests/runtime/test_bridge_compat_surface.py",
+      "tests/runtime/test_runtime_bridge_family_arch.py",
+      "tests/specify_cli/cli/commands/agent/test_record_analysis_double_resolution.py",
+      "tests/specify_cli/cli/commands/agent/test_tasks_coreless_orchestration.py",
+      "tests/specify_cli/cli/commands/agent/test_workflow_placement_routing.py",
+      "tests/specify_cli/coordination/test_commit_router_planning_residue.py",
+      "tests/specify_cli/status/test_inert_field_reduction.py",
+      "tests/specify_cli/test_clock_consolidation.py",
+      "tests/specify_cli/workspace/test_context_worktree_routing.py",
+      "tests/architectural/test_commit_target_kind_guard.py",
+      "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
+      "tests/architectural/test_no_phantom_worktree_repair.py",
+      "tests/architectural/test_no_raw_mission_spec_paths.py",
+      "tests/architectural/test_no_tracked_test_feature_missions.py",
+      "tests/architectural/test_pre_review_scope_singlesource.py",
+      "tests/architectural/test_safe_commit_import_boundary.py",
+      "tests/architectural/test_status_command_guidance.py",
+      "tests/architectural/test_tasks_command_surface.py",
+      "tests/architectural/test_verdict_seam_census.py",
+      "tests/architectural/test_worktrees_index_clean.py"
+    ],
+    "renamed_paths": [],
+    "surviving_paths": [
+      "tests/coordination/test_verdict_dir_co_resolution.py",
+      "tests/mission_runtime/test_write_target_degrade.py",
+      "tests/runtime/test_bridge_decide_next.py",
+      "tests/runtime/test_bridge_engine.py",
+      "tests/runtime/test_bridge_retrospective.py",
+      "tests/runtime/test_setup_plan_sync_evidence.py",
+      "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+      "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+      "tests/specify_cli/cli/commands/test_daemon_doctor.py",
+      "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
+      "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py",
+      "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+      "tests/specify_cli/coordination/test_wp05_status_read_contract.py",
+      "tests/specify_cli/status/test_wp_state.py",
+      "tests/status/test_aggregate_surface_resolution.py",
+      "tests/architectural/test_coord_rollback_coherence_guard.py",
+      "tests/architectural/test_events_tracker_public_imports.py",
+      "tests/architectural/test_mission_runtime_surface.py",
+      "tests/architectural/test_no_production_worktree_guard_bypass.py",
+      "tests/architectural/test_no_worktree_name_guess.py",
+      "tests/architectural/test_resume_non_reemission_guard.py",
+      "tests/architectural/test_session_reaper.py",
+      "tests/architectural/test_status_module_boundary.py",
+      "tests/architectural/test_status_sync_boundary.py",
+      "tests/architectural/test_verdict_vocab_single_source.py"
+    ],
+    "instruction": "Remove deleted paths from architectural/full-parallel ownership, retain all surviving path selectors, and account for the 698\u2192390 route-node delta without attributing WP02 bootstrap savings to WP14."
+  },
+  "scope": {
+    "production_files_changed": [],
+    "central_route_files_changed": [],
+    "owned_test_files_only": true,
+    "evidence_files": [
+      "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP14.yaml",
+      "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp14-results.json"
+    ]
+  },
+  "mutation_campaign": {
+    "scope": "detached git-archive copy of live production corpus at WP14 implementation HEAD; lane remained unmodified",
+    "corpus": "/tmp/wp14-live-corpus-wKbKqO",
+    "python": "CPython 3.11.15",
+    "manifest_path": "raw/wp14-results.json#mutation_campaign (source receipt /tmp/wp14-mutation-manifest.json)",
+    "manifest_sha256": "551fd6b2f30b9c38f16a05ef491b57b0cb7a9903ef2287bafcc125445fa20b07",
+    "combined_fault_command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+    "combined_fault_outcome": "390 collected; 38 assertion/call failures; 352 passed; zero collection/import/setup errors",
+    "combined_fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+    "aggregate_supplement_command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/status/test_aggregate_surface_resolution.py",
+    "aggregate_supplement_outcome": "12 collected; 3 assertion/call failures; 9 passed; zero collection/import/setup errors",
+    "aggregate_supplement_output_sha256": "eaca603627153db92d1e690d4e0613986b860e62d11a1c0e6dead3fb93baa055",
+    "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+    "control_outcome": "390 passed in 82.33s; exit 0",
+    "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+    "note": "The aggregate family's first mutation was survived; cycle 2 DECIDED and moved to its live ambiguity authority, where all three intended assertions red. No deletion scope changed."
+  },
+  "fault_control_matrix": [
+    {
+      "family": "tests-architectural-test-coord-rollback-coherence-guard-py",
+      "survivor_path": "tests/architectural/test_coord_rollback_coherence_guard.py",
+      "live_production_corpus": [
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/coordination/coherence.py"
+      ],
+      "fault": "Stub persistence or strand authority to a no-op during rollback.",
+      "mechanism": "exact replacement sha256:41d306b6c05ad4a582b2ff89e452a5ea68908537adf7d96401e08b7cac556c40 -> sha256:7ffddaa8ef81d1ee9d803f071d49f3cf8ca2bc48aec7db415ac30585b226e372",
+      "mutated_production_path": "src/specify_cli/merge/executor.py",
+      "mutated_file_sha256": "583e8e24d697228f16a850bd03f9245a6d8610367ed8de6f901749daf1576a8f",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_coord_rollback_coherence_guard.py::test_guard_is_green_with_the_real_mark"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "The real marker and strand writer produce coherent state.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-events-tracker-public-imports-py",
+      "survivor_path": "tests/architectural/test_events_tracker_public_imports.py",
+      "live_production_corpus": [
+        "src/specify_cli/"
+      ],
+      "fault": "Add an import from spec_kitty_tracker._internal.store.",
+      "mechanism": "append live-corpus fault sha256:a57fb4c83785e9395f1ed9df1aede01d30f93d145e96643dab16d7dcfc6ac488",
+      "mutated_production_path": "src/specify_cli/cli/commands/doctor.py",
+      "mutated_file_sha256": "07d5f064c7af27ceb06b8fc827ce8976151e0d03a31f03d47b634958f7074805",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_events_tracker_public_imports.py::test_cli_never_imports_private_events_or_tracker_modules"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Public package-root import remains accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-mission-runtime-surface-py",
+      "survivor_path": "tests/architectural/test_mission_runtime_surface.py",
+      "live_production_corpus": [
+        "src/mission_runtime/",
+        "src/specify_cli/"
+      ],
+      "fault": "Inject a direct mission_runtime internal-submodule import in CLI source.",
+      "mechanism": "append live-corpus fault sha256:47b422265aa32b285b520f9f6458703e5579b7cce01b57ce987d6f4d509ec395",
+      "mutated_production_path": "src/specify_cli/cli/commands/next_cmd.py",
+      "mutated_file_sha256": "bff9c82a6689dbad82f5f778df0658b53ab8a3aa597fb16566fa0f13a62b895a",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_mission_runtime_surface.py::TestMissionRuntimeSurface::test_no_external_submodule_imports",
+        "tests/architectural/test_mission_runtime_surface.py::test_ast_scan_no_external_internal_imports"
+      ],
+      "fault_outcome": "2 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Package-root and TYPE_CHECKING-safe imports remain accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-no-production-worktree-guard-bypass-py",
+      "survivor_path": "tests/architectural/test_no_production_worktree_guard_bypass.py",
+      "live_production_corpus": [
+        "src/"
+      ],
+      "fault": "Plant allow_worktree_context=True in a production call.",
+      "mechanism": "append live-corpus fault sha256:b9c6c7fb25636e279420daafeddd7f9a16294153cb3f00543df3977c4073d7bb",
+      "mutated_production_path": "src/specify_cli/cli/commands/doctor.py",
+      "mutated_file_sha256": "ed342f0bda5ee1a1777b8a504d9e972e5940fa708ff6c1ce22a9aa1e52b8477a",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_no_production_worktree_guard_bypass.py::test_no_production_caller_bypasses_worktree_guard"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Default, omitted, and false values remain accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-no-worktree-name-guess-py",
+      "survivor_path": "tests/architectural/test_no_worktree_name_guess.py",
+      "live_production_corpus": [
+        "src/mission_runtime/placement.py",
+        "src/specify_cli/workspace/"
+      ],
+      "fault": "Plant f-string, slice, failover, or allowlisted-function name guessing.",
+      "mechanism": "append live-corpus fault sha256:b90f7cf862cf0a4b4cdc0714b0b794c46a64cd4819747925662b87d7aa0e3f38",
+      "mutated_production_path": "src/specify_cli/workspace/context.py",
+      "mutated_file_sha256": "f05ea7b4a7529f333f523ec864f0388eb0bfba88259a7b9a3e897aaeba13af9d",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_no_worktree_name_guess.py::test_no_mission_shortid_slice_or_failover_bypass_outside_seam"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Seam-owned composition and unrelated strings remain accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-resume-non-reemission-guard-py",
+      "survivor_path": "tests/architectural/test_resume_non_reemission_guard.py",
+      "live_production_corpus": [
+        "src/specify_cli/merge/done_bookkeeping.py",
+        "src/specify_cli/merge/state.py"
+      ],
+      "fault": "Resume from any completed prefix and append done again.",
+      "mechanism": "exact replacement sha256:9e7330519b7013dc969f1541dd91f492253a4c7d691b440eb776df8d91b3b650 -> sha256:9e6f0450f3d4a244cb9c7d33839234769faedda0a4bc987d89ddc374f75865a1",
+      "mutated_production_path": "src/specify_cli/merge/done_bookkeeping.py",
+      "mutated_file_sha256": "56aa819aac75c09ec08d35e22fc0e2d972db55c2ab21d4b54a4ae2610fa0ae08",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_resume_non_reemission_guard.py::test_resume_never_reemits_a_durably_recorded_done[WP01]",
+        "tests/architectural/test_resume_non_reemission_guard.py::test_resume_never_reemits_a_durably_recorded_done[WP01-WP02]",
+        "tests/architectural/test_resume_non_reemission_guard.py::test_resume_never_reemits_a_durably_recorded_done[WP02-WP03]",
+        "tests/architectural/test_resume_non_reemission_guard.py::test_resume_never_reemits_a_durably_recorded_done[WP01-WP02-WP03]"
+      ],
+      "fault_outcome": "4 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Missing suffix transitions emit exactly once.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-session-reaper-py",
+      "survivor_path": "tests/architectural/test_session_reaper.py",
+      "live_production_corpus": [
+        "tests/conftest.py"
+      ],
+      "fault": "Leak a current-run worktree/home or reap a pre-existing/registered worktree.",
+      "mechanism": "exact replacement sha256:e8158e76574db540c0ecc5d5a71b04494a79e45d5dc0fbcaf4d65993bccd1d70 -> sha256:ff6e30cbcaba3809811ba654b8c7de8c123bf9dbd3944b37d219e63948dc809a",
+      "mutated_production_path": "tests/conftest.py",
+      "mutated_file_sha256": "b1e8f6faedc6bd679fd4d1ce597fe0cc1f2237fc790020aa2b04a0801ff286a4",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_session_reaper.py::test_assert_no_leaked_test_residue_reds_on_leak",
+        "tests/architectural/test_session_reaper.py::test_pytest_sessionfinish_reds_and_selfheals_on_leak"
+      ],
+      "fault_outcome": "2 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Clean sessions and unrelated prior state remain untouched.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-status-module-boundary-py",
+      "survivor_path": "tests/architectural/test_status_module_boundary.py",
+      "live_production_corpus": [
+        "src/specify_cli/status/",
+        "src/specify_cli/"
+      ],
+      "fault": "Inject a direct submodule or submodule-object import.",
+      "mechanism": "append live-corpus fault sha256:c3040ce444ec9e7ab14a781a7f24c2a5e967a765d84d0316adb20042e008abe3",
+      "mutated_production_path": "src/runtime/next/runtime_bridge.py",
+      "mutated_file_sha256": "9ad70054efa906f62eb4a9834d62f99301d548ddc81304081b24c145dcf77d1b",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_status_module_boundary.py::test_ast_scan_no_direct_status_imports_repo_wide"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Facade and TYPE_CHECKING imports remain accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-status-sync-boundary-py",
+      "survivor_path": "tests/architectural/test_status_sync_boundary.py",
+      "live_production_corpus": [
+        "src/specify_cli/status/"
+      ],
+      "fault": "Plant from specify_cli.sync import emit in the scanned package.",
+      "mechanism": "append live-corpus fault sha256:bdf1f95f9ec06c889fd3fb7431c8b0142f762ec2710f4f98063b524ed8d036a6",
+      "mutated_production_path": "src/specify_cli/status/adapters.py",
+      "mutated_file_sha256": "a4348b4a747f9e3a65a39684f3abd18ea36c274e6718aaaf0018c328195c5dd8",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_status_sync_boundary.py::TestStatusSyncBoundary::test_status_does_not_import_sync"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Status-facade import remains accepted.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-architectural-test-verdict-vocab-single-source-py",
+      "survivor_path": "tests/architectural/test_verdict_vocab_single_source.py",
+      "live_production_corpus": [
+        "src/specify_cli/status/verdict_vocab.py",
+        "src/specify_cli/status/reducer.py"
+      ],
+      "fault": "Recreate inline equivalence, import without calling the bridge, or emit an arbiter-only override as review result.",
+      "mechanism": "append live-corpus fault sha256:ea8f22e262fb27f57f2cf9499580e7cb82dc49fd805b385da04d1871c91e59bc",
+      "mutated_production_path": "src/specify_cli/status/reducer.py",
+      "mutated_file_sha256": "88eb94e7d080377df328f5f6c4108365d8e92a8f0b1771cbdaee526aa6f07066",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/architectural/test_verdict_vocab_single_source.py::test_no_module_other_than_bridge_spells_the_inline_equivalence"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Known inbound/artifact values round-trip and scoped approved/rejected emissions succeed.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-coordination-test-verdict-dir-co-resolution-py",
+      "survivor_path": "tests/coordination/test_verdict_dir_co_resolution.py",
+      "live_production_corpus": [
+        "src/specify_cli/coordination/placement_seam.py",
+        "src/specify_cli/cli/commands/agent/review_cycle.py"
+      ],
+      "fault": "Pass a divergent partition kind or caller-selected directory to one consumer.",
+      "mechanism": "append live-corpus fault sha256:9286456aca157a6f787078abd28301934f3a2046ffab9835f07bd131d1ec29cd",
+      "mutated_production_path": "src/specify_cli/cli/commands/agent/workflow_cores.py",
+      "mutated_file_sha256": "b2e6bb86a64cb0cda850353a74a6a06b79f85905b1cda1350b5468429127add2",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/coordination/test_verdict_dir_co_resolution.py::test_no_consumer_calls_review_cycle_wp_dir_at_a_divergent_kind_or_caller_dir"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Default and sanctioned-kind calls resolve the same directory.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-mission-runtime-test-write-target-degrade-py",
+      "survivor_path": "tests/mission_runtime/test_write_target_degrade.py",
+      "live_production_corpus": [
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/events/decision_log.py",
+        "src/specify_cli/git/bookkeeping_commit.py"
+      ],
+      "fault": "Lose CoordinationBranchDeleted/ActionContext cause or silently invent a target for missing mission metadata.",
+      "mechanism": "exact replacement sha256:79265f156f29391227fd8d6d004b0acbd6ece9919caf72a3fbaf7020ae56b835 -> sha256:f1f7a3ed72436e359d0b1edd73b3eda86d1efc90783f007e89287b8d3c208b73",
+      "mutated_production_path": "src/mission_runtime/write_target_degrade.py",
+      "mutated_file_sha256": "3f7a94e6e939a36a0b2a86b287024d49e1f8407328e67661bd2a87058b84dd84",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/mission_runtime/test_write_target_degrade.py::TestFailClosedPreservesCause::test_coordination_branch_deleted_cause_and_error_code_survive"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Resolvable mission and explicit branch select their declared target.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-runtime-test-bridge-decide-next-py",
+      "survivor_path": "tests/runtime/test_bridge_decide_next.py",
+      "live_production_corpus": [
+        "src/runtime/next/runtime_bridge.py"
+      ],
+      "fault": "Continue after a blocking phase or persist buffered state after retrospective refusal.",
+      "mechanism": "exact replacement sha256:175d139c1edb38a1d0c8d597b80f9acb607107be8f85546b90f6646beca35e59 -> sha256:c883b8448be8fd67131e4fe6b700fddd52854797e2adf12408d578737174e9e7",
+      "mutated_production_path": "src/runtime/next/runtime_bridge.py",
+      "mutated_file_sha256": "6a46018e47eadde94b89fca8081910018788119c462927430baac19b62ccc86e",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/runtime/test_bridge_decide_next.py::test_decide_next_via_runtime_short_circuits_at_first_non_none_phase",
+        "tests/runtime/test_bridge_decide_next.py::test_decide_next_via_runtime_runs_decision_materialize_when_earlier_phases_pass"
+      ],
+      "fault_outcome": "2 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Accepted terminal and non-terminal decisions materialize once.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-runtime-test-bridge-engine-py",
+      "survivor_path": "tests/runtime/test_bridge_engine.py",
+      "live_production_corpus": [
+        "src/runtime/next/runtime_bridge_engine.py"
+      ],
+      "fault": "Skip prior-step completion, duplicate a decision event, or bypass the terminal retrospective gate.",
+      "mechanism": "exact replacement sha256:d1f161cc5bcfab074bf6f5ce06f8a002f16beb5d554fc555ad6d3c0af20ecebc -> sha256:c54d3ae116518040a51f64236d5c33e99bee5b1112f123b13cfd0fdd141eefcd",
+      "mutated_production_path": "src/runtime/next/runtime_bridge_engine.py",
+      "mutated_file_sha256": "3410440ca872187d97f0a81c008b5ae85fae7c8804e7165bacec3643405ddf16",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/runtime/test_bridge_engine.py::test_advance_run_state_terminal_runs_retrospective_gate"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Valid step and terminal transitions append one coherent event sequence.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-runtime-test-bridge-retrospective-py",
+      "survivor_path": "tests/runtime/test_bridge_retrospective.py",
+      "live_production_corpus": [
+        "src/runtime/next/runtime_bridge_retrospective.py",
+        "src/specify_cli/retrospective/gate.py"
+      ],
+      "fault": "Swallow a strict failure, emit an unclassified failure, or write when disabled.",
+      "mechanism": "exact replacement sha256:178b3d479a3bda9a72c6b88a6a8b9a1b2dac7594ae489c0d0524628dc190ef89 -> sha256:6e0b95b01353fa75adb27c74f4ce939521c1a5fa1bb393fb3bf850dcbc3a8809",
+      "mutated_production_path": "src/runtime/next/runtime_bridge_retrospective.py",
+      "mutated_file_sha256": "7c231c03ad840b4d47456baa1c27e144c1076b44e4cf9d2e2a39ff3370df32c8",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/runtime/test_bridge_retrospective.py::test_run_retrospective_learning_capture_reraises_when_blocking"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Enabled capture writes/emits; disabled policy no-ops.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-runtime-test-setup-plan-sync-evidence-py",
+      "survivor_path": "tests/runtime/test_setup_plan_sync_evidence.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/setup_plan.py"
+      ],
+      "fault": "Write with missing auth, owner mismatch, or orphan owner record.",
+      "mechanism": "exact replacement sha256:2035fc88208efd7f4d38814bc7317dcef594697c3c27b309e558ff31819807ad -> sha256:516badb65669e2184e4e9cff546899f8d7e7ce7d964684bfc0f6edcd9d8ba680",
+      "mutated_production_path": "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+      "mutated_file_sha256": "5fb203b1d5bfb27ace29c457b2ba26c36b8a3153a069ee9cf4e52b9d7f0da2dc",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/runtime/test_setup_plan_sync_evidence.py::TestSetupPlanPreflightIntegration::test_setup_plan_refuses_on_daemon_owner_mismatch",
+        "tests/runtime/test_setup_plan_sync_evidence.py::TestSetupPlanPreflightIntegration::test_setup_plan_refuses_on_orphan_owner_record"
+      ],
+      "fault_outcome": "2 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Authenticated coherent ownership reaches the scoped write.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-agent-test-tasks-cli-contract-coord-py",
+      "survivor_path": "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/review/arbiter.py"
+      ],
+      "fault": "Approve a rejected/stale review or fabricate approval during an arbiter override.",
+      "mechanism": "exact replacement sha256:49712b4b2ae6895ed4c28edef2a776d40b0f88e43786dfdd48c574ba4afae08a -> sha256:f8b7d652166a484f3a0f2b2a3568d09a8db73d6563968877ceb467aa6d4613a1",
+      "mutated_production_path": "src/specify_cli/review/arbiter.py",
+      "mutated_file_sha256": "e0a6731e0f915ba6316c955347e5e72103f67139c374d70e70f560e7b43078c8",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py::TestMoveTaskDecisionBranchesFrozen::test_arbiter_override_persists_decision",
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py::TestMoveTaskDecisionBranchesFrozen::test_arbiter_override_to_approved_suppresses_fabricated_approval",
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py::test_persist_arbiter_decision_resolves_via_slug_not_bare_wp_id"
+      ],
+      "fault_outcome": "3 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Current review evidence and legal transition persist the intended event.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-coordination-doctor-py",
+      "survivor_path": "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/coordination_doctor.py",
+        "src/specify_cli/coordination/coherence.py"
+      ],
+      "fault": "Treat a live strand or pruned worktree as healthy, or silently skip an unreadable mission.",
+      "mechanism": "exact replacement sha256:328cc9bb584e3c17959237330527e1e7b5a7350c0d0b06361049cdda2b8e95ba -> sha256:ef78f4e1207d39d47f83fd84741fc686084d53a80b016f3893543c3f2b452c3a",
+      "mutated_production_path": "src/specify_cli/cli/commands/_coordination_doctor.py",
+      "mutated_file_sha256": "9adec9d22487fa1a85596edb960cf16d7e6fd5c53d7f97f100f6c8ddf1e64bbc",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py::test_run_coordination_health_error_exit",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py::test_run_coordination_health_json_exits_1_on_live_strand",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py::test_run_coordination_health_pruned_worktree_exits_1_with_stuck_error"
+      ],
+      "fault_outcome": "3 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Healthy/stale-marker topologies stay clean and fixes are idempotent.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-daemon-doctor-py",
+      "survivor_path": "tests/specify_cli/cli/commands/test_daemon_doctor.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/daemon_doctor.py"
+      ],
+      "fault": "Report an orphan as clean or claim restart success for a failed state.",
+      "mechanism": "exact replacement sha256:187853ab3f9b11d63a289cb24510855f4eb5dcacd0310d6a649e11d2e95f4b20 -> sha256:3f6130c52f225af5839e2e4b6cd8fa1f172b08eac6df101dbc571ca0436eaa8f",
+      "mutated_production_path": "src/specify_cli/cli/commands/_daemon_doctor.py",
+      "mutated_file_sha256": "fa6a9bb480ebcd8c64290c7034c1e902b1dc0a01d5bd1dfa3481de97909ab13d",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/cli/commands/test_daemon_doctor.py::test_orphan_daemons_present_json"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "No-orphan and successful restart paths emit clean outcomes.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-mission-state-doctor-py",
+      "survivor_path": "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/mission_state_doctor.py"
+      ],
+      "fault": "Accept conflicting modes, invalid severity, or a missing mission as a clean audit.",
+      "mechanism": "exact replacement sha256:c4d87a5bf9afbf645a683856d774c99561bf8198ab2965cea5102129d1da0d15 -> sha256:cb534d063808f79feab94b1c5ceea8201d9c037548967d555f6b5aeefed3e094",
+      "mutated_production_path": "src/specify_cli/cli/commands/_mission_state_doctor.py",
+      "mutated_file_sha256": "e3ffd428ef4b265e9f46e9fbc17fd49aa49002eb9f881f78886c4cf0499fbc1e",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/cli/commands/test_mission_state_doctor.py::test_validate_modes_multiple_exits_2"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "One valid mode dispatches the selected operation.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-cli-commands-test-workspace-husk-doctor-py",
+      "survivor_path": "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py",
+      "live_production_corpus": [
+        "src/specify_cli/cli/commands/workspace_husk_doctor.py"
+      ],
+      "fault": "Delete a registered workspace or report a remaining husk as fixed.",
+      "mechanism": "exact replacement sha256:b11c791ab214bf0b4dc3a53d06c49062af562666e908f144d397880330502db1 -> sha256:470d94aa72437fffd38b9d0ed7a7fa4e748071ae4300b464f3322495f3c72bfb",
+      "mutated_production_path": "src/specify_cli/cli/commands/_workspace_husk_doctor.py",
+      "mutated_file_sha256": "e3c972ab8bd0280dd6b9f889b3c69a46b9e9c9209a003a9ab25776d7a1fcebca",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/cli/commands/test_workspace_husk_doctor.py::test_fix_remaining_json"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Clean and idempotent fixes stay clean.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-coordination-test-partition-authority-characterization-py",
+      "survivor_path": "tests/specify_cli/coordination/test_partition_authority_characterization.py",
+      "live_production_corpus": [
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/mission_runtime/placement.py"
+      ],
+      "fault": "Route kind=None residue to coordination on one side but primary on the other.",
+      "mechanism": "exact replacement sha256:af4e43aea27c1f80e3921dad7aad612532a76f0afd575b59364c914036cc1f44 -> sha256:3a8bb894f00102527f1c004eeae9d79bba7cee2008b04f220da104fe13cc7a04",
+      "mutated_production_path": "src/specify_cli/coordination/commit_router.py",
+      "mutated_file_sha256": "df40b0820990a821732cef2d4a27442daef4c4d46b4a998d0b1383475154c264",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py::TestThreeSitesCurrentPartitionDecisions::test_write_side_group_files_by_partition_agrees_on_recognized_paths",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py::TestDisagreementSetRoutesPrimaryOnResidueButCoordUnderCommitRouter::test_commit_router_kind_none_now_routes_primary_not_the_coord_caller[kitty-specs/m/meta.json]",
+        "tests/specify_cli/coordination/test_partition_authority_characterization.py::TestDisagreementSetRoutesPrimaryOnResidueButCoordUnderCommitRouter::test_commit_router_kind_none_now_routes_primary_not_the_coord_caller[kitty-specs/m/gap-analysis.md]"
+      ],
+      "fault_outcome": "3 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Primary and explicit coordination cases agree.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-coordination-test-wp05-status-read-contract-py",
+      "survivor_path": "tests/specify_cli/coordination/test_wp05_status_read_contract.py",
+      "live_production_corpus": [
+        "src/specify_cli/coordination/status_service.py"
+      ],
+      "fault": "Prefer a relayed value over stored topology or write metadata during a read.",
+      "mechanism": "exact replacement sha256:843a8786f4d122907b7a7239b909abf590ab321c2f9225cb0de1fe1ed742a9f7 -> sha256:8bb24e7bd57566580baa19043d38c76b7576b6876c66f70ab67718804bc13a35",
+      "mutated_production_path": "src/specify_cli/coordination/status_transition.py",
+      "mutated_file_sha256": "08ef8108fa21e1444bee955b48b6da05744034a02a9a5d051d0d4be5db3e0ef0",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/coordination/test_wp05_status_read_contract.py::test_read_contract_reads_stored_topology_over_coord_value_relay",
+        "tests/specify_cli/coordination/test_wp05_status_read_contract.py::test_corrupt_meta_degrades_shape_helper_instead_of_raising"
+      ],
+      "fault_outcome": "2 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Primary, materialized coordination, deleted-branch, and corrupt-meta cases resolve explicitly.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-specify-cli-status-test-wp-state-py",
+      "survivor_path": "tests/specify_cli/status/test_wp_state.py",
+      "live_production_corpus": [
+        "src/specify_cli/status/wp_state.py",
+        "src/specify_cli/status/transitions.py"
+      ],
+      "fault": "Permit a disallowed/terminal transition or omit a required review/workspace/evidence guard.",
+      "mechanism": "exact replacement sha256:23bb0908610e8bded53889c5123730bd487af74de1ea7db32e56962355ed95ad -> sha256:fe640fa057d161924532e45100073b3a0d3d7a03c6359164ce738ef405473188",
+      "mutated_production_path": "src/specify_cli/status/wp_state.py",
+      "mutated_file_sha256": "445e4adb2ef06a926bc8cb85951970d8a3a763d422843a1ec81cd542d726e66c",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/specify_cli/status/test_wp_state.py::TestTransitionToMethod::test_terminal_state_cannot_transition"
+      ],
+      "fault_outcome": "1 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "7864a8625367df90df9d00d22292bbb267235a83d9286bfef38c2365ee1da562",
+      "control": "Every declared legal pair transitions with complete context.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    },
+    {
+      "family": "tests-status-test-aggregate-surface-resolution-py",
+      "survivor_path": "tests/status/test_aggregate_surface_resolution.py",
+      "live_production_corpus": [
+        "src/specify_cli/status/aggregate.py",
+        "src/specify_cli/missions/_read_path_resolver.py"
+      ],
+      "fault": "Select the first ambiguous mid8 match or silently fall back after a deleted coordination branch.",
+      "mechanism": "exact live-authority replacement in src/specify_cli/context/mission_resolver.py: raise AmbiguousHandleError(handle, matches) -> return matches[0]",
+      "mutated_production_path": "src/specify_cli/context/mission_resolver.py",
+      "mutated_file_sha256": "09e4f6f9a204856dd74f5cf64dd35d201c3bf1a2df4e7419a6fcf4de836cf72c",
+      "command": "env PYTHONPATH=/tmp/wp14-live-corpus-wKbKqO/src:/tmp/wp14-live-corpus-wKbKqO /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/status/test_aggregate_surface_resolution.py",
+      "act_reached": true,
+      "failure_phase": "call/assertion (not collection, import, or setup)",
+      "intended_oracle_failed": true,
+      "failed_nodeids": [
+        "tests/status/test_aggregate_surface_resolution.py::test_ambiguous_mid8_handle_raises_typed_error",
+        "tests/status/test_aggregate_surface_resolution.py::test_ambiguous_mid8_does_not_resolve_to_a_directory",
+        "tests/status/test_aggregate_surface_resolution.py::test_find_meta_path_propagates_ambiguous_selector"
+      ],
+      "fault_outcome": "3 intended assertion red(s); combined campaign: 38 failed/352 passed; aggregate supplement: 3 failed/9 passed",
+      "fault_output_sha256": "eaca603627153db92d1e690d4e0613986b860e62d11a1c0e6dead3fb93baa055",
+      "control": "Unambiguous primary and pre-materialization windows resolve deterministically.",
+      "control_command": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-n/.venv/bin/python -m pytest -q -p no:cacheprovider tests/architectural/test_coord_rollback_coherence_guard.py tests/architectural/test_events_tracker_public_imports.py tests/architectural/test_mission_runtime_surface.py tests/architectural/test_no_production_worktree_guard_bypass.py tests/architectural/test_no_worktree_name_guess.py tests/architectural/test_resume_non_reemission_guard.py tests/architectural/test_session_reaper.py tests/architectural/test_status_module_boundary.py tests/architectural/test_status_sync_boundary.py tests/architectural/test_verdict_vocab_single_source.py tests/coordination/test_verdict_dir_co_resolution.py tests/mission_runtime/test_write_target_degrade.py tests/runtime/test_bridge_decide_next.py tests/runtime/test_bridge_engine.py tests/runtime/test_bridge_retrospective.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py tests/specify_cli/cli/commands/test_coordination_doctor.py tests/specify_cli/cli/commands/test_daemon_doctor.py tests/specify_cli/cli/commands/test_mission_state_doctor.py tests/specify_cli/cli/commands/test_workspace_husk_doctor.py tests/specify_cli/coordination/test_partition_authority_characterization.py tests/specify_cli/coordination/test_wp05_status_read_contract.py tests/specify_cli/status/test_wp_state.py tests/status/test_aggregate_surface_resolution.py",
+      "control_outcome": "390 passed in 82.33s; exit 0; cache provider disabled",
+      "control_output_sha256": "d814f74cc3d3581c5643dc1459b57dcebf333a1e0b3b0f0817926d26584f5d47",
+      "environment": "CPython 3.11.15, Darwin arm64, pytest 9.0.3, cache provider disabled"
+    }
+  ]
+}

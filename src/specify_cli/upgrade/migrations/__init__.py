@@ -31,7 +31,13 @@ def auto_discover_migrations() -> None:
     """
     import sys
 
-    failures: list[str] = []
+    # (module name, original exception) pairs: the originals are chained onto
+    # the raised MigrationDiscoveryError (`raise ... from failures[0][1]`) so
+    # downstream handlers can inspect the real failure — a corrupt ``.pyc``
+    # dies inside the import machinery (``ValueError: bad marshal data`` with
+    # frozen ``importlib`` frames), which ``bytecode_heal`` can only recognize
+    # through the preserved cause, never through the interpolated message.
+    failures: list[tuple[str, Exception]] = []
 
     # Get the migrations package directory
     migrations_dir = Path(__file__).parent
@@ -48,6 +54,19 @@ def auto_discover_migrations() -> None:
 
                 # Check if module was already imported
                 if module_full_name in sys.modules:
+                    # base.py holds the shared migration base classes
+                    # (BaseMigration, MigrationResult, PartialWrite) that both
+                    # the migration modules and external callers hold live
+                    # references to. It registers no migration, so it would
+                    # ALWAYS fall through the "not registered -> reload" branch
+                    # below -- and reloading it mints fresh class objects,
+                    # silently breaking isinstance()/identity across the process
+                    # (e.g. a reloaded m_zz constructs the new base.PartialWrite
+                    # while a caller still holds the original). base only ever
+                    # needs its one-time fresh import, never a reload.
+                    if module_name == "base":
+                        continue
+
                     # Only reload if the migration isn't already registered
                     # This handles test scenarios where MigrationRegistry.clear()
                     # was called but modules are still in sys.modules
@@ -78,11 +97,16 @@ def auto_discover_migrations() -> None:
                     # Fresh import
                     importlib.import_module(f".{module_name}", package=__name__)
             except Exception as e:
-                failures.append(f"{module_name}: {e}")
+                failures.append((module_name, e))
 
     if failures:
-        joined = "; ".join(failures)
-        raise MigrationDiscoveryError(f"Failed to import migration module(s): {joined}")
+        joined = "; ".join(f"{module_name}: {exc}" for module_name, exc in failures)
+        # Chain the first original failure as __cause__: the wrapper itself
+        # carries no import-machinery frames (it is raised outside the except,
+        # in this package's own frame), so anything that needs to tell a
+        # corrupt-``.pyc`` import failure from a genuinely broken migration
+        # module must walk the preserved cause (#4124).
+        raise MigrationDiscoveryError(f"Failed to import migration module(s): {joined}") from failures[0][1]
 
 
 # Export the auto_discover function for testing

@@ -3,7 +3,7 @@
 ``spec-kitty migrate charter-encoding`` walks every existing mission's charter
 content (``kitty-specs/*/charter/*.{yaml,md,txt}`` and
 ``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file via
-the WP06 chokepoint (``charter._io.load_charter_file``), and either:
+the WP06 chokepoint (``charter.activation._io.load_charter_file``), and either:
 
 - Skips the file (already pure UTF-8; idempotency pre-check passes).
 - Normalizes the file to UTF-8 in-place with a provenance record.
@@ -21,6 +21,7 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,17 +108,17 @@ def _collect_charter_files(project_root: Path) -> list[Path]:
     files: list[Path] = []
 
     mission_specs = project_root / KITTY_SPECS_DIR
-    if mission_specs.is_dir():
+    if safe_is_dir(mission_specs):
         for mission_dir in sorted(mission_specs.iterdir()):
-            if not mission_dir.is_dir():
+            if not safe_is_dir(mission_dir):
                 continue
             charter_dir = mission_dir / "charter"
-            if charter_dir.is_dir():
+            if safe_is_dir(charter_dir):
                 for ext in _CHARTER_EXTENSIONS:
                     files.extend(sorted(charter_dir.glob(f"*{ext}")))
 
     global_charter = project_root / ".kittify" / "charter"
-    if global_charter.is_dir():
+    if safe_is_dir(global_charter):
         for ext in _CHARTER_EXTENSIONS:
             files.extend(sorted(global_charter.glob(f"*{ext}")))
 
@@ -144,7 +145,7 @@ def _scan_file(path: Path, *, dry_run: bool) -> _FileRecord:
         return _FileRecord(path=path, action="already-utf8")
 
     # Delegate to the WP06 chokepoint for detection + provenance.
-    from charter._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
+    from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
 
     try:
         content = load_charter_file(path, unsafe=False)
@@ -227,7 +228,7 @@ def run_charter_encoding_migration(
             continue
 
         # File needs attention — run through the chokepoint.
-        from charter._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
+        from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
 
         try:
             content = load_charter_file(path, unsafe=False)

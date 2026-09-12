@@ -26,6 +26,7 @@ import json
 from pathlib import Path
 
 from charter.profiles import AgentProfile
+from ._render_helpers import ProfilePathIdentity
 
 # Native format identifier (stable string, never appears in the project manifest).
 FORMAT_AMAZON_Q_AGENT = "amazon-q-agent"
@@ -55,7 +56,7 @@ class AmazonQProfileRenderer:
         return tool_key in {"q", "amazon-q", FORMAT_AMAZON_Q_AGENT}
 
     def output_path(
-        self, tool_key: str, profile: AgentProfile, project_root: Path
+        self, tool_key: str, profile: ProfilePathIdentity, project_root: Path
     ) -> Path:
         """Return the user-global path for ``profile``.
 

@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-round2
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: SPEC-FRESH2-001
+    lens: fresh-sweep
+    severity: 3
+    title: "Net-effect's new FR-021 parenthetical contradicts the doc's own \"selective by design\" framing of the identical scenario, and mischaracterizes the causal mechanism"
+    evidence:
+      - artifact: "spec.md § Problem restated, \"Net effect\" paragraph, new parenthetical: \"(Separately, and *not* fixed by this mission: activating some other, unrelated built-in or project artifact by stem can also evict an org-pack artifact that was never itself explicitly activated — ... so that path evicts the org artifact regardless of `_org_scan_dirs`. ... see Acceptance Scenario 5.)\""
+      - artifact: "spec.md § User Story 1 (unchanged): \"...but activating something other than the org stem itself cannot surface it; the per-artifact-ID gate is selective by design, not something this mission changes.\""
+      - artifact: "spec.md § Acceptance Scenario 5 (unchanged): \"Activating only the unrelated built-in stem, without ever activating the org stem itself, does not surface the org node — the per-artifact-ID gate in `_node_is_activated` step 3 ... is selective by design, not a defect this mission changes.\""
+      - code: "src/charter/activation_engine.py:258-268 (plan_activation: `if current is None:` materializes `default_ids` then appends the newly-activated stem — this is a general property of the allow-list gate, triggered by activating ANY artifact of a kind whose activation set was previously unset, not specific to org packs or to default.yaml's completeness)"
+      - code: "src/charter/drg.py:467-473 (`_node_is_activated` step 3: any URN absent from the resolved set is excluded once the gate is non-`None` — the general mechanism AS5 attributes to \"selective by design\")"
+    claim: >
+      The new parenthetical in the "Net effect" paragraph frames "activating some other,
+      unrelated ... artifact by stem can also evict an org-pack artifact that was never
+      itself explicitly activated" as a second, unfixed defect ("Separately, and *not*
+      fixed by this mission" / "it does not change that ... behavior"), and pins the cause
+      on "`CharterPackManager.activate`'s FR-021 default-pack materialization ... draws
+      from the STATIC shipped `default.yaml` ... which by construction can never list a
+      third-party org artifact's ID". But this is the exact same scenario that both User
+      Story 1 and Acceptance Scenario 5 — unchanged, pre-existing text in the same
+      document — explicitly call "selective by design, not a defect this mission
+      changes." The document now gives two incompatible characterizations of one
+      behavior: defect-flavored ("evicts", "not fixed by this mission") in one place,
+      intended-design ("selective by design, not a defect") in two others. The causal
+      framing is also narrower than reality: the eviction is not really about default.yaml
+      failing to list org IDs (a "completeness" gap implying it could in principle be
+      fixed by listing them) — it is the general property that ANY artifact not on an
+      armed allow-list gets excluded, which would equally evict an unlisted built-in or
+      project artifact, not just org ones. A reader (or a future issue filed off this
+      spec) could reasonably conclude there is a real, fixable default-pack defect worth
+      chasing, when the document's own other passages say the opposite.
+    remediation: >
+      Align the new parenthetical with the existing "selective by design, not a defect
+      this mission changes" language from User Story 1 / Acceptance Scenario 5 instead of
+      introducing separate "defect"/"not fixed" phrasing for the same behavior. If the
+      intent is genuinely to flag this as a distinct, real gap worth tracking (rather than
+      by-design), say so explicitly and reconcile the wording in User Story 1 and AS5
+      accordingly — don't leave the two framings contradicting each other. Either way,
+      correct the causal claim: attribute the eviction to the per-artifact-ID allow-list
+      gate's general behavior (`_node_is_activated` step 3), not specifically to
+      default.yaml's inability to enumerate org IDs.
+  - id: SPEC-FRESH2-002
+    lens: fresh-sweep
+    severity: 2
+    title: Newly-surfaced FR-021 eviction behavior isn't mirrored into Out of Scope, unlike every other deferred finding in this spec
+    evidence:
+      - artifact: "spec.md § Problem restated, \"Net effect\" paragraph (new parenthetical introducing the FR-021 default-pack-materialization eviction behavior)"
+      - artifact: "spec.md § Out of Scope (unchanged by this revision) — lists #3384, the typo/unknown-stem swallow (with its own Edge Cases mirror), the neighboring-helper refactor, and the activated_* config-key/gate-logic changes, each as its own bullet with rationale"
+    claim: >
+      Every other deferred/out-of-scope finding this spec documents gets its own bullet in
+      the "Out of Scope" section (mirroring its mention elsewhere, e.g. the typo-swallow
+      edge case is both an Edge Case bullet and an Out-of-Scope bullet). The new FR-021
+      default-pack-materialization eviction behavior — introduced in this revision's Net
+      Effect paragraph as something "not fixed by this mission" — breaks that pattern: it
+      appears only in one parenthetical (and by implication in Acceptance Scenario 5's
+      closing sentence, which predates this revision) and has no Out-of-Scope bullet, no
+      VC-NNN entry, and no linked tracking issue (unlike #3384, which has both a sibling
+      mission and an issue number). A reader skimming only the Out of Scope section — the
+      section this document itself designates as the place deferred items live — will miss
+      this caveat entirely, and the finding has no artifact ensuring it survives past this
+      spec.
+    remediation: >
+      Add an Out-of-Scope bullet for the FR-021 default-pack-materialization eviction
+      behavior, parallel to the existing typo/unknown-stem-swallow bullet, and consider
+      whether it warrants its own tracked issue (as #3384 has) so the finding isn't lost
+      once this mission closes.

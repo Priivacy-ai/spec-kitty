@@ -1,12 +1,18 @@
 ---
 title: '3.2.x Delivery Approach — Operator Plan, Dialectically Challenged'
 description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad into a fact-checked plan.'
-doc_status: proposed
-updated: '2026-07-17'
+doc_status: superseded
+updated: '2026-09-06'
 related:
-- docs/development/manage-issue-tracker.md
-- docs/guides/keep-main-clean.md
+- docs/development/how-to/manage-issue-tracker.md
+- docs/guides/how-to/missions/keep-main-clean.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
 ---
+
+> **Superseded (2026-09-06, Convergence #3881).** This plan describes the pre-convergence
+> line, including the since-removed local sync daemon / delivery / import-history surface.
+> It is kept as a historical record; the current plan of record is the
+> [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md).
 
 # 3.2.x Delivery Approach — Operator Plan, Dialectically Challenged
 
@@ -26,6 +32,26 @@ of putting it through a **two-round dialectic squad**:
 
 All reviewer claims that drive a recommendation were verified; the corrections are
 called out inline (see [Fact-check corrections](#fact-check-corrections)).
+
+---
+
+## Related domain plans (durable throughlines)
+
+This document is **release-scoped** 3.2.x sequencing intent and follows the
+distil-then-retire lifecycle. The durable, version-spanning strategy for each domain
+lives in its **domain plan** — cross-reference those rather than duplicating them:
+
+- **Doctrine & charter** — [Doctrine & Charter — Domain Plan](domains/doctrine-charter-domain-plan.md)
+  (companions: the [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) and the
+  [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md)).
+- **SaaS & hosted sync** — domain plan retired 2026-09-06 (Convergence #3881): the hosted-sync surface re-homed to the authoritative upstream repos; see the convergence-retirement ADR
+  (`docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`).
+- **Packs extraction** — *(planned domain plan)*.
+- **API & dashboard** — *(planned domain plan)*.
+
+Where this release plan and a domain plan disagree on *domain scope*, the domain plan
+is canonical; where they disagree on *what ships in a given tag*, this plan and the
+milestone roadmap win.
 
 ---
 

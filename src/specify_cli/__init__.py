@@ -19,10 +19,29 @@ Usage:
     spec-kitty init --here
 """
 
-import os
-import sys
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+# Pre-import ``.kitty.env`` two-tier loader (FR-004/FR-004a/FR-005;
+# contracts/kitty-env-loader.md C-LDR-1..7). Runs as the FIRST statements of
+# this module -- before the SPEC_KITTY_TEST_MODE read below and before any
+# other spec-kitty submodule is imported (C-LDR-2) -- so operator-configured
+# env vars (incl. import-time-gated ones like SPEC_KITTY_SYNC_MINIMAL_IMPORT,
+# see specify_cli/status/adapters.py) are already in os.environ by the time
+# anything downstream reads them. specify_cli.bootstrap.env_file's own
+# transitive imports are stdlib + kernel ONLY (arch-gated by
+# tests/architectural/test_bootstrap_import_purity.py) -- it does not import
+# specify_cli.core, which would force that package's heavy __init__ to run
+# before this loader has even finished (see that module's docstring).
+from specify_cli.bootstrap.env_file import load_operator_env_file  # noqa: E402
+
+load_operator_env_file()
+
+import logging  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+from collections.abc import Callable  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import TYPE_CHECKING, Any, TypeVar  # noqa: E402
+
+T = TypeVar("T")
 
 
 import typer  # noqa: E402
@@ -71,10 +90,7 @@ def activate_mission(project_path: Path, mission_type: str, mission_display: str
     if mission_path.exists():
         return f"{mission_display} (per-feature selection)"
     else:
-        console.print(
-            f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be "
-            f"available when you run [cyan]/spec-kitty.specify[/cyan]."
-        )
+        console.print(f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be available when you run [cyan]/spec-kitty.specify[/cyan].")
         return f"{mission_display} (templates pending)"
 
 
@@ -82,11 +98,20 @@ def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
         from specify_cli.cli.console import console
-        from specify_cli.cli.helpers import show_banner
+        from specify_cli.distribution import resolve_distribution_profile
 
-        show_banner(force=True)
-        console.print(f"spec-kitty-cli version {__version__}")
+        # Identity flows through the DistributionProfile (the aggregated seam):
+        # a fork's version_label wins, else its package_name.
+        profile = resolve_distribution_profile()
+        label = profile.version_label or profile.package_name
+        console.print(
+            f"{label} version {__version__}",
+            soft_wrap=True,
+            highlight=False,
+            markup=False,
+        )
         raise typer.Exit()
+
 
 def main_callback(
     ctx: typer.Context,
@@ -97,7 +122,13 @@ def main_callback(
     """Main callback for root CLI setup."""
     import sys
 
-    if _is_doctor_restart_daemon_invocation(sys.argv):
+    if "upgrade_intent" in ctx.meta:
+        # The actual upgrade tail performs validated, configured global repair.
+        # Even apply intent must not bootstrap before target/schema admission.
+        return
+
+    if ctx.meta.get("defer_root_bootstrap") is True:
+        # Windows migration must relocate legacy state before global runtime reads.
         return
 
     next_fast_path = _is_next_invocation(sys.argv)
@@ -142,11 +173,9 @@ def _build_app() -> typer.Typer:
 
     app = typer.Typer(
         name="spec-kitty",
-        help=(
-            "Setup tool for Spec Kitty spec-driven development projects.\n\n"
-            "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
-        ),
-        add_completion=False,
+        help=("Setup tool for Spec Kitty spec-driven development projects.\n\nSet SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."),
+        add_completion=True,
+        context_settings={"help_option_names": ["--help", "-h"]},
         invoke_without_command=True,
         cls=BannerGroup,
     )
@@ -280,43 +309,6 @@ def ensure_executable_scripts(project_path: Path, tracker: "StepTracker | None" 
     _report_chmod_results(tracker, updated, failures)
 
 
-def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
-def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            if arg != "--json":
-                return False
-            continue
-        command_parts.append(arg)
-    return command_parts == ["doctor", "restart-daemon"]
-
-
-def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
-    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
-    from specify_cli.sync.restart import render_restart_result, restart_daemon
-
-    result = restart_daemon(Path.cwd())
-    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(result.exit_code)
-
-
 _JSON_VALUE_OPTIONS = {
     "--agent",
     "--answer",
@@ -353,10 +345,69 @@ def _argv_requests_json_mode(argv: list[str]) -> bool:
     return False
 
 
+def _assemble_app() -> typer.Typer:
+    """Import-check the events adapter, then assemble the Typer app.
+
+    Pure import/registration work (the events availability check exits before
+    any command runs), which is what makes it safe to retry after a bytecode
+    heal — see ``main()``.
+    """
+    # Check for spec-kitty-events library availability (required for 2.x branch)
+    from specify_cli.events.adapter import EventAdapter
+
+    if not EventAdapter.check_library_available():
+        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
+        raise typer.Exit(1)
+
+    return _get_app()
+
+
+def _invoke_unguarded(operation: Callable[[], T], **_kwargs: Any) -> T:
+    """Run *operation* as-is (pre-#4124 behavior, used only as a fallback)."""
+    return operation()
+
+
+def _warn_bytecode_healed(removed: int) -> None:
+    """Tell the operator an interrupted install was repaired, once, on stderr."""
+    logging.getLogger("specify_cli").warning(
+        "repaired %d stale bytecode cache file(s) left by an interrupted install; if this recurs, reinstall spec-kitty",
+        removed,
+    )
+
+
+def _load_bytecode_heal_invoker() -> Callable[..., Any]:
+    """Return ``invoke_with_bytecode_heal``, or a pass-through if unreachable.
+
+    The heal module's own ``.pyc`` can be the corrupted one; delete just that
+    cache file and retry the import once before falling back to running the
+    CLI unguarded (#4124).
+    """
+    try:
+        from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+        return invoke_with_bytecode_heal
+    except Exception:
+        import importlib
+        from importlib.util import cache_from_source
+
+        own_cache = Path(cache_from_source(str(Path(__file__).with_name("bytecode_heal.py"))))
+        try:
+            own_cache.unlink(missing_ok=True)
+        except OSError:
+            return _invoke_unguarded
+        importlib.invalidate_caches()
+        try:
+            from specify_cli.bytecode_heal import invoke_with_bytecode_heal
+
+            return invoke_with_bytecode_heal
+        except Exception:
+            return _invoke_unguarded
+
+
 def main() -> None:
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
-    # CharterCatalogMissWarning from charter._catalog_miss) are routed through
+    # CharterCatalogMissWarning from charter.activation._catalog_miss) are routed through
     # the logging subsystem and appear in the operator's terminal.
     # This is additive-only: if a handler is already attached, no second
     # handler is installed (no double-printing).
@@ -379,17 +430,29 @@ def main() -> None:
             # Python < 3.7 or reconfigure not available
             pass
 
-    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
-        _run_doctor_restart_daemon_process_fast_path(sys.argv)
+    # Shell completion is latency-critical: every TAB press spawns this process
+    # with a ``_SPEC_KITTY_COMPLETE`` instruction.  Serve command/subcommand-name
+    # candidates from a small manifest instead of importing the whole command
+    # tree (NFR-001 / SC-003, ~500 ms budget).  Returns ``None`` — falling
+    # through to the full app — when completion is not requested or when an
+    # option token is present (options are out of the manifest's scope).
+    from specify_cli.completion import maybe_run_completion
+
+    completion_exit = maybe_run_completion(sys.argv, os.environ)
+    if completion_exit is not None:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SystemExit(completion_exit)
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
-    from specify_cli.events.adapter import EventAdapter
-
-    if not EventAdapter.check_library_available():
-        _get_console().print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
-        raise typer.Exit(1)
-
-    _get_app()()
+    # plus app assembly run inside the bytecode-heal wrapper (#4124): an
+    # interrupted install can leave truncated ``.pyc`` bytecode that kills the
+    # module-level ``specify_cli.upgrade`` import chain before any command
+    # runs. Assembly is pure import/registration work, so a heal-and-retry
+    # here is side-effect free; the command invocation itself stays outside
+    # the wrapper so a mid-command failure is never re-run.
+    app = _load_bytecode_heal_invoker()(_assemble_app, on_healed=_warn_bytecode_healed)
+    app()
 
 
 __all__ = ["main", "app", "__version__"]

@@ -7,9 +7,10 @@ the primary branch must be up-to-date with the coordination branch without
 the operator running ``git merge --ff-only`` by hand.
 
 These tests assert the invariant at the unit level:
-  * ``advance_branch_ref`` with ``coord_owned_filenames`` does NOT abort when
-    coord-owned residue (``status.events.jsonl``, ``status.json``) is present
-    in a checked-out worktree.
+  * ``advance_branch_ref`` with ``is_residue`` (WP13 retired the former
+    ``coord_owned_filenames`` frozenset param onto the canonical churn owner)
+    does NOT abort when coord-owned residue (``status.events.jsonl``,
+    ``status.json``) is present in a checked-out worktree.
   * After a write to the coord branch followed by ``advance_branch_ref``, the
     primary branch is at the same SHA — ``git log main..coord`` is empty.
   * No ``git merge --ff-only`` call appears anywhere in the test helpers (the
@@ -23,12 +24,14 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     advance_branch_ref,
     RefAdvanceDirtyWorktreeError,
     RefAdvanceNonFastForwardError,
+    RefRestoreError,
+    restore_branch_ref,
 )
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -116,10 +119,7 @@ def test_primary_ref_up_to_date_after_coord_write(tmp_path: Path) -> None:
 
     # Primary is now at coord HEAD — no manual ff-merge needed
     primary_sha = _sha(repo, primary_branch)
-    assert primary_sha == coord_sha, (
-        f"Primary branch should be at coord HEAD after advance_branch_ref; "
-        f"primary={primary_sha[:12]} coord={coord_sha[:12]}"
-    )
+    assert primary_sha == coord_sha, f"Primary branch should be at coord HEAD after advance_branch_ref; primary={primary_sha[:12]} coord={coord_sha[:12]}"
 
     # Confirm git log shows empty gap (primary up-to-date with coord)
     gap = _git(
@@ -128,9 +128,34 @@ def test_primary_ref_up_to_date_after_coord_write(tmp_path: Path) -> None:
         "--oneline",
         f"{primary_branch}..{coord_branch}",
     ).stdout.strip()
-    assert gap == "", (
-        f"git log {primary_branch}..{coord_branch} should be empty after advance; got: {gap!r}"
-    )
+    assert gap == "", f"git log {primary_branch}..{coord_branch} should be empty after advance; got: {gap!r}"
+
+
+def test_restore_branch_ref_refuses_to_clobber_concurrent_advance(tmp_path: Path) -> None:
+    """Rollback CAS leaves a branch alone after another writer advances it."""
+    coord_branch = "kitty/mission-myslug-01ABCDEF"
+    repo, coord_wt = _init_repo(tmp_path, coord_branch=coord_branch)
+    restored_sha = _sha(repo, "main")
+
+    (coord_wt / "first.txt").write_text("first\n", encoding="utf-8")
+    _git(coord_wt, "add", "first.txt")
+    _git(coord_wt, "commit", "-q", "-m", "first advance")
+    expected_current_sha = _sha(coord_wt)
+
+    (coord_wt / "concurrent.txt").write_text("concurrent\n", encoding="utf-8")
+    _git(coord_wt, "add", "concurrent.txt")
+    _git(coord_wt, "commit", "-q", "-m", "concurrent advance")
+    concurrent_sha = _sha(coord_wt)
+
+    with pytest.raises(RefRestoreError):
+        restore_branch_ref(
+            repo,
+            coord_branch,
+            restored_sha,
+            expected_current_sha=expected_current_sha,
+        )
+
+    assert _sha(repo, coord_branch) == concurrent_sha
 
 
 # ---------------------------------------------------------------------------
@@ -151,31 +176,46 @@ def test_coord_owned_residue_does_not_abort_advance(tmp_path: Path) -> None:
     _git(coord_wt, "commit", "-q", "-m", "Add plan")
     coord_sha = _sha(coord_wt)
 
-    # Simulate coord-owned residue present in the MAIN checkout's working tree.
+    # Simulate coord-owned residue present in the MAIN checkout's working tree,
+    # at the CANONICAL location directly under the mission dir (not nested
+    # under a WP subdirectory -- that is not where the status log/snapshot
+    # actually live; a nested placement would not classify as STATUS_STATE).
     # These files are legitimately present after a status event write on the
     # primary checkout — they must not cause RefAdvanceDirtyWorktreeError.
-    for filename in COORD_OWNED_STATUS_FILES:
-        # Write to a WP subdirectory that mirrors real layout
-        wp_dir = repo / "kitty-specs" / "my-mission" / "tasks"
-        wp_dir.mkdir(parents=True, exist_ok=True)
-        (wp_dir / filename).write_text('{"event": "dummy"}\n', encoding="utf-8")
+    mission_dir = repo / "kitty-specs" / "my-mission"
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ("status.events.jsonl", "status.json"):
+        (mission_dir / filename).write_text('{"event": "dummy"}\n', encoding="utf-8")
 
-    # advance_branch_ref WITH coord_owned_filenames must succeed despite residue
+    # advance_branch_ref WITH is_residue must succeed despite residue
     advance_branch_ref(
         repo,
         primary_branch,
         coord_sha,
-        coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+        is_residue=is_toolchain_generated_churn,
     )
 
     primary_sha = _sha(repo, primary_branch)
-    assert primary_sha == coord_sha, (
-        "Primary should be at coord HEAD even when coord-owned residue is present"
-    )
+    assert primary_sha == coord_sha, "Primary should be at coord HEAD even when coord-owned residue is present"
 
 
-def test_tracked_coord_owned_status_change_still_blocks_advance(tmp_path: Path) -> None:
-    """Tracked status-file edits are user state, not disposable residue."""
+def test_tracked_coord_owned_status_change_no_longer_blocks_advance(tmp_path: Path) -> None:
+    """WP13 (IC-07c) / #2795 / FR-012: a tracked, locally-edited status snapshot
+    is now ALSO toolchain-generated churn, agreeing with every other
+    churn-classifying gate (``merge/git_probes.py``,
+    ``review/dirty_classifier.py``) -- closing the cross-gate disagreement
+    :mod:`tests.architectural.test_cross_gate_churn_agreement` pins (C7).
+
+    Superseded predecessor: this test used to be
+    ``test_tracked_coord_owned_status_change_still_blocks_advance``, asserting
+    the OPPOSITE (a tracked status-file edit blocks the advance) under the
+    narrower, pre-WP13 ``coord_owned_filenames`` mechanism, which only ever
+    excluded UNTRACKED entries. WP13 routes ``_dirty_entries`` through
+    ``is_residue`` for BOTH tracked and untracked entries, so this scenario now
+    exempts rather than blocks -- matching ``merge/git_probes.py`` /
+    ``review/dirty_classifier.py``, which already treated a tracked-modified
+    status/matrix file as benign churn before this WP.
+    """
     primary_branch = "main"
     coord_branch = "kitty/mission-myslug-01ABCDEF"
     repo, coord_wt = _init_repo(tmp_path, primary_branch, coord_branch)
@@ -195,15 +235,14 @@ def test_tracked_coord_owned_status_change_still_blocks_advance(tmp_path: Path) 
 
     status_file.write_text('{"lane": "locally-edited"}\n', encoding="utf-8")
 
-    with pytest.raises(RefAdvanceDirtyWorktreeError) as exc_info:
-        advance_branch_ref(
-            repo,
-            primary_branch,
-            coord_sha,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
-        )
+    advance_branch_ref(
+        repo,
+        primary_branch,
+        coord_sha,
+        is_residue=is_toolchain_generated_churn,
+    )
 
-    assert "status.json" in "\n".join(exc_info.value.dirty_entries)
+    assert _sha(repo, primary_branch) == coord_sha, "a tracked, locally-edited status.json is toolchain churn post-WP13; the advance must succeed, not refuse."
 
 
 def test_diverged_primary_ref_is_not_rewound(tmp_path: Path) -> None:
@@ -267,7 +306,7 @@ def test_genuine_dirty_tracked_changes_still_block_advance(tmp_path: Path) -> No
             repo,
             primary_branch,
             coord_sha,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            is_residue=is_toolchain_generated_churn,
         )
 
 

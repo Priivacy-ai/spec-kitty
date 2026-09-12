@@ -1,0 +1,68 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: PLAN-VERIFY-001
+    lens: coverage-floor-claim-verification
+    severity: 4
+    title: "Gate set section's coverage-floor exemption claim is wrong: a third, unlisted 90% diff-coverage floor (diff-coverage job, critical_paths includes src/runtime/next/*) DOES gate this mission's own changed files"
+    evidence:
+      - artifact: "plan.md § Gate set for this mission, 'Coverage-floored shards' bullet (lines 268-294)"
+      - code: ".github/workflows/ci-quality.yml:3283 (job `diff-coverage`, `if: ... github.event_name == 'pull_request' ...` — runs on every PR unless labeled pr:deferred/pr:skip-ci)"
+      - code: ".github/workflows/ci-quality.yml:3333 (step \"diff-coverage (critical-path, enforced)\")"
+      - code: ".github/workflows/ci-quality.yml:3345-3367 (`critical_paths=( ... 'src/runtime/next/*' ... )` shell array — line 3366 is the literal `'src/runtime/next/*'` entry)"
+      - code: ".github/workflows/ci-quality.yml:3391-3395 (`uv run diff-cover ... --compare-branch=origin/${{ github.base_ref }} --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: "tests/architectural/_gate_coverage.py:409-410,574-575,717 (`_CRITICAL_PATHS_RE`, `_diff_cover_critical_paths()`, `diff_cover_critical_paths` field — the repo's own architectural model explicitly tracks this job's critical-path array as a first-class CI gate, confirming it is not an obscure/incidental job)"
+    claim: >
+      Plan.md's "Gate set for this mission" section states, as its single most
+      consequential factual claim, that "NEITHER the kernel 90% floor NOR the
+      mission-loader 90% floor applies to this mission's changed files" and that
+      "[the two jobs that cover this mission's files] neither ... carr[y] a
+      --cov-fail-under flag" — grepped only for the literal pytest-cov flag
+      string "cov-fail-under" (found only at ci-quality.yml:1456 [90,
+      mission-loader], :2297 [55, charter], :2344 [10, agent], and
+      module-kernel.yml's separate Python enforcement script [90, kernel]).
+      That grep methodology is too narrow: it misses the semantically
+      equivalent `diff-cover` tool's `--fail-under` flag (no "cov-" prefix),
+      used by the `diff-coverage` job's "diff-coverage (critical-path,
+      enforced)" step. That step runs `diff-cover ... --fail-under=90
+      --include "${critical_paths[@]}"` where `critical_paths` literally
+      includes `'src/runtime/next/*'` — i.e. it directly, and by name,
+      diff-coverage-gates 4 of the 5 files in this mission's blast radius
+      (`runtime_bridge_cores.py`, `runtime_bridge_io.py`, `runtime_bridge.py`,
+      `runtime_bridge_composition.py`, all under `src/runtime/next/`) at a
+      90% floor on the mission's own new/changed lines, on every PR. Only
+      `src/specify_cli/runtime/resolver.py` (not under `src/runtime/next/`
+      and not matching any other `critical_paths` entry) escapes this
+      specific gate, falling back to the "full-diff, advisory" step (`||
+      true`, non-blocking). So the plan's blanket claim that "no coverage
+      floor gates this mission's own files" is FALSE for 4 of 5 touched
+      files — a real, enforced, 90% *diff*-coverage floor (distinct in
+      mechanism from the kernel/mission-loader *total*-coverage floors the
+      plan correctly ruled out, but equivalent in effect: it can fail the PR)
+      applies to `src/runtime/next/*`. This directly misinforms every
+      downstream phase (tasks, implement) about what actually gates the PR,
+      which is the exact harm this lens was dispatched to catch.
+    remediation: >
+      Rewrite the "Coverage-floored shards" bullet in plan.md's Gate set
+      section to add a new sub-bullet: "diff-coverage (critical-path,
+      enforced)" (`ci-quality.yml:3283`, step at `:3333`) DOES apply to this
+      mission's `src/runtime/next/*` changes (`runtime_bridge_cores.py`,
+      `runtime_bridge_io.py`, `runtime_bridge.py`,
+      `runtime_bridge_composition.py`) at a 90% *diff*-coverage floor
+      (`--fail-under=90 --include 'src/runtime/next/*' ...`,
+      `ci-quality.yml:3393`) — every new/changed line in those 4 files needs
+      ≥90% line coverage from the union of uploaded coverage XMLs (primarily
+      `fast-tests-next`'s `--cov=src/runtime/next`) or the PR's
+      `diff-coverage` job fails. `src/specify_cli/runtime/resolver.py` is
+      NOT in the `critical_paths` array, so it remains ungated by this
+      specific job (falls to the advisory full-diff step only) — the plan's
+      exemption claim is correct for that one file but not for the other
+      four. Move this from "Coverage-floored shards: neither applies" to an
+      explicit third ENFORCED gate entry, and flag it to the tasks/implement
+      phases so each WP touching `src/runtime/next/*` budgets test coverage
+      for its new branches (e.g. WP01's new `is None` branch in
+      `evaluate_guards_strict`, WP03's `repo_root`-threading call sites)
+      accordingly.

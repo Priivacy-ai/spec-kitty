@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "b751c690560617fac654c59cd08ad0cb42c145b9",
-  "coordination_branch": "kitty/mission-retire-standalone-tasks-cli-01KWAMQ3",
   "created_at": "2026-06-29T21:31:41.260685+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Retire Standalone Tasks CLI",
   "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
   "mission_number": 154,
@@ -14,7 +13,7 @@
   "slug": "retire-standalone-tasks-cli-01KWAMQ3",
   "status_phase": "1",
   "target_branch": "mission/retire-standalone-tasks-cli",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-29T23:50:21.432465+00:00"
 }

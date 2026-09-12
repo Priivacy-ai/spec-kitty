@@ -394,7 +394,7 @@ def _write_pack_tactic(
 def _has_built_in_doctrine() -> bool:
     """Whether the live shipped doctrine is resolvable in this environment."""
     try:
-        from charter.catalog import resolve_doctrine_root
+        from charter.activation.catalog import resolve_doctrine_root
     except ModuleNotFoundError:
         return False
     try:

@@ -72,7 +72,6 @@ def _make_run(tmp_path: Path, *, done_marked_before_target: bool = False) -> ex.
 def test_shim_re_exports_executor_entrypoints() -> None:
     assert shim._run_lane_based_merge is ex._run_lane_based_merge
     assert shim._run_lane_based_merge_locked is ex._run_lane_based_merge_locked
-    assert shim._emit_merge_diff_summary is ex._emit_merge_diff_summary
 
 
 def test_executor_does_not_import_command_shim() -> None:
@@ -127,7 +126,7 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
 
     with (
         patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", lambda *_a, **_k: {}),
+        patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
             ex, "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
@@ -160,7 +159,7 @@ def test_baseline_record_error_restores_then_exits(tmp_path: Path) -> None:
 
     with (
         patch.object(ex, "_refresh_primary_checkout_after_merge", lambda *_a, **_k: None),
-        patch.object(ex, "_capture_bookkeeping_snapshots", lambda *_a, **_k: {}),
+        patch.object(ex, "_capture_merge_snapshots", lambda *_a, **_k: {}),
         patch.object(
             ex, "_target_bookkeeping_status_paths",
             lambda **_k: (tmp_path / "e.jsonl", tmp_path / "s.json"),
@@ -170,7 +169,7 @@ def test_baseline_record_error_restores_then_exits(tmp_path: Path) -> None:
             side_effect=BaselineMergeCommitError("boom"),
         ),
         patch.object(
-            ex, "_restore_final_bookkeeping_snapshots",
+            ex, "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(typer.Exit) as exc,
@@ -194,7 +193,7 @@ def test_commit_failure_restores_then_reraises(tmp_path: Path) -> None:
         patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
         patch.object(ex, "commit_merge_bookkeeping", side_effect=boom),
         patch.object(
-            ex, "_restore_final_bookkeeping_snapshots",
+            ex, "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(RuntimeError, match="commit failed"),
@@ -214,7 +213,7 @@ def test_porcelain_invariant_violation_restores_then_exits(tmp_path: Path) -> No
         patch.object(ex, "_raw_porcelain_status", lambda *_a, **_k: (0, " M src/unexpected.py\n")),
         patch.object(ex, "_classify_porcelain_lines", lambda *_a, **_k: ([" M src/unexpected.py"], 0)),
         patch.object(
-            ex, "_restore_final_bookkeeping_snapshots",
+            ex, "restore_generated_artifact_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
         ),
         pytest.raises(typer.Exit) as exc,

@@ -11,14 +11,14 @@ Covers (T006):
    Roster B lazy-derivation lands.
 
 2. **Import-time-I/O regression guard (green-stays-green)** — importing the
-   two "hot" charter modules (``charter.mission_type_profiles``,
-   ``charter.pack_context``) must trigger AT MOST ONE cached read of the
+   two "hot" charter modules (``charter.activation.mission_type_profiles``,
+   ``charter.activation.pack_context``) must trigger AT MOST ONE cached read of the
    doctrine ``mission_types/`` directory, and a second read anywhere in the
    same process must trigger ZERO further reads (NFR-001 / SC-005). The
    bound is ``<=1``, not a literal zero: importing either hot module first
    runs ``charter/__init__.py`` (the package init any submodule import
-   executes), which eagerly imports ``charter.activations`` as part of its
-   public re-export surface — and ``charter.activations.ALLOWED_MISSION_TYPES``
+   executes), which eagerly imports ``charter.activation.activations`` as part of its
+   public re-export surface — and ``charter.activation.activations.ALLOWED_MISSION_TYPES``
    is a module-scope value derived from the accessor (the C-012 carve-out —
    it must stay an importable frozenset VALUE for the unowned
    ``test_activation_registry_schema.py``, so it cannot be made lazy without
@@ -30,10 +30,21 @@ Covers (T006):
    (NFR-002) for the rest of the process — proven by the second assertion
    below. Run in a subprocess so the spy observes a genuine fresh import,
    not a module already cached in this test session's ``sys.modules``.
+
+3. **New-factory import-time-I/O bound (NFR-004, mission
+   ``up-mission-type-seam-01KZY1JB`` WP03)** — ``resolve_layered_mission_types``
+   (``charter.offering.missions.mission_type_repository``, FR-001) must never be
+   called at module scope in any ``charter.*`` module. At this WP's point in
+   the mission sequence nothing calls it yet (WP04 wires the first caller),
+   so the bound asserted here is exactly zero calls, checked via
+   ``resolve_layered_mission_types.cache_info()`` (hits + misses) rather than
+   a spy -- the ``functools.cache`` wrapper already tracks total invocations,
+   so no extra instrumentation is needed.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -43,16 +54,18 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import PackContext
-from doctrine.missions.mission_type_repository import (
+import charter.offering
+from charter.activation.pack_context import PackContext
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
+    resolve_layered_mission_types,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _SHIPPED_MISSION_TYPES_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions" / "mission_types"
+    Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions" / "mission_types"
 )
 
 _SYNTHETIC_ANALYSIS_YAML = (
@@ -83,8 +96,10 @@ def _clear_builtin_mission_type_ids_cache() -> Iterator[None]:
     (including other modules under ``-n auto``).
     """
     builtin_mission_type_ids.cache_clear()
+    resolve_layered_mission_types.cache_clear()
     yield
     builtin_mission_type_ids.cache_clear()
+    resolve_layered_mission_types.cache_clear()
 
 
 def _write_config(project_root: Path, content: str) -> None:
@@ -108,19 +123,33 @@ def _patch_default_root(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
 
 
 class TestDefaultActivationSetIsSingleSourced:
-    """``PackContext``'s default activation set derives from the WP01 accessor."""
+    """``PackContext`` has no default activation set for mission types (WP04).
 
-    def test_default_activated_mission_types_includes_synthetic_type(
+    This class originally pinned "the default activation set, when the
+    ``mission_type_activations`` key is absent, single-sources from the WP01
+    ``MissionTypeRepository`` accessor rather than a hardcoded literal." WP04
+    retired the default-on-absence behavior entirely -- ``pack_context.py`` no
+    longer references ``MissionTypeRepository``/``builtin_mission_type_id_set``
+    at all. The final WP04 re-architecture then made construction TOTAL: an
+    absent key resolves to ``frozenset()`` (never the all-four backfill, never
+    a raise), with the fail-closed moved to the mission-create boundary (see
+    ``tests/charter/test_pack_context.py::test_from_config_no_config_yaml_returns_empty_not_raise``).
+    There is no "default set" for this accessor-swap contract to single-source.
+    """
+
+    def test_synthetic_accessor_type_does_not_create_an_implicit_default(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A synthetic mission-type injected via the accessor root flows through
-        to ``PackContext.from_config``'s default set (no ``mission_type_activations``
-        key in config.yaml).
+        """An absent ``mission_type_activations`` key resolves to an EMPTY set
+        even when the ``MissionTypeRepository`` accessor root carries a
+        synthetic type that used to leak into the old hardcoded-default
+        fallback.
 
-        RED before T008: today's ``_BUILTIN_MISSION_TYPE_IDS`` is a hardcoded
-        4-tuple literal in ``pack_context.py`` that never consults
-        ``MissionTypeRepository`` at all, so the monkeypatched synthetic type
-        cannot appear in the result no matter what the accessor root is.
+        Supersedes the pre-WP04
+        ``test_default_activated_mission_types_includes_synthetic_type``: proves
+        the retired backfill is not quietly reintroduced by an accessor-sourced
+        type -- the absent key reads as ``frozenset()`` (absent != all-four),
+        not the synthetic-inclusive roster, and construction does not raise.
         """
         mission_types_root = tmp_path / "mission_types"
         mission_types_root.mkdir()
@@ -134,11 +163,11 @@ class TestDefaultActivationSetIsSingleSourced:
         builtin_mission_type_ids.cache_clear()
 
         project_root = tmp_path / "project"
-        _write_config(project_root, _MINIMAL_CONFIG)
+        _write_config(project_root, _MINIMAL_CONFIG)  # no mission_type_activations key
 
         ctx = PackContext.from_config(project_root)
 
-        assert "analysis" in ctx.activated_mission_types
+        assert ctx.activated_mission_types == frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -150,9 +179,10 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
     """\
     import sys
 
-    from doctrine.missions.mission_type_repository import (
+    from charter.offering.missions.mission_type_repository import (
         MissionTypeRepository,
         builtin_mission_type_id_set,
+        resolve_layered_mission_types,
     )
 
     _calls: list[int] = []
@@ -164,15 +194,15 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
 
     MissionTypeRepository.default = classmethod(_spy)
 
-    import charter.mission_type_profiles  # noqa: F401
-    import charter.pack_context  # noqa: F401
+    import charter.activation.mission_type_profiles  # noqa: F401
+    import charter.activation.pack_context  # noqa: F401
 
     after_import = len(_calls)
     if after_import > 1:
         print(
             f"MissionTypeRepository.default() called {after_import} time(s) at import "
             "time -- expected at most 1 (the C-012 carve-out read inherited via the "
-            "eager charter/__init__.py -> charter.activations chain)",
+            "eager charter/__init__.py -> charter.activation.activations chain)",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -193,9 +223,57 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
         )
         sys.exit(1)
 
+    # WP03/NFR-004: the new layered-lookup factory (FR-001) must never be
+    # called at module scope in any charter.* module. Nothing calls it yet
+    # at this WP's point in the mission sequence (WP04 wires the first
+    # caller), so the bound is exactly zero -- read straight off the
+    # functools.cache wrapper's own call-count bookkeeping.
+    layered_info = resolve_layered_mission_types.cache_info()
+    layered_calls = layered_info.hits + layered_info.misses
+    if layered_calls != 0:
+        print(
+            f"resolve_layered_mission_types() called {layered_calls} time(s) at "
+            "import time -- expected 0 (NFR-004; nothing calls it yet at WP03's "
+            "point in the mission sequence, WP04 wires the first caller)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     sys.exit(0)
     """
 )
+
+
+def _subprocess_env_with_src_root() -> dict[str, str]:
+    """Build a subprocess env that guarantees ``doctrine``/``charter`` import cleanly.
+
+    ``sys.executable`` guarantees the *same interpreter*, but not the same
+    import roots: pytest's ``pythonpath = src`` ini option mutates this
+    process's ``sys.path`` in memory, and a child process spawned via
+    ``subprocess.run`` does not inherit an in-memory ``sys.path`` mutation --
+    only environment variables. In a local editable-install layout that gap
+    is often invisible (the venv's site-packages happens to resolve
+    ``doctrine``/``charter`` too), but is real whenever the running
+    interpreter's site-packages does not carry an editable install for THIS
+    checkout (e.g. a plain ``uv run`` environment, or a shared venv whose
+    editable install points at a different checkout) -- then the subprocess
+    raises ``ModuleNotFoundError`` before the I/O probe ever runs, instead
+    of measuring anything. Propagate the ``src`` root this process actually
+    resolved ``doctrine`` from, so the subprocess sees the same package
+    regardless of what its own default ``sys.path`` would have produced.
+
+    ``doctrine`` is now the CR-06 compatibility shim (``src/doctrine.py``, a
+    single module, not a package) re-exporting ``charter.offering`` -- so
+    ``charter.offering.__file__`` resolves directly to ``src/doctrine.py`` and its
+    immediate ``.parent`` (not ``.parents[1]``) is the ``src`` root.
+    """
+    src_root = str(Path(charter.offering.__file__).resolve().parents[0])
+    env = dict(os.environ)
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        os.pathsep.join([src_root, existing_pythonpath]) if existing_pythonpath else src_root
+    )
+    return env
 
 
 class TestHotModulesTriggerZeroImportTimeIo:
@@ -203,7 +281,7 @@ class TestHotModulesTriggerZeroImportTimeIo:
 
     NFR-001's bound is ``<=1``, not a literal zero: importing either hot
     module runs ``charter/__init__.py`` first (the package init any
-    submodule import executes), which eagerly imports ``charter.activations``
+    submodule import executes), which eagerly imports ``charter.activation.activations``
     — whose ``ALLOWED_MISSION_TYPES`` is a module-scope value derived from
     the accessor (the C-012 carve-out, see ``charter/activations.py``). That
     carve-out read is the ONE this test bounds; it must never repeat (proven
@@ -223,10 +301,26 @@ class TestHotModulesTriggerZeroImportTimeIo:
             capture_output=True,
             text=True,
             check=False,
+            env=_subprocess_env_with_src_root(),
         )
 
+        # A non-zero exit with an unhandled traceback (e.g. ModuleNotFoundError
+        # because the subprocess interpreter could not import 'doctrine' or
+        # 'charter') is an environment/setup failure, NOT the unbounded-I/O
+        # condition this test guards against -- the I/O probe in
+        # _IMPORT_SPY_SCRIPT never even ran. Fail with a truthful message
+        # instead of misattributing it to NFR-001.
+        if result.returncode != 0 and "Traceback (most recent call last):" in result.stderr:
+            pytest.fail(
+                "subprocess failed to import charter/doctrine modules before "
+                "the import-time-I/O probe could run -- this is an "
+                "interpreter/environment setup failure (e.g. the spawned "
+                "interpreter cannot import 'doctrine'/'charter'), NOT an "
+                f"unbounded-I/O violation:\nstdout={result.stdout}\nstderr={result.stderr}"
+            )
+
         assert result.returncode == 0, (
-            "importing charter.mission_type_profiles / charter.pack_context "
+            "importing charter.activation.mission_type_profiles / charter.activation.pack_context "
             "triggered unbounded mission_types/ I/O (NFR-001, <=1 cached read "
             f"expected):\nstdout={result.stdout}\nstderr={result.stderr}"
         )

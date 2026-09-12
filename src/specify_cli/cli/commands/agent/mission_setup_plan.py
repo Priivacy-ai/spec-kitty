@@ -27,25 +27,31 @@ import. Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass
 import logging
-import os
 from pathlib import Path
 import shutil
 import subprocess
+from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 
 from specify_cli.cli.console import console
 import typer
 
-from charter import resolve_mission_type_context
+from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.missions._resolve_planning_branch import (
+    PlanningBranchResolutionFailed,
+    load_mission_target_branch,
+)
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -156,6 +162,15 @@ class CommitToBranchResult:
     diagnostic: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SetupPlanLocalOutcome:
+    """Authoritative setup-plan payload and its pre-existing process exit."""
+
+    payload: Mapping[str, object]
+    exit_code: int
+    render_kind: Literal["success", "scaffold", "blocked", "error"]
+
+
 # write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
 # :class:`~mission_runtime.MissionArtifactKind` map and its ``_kind_for_artifact``
 # lookup were RELOCATED to ``mission_feature_resolution`` (the INV-8 one-way leaf)
@@ -256,26 +271,6 @@ def _commit_to_branch(
 # ---------------------------------------------------------------------------
 
 
-def _enforce_saas_sync_boundary_preflight(repo_root: Path) -> None:
-    """FR-002 / FR-009 read-only boundary preflight (WP04).
-
-    Guarded by ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and run AFTER project-root
-    resolution and the FR-011 auth refusal (:func:`_enforce_saas_sync_auth_refusal`).
-    Exits 2 on any structural incoherence (owner mismatch, orphan record, legacy
-    rows in scope, missing hosted auth). No-op when SaaS sync is disabled.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-
-    from specify_cli.sync.preflight import run_preflight
-
-    _boundary_result = run_preflight(repo_root=repo_root, require_auth=True)
-    if not _boundary_result.ok:
-        console.print(f"[red]Refusing `{SETUP_PLAN_COMMAND_NAME}`.[/red]")
-        _boundary_result.render(console)
-        raise typer.Exit(code=2)
-
-
 def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, json_output: bool) -> Path:
     """Resolve the feature directory for setup-plan; exit 1 with a detection payload on failure.
 
@@ -293,11 +288,12 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return _mission._find_feature_directory(
+        feature_dir: Path = _mission._find_feature_directory(
             repo_root,
             cwd,
             explicit_feature=resolved_feature,
         )
+        return feature_dir
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
         if json_output:
@@ -333,6 +329,38 @@ def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *,
     raise typer.Exit(1)
 
 
+def _resolve_branch_match_operands(
+    invocation_cwd: Path,
+    plan_read_dir: Path,
+    *,
+    fallback_branch: str,
+    get_current_branch: Callable[[Path], str | None],
+) -> tuple[str, str]:
+    """Resolve ``(invoking_branch, match_target)`` for the honest branch match.
+
+    FR-006 / #3124: ``branch_matches_target`` must reflect the INVOKING checkout's
+    HEAD against the mission's canonical ``meta.json`` target — not the primary
+    checkout's HEAD (which ``locate_project_root`` re-anchored ``repo_root`` onto).
+    ``resolve_checkout_identity`` yields the invoking checkout root — the lane
+    worktree itself for a linked worktree, the primary for an owner invocation — so
+    ``get_current_branch`` reads the honest branch. The comparison target is the
+    canonical ``meta.json`` value read off the PRIMARY planning surface
+    (``plan_read_dir``). When ``meta.json`` is unreadable (a coord husk) both
+    operands collapse to the invoking HEAD, so the guard degrades to a silent match
+    rather than a spurious disagreement.
+
+    This changes only the *match* operands; the deliberate primary-anchored target
+    resolution feeding every display/planning field is left untouched.
+    """
+    identity = resolve_checkout_identity(invocation_cwd, Intent.WRITE)
+    invoking_branch = get_current_branch(identity.invoking_root) or fallback_branch
+    try:
+        match_target = load_mission_target_branch(plan_read_dir)
+    except PlanningBranchResolutionFailed:
+        match_target = invoking_branch
+    return invoking_branch, match_target
+
+
 def _enforce_spec_gate(
     spec_file: Path,
     feature_dir: Path,
@@ -341,6 +369,7 @@ def _enforce_spec_gate(
     *,
     target_branch: str,
     current_branch: str,
+    match_target_branch: str | None = None,
     json_output: bool,
 ) -> bool:
     """Issue #846 entry gate: spec must exist + be committed + substantive.
@@ -349,8 +378,54 @@ def _enforce_spec_gate(
     the blocked payload as a side effect. Returns ``False`` when the spec passes.
     Raises ``typer.Exit(1)`` when the spec file is entirely missing.
     """
+    outcome, human_message = _evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        mission_slug,
+        repo_root,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    if outcome is None:
+        return False
+    if json_output:
+        _emit_json(dict(outcome.payload))
+    elif human_message is not None:
+        console.print(human_message)
+    if outcome.exit_code:
+        raise typer.Exit(outcome.exit_code)
+    return True
+
+
+def _evaluate_spec_gate(
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+) -> tuple[SetupPlanLocalOutcome | None, str | None]:
+    """Build, but do not report, the authoritative local spec-gate result."""
     if not spec_file.exists():
-        _emit_spec_missing(spec_file, feature_dir, mission_slug, json_output=json_output)
+        payload: dict[str, object] = {
+            "error_code": "SPEC_FILE_MISSING",
+            "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+            "mission_slug": mission_slug,
+            "feature_dir": str(feature_dir.resolve()),
+            "spec_file": str(spec_file.resolve()),
+            "remediation": [
+                f"Restore the missing spec file at {spec_file.resolve()}",
+                f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+            ],
+        }
+        message = "\n".join(
+            [f"[red]Error:[/red] {payload['error']}"]
+            + [f"  - {step}" for step in cast(list[str], payload["remediation"])]
+        )
+        return SetupPlanLocalOutcome(payload, 1, "error"), message
 
     # FR-011: single read-surface commit check. ``spec_file`` is the
     # READ-resolved surface — since gate-read-surface-completion WP02 it is
@@ -367,7 +442,7 @@ def _enforce_spec_gate(
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
     spec_is_substantive = is_substantive(spec_file, "spec")
     if spec_is_committed and spec_is_substantive:
-        return False
+        return None, None
 
     blocked_reason = (
         "spec.md must be committed AND substantive before setup-plan can run. "
@@ -386,11 +461,16 @@ def _enforce_spec_gate(
         "spec_substantive": spec_is_substantive,
         "spec_commit_surfaces_checked": _commit_diagnostics,
     }
-    if json_output:
-        _emit_json(_inject_branch_contract(payload, target_branch=target_branch, current_branch=current_branch))
-    else:
-        console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
-    return True
+    rendered_payload = _inject_branch_contract(
+        payload,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    return (
+        SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
+        f"[yellow]Blocked:[/yellow] {blocked_reason}",
+    )
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -405,14 +485,20 @@ def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResu
     equivalent.  Read metadata exactly once through the canonical strict-
     malformed reader.  Only an absent file may produce the neutral context used
     by the temporary #2660 selector.  Present metadata must carry a non-blank
-    canonical ``mission_type`` or supported legacy ``mission`` field; that
-    captured value is passed explicitly into the charter seam so a subsequent
-    filesystem mutation cannot change authority.
+    canonical ``mission_type`` field; the legacy ``mission`` field is retired
+    (rc3 M5, FR-002) and is no longer read here -- a legacy-only meta.json must
+    be backfilled via ``spec-kitty migrate backfill-mission-type`` before a
+    plan template can resolve.  That captured value is passed explicitly into
+    the charter seam so a subsequent filesystem mutation cannot change
+    authority.
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
     meta_path = feature_dir / "meta.json"
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
+    # surfaces the typed ``MissionMetaReadError`` and PROPAGATES, rather than
+    # being degraded into the "missing meta.json" branch below.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         # ``Path.exists()`` follows links, so the canonical reader reports None
         # for both a physically absent path and a broken/self-referential link.
@@ -431,7 +517,11 @@ def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResu
             raise TemplateConfigurationError(
                 mission_type=None,
                 artifact_kind="plan",
-                reason=(f"cannot be resolved because {feature_dir / 'meta.json'} must contain a non-blank string field 'mission_type' or legacy field 'mission'"),
+                reason=(
+                    f"cannot be resolved because {feature_dir / 'meta.json'} must contain a non-blank "
+                    "string field 'mission_type' (the legacy 'mission' field is retired and no longer "
+                    "read -- run 'spec-kitty migrate backfill-mission-type' to populate 'mission_type')"
+                ),
             )
         resolved_mission_type = resolve_mission_type_context(
             repo_root,
@@ -517,9 +607,11 @@ def _is_plan_pristine(
     """
     from specify_cli.missions._substantive import is_pristine_scaffold
 
-    return is_pristine_scaffold(
-        plan_file.read_text(encoding="utf-8"),
-        plan_template.path.read_text(encoding="utf-8"),
+    return bool(
+        is_pristine_scaffold(
+            plan_file.read_text(encoding="utf-8"),
+            plan_template.path.read_text(encoding="utf-8"),
+        )
     )
 
 
@@ -575,7 +667,14 @@ def _commit_plan_if_substantive(
     from specify_cli.cli.commands.agent import mission as _mission
     from specify_cli.missions._substantive import is_committed, is_substantive
 
-    if is_substantive(plan_file, "plan"):
+    # Decision 5 (#3832): thread the SAME upstream-resolved ``plan_template``
+    # into the now-mission-type-aware ``is_substantive`` call rather than
+    # re-resolving the mission type independently at this call site.
+    # ``project_dir=repo_root`` (#3830 FIX-1) lets an undeclared mission type
+    # still pass via a PACK-PROVIDED declaration, resolved through the same
+    # seam that resolved ``plan_template`` itself.
+    mission_type = getattr(plan_template, "mission", None) or "software-dev"
+    if is_substantive(plan_file, "plan", mission_type=mission_type, project_dir=repo_root):
         commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
         try:
             from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
@@ -596,19 +695,49 @@ def _commit_plan_if_substantive(
         is_pristine=_is_plan_pristine(plan_file, plan_template),
         committed=is_committed(plan_file, repo_root),
     )
+    # T007 (#3832): the scaffold/blocked-reason messages below read their
+    # container heading / primary field / example peer field from the SAME
+    # Decision 1/2 declaration ``is_substantive`` uses, instead of carrying
+    # their own independently-maintained "Technical Context"/"Language/Version"
+    # literals (TASKS-FRESH-001) — so a research/plan/pack-declared-type
+    # operator sees guidance naming their own type's real fields.
+    # ``project_dir=repo_root`` (#3830 FIX-1) reaches the same pack-provided
+    # declaration ``is_substantive`` above just checked.
+    from specify_cli.missions._substantive import (
+        describe_plan_field_requirements,
+        describe_technical_context_gap,
+    )
+
+    _field_info = describe_plan_field_requirements(mission_type, project_dir=repo_root)
+    # FR-013 (#1896): name the offending Technical Context format.
+    _plan_gap = describe_technical_context_gap(
+        plan_file.read_text(encoding="utf-8"), mission_type, project_dir=repo_root
+    )
+
+    if _field_info is None:
+        # #3830 severity-4 compounding-diagnostic fix: no field declaration
+        # exists anywhere (built-in or pack-provided) for this mission
+        # type — the REAL cause (``_plan_gap``, always non-None here — see
+        # ``describe_technical_context_gap``) leads the message, instead of
+        # being demoted to a trailing "Detail:" clause behind a hardcoded
+        # "Technical Context"/"Language/Version" literal naming fields this
+        # mission type's template may not even contain.
+        blocked_reason = _plan_gap or f"No field declaration is registered for mission type {mission_type!r}."
+        if not json_output:
+            console.print(f"[yellow]Plan not committed:[/yellow] {blocked_reason}")
+        return None, blocked_reason, False
+
+    _heading, _primary_field, _example_peer = _field_info
+
     if scaffold_only:
         if not json_output:
-            console.print(f"[cyan]→[/cyan] Plan scaffolded at {plan_file}; populate Technical Context and re-run setup-plan.")
+            console.print(f"[cyan]→[/cyan] Plan scaffolded at {plan_file}; populate {_heading} and re-run setup-plan.")
         return None, None, True
 
-    # FR-013 (#1896): name the offending Technical Context format.
-    from specify_cli.missions._substantive import describe_technical_context_gap
-
-    _plan_gap = describe_technical_context_gap(plan_file.read_text(encoding="utf-8"))
     blocked_reason = (
-        "plan.md content is not substantive yet; populate Technical Context with real "
-        "values (Language/Version plus at least one peer field, such as Primary "
-        "Dependencies) — not template placeholders — and re-run setup-plan to commit."
+        f"plan.md content is not substantive yet; populate {_heading} with real "
+        f"values ({_primary_field} plus at least one peer field, such as {_example_peer}) — "
+        "not template placeholders — and re-run setup-plan to commit."
     )
     if _plan_gap is not None:
         blocked_reason = f"{blocked_reason} Detail: {_plan_gap}"
@@ -726,7 +855,6 @@ def _detect_and_configure_generators(
 
 
 def _run_documentation_wiring(
-    feature_dir: Path,
     mission_slug: str,
     repo_root: Path,
     *,
@@ -736,24 +864,34 @@ def _run_documentation_wiring(
     """Documentation-mission plan wiring (T014 + T016): gap analysis + generator detection.
 
     No-op (returns ``(None, [])``) for non-documentation missions.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-013, #2886):
+    this used to take the caller's ``feature_dir`` (the STATUS/lifecycle-side
+    coord-aware resolution -- see the comment at the call site) and read
+    ``meta.json`` straight off it. Both metadata reads below (the mission-type
+    check and the ``meta.json`` access ``_run_documentation_gap_analysis``/
+    ``_detect_and_configure_generators`` perform) now route through a FRESH
+    PRIMARY-partition seam read instead, and the gap-analysis WRITE that
+    follows resolves through that SAME ``primary_dir`` (SC-007 scenario 2) --
+    routing only one of the two reads would clear the #2214 pin while leaving
+    the other bound to a possible coord husk (no ``meta.json`` since #2106),
+    the exact honesty hole this subtask closes. The ``feature_dir`` parameter
+    is therefore dropped: nothing in this function needs it any more.
+    ``gap-analysis.md`` itself carries no ``MissionArtifactKind`` (WP02 T013's
+    honest bound) -- it simply anchors on this resolved directory.
     """
-    if get_mission_type(feature_dir) != MISSION_TYPE_DOCUMENTATION:
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    if get_mission_type(primary_dir) != MISSION_TYPE_DOCUMENTATION:
         return None, []
-    meta_file = feature_dir / "meta.json"
-    gap_analysis_path = _run_documentation_gap_analysis(feature_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
+    meta_file = primary_dir / "meta.json"
+    gap_analysis_path = _run_documentation_gap_analysis(primary_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     generators_detected = _detect_and_configure_generators(mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     return gap_analysis_path, generators_detected
 
 
-def _trigger_dossier_sync(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-    """Fire-and-forget dossier sync."""
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
-
-
-def _emit_setup_plan_result(
+def _build_setup_plan_result(
     *,
     plan_file: Path,
     spec_file: Path,
@@ -766,10 +904,10 @@ def _emit_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
-    json_output: bool,
+    match_target_branch: str | None = None,
     plan_scaffold_only: bool = False,
-) -> None:
-    """Emit the setup-plan result in JSON or human form.
+) -> SetupPlanLocalOutcome:
+    """Build the authoritative setup-plan result without rendering it.
 
     FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
     scaffold write (a pristine, byte-identical-to-template plan.md) as a
@@ -778,10 +916,6 @@ def _emit_setup_plan_result(
     stays tied to ``plan_is_substantive`` alone, so the scaffold_only case
     still reports ``phase_complete: false``.
     """
-    if not json_output:
-        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
-        return
-
     result: dict[str, object] = {
         "result": "success" if (plan_is_substantive or plan_scaffold_only) else "blocked",
         "phase_complete": plan_is_substantive,
@@ -807,7 +941,59 @@ def _emit_setup_plan_result(
         result["gap_analysis"] = gap_analysis_path
     if generators_detected:
         result["generators_detected"] = generators_detected
-    _emit_json(_inject_branch_contract(result, target_branch=target_branch, current_branch=current_branch))
+    result = _inject_branch_contract(
+        result,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    render_kind: Literal["success", "scaffold", "blocked", "error"] = (
+        "scaffold"
+        if plan_scaffold_only
+        else "success"
+        if plan_is_substantive
+        else "blocked"
+    )
+    return SetupPlanLocalOutcome(result, 0, render_kind)
+
+
+def _emit_setup_plan_result(
+    *,
+    plan_file: Path,
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    plan_is_substantive: bool,
+    plan_blocked_reason: str | None,
+    plan_commit_result: CommitToBranchResult | None,
+    gap_analysis_path: str | None,
+    generators_detected: list[GeneratorConfig],
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+    json_output: bool,
+    plan_scaffold_only: bool = False,
+) -> None:
+    """Compatibility reporter backed by the side-effect-free result builder."""
+    outcome = _build_setup_plan_result(
+        plan_file=plan_file,
+        spec_file=spec_file,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        plan_is_substantive=plan_is_substantive,
+        plan_blocked_reason=plan_blocked_reason,
+        plan_commit_result=plan_commit_result,
+        gap_analysis_path=gap_analysis_path,
+        generators_detected=generators_detected,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+        plan_scaffold_only=plan_scaffold_only,
+    )
+    if not json_output:
+        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
+        return
+    _emit_json(dict(outcome.payload))
 
 
 def setup_plan(
@@ -824,61 +1010,9 @@ def setup_plan(
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
     ------------------------------------------------------------------
-    WP04 / FR-011 + FR-012 audit (2026-05-17)
-    ------------------------------------------------------------------
-    This command's full call graph was audited to confirm every body
-    upload / queue write goes through ``default_queue_db_path()`` and
-    that no setup-plan path opens the legacy home-scoped queue database
-    directly. The audit covered:
-
-      * ``trigger_feature_dossier_sync_if_enabled()`` (this function
-        constructs ``OfflineBodyUploadQueue()`` which delegates to
-        ``default_queue_db_path()`` — FR-012 lock).
-      * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
-        falls back to ``default_queue_db_path()`` when ``db_path`` is
-        ``None``.
-      * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
-        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
-        lifecycle JSONL only, no queue DB.
-      * ``commit_for_mission()`` / underlying safe-commit — local git only, no queue DB.
-
-    No direct ``_legacy_queue_db_path()`` call sites exist in the
-    setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
-    guard (now in :func:`_enforce_saas_sync_auth_refusal`) is the
-    load-bearing gate that ensures we never silently fall back to the
-    legacy queue when SaaS sync is enabled but the foreground is
-    unauthenticated.
-
-    ------------------------------------------------------------------
-    WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
-    boundary preflight integration — 2026-05-18
-    ------------------------------------------------------------------
-    Immediately after the FR-011 hosted-auth refusal above (and only
-    when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
-    gate), setup-plan invokes
-    :func:`specify_cli.sync.preflight.run_preflight` with
-    ``require_auth=True`` to enforce FR-002 / FR-009 (now in
-    :func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight
-    refuses (``typer.Exit(2)``) on:
-
-      * any of the six canonical daemon-owner / foreground mismatch
-        fields (D-3 canon);
-      * any orphan daemon owner record on disk;
-      * any legacy queue rows belonging to the active scope; or
-      * missing hosted auth when SaaS sync is required.
-
-    The preflight is read-only — no DB writes, no SaaS round-trip — so
-    placing it AFTER the FR-011 auth guard and BEFORE any
-    ``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /
-    ``emit_wp_created`` call ensures every SaaS-producing code path
-    downstream of this function has passed the gate. The same gate is
-    applied in ``sync now`` (WP03); the two surfaces share
-    :func:`specify_cli.sync.preflight.build_boundary_failure_set` as
-    their single source of truth.
-
-    Cross-reference: WP04 of mission
-    ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
-    ``tests/runtime/test_setup_plan_sync_evidence.py``.
+    The SaaS-sync boundary gates this command used to enforce (FR-011 auth
+    refusal, boundary preflight, dossier push) were removed with the sync
+    transport (issue #5); only local planning artifacts are produced here.
     ------------------------------------------------------------------
     """
     # Deferred import keeps this leaf free of an import cycle while honoring the
@@ -889,8 +1023,6 @@ def setup_plan(
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
-        _enforce_saas_sync_auth_refusal(json_output=json_output)
-
         repo_root = _mission.locate_project_root()
         if repo_root is None:
             error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
@@ -900,7 +1032,6 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        _enforce_saas_sync_boundary_preflight(repo_root)
 
         _mission._enforce_git_preflight(
             repo_root,
@@ -911,7 +1042,6 @@ def setup_plan(
         feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=json_output)
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
-        current_branch = _mission.get_current_branch(repo_root) or target_branch
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -928,7 +1058,7 @@ def setup_plan(
         # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
         # reads converge on the real artifact. Only the PLANNING reads move
         # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
-        # (``emit_artifact_phase``) and dossier lookups below. Template context is
+        # (``emit_artifact_phase``). Template context is
         # itself planning configuration, so it must resolve from ``plan_read_dir``
         # where the canonical ``meta.json`` lives; a coord husk may legitimately
         # be meta-less and must not turn a typed mission into the typeless
@@ -941,6 +1071,19 @@ def setup_plan(
         plan_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="plan")
         plan_file = plan_read_dir / "plan.md"
 
+        # FR-006 / #3124: compute the branch-match operands from the INVOKING
+        # checkout + the mission's meta.json target — NOT the primary HEAD that
+        # locate_project_root() re-anchored ``repo_root`` onto. ``target_branch``
+        # (above) stays primary-anchored for every display/planning field; only the
+        # match value reflects the invoking checkout. ``plan_read_dir`` is the
+        # PRIMARY planning surface where the canonical meta.json lives.
+        current_branch, match_target_branch = _resolve_branch_match_operands(
+            Path.cwd(),
+            plan_read_dir,
+            fallback_branch=target_branch,
+            get_current_branch=_mission.get_current_branch,
+        )
+
         if _enforce_spec_gate(
             spec_file,
             feature_dir,
@@ -948,6 +1091,7 @@ def setup_plan(
             repo_root,
             target_branch=target_branch,
             current_branch=current_branch,
+            match_target_branch=match_target_branch,
             json_output=json_output,
         ):
             return
@@ -961,7 +1105,17 @@ def setup_plan(
 
         from specify_cli.missions._substantive import is_substantive
 
-        plan_is_substantive = is_substantive(plan_file, "plan")
+        # Decision 5 (#3832): reuse the single upstream-resolved
+        # ``plan_template`` (already in scope from ``_resolve_plan_template``
+        # above) rather than re-resolving the mission type independently.
+        # ``project_dir=repo_root`` (#3830 FIX-1): reach a pack-provided
+        # declaration through the same seam that resolved ``plan_template``.
+        plan_is_substantive = is_substantive(
+            plan_file,
+            "plan",
+            mission_type=getattr(plan_template, "mission", None) or "software-dev",
+            project_dir=repo_root,
+        )
         plan_commit_result, plan_blocked_reason, plan_scaffold_only = _commit_plan_if_substantive(
             plan_file,
             feature_dir,
@@ -973,10 +1127,8 @@ def setup_plan(
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
-            feature_dir, mission_slug, repo_root, target_branch=target_branch, json_output=json_output
+            mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
-
-        _trigger_dossier_sync(feature_dir, mission_slug, repo_root)
 
         _emit_setup_plan_result(
             plan_file=plan_file,
@@ -990,6 +1142,7 @@ def setup_plan(
             generators_detected=generators_detected,
             target_branch=target_branch,
             current_branch=current_branch,
+            match_target_branch=match_target_branch,
             json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
         )
@@ -1018,38 +1171,3 @@ def setup_plan(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from None
-
-
-def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
-    """FR-011 auth refusal that must run BEFORE project-root resolution.
-
-    The original ``setup_plan`` ran the FR-011 ``read_queue_scope`` refusal at
-    the very top (before ``locate_project_root``), so an unauthenticated
-    SaaS-enabled invocation refuses even outside a repo. This phase preserves
-    that ordering; the repo-scoped boundary preflight runs later in
-    :func:`_enforce_saas_sync_preflight`.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-    from specify_cli.sync.queue import (
-        read_queue_scope_from_credentials,
-        read_queue_scope_from_session,
-    )
-
-    _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
-    if _scope:
-        return
-    error_msg = "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
-    remediation = "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC before running setup-plan."
-    if json_output:
-        _emit_json(
-            {
-                "error_code": "SAAS_SYNC_UNAUTHENTICATED",
-                "error": error_msg,
-                "remediation": [remediation],
-            }
-        )
-    else:
-        console.print(f"[red]Error[/red]: {error_msg}")
-        console.print(remediation)
-    raise typer.Exit(code=2)

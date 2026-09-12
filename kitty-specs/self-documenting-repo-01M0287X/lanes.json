@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "mission_slug": "self-documenting-repo-01M0287X",
+  "mission_id": "01M0287XCV1R9VDEXHSDB0RTYR",
+  "mission_branch": "kitty/mission-self-documenting-repo-01M0287X",
+  "target_branch": "kitty/mission-self-doc-gapclose",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_inert_schema_slots.py",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/docs/test_related_validator.py",
+        "tests/docs/test_relative_link_fixer.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "CLAUDE.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/**",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/operations/recovery-index.md",
+        "docs/operations/toc.yml",
+        "tests/docs/test_migration_manifest_complete.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-15T08:37:47.951315+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b13db5b98eaa8ad5b6c1246b7d033f34390a5526",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'docs/development/3-2-page-inventory.yaml' vs 'docs/development/3-2-page-inventory.yaml', 'docs/development/3-2-docs-retrieval-index.yaml' vs 'docs/development/3-2-docs-retrieval-index.yaml'; WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'docs/development/3-2-page-inventory.yaml' vs 'docs/development/**', 'docs/development/3-2-docs-retrieval-index.yaml' vs 'docs/development/**'; WP05 depends on WP03"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

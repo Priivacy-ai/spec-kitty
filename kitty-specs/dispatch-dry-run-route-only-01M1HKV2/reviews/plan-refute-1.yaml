@@ -1,0 +1,90 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      Verified against the live code (dispatch.py:188-201 has one try/except around invoke()
+      with a single unconditional except RouterAmbiguityError, and errors.py confirms
+      ROUTER_AMBIGUOUS/ROUTER_NO_MATCH are the same exception type) and against plan.md's own
+      text in three places (lines 144-165, and line 249's gate table restating "reusing the
+      *existing* handlers unchanged" for ROUTER_NO_MATCH) — the plan genuinely asks for the
+      same except-clause-by-type to both "catch it in the dry-run branch specifically" (exit 0
+      dry_run payload for ROUTER_AMBIGUOUS) and be "the absence of a dry-run branch" reusing the
+      existing handler unchanged (exit 1 for ROUTER_NO_MATCH), which is structurally unsatisfiable
+      without an explicit if/else on e.error_code the plan never states; the Seam table's own
+      "lives here or in the executor (see below)" hedge is direct textual proof this was left
+      unresolved rather than pinned down.
+
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Confirmed by reading propagator.py end-to-end: in the normal/CI environment
+      _get_saas_client always returns None (per the module's own docstring, "In production
+      this returns None every time... No package registers a SaaS-client factory") and the
+      consent gate can also short-circuit first, so submit() -> _propagate_one() returns with
+      zero filesystem writes (propagation-errors.jsonl is only touched on an actual send
+      failure, which never occurs when no client is registered) — so even test #1's
+      kitty-ops/ snapshot has no side channel to catch a regressed submit() call; grep over
+      tests/specify_cli/invocation/cli/test_dispatch.py confirms none of WP1's 5 named tests
+      reference propagator/SaaS at all.
+
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      Verified: the Constitution Check and "Two JSON shapes" section's justification is
+      exclusively about avoiding an Optional ripple through InvocationPayload's non-Optional
+      slots for mypy --strict, and never addresses the field-name-parity/drift risk between
+      the ambiguous-branch dict (dispatch.py) and to_dry_run_dict() (executor.py), which share
+      status/alternatives/router_confidence by convention only with no test tying them together
+      — the claim is accurate, though the actual risk is narrow (3 shared keys, both branches
+      independently tested) and arguably closer to minor than moderate; noting the severity
+      concern but the underlying gap is real.
+
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: >
+      Verified: spec.md lines 292-300 record Clarifications item 5 as an explicitly "accepted"
+      mid-mission routing-consistency risk when WP3 lands, and a grep for "mid-mission",
+      "routing-consistency", "in-flight" etc. across the entirety of plan.md (including the
+      WP3 ATDD section at line 360 and the Dependency Graph at line 550) returns zero hits —
+      the plan genuinely never restates or cross-references this settled decision anywhere.
+
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: >
+      Verified: plan.md contains no occurrence of "team-kitty", "downstream", "CHANGELOG", or
+      "breaking change"/"behavior change" anywhere, including in the "PR shape" section (line
+      474) which discusses PR structure but never a CHANGELOG entry or consumer-facing note,
+      and spec.md likewise never addresses downstream/CHANGELOG impact — CLAUDE.md's own
+      "Skill Routing" section confirms auto-routed no-`--profile` dispatch is the CLI's default
+      ad-hoc entry point, so the blast-radius claim about WP3's rerank changing auto-select
+      behavior for that path is accurate and the plan's silence on it is real.
+
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Verified directly against executor.py: invoke() spans lines 284-430, which is 147 total
+      lines (44 of them blank/comment-only, 103 non-blank/non-comment) — either count is far
+      from the plan's stated "single 57-line method," and the same figure is repeated verbatim
+      in tracer-approach.md, so the inaccuracy is real and propagates to a second artifact as
+      claimed.
+
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: >
+      Verified: record.py's OpStartedEvent (lines 44-69) has a closed Pydantic field list with
+      no `alternatives` slot, and plan.md never mentions "OpStartedEvent" or "record.py"
+      anywhere — the finding correctly identifies this as a low-risk documentation gap (no
+      actual schema leak occurs) rather than a functional defect, matching its own severity-2
+      framing.
+
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: >
+      Verified directly: empty_charter.py's `return RouterDecision(` construction is at line
+      123 (counted from the file), matching the "4 call sites" section's "L123" citation, while
+      the Seam table's "L120" (plan.md line 103) is off by 3 lines — a genuine, trivial internal
+      inconsistency correctly rated as a nit.

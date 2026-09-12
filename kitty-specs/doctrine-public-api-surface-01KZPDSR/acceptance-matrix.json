@@ -1,0 +1,119 @@
+{
+  "mission_slug": "doctrine-public-api-surface-01KZPDSR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP02 approved: doctrine/api.py curated __all__ (10 PUBLIC symbols, identity re-exports); wheel-closure pins surface",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:15.759355+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP01 approved: reach-through census + machine-readable disposition manifest + census gate",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:17.733573+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP03 approved: charter facade layer (symbol-level identity doors), _FACADE_TABLE grown",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:19.727511+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP05/06/07 approved: all ~34 lazy-import files migrated onto charter.* facades; ratchet baseline shrunk",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:21.724959+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP05 approved: sole-door regression-guard (5 raw sites already wrapped+test-locked); zero unwrapped",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:23.705394+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP04 approved: lazy-import ratchet (parent-tracking descent) + source-side laundering guard; closes #2986",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:25.658567+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP02 approved: INTERNAL negative guard (dynamic facade discovery, mutation-proven)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:27.615369+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP02 approved: test_doctrine_wheel_closure pins the real doctrine.api.__all__",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:29.597216+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP08 approved: 26 duplicate DRG-URN literals hoisted 1:1; regenerate-graph --check byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:31.580615+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP09/WP10 approved: all S3776 functions <=15 (extractor 183->3); golden byte-identical; helper tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:33.568128+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "architectural-test-and-independent-review",
+      "evidence": "WP08 approved: malformed suppression at artifact_kinds.py:118 fixed (S7632)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-10T21:49:35.566007+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

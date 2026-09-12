@@ -1,0 +1,108 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: charter-activate-empty-action-sequence-01M0STSX
+note: confirmed set = merged findings whose R3 verdict is confirmed. TASKS-VERIFY-001 refuted (misquotation),
+  excluded.
+findings:
+- id: TASKS-DECOMP-001
+  lens_group: decomp
+  lens: No vacuous Definition-of-Done items
+  severity: 4
+  title: FR-006 (built-in types unaffected) has no test, DoD item, or Reviewer Guidance tie-back anywhere
+    in WP01
+  evidence:
+  - artifact: wps.yaml § work_packages.WP01.requirement_refs (lists FR-006)
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md § frontmatter requirement_refs (lists
+      FR-006)
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done (no FR-006 item;
+      no reference to tests/runtime/test_runtime_seam.py)
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no FR-006 / built-in-type
+      checkpoint)
+  - artifact: spec.md § Functional Requirements (FR-006, Medium priority) and § Edge Cases ('What happens
+      on a built-in mission type?' — cites tests/runtime/test_runtime_seam.py's golden-parity suite as
+      what locks this)
+  claim: 'FR-006 ("Built-in types unaffected") is declared as one of WP01''s owned requirements in both
+    wps.yaml and the WP01 frontmatter, but nothing in the WP file''s body ever traces back to it: none
+    of T001-T004 adds or points to a test asserting a built-in mission type''s activation is unaffected,
+    the Definition of Done''s "Targeted test surface" item lists exactly 8 files (none of which is tests/runtime/test_runtime_seam.py,
+    the golden-parity suite spec.md''s own Edge Cases names as the thing that "locks" this guarantee),
+    and the Gate Set''s targeted-shard list likewise omits it. Every other requirement_ref this WP carries
+    (FR-001, FR-002, FR-003, FR-004, FR-005, FR-007, NFR-002, C-001-C-007) is explicitly traced to a specific
+    subtask, test, or DoD/Gate-Set line elsewhere in this same file — FR-006 is the sole exception, and
+    a reviewer following this WP''s own Reviewer Guidance checklist has no instruction that would surface
+    a regression here even if the shared resolution path were ever changed to special-case built-ins.
+
+    '
+  remediation: 'Add one explicit line — to Definition of Done and/or Reviewer Guidance — stating how FR-006
+    is verified: either (a) add tests/runtime/test_runtime_seam.py''s golden-parity suite to the DoD''s
+    targeted test surface / Gate Set so it is actually re-run as part of this WP''s gate, or (b) if reliance
+    on that pre-existing, out-of-surface suite plus "no new code path for built-ins" reasoning is intentional
+    (as spec.md''s Edge Cases already argues), say so explicitly in the WP file the same way C-006''s
+    "skip campsite-clean" decision is documented, so a reviewer is not left to re-derive the reasoning
+    from spec.md.
+
+    '
+- id: TASKS-DECOMP-002
+  lens_group: decomp
+  lens: No vacuous Definition-of-Done items
+  severity: 2
+  title: T001's baseline-capture DoD item names no durable artifact/location for the recorded results
+  evidence:
+  - artifact: 'tasks/WP01-activation-empty-action-sequence-gate.md § Subtask T001: Baseline capture (''Record
+      pass/fail per test — this recorded baseline is what SC-005 ... is verified against, not a fresh
+      assumption.'')'
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md § Definition of Done, item 1 ('T001
+      baseline captured (pass/fail per test recorded, attributable before any mission commit lands).')
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md § Reviewer Guidance (no line asking
+      the reviewer to check the recorded baseline)
+  claim: 'Both T001''s own instructions and Definition-of-Done item 1 require the per-test pass/fail baseline
+    to be "recorded," but neither names where — no reference to the WP file''s own Activity Log, to one
+    of this mission''s existing tracer-*.md files (tracer-approach.md, tracer-design-decisions.md, tracer-tooling-friction.md
+    — already the established convention in this mission directory per plan.md''s Documentation section
+    for exactly this kind of authoring note), to a PR description, or to any other durable artifact. As
+    written this DoD item is not independently checkable: a reviewer has nothing to open to confirm the
+    baseline was actually captured before commit 1 landed, which is the exact evidence SC-005 ("no new
+    failures introduced outside the pre-existing #3284 baseline") depends on.
+
+    '
+  remediation: 'Add one sentence to T001 (and mirror it in DoD item 1) naming the artifact the pass/fail
+    table must be written to — e.g. "record the per-test result table in tracer-approach.md" or as a dated
+    Activity Log entry on this WP file — so both the implementer and the reviewer have a concrete, checkable
+    location.
+
+    '
+- id: TASKS-VERIFY-002
+  lens_group: verify
+  lens: sk-81-methodological-trap-enforceability
+  severity: 1
+  title: SC-004 (trap rejection) is absent from WP01's machine-readable requirement_refs, with no acknowledgment
+    of the known upstream cause (#2991)
+  evidence:
+  - artifact: wps.yaml § work_packages[0].requirement_refs (FR-001..FR-007, NFR-001, NFR-002, C-001..C-007
+      — no SC-### entries)
+  - artifact: tasks/WP01-activation-empty-action-sequence-gate.md frontmatter § requirement_refs (identical
+      list, no SC-004)
+  - artifact: 'kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/wps.yaml lines 12-15 ("requirement_refs
+      carries SC-### deliberately. _REF_FIND_PATTERN (requirement_mapping.py:16) matches only (FR|NFR|C)-\d+,
+      so every SC-### is dropped at the tasks-packages -> WP-frontmatter boundary ... Upstream defect
+      #2991")'
+  claim: 'FR-005 is present in WP01''s requirement_refs list (confirmed directly in both wps.yaml and
+    the WP file frontmatter). SC-004 is not present in either — only FR/NFR/C-prefixed IDs appear. This
+    is very likely the same pre-existing tooling limitation another in-repo mission already documented
+    and cited (#2991: the tasks-packages generator''s `_REF_FIND_PATTERN` regex only matches `(FR|NFR|C)-\d+`,
+    so any `SC-###` a tasks-outline author lists is silently dropped before it reaches the WP frontmatter)
+    rather than an authoring omission specific to this mission — but neither spec.md, plan.md, tasks.md,
+    wps.yaml, nor WP01 acknowledges this known limitation the way the precedent mission does. The substance
+    of SC-004 is otherwise well-covered in WP01''s prose (the verbatim SK-81 trap section, T002''s fixture
+    instructions, and Reviewer Guidance''s explicit "A pre-seeded-only test is a severity-4 finding per
+    spec.md SC-004" line), so this is a traceability nit, not a coverage gap.
+
+    '
+  remediation: 'Add a one-line note near WP01''s requirement_refs (mirroring isolated-home-pin-guard-r1a-01KZNMA3/wps.yaml''s
+    header comment) stating that SC-004 is intentionally absent from the machine-readable requirement_refs
+    list due to upstream defect #2991 (SC-### IDs are dropped by `_REF_FIND_PATTERN` at the tasks-packages
+    boundary), so a future reader does not mistake the omission for an oversight and does not "clean it
+    up" by inventing a workaround.
+
+    '

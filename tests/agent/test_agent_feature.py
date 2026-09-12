@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -37,7 +38,7 @@ def _disable_saas_sync_for_setup_plan_contract_tests(
     ``tests/runtime/test_setup_plan_sync_evidence.py`` and re-enable
     the flag explicitly.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 runner = CliRunner()
 TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
@@ -57,6 +58,53 @@ SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan Template
 **Language/Version**: Python 3.12
 **Primary Dependencies**: Typer
 """
+
+
+def _init_owned_checkout_pair(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a configured primary repository and real generic linked worktree."""
+    primary = tmp_path / "primary"
+    linked = tmp_path / "linked-checkout"
+    (primary / ".kittify" / "templates").mkdir(parents=True)
+    (primary / ".kittify" / "templates" / "spec-template.md").write_text(
+        "# Spec Template\n",
+        encoding="utf-8",
+    )
+    (primary / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
+    (primary / "kitty-specs").mkdir()
+    (primary / "kitty-specs" / ".gitkeep").touch()
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Spec Kitty Tests"],
+        cwd=primary,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "spec-kitty-tests@example.invalid"],
+        cwd=primary,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=primary, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial project"],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "owned-mission", str(linked)],
+        cwd=primary,
+        check=True,
+        capture_output=True,
+    )
+    return primary, linked
 
 
 def _write_committed_substantive_spec(repo_root: Path, feature_dir: Path) -> None:
@@ -190,6 +238,7 @@ class TestBranchContextCommand:
         self,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Do not treat a feature branch as primary just because origin/HEAD is absent."""
         mock_locate.return_value = tmp_path
@@ -205,6 +254,14 @@ class TestBranchContextCommand:
         subprocess.run(["git", "add", "README.md"], cwd=tmp_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "switch", "-c", "feat/checkout-upsell"], cwd=tmp_path, check=True, capture_output=True)
+
+        # ``branch-context`` resolves branch identity from the invoking checkout
+        # (``resolve_checkout_identity(Path.cwd(), ...)``), NOT from the mocked
+        # ``locate_project_root`` (which re-anchors linked worktrees to the
+        # primary checkout for shared metadata reads). The test must therefore
+        # run *inside* the repo it built, or the command reads the ambient
+        # checkout's branch instead of ``feat/checkout-upsell``.
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(app, ["branch-context", "--json"])
 
@@ -244,7 +301,6 @@ class TestInjectBranchContractRecommendation:
 class TestCreateFeatureCommand:
     """Tests for create command."""
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -253,7 +309,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_with_json_output(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -263,10 +319,18 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
@@ -312,7 +376,6 @@ class TestCreateFeatureCommand:
             "track the work from mission creation onward."
         )
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -321,7 +384,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_with_human_output(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -331,10 +394,18 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature"])
 
         # Verify
@@ -451,7 +522,6 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -460,7 +530,7 @@ class TestCreateFeatureCommand:
     def test_allows_feature_creation_from_any_branch(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
@@ -470,10 +540,18 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify — should succeed, recording "develop" as target_branch
@@ -482,7 +560,6 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -491,7 +568,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_on_primary_branch(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
@@ -501,10 +578,18 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        with patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)):
+        # This fixture mocks Git and the commit half; mock its paired validation
+        # half too. Real worktree and refusal tests below retain real preflight.
+        with (
+            patch("specify_cli.core.mission_creation.preflight_commit"),
+            patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str(TEST_MISSION_ID)),
+        ):
             result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
@@ -513,15 +598,164 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
+    def test_owned_checkout_creates_mission_in_real_linked_worktree(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """An explicit validated checkout owns mission scaffolding and commit routing."""
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+
+        with (
+            patch(
+                "specify_cli.cli.commands.agent.mission.locate_project_root",
+                return_value=primary,
+            ),
+            patch(
+                "specify_cli.core.mission_creation.Path.cwd",
+                return_value=linked,
+            ),
+            patch("specify_cli.core.mission_creation.safe_commit") as safe_commit,
+            patch(
+                "specify_cli.core.mission_creation.ULID",
+                return_value=ULID.from_str(TEST_MISSION_ID),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "owned-feature",
+                    "--owned-checkout",
+                    str(linked),
+                    "--topology",
+                    "single_branch",
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        mission_slug = f"owned-feature-{TEST_MISSION_MID8}"
+        mission_dir = linked / "kitty-specs" / mission_slug
+        assert payload["owned_checkout"] == str(linked.resolve())
+        assert payload["canonical_repo_root"] == str(primary.resolve())
+        assert payload["feature_dir"] == str(mission_dir)
+        assert mission_dir.is_dir()
+        assert (mission_dir / "meta.json").is_file()
+        assert not (primary / "kitty-specs" / mission_slug).exists()
+        assert (
+            subprocess.run(
+                ["git", "status", "--short"],
+                cwd=primary,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            == ""
+        )
+        safe_commit.assert_called_once()
+        assert safe_commit.call_args.kwargs["repo_root"] == primary.resolve()
+        assert safe_commit.call_args.kwargs["worktree_root"] == linked.resolve()
+        assert safe_commit.call_args.kwargs["target"].ref == "owned-mission"
+
+    def test_owned_checkout_foreign_refusal_is_structured_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A foreign explicit checkout fails before scaffolding with stable code."""
+        primary, _linked = _init_owned_checkout_pair(tmp_path)
+        foreign = tmp_path / "foreign"
+        foreign.mkdir()
+        subprocess.run(
+            ["git", "init", "--initial-branch=foreign"],
+            cwd=foreign,
+            check=True,
+            capture_output=True,
+        )
+
+        with patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=primary,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "foreign-feature",
+                    "--owned-checkout",
+                    str(foreign),
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().splitlines()[0])
+        assert payload["error_code"] == "OWNERSHIP_FOREIGN"
+        assert str(foreign.resolve()) in payload["error"]
+        assert str(primary.resolve()) in payload["error"]
+        assert not any((primary / "kitty-specs").glob("foreign-feature-*"))
+        # Shared ownership refusal contract: same core JSON shape as
+        # next_cmd._emit_checkout_ownership_error — success/error_code/error
+        # present, and no redundant `message` key from the previous
+        # `**exc.to_dict()` spread (StructuredError.to_dict() would add it).
+        assert payload["success"] is False
+        assert "message" not in payload
+        assert {"success", "error_code", "error"} <= payload.keys()
+
+    def test_owned_checkout_subdirectory_refusal_is_structured_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A subdirectory cannot masquerade as a linked checkout root."""
+        primary, linked = _init_owned_checkout_pair(tmp_path)
+        nested = linked / "nested"
+        nested.mkdir()
+
+        with patch(
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
+            return_value=primary,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "create",
+                    "nested-feature",
+                    "--owned-checkout",
+                    str(nested),
+                    "--json",
+                ],
+            )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().splitlines()[0])
+        assert payload["error_code"] == "OWNERSHIP_NESTED"
+        assert str(nested.resolve()) in payload["error"]
+        assert str(linked.resolve()) in payload["error"]
+        assert not any((linked / "kitty-specs").glob("nested-feature-*"))
+
 
 class TestCheckPrerequisitesCommand:
     """Tests for check-prerequisites command."""
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_validates_prerequisites_json_output(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should validate prerequisites and output JSON format."""
         # Setup
@@ -630,11 +864,25 @@ class TestCheckPrerequisitesCommand:
         assert "Warnings:" in result.stdout
         assert "Missing recommended directory: checklists/" in result.stdout
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_paths_only_flag_json(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should output only paths when --paths-only flag is used."""
         # Setup
@@ -1036,6 +1284,10 @@ requirement_refs:
                 "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
+            # ``finalize-tasks`` resolves write ownership from the ambient
+            # checkout, not the mocked project root. The fixture root is the
+            # canonical target, so running there makes the test deterministic.
+            contextlib.chdir(tmp_path),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
                 return_value=CommitRouterResult(
@@ -1081,6 +1333,21 @@ class TestSetupPlanCommand:
             lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
         )
 
+    # ``setup-plan`` resolves the invoking checkout's branch via
+    # ``get_current_branch(resolve_checkout_identity(Path.cwd()).invoking_root)``
+    # (the FR-006/#3124 honest branch-match), NOT the mocked ``_show_branch_context``.
+    # That reads the AMBIENT checkout, so ``current_branch`` came out as whatever
+    # branch the worktree running the test happened to be on — green in a ``main``
+    # CI checkout, red in any non-``main`` worktree. Pin ``get_current_branch`` to
+    # ``main`` so the resolution is deterministic.
+    #
+    # This is a scaffold-shape test: with the pin, ``current_branch == "main"`` is a
+    # tautology, NOT the branch-honesty guard. The real invoking-vs-primary
+    # derivation contract (FR-006/#3124) is verified separately by
+    # ``tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py``,
+    # which uses real ``git worktree add`` lanes with ``get_current_branch``
+    # deliberately UNPATCHED.
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
@@ -1091,6 +1358,7 @@ class TestSetupPlanCommand:
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
+        mock_get_current_branch: Mock,
         tmp_path: Path,
     ) -> None:
         """Should scaffold plan template and output JSON format."""

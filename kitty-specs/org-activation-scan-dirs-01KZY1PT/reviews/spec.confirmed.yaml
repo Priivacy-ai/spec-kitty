@@ -1,0 +1,277 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: org-activation-scan-dirs-01KZY1PT
+derived_from:
+  - reviews/spec.merged.yaml
+  - reviews/spec-refute-1.yaml
+note: >
+  All 5 findings from reviews/spec.merged.yaml survived refutation (refuter batch 1,
+  reviews/spec-refute-1.yaml) — none refuted. This file is the merged findings list
+  filtered to confirmed only, which in this round is the full set, verbatim.
+findings:
+  - id: SPEC-GOV-001
+    source_group: gov
+    lens: D1/D2 scope boundary precision (+ Ledger)
+    severity: 4
+    title: FR-004/FR-005 are FR-numbered but have no WP to claim them, so `mission finalize-tasks` will hard-fail on them as unmapped
+    evidence:
+      - artifact: "spec.md § Requirements / Functional Requirements table (FR-004, FR-005)"
+      - artifact: "spec.md § Success Criteria (SC-005)"
+      - code: "src/specify_cli/requirement_mapping.py:104-117 (parse_requirement_ids_from_spec_md — regex `\\b(?:FR|NFR|C)-\\d+\\b`, any `FR-` id becomes a `functional` id with no exemption for a 'contingent'/'Low' annotation)"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:609-663 (_validate_requirement_mapping — computes `unmapped_functional_requirements = functional_spec_requirement_ids - mapped_requirement_ids` and calls `raise typer.Exit(1)` on any non-empty unmapped set)"
+    claim: >
+      FR-004 and FR-005 are written as ordinary `FR-NNN` rows in the Functional Requirements
+      table, and the spec is explicit that this mission does not implement them ("This mission
+      records the finding; it does not implement a change to make it true") and that they are
+      not gating ("SC-005 ... not gating this mission's own completion"). But
+      `parse_requirement_ids_from_spec_md` (verified directly, not from the sibling ledger)
+      extracts every `FR-\d+` token in spec.md into `functional` with no notion of "contingent"
+      or priority — it is a pure regex scan. `mission finalize-tasks`'s
+      `_validate_requirement_mapping` then hard-fails the whole command
+      (`typer.Exit(1)`) if any functional ID is not claimed by some WP's `requirement_refs`
+      frontmatter. Since this mission authors no WP that implements or references FR-004/FR-005
+      (by design — they are #3384-contingent, not this mission's work), finalize-tasks will
+      report `unmapped_functional_requirements: ["FR-004", "FR-005"]` and refuse to finalize,
+      unless the tasks-phase author invents a WP whose only job is to "claim" these IDs — a
+      workaround the spec neither anticipates nor authorizes. The spec's own non-gating framing
+      (SC-005, the parenthetical priority markers) describes an intent the tooling's ID-mapping
+      mechanism has no way to honor as written.
+    remediation: >
+      Move FR-004 and FR-005 out of the FR-NNN numbering scheme before tasks phase — e.g.
+      relabel them as `VC-001`/`VC-002` ("verification criteria", outside the `FR-\d+` regex
+      family so `parse_requirement_ids_from_spec_md` does not treat them as functional
+      requirements requiring WP coverage) in a separate "Contingent Verification Criteria"
+      subsection, distinct from the Functional Requirements table. Alternatively, if they must
+      stay as `FR-` IDs, add an explicit instruction (Constraints or Assumptions) that the tasks
+      phase must create one lightweight non-code WP (e.g. "record #3384 contingent findings,
+      blocked until #3384 merges") whose `requirement_refs` frontmatter claims FR-004 and
+      FR-005, so `mission finalize-tasks` has something to map them to without inventing scope.
+    refute_verdict: confirmed
+
+  - id: SPEC-GOV-002
+    source_group: gov
+    lens: Directive (campsite-cleaning / RECONCILE_CHANGE_SCOPE_TENSIONS)
+    severity: 2
+    title: Clarifications' rationale for excluding `_built_in_scan_dir`/`_layer_scan_dirs` cleanup misstates the reconciliation mechanism it cites
+    evidence:
+      - artifact: "spec.md § Clarifications, Session 2026-08-13, third Q/A"
+      - artifact: ".kittify/charter/charter.md § Reconciling change-scope tensions (small diff ↔ boy-scout ↔ locality)"
+    claim: >
+      The Clarifications entry justifies not cleaning up `_built_in_scan_dir`/`_layer_scan_dirs`
+      by saying "smallest-viable-diff picks the file set first ... touching them grows the file
+      set beyond the stated goal." But per the charter's own three-step reconciliation order,
+      step 1 (smallest-viable-diff) already includes `src/charter/kind_vocabulary.py` in the
+      file set (it is where `_org_scan_dirs` itself lives), and both neighboring functions sit
+      in that same file — so editing them would not "grow the file set" at all; step 2 (Boy
+      Scout Rule) explicitly permits "proportional tidy-up ... without adding files to the set,"
+      which is exactly the situation here. The correct governing rule for excluding this cleanup
+      is step 3, Locality of Change (keep edits close to the specific problem; these two
+      functions "are not broken"), not a file-set-growth argument that does not actually apply
+      within a single already-touched file. The scoping *decision* (exclude the cleanup) is
+      still defensible under Locality of Change, but the stated *mechanism* misapplies
+      RECONCILE_CHANGE_SCOPE_TENSIONS in a way that, taken at face value, would wrongly forbid
+      any same-file tidy-up ever performed under this framework — undermining the reusable
+      reasoning the charter section exists to provide for future missions.
+    remediation: >
+      Correct the Clarifications rationale to cite Locality of Change (step 3: edits stay close
+      to the specific problem; `_built_in_scan_dir`/`_layer_scan_dirs` are not broken and are not
+      the cited defect) rather than a file-set-growth claim that does not hold for edits inside
+      the file already selected by smallest-viable-diff. The resulting scope decision (C-003, no
+      touch to the two neighboring functions) does not need to change.
+    refute_verdict: confirmed
+
+  - id: SPEC-ARCH-001
+    source_group: arch
+    lens: Reflexivity
+    severity: 4
+    title: >-
+      FR-001 leaves flat-vs-legacy scan order unspecified, so a same-config-stem
+      artifact under both `<root>/<plural>` and `<root>/<plural>/built-in` in one
+      org root resolves to a different, silently-chosen URN depending on an
+      implementation detail no acceptance scenario pins down
+    evidence:
+      - artifact: "spec.md § FR-001 (Requirements > Functional Requirements)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3"
+      - code: "src/charter/kind_vocabulary.py:200-209 (_org_scan_dirs, pre-fix)"
+      - code: "src/charter/kind_vocabulary.py:260-297 (resolve_artifact_urn — first-match-wins over _iter_artifact_paths, `for path in ...: if _config_stem(path) == config_id: ... return`)"
+      - code: "src/charter/drg.py:333-381 (_resolve_activated_urns_for_kind — the sole caller in the failure mechanism this mission fixes)"
+    claim: >-
+      FR-001 says the fixed `_org_scan_dirs` returns a scan entry for the flat
+      `<root>/<plural>` dir "and, where it separately exists on disk,
+      `<root>/<plural>/built-in`" — additive, per Acceptance Scenario 3. But
+      `resolve_artifact_urn` (the sole consumer of `_scan_roots`'s output,
+      reached via `_resolve_activated_urns_for_kind` in the exact failure path
+      this mission's Problem section walks) is first-match-wins: it iterates
+      `_iter_artifact_paths` in scan order and returns on the first path whose
+      config stem matches. Empirically verified by patching `_org_scan_dirs` to
+      return `[(flat, False), (legacy, True)]` vs `[(legacy, True), (flat,
+      False)]` for one org root containing `foo.directive.yaml` in both the flat
+      dir (`id: DIRECTIVE_FLAT_FOO`) and the legacy `built-in/` dir (`id:
+      DIRECTIVE_LEGACY_FOO`): `resolve_artifact_urn(ArtifactKind.DIRECTIVE,
+      "foo", ..., org_roots=[root])` returned `directive:DIRECTIVE_FLAT_FOO` in
+      the first ordering and `directive:DIRECTIVE_LEGACY_FOO` in the second —
+      same on-disk fixture, opposite resolved URN, purely from list order.
+      FR-001's prose states the flat entry before the legacy entry but never
+      says this is a return-list-order guarantee, and Acceptance Scenario 3
+      deliberately uses two *different* stems (`<org-directive>` vs
+      `<legacy-directive>`), so it cannot exercise this case at all. An
+      implementer following the spec literally has no signal that same-stem
+      overlap is possible, let alone which layout should win, and no test would
+      catch either choice. This is exactly the defect class the mission exists
+      to close — org-pack content silently resolving to the wrong (or no) URN —
+      reopened at the file-collision level instead of the directory-scanning
+      level. It is also not confined to the activation gate: `resolve_artifact_urn`
+      is called directly by `src/charter/compiler.py:146`,
+      `src/charter/consistency_check.py:744,815`, and the `charter activate`/
+      `deactivate` CLI commands, so the ambiguity's blast radius is broader than
+      `filter_graph_by_activation`.
+    remediation: >-
+      Add to FR-001 an explicit precedence rule for the same-config-stem-in-both-
+      directories case (e.g. "flat takes precedence over legacy when both contain
+      a file with the same config stem" or the reverse), state it as a documented,
+      intentional choice rather than an accidental list-order artifact, and add a
+      fourth Acceptance Scenario to User Story 1 that places a same-stem file
+      under both the flat dir and the legacy `built-in/` dir with different `id:`
+      values and asserts which URN `resolve_artifact_urn` returns. Optionally
+      also require a collision to surface a warning (consistent with the
+      `DoctrineLayerCollisionWarning` pattern already used elsewhere in the
+      doctrine-layer merge, `src/doctrine/base.py:_record_collision_if_present`)
+      rather than silently picking one.
+    refute_verdict: confirmed
+
+  - id: SPEC-VERIFY-001
+    source_group: verify
+    lens: Red-first testability of FR-002/User Story 2 (mission-specific lens)
+    severity: 4
+    title: >-
+      Acceptance Scenario 1 / SC-002 / FR-002's "activate one unrelated
+      built-in artifact" premise cannot make the org node survive
+      filter_graph_by_activation, even after the FR-001 fix — empirically
+      verified against the live gate code
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1"
+      - artifact: "spec.md § FR-002 (Requirements table)"
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (reuses US1's Independent Test)"
+      - code: "src/charter/drg.py:467-473 (_node_is_activated Step 3, per-artifact-ID gate)"
+      - code: "src/charter/drg.py:372-378 (_resolve_activated_urns_for_kind iterates only stems already IN activated_ids)"
+      - code: "src/charter/activation_engine.py:257-274 (plan_activation, FR-021: materializes a fixed default pack + the one requested stem, not a dynamic org-aware set)"
+      - code: "src/charter/pack_manager.py:512-520 (_load_default_pack reads a static, built-in-only src/charter/packs/default.yaml)"
+      - code: "tests/charter/test_drg_activation_gate.py:209-216 (test_non_activated_directive_is_still_excluded — existing, currently-passing test proving a populated activated_directives set excludes any node whose stem/URN is not itself a member, regardless of source)"
+    claim: >-
+      The mission's central Acceptance Scenario 1 (P1, "the whole defect")
+      says: given an org root with a flat-layout directive and "no other
+      activation state," WHEN `charter activate directive <built-in-stem>`
+      activates an *unrelated* built-in directive, THEN the org directive's
+      node is present in filter_graph_by_activation's output. FR-002 and
+      SC-002 restate the identical premise, and User Story 2's own red-first
+      regression test (C-004) is explicitly this same scenario "made
+      concrete as a pytest test."
+
+      Tracing the actual mechanism chain end-to-end (as this lens requires)
+      shows this premise is false, independent of whether _org_scan_dirs is
+      fixed. `_node_is_activated` Step 3 (drg.py:467-473) only lets a node
+      through when its own URN is a member of `resolved_urns_by_kind[kind]`
+      — and that set is built by `_resolve_activated_urns_for_kind`
+      (drg.py:372-378) resolving ONLY the stems already present in
+      `activated_ids` (the config's `activated_directives` list). The org
+      directive's stem is never a member of that list in Scenario 1's setup:
+      per FR-021 (activation_engine.py:257-274), activating one directive
+      with no prior explicit set materializes the static, built-in-only
+      default pack (`_load_default_pack()`, pack_manager.py:512-520, backed
+      by src/charter/packs/default.yaml — "Contains all built-in artifact
+      IDs") plus the single requested stem. The org stem is never added, so
+      `resolve_artifact_urn` is never even called on it via this path — the
+      swallowed-`UnknownArtifactIdError` mechanism the spec's own narrative
+      hinges on ("For every stem in the activated set it calls
+      resolve_artifact_urn...") never applies to the org stem in this
+      scenario, because the org stem is not a member of "the activated set"
+      to begin with.
+
+      This is not a hypothesis: a live repro was built (PackContext with
+      `activated_directives={<unrelated built-in stem>}`, `pack_roots=(org_root,)`,
+      a hand-added org directive node in the graph, and `_org_scan_dirs`
+      monkeypatched to the FR-001-described fixed behavior) and run against
+      this checkout. Result: `resolve_artifact_urn` for the org stem directly
+      succeeds (proving the FR-001 fix itself works, i.e. Acceptance Scenario
+      2 is sound), but `filter_graph_by_activation` under Scenario 1's exact
+      setup still excludes the org node (`survived == False`). This exactly
+      matches the pre-existing, currently-passing test
+      `test_non_activated_directive_is_still_excluded`, whose own docstring
+      states the general rule: "a populated set that omits a node's
+      canonical id excludes that node."
+
+      Net effect: the FR-002 regression test, if implemented literally as
+      specified, will be RED before the FR-001 fix (correctly, but for the
+      wrong reason — org pack unresolvable) and RED after the FR-001 fix too
+      (because the org stem was never activated) — it can never reach GREEN
+      by fixing only `_org_scan_dirs`. This violates C-004's red-then-green
+      requirement and risks the implementing WP either (a) burning a cycle
+      believing FR-001's fix is broken, or (b) silently rewriting the test's
+      activation target to make it pass without updating the spec, creating
+      spec/code drift the charter's ATDD-First Discipline (C-011) exists to
+      prevent.
+    remediation: >-
+      Rewrite Acceptance Scenario 1 (and the linked FR-002, SC-002, and User
+      Story 2 Independent Test) so the activated-stem set actually contains
+      the org directive's own config-stem — e.g. change the WHEN clause to
+      "charter activate directive <org-directive-stem>" (mirroring Scenario
+      2, but through the full activate()+filter_graph_by_activation() round
+      trip instead of a direct resolve_artifact_urn() call), or explicitly
+      set `activated_directives` to include both the unrelated built-in stem
+      AND the org stem. Keep a *second*, clearly-separate scenario proving
+      the org node's PRESENCE does not depend on it happening to share a
+      kind with something already activated (the "additive, not
+      order-dependent" property Scenario 3 gestures at) — but do not present
+      "activate something else entirely" as sufficient to reveal the org
+      node, since the per-artifact-ID allowlist gate (drg.py Step 3) makes
+      that false by design, not by defect.
+    refute_verdict: confirmed
+
+  - id: SPEC-VERIFY-002
+    source_group: verify
+    lens: Silent-success / Red-first testability (mechanism-chain completeness)
+    severity: 3
+    title: >-
+      Acceptance Scenario 1's fixture omits the DRG-node registration an
+      org directive needs to appear in filter_graph_by_activation's INPUT
+      graph at all, independent of _org_scan_dirs
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (fixture: only `<org_root>/directives/<org-directive>.directive.yaml`)"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (this mission's own finding: `<org_root>/drg/*.graph.yaml` is NOT read by the current loader)"
+      - code: "src/charter/_drg_helpers.py:78-96 (load_validated_graph merges built-in graph with load_graph_or_dir(org_root) — a *.graph.yaml-driven merge, not derived from scanning *.directive.yaml artifact files)"
+      - code: "packs/built-in/directive.graph.yaml (built-in directive nodes are explicitly declared graph fragments, confirming nodes are never auto-synthesized from artifact YAML)"
+      - code: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md:58-66 (documented canonical org-pack layout places DRG fragments under a `drg/` subdirectory)"
+    claim: >-
+      For the org directive's node to be "present in the graph returned by
+      filter_graph_by_activation" (Scenario 1's THEN clause), it must
+      already be a node in the graph *passed into* the filter.
+      `filter_graph_by_activation`/`_node_is_activated` never derive nodes
+      from `_scan_roots`/`resolve_artifact_urn` — those are purely for
+      resolving config-stem activation-list entries to URNs. DRG nodes come
+      from `load_validated_graph`'s merge of `*.graph.yaml` fragments
+      (confirmed: built-in directive nodes live in a committed
+      `packs/built-in/directive.graph.yaml`, not synthesized from
+      `*.directive.yaml` files). Scenario 1's fixture only creates
+      `<org_root>/directives/<org-directive>.directive.yaml` — no
+      `*.graph.yaml` fragment at all — so, per this mission's own User
+      Story 3 finding (a root-level `*.graph.yaml` is required; the
+      documented `<org_root>/drg/*.graph.yaml` location is NOT read by
+      `load_graph_or_dir`, which globs non-recursively at the given path),
+      the org directive would never become a node in the input graph in the
+      first place, for a reason entirely orthogonal to `_org_scan_dirs`
+      (this is squarely #3384's territory, explicitly out of scope here per
+      C-002). The implementing WP will discover this only by debugging a
+      test that fails for a reason the spec never names.
+    remediation: >-
+      Add an explicit fixture requirement to Acceptance Scenario 1 (and
+      FR-002/FR-003's test-construction guidance): the org root must also
+      carry a root-level `*.graph.yaml` declaring the org directive as a
+      node (test-fixture data only — this does not modify
+      `_drg_helpers.py` or compete with #3384's fix, consistent with C-002).
+      Name this explicitly as a fixture-construction detail distinct from
+      the production fix, so the WP does not conflate "graph-node discovery
+      is broken" (#3384, out of scope) with "activation-list resolution is
+      broken" (#3385, this mission's actual fix).
+    refute_verdict: confirmed

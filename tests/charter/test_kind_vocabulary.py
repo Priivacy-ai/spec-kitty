@@ -18,14 +18,14 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
-from charter.catalog import resolve_doctrine_root
-from charter.kind_vocabulary import (
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
 
 
 # --------------------------------------------------------------------------- #

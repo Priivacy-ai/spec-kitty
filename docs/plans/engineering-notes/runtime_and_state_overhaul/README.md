@@ -1,7 +1,7 @@
 ---
 title: Runtime & State Overhaul — Engineering Notes
 description: 'Landing page for the runtime and state overhaul engineering notes: design exploration complete and handed off for ADR finalization (epic #1619).'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture.md
@@ -24,6 +24,8 @@ related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/SESSION-RECAP.md
 ---
 # Runtime & State Overhaul — Engineering Notes
+
+> **Retired (deprecated).** Design shipped/superseded via the open-core delivery plan §1.2 "G2 — strangle the core domains onto SSOTs" (execution-context unification, epic #1619) — see `docs/plans/3-2-x-open-core-delivery-plan.md`. Preserved as a historical record.
 
 **Status:** Design exploration complete; handed to @robertDouglass for ADR finalization
 **Owner:** Architecture (Architect Alphonso persona) + Stijn Dejongh
@@ -79,7 +81,7 @@ to a design, so the design conversation is anchored in evidence rather than memo
 
 - Ticket bodies and comments fetched from `Priivacy-ai/spec-kitty` issues #1619, #1615, #1616, #1617, #1618, #1602, #1348, and PR #1627 on 2026-06-03.
 - Code citations against working tree at the rc35 development checkout (commit context: `main` @ `48a687db3`).
-- Architecture digest from `docs/adr/3.x/*` + `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `docs/architecture/audits/2026-05-*caacs*`.
+- Architecture digest from `docs/adr/3.x/*` + `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `docs/plans/engineering-notes/architecture-audits/2026-05-*caacs*`.
 - Doctrine digest from `src/doctrine/{directives,paradigms,tactics,styleguides}/built-in/*`.
 
 All `path:line` citations are point-in-time; verify before acting on any single line.

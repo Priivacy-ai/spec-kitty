@@ -1,0 +1,275 @@
+{
+  "schema_version": "wp07-results/v1",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "work_package": "WP07",
+  "generated_at": "2026-08-10T21:07:37Z",
+  "implementation_cycle": 2,
+  "review_cycle_limit": 3,
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "integrated_pre_routing_commit": "38c0708f1",
+  "implementation_head_before_commit": "bc8d46f2f",
+  "profile": {
+    "requested": "ci-cd-carl",
+    "resolved": "implementer-ivan",
+    "note": "The requested CI profile was not installed; the canonical claim resolved to implementer-ivan."
+  },
+  "environment": {
+    "platform": "Darwin 24.6.0 arm64",
+    "python": "3.11.15",
+    "pytest": "9.0.3",
+    "ruff": "0.15.12",
+    "runner": "local Apple Silicon",
+    "workers": 0,
+    "install": "uv sync --frozen --all-extras",
+    "cache_policy": "Before every timed pytest repetition, move .pytest_cache to a unique recoverable /tmp path; disable the pytest cache provider.",
+    "environment_variables": {
+      "PYTHONHASHSEED": "0",
+      "PWHEADLESS": "1",
+      "SPEC_KITTY_ENABLE_SAAS_SYNC": "1"
+    },
+    "architectural_environment_id": "041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c"
+  },
+  "replay_patches": {
+    "bootstrap": {
+      "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-replay.patch",
+      "sha256": "bbf8f7c93121fd12bb37a1bfbd87f57e6a11dfb929ea69da1b4d51b7f1cf3c89"
+    },
+    "scanner": {
+      "path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-scanner-replay.patch",
+      "sha256": "6159cdbd4b9f6eea7ae73e814d9bca2aeb740461f918fc1ace251dd25b9e2c56"
+    }
+  },
+  "timing_method": {
+    "repetitions": 3,
+    "statistic": "median and maximum real wall seconds; every /usr/bin/time -p byte stream is serialized below and SHA-256 verified",
+    "full_workload_command": "PYTHONHASHSEED=0 PWHEADLESS=1 SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/ --collect-only -q -p no:cacheprovider --ignore=tests/sync/test_orphan_sweep.py",
+    "stage_worktrees": {
+      "repaired_base": "immutable planning base plus exact WP02 bootstrap replay patch",
+      "scanner_optimized_base": "immutable planning base plus exact WP02 bootstrap and scanner replay patches",
+      "integrated_pre_routing_head": "38c0708f1 with every approved deleting dependency integrated",
+      "routed_head": "38c0708f1 plus the WP07 workflow, map, baseline, and architecture-test diff",
+      "comparability": "Same host, venv lock, environment, cache-disabled pytest command, worker count, and three repetitions at every stage. The first repetition's shared host cold-start outlier is retained, never discarded."
+    }
+  },
+  "install_workload": {
+    "command": "uv sync --frozen --all-extras",
+    "install_state": "prewarmed frozen venv, matching base-workloads.yaml",
+    "repaired_base": {"real_seconds": [0.13, 0.02, 0.02], "median_seconds": 0.02, "maximum_seconds": 0.13, "raw_time_p": "Audited 124 packages in 1ms\nreal 0.13\nuser 0.04\nsys 0.02\nAudited 124 packages in 0.36ms\nreal 0.02\nuser 0.01\nsys 0.00\nAudited 124 packages in 0.32ms\nreal 0.02\nuser 0.01\nsys 0.00\n", "raw_sha256": "961e41d864ad2302d4cc0b7e423396f7bcab827ffbd4dbdfc18b2e0e8996a44f"},
+    "scanner_optimized_base": {"real_seconds": [0.07, 0.02, 0.02], "median_seconds": 0.02, "maximum_seconds": 0.07, "raw_time_p": "Audited 124 packages in 0.41ms\nreal 0.07\nuser 0.04\nsys 0.01\nAudited 124 packages in 0.37ms\nreal 0.02\nuser 0.01\nsys 0.00\nAudited 124 packages in 0.35ms\nreal 0.02\nuser 0.01\nsys 0.00\n", "raw_sha256": "e64ba9d6e5dacb4a507d242328615247e3a1d1d80ca679130b35211f552f0c0f"},
+    "integrated_pre_routing_head": {"real_seconds": [0.06, 0.02, 0.02], "median_seconds": 0.02, "maximum_seconds": 0.06, "raw_time_p": "Audited 124 packages in 0.40ms\nreal 0.06\nuser 0.03\nsys 0.01\nAudited 124 packages in 0.31ms\nreal 0.02\nuser 0.01\nsys 0.00\nAudited 124 packages in 0.33ms\nreal 0.02\nuser 0.01\nsys 0.00\n", "raw_sha256": "55149567b5c4337751e7cc1a3685fb6fc784ad611f028b69142f472e474372a7"},
+    "routed_head": {"real_seconds": [0.07, 0.02, 0.02], "median_seconds": 0.02, "maximum_seconds": 0.07, "raw_time_p": "Audited 124 packages in 0.38ms\nreal 0.07\nuser 0.04\nsys 0.01\nAudited 124 packages in 0.33ms\nreal 0.02\nuser 0.01\nsys 0.00\nAudited 124 packages in 0.32ms\nreal 0.02\nuser 0.01\nsys 0.00\n", "raw_sha256": "232c9d76c8570fdb84d45b1ad0db7c13dd120955f3198cc94c6f76b7be74ebe0"}
+  },
+  "full_workload": {
+    "repaired_base": {
+      "real_seconds": [76.40, 75.68, 76.30],
+      "user_seconds": [71.91, 71.40, 71.86],
+      "sys_seconds": [2.43, 2.52, 2.44],
+      "median_seconds": 76.30,
+      "maximum_seconds": 76.40,
+      "raw_time_p": "real 76.40\nuser 71.91\nsys 2.43\nreal 75.68\nuser 71.40\nsys 2.52\nreal 76.30\nuser 71.86\nsys 2.44\n",
+      "raw_sha256": "25e096d6420c73d05a226fe19211012243011d560719e4045bd7ffe9595984c5"
+    },
+    "scanner_optimized_base": {
+      "real_seconds": [111.64, 63.08, 62.97],
+      "user_seconds": [91.32, 60.04, 59.91],
+      "sys_seconds": [3.61, 1.99, 1.88],
+      "median_seconds": 63.08,
+      "maximum_seconds": 111.64,
+      "raw_time_p": "real 111.64\nuser 91.32\nsys 3.61\nreal 63.08\nuser 60.04\nsys 1.99\nreal 62.97\nuser 59.91\nsys 1.88\n",
+      "raw_sha256": "2c318a98915558125ed7d4f6dbb16243b81ea1af3998549745f768883ce7759e"
+    },
+    "integrated_pre_routing_head": {
+      "real_seconds": [107.91, 60.92, 61.43],
+      "user_seconds": [88.81, 58.05, 58.60],
+      "sys_seconds": [3.29, 1.82, 1.79],
+      "median_seconds": 61.43,
+      "maximum_seconds": 107.91,
+      "raw_time_p": "real 107.91\nuser 88.81\nsys 3.29\nreal 60.92\nuser 58.05\nsys 1.82\nreal 61.43\nuser 58.60\nsys 1.79\n",
+      "raw_sha256": "039f9aec05c5df809e8897722a929c5faf5357b564329a7717abd7158ddb1658"
+    },
+    "routed_head": {
+      "real_seconds": [106.83, 61.04, 61.37],
+      "user_seconds": [88.30, 58.15, 58.52],
+      "sys_seconds": [3.09, 1.80, 1.79],
+      "median_seconds": 61.37,
+      "maximum_seconds": 106.83,
+      "raw_time_p": "real 106.83\nuser 88.30\nsys 3.09\nreal 61.04\nuser 58.15\nsys 1.80\nreal 61.37\nuser 58.52\nsys 1.79\n",
+      "raw_sha256": "c6b73493357a93ca9376f0f6fde1eec4784730855c94f4d8f3cf48836c88a05d"
+    },
+    "attribution": {
+      "scanner_only_reduction_percent": 17.3263,
+      "scanner_only_criterion": "PASS: at least 15%",
+      "deletion_only_reduction_percent": 2.6157,
+      "combined_scanner_and_deletion_reduction_percent": 19.4889,
+      "routing_delta_on_unchanged_whole_tree_percent": 0.0977,
+      "whole_tree_routing_criterion": "MISS: below 15%; the frozen whole-tree workload is intentionally unchanged by narrow-route selection"
+    }
+  },
+  "narrow_routes": {
+    "pre_routing": {
+      "regression": {
+        "command": "PYTHONHASHSEED=0 PWHEADLESS=1 SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/ --collect-only -q -p no:cacheprovider -m regression",
+        "real_seconds": [62.61, 62.23, 61.84],
+        "median_seconds": 62.23,
+        "maximum_seconds": 62.61,
+        "raw_time_p": "real 62.61\nuser 59.42\nsys 1.83\nreal 62.23\nuser 59.24\nsys 1.80\nreal 61.84\nuser 58.77\nsys 1.95\n",
+        "raw_sha256": "a73b756975bd2e96365657946375875e873980508f8b6a7f162fb207d6f8576d"
+      },
+      "quarantine": {
+        "command": "SPEC_KITTY_RUN_QUARANTINE=1 PYTHONHASHSEED=0 PWHEADLESS=1 SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/ --collect-only -q -p no:cacheprovider -m quarantine",
+        "real_seconds": [62.14, 62.02, 61.73],
+        "median_seconds": 62.02,
+        "maximum_seconds": 62.14,
+        "raw_time_p": "real 62.14\nuser 59.23\nsys 1.78\nreal 62.02\nuser 59.21\nsys 1.78\nreal 61.73\nuser 58.78\nsys 1.85\n",
+        "raw_sha256": "67024108f7fcbb910d37b4ca43c18d599e9db0d029a003135f8c1f243b6fd8ae"
+      },
+      "summed_compute_median_seconds": 124.25,
+      "dag_critical_path_median_seconds": 62.23
+    },
+    "routed_head": {
+      "regression": {
+        "command": "PYTHONHASHSEED=0 PWHEADLESS=1 SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py --collect-only -q -p no:cacheprovider -m regression",
+        "real_seconds": [42.64, 42.48, 42.36],
+        "median_seconds": 42.48,
+        "maximum_seconds": 42.64,
+        "collected_nodes": ["tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress"],
+        "raw_time_p": "real 42.64\nuser 41.36\nsys 0.73\nreal 42.48\nuser 41.34\nsys 0.69\nreal 42.36\nuser 41.33\nsys 0.58\n",
+        "raw_sha256": "a1b79bbd5cb2e0ded15431e4729e5d7616631216c3dcf66f42ea841b8ebf3074"
+      },
+      "quarantine": {
+        "command": "QUARANTINE_PATHS=(); exit 0 when manifest length is zero",
+        "real_seconds": [0.00, 0.00, 0.00],
+        "median_seconds": 0.00,
+        "maximum_seconds": 0.00,
+        "collected_nodes": [],
+        "raw_time_p": "real 0.00\nuser 0.00\nsys 0.00\nreal 0.00\nuser 0.00\nsys 0.00\nreal 0.00\nuser 0.00\nsys 0.00\n",
+        "raw_sha256": "e1ad1038fd9188e84e629096c476ad81ad9276a4e51f6d5a6293245dc9f7053d"
+      },
+      "summed_compute_median_seconds": 42.48,
+      "dag_critical_path_median_seconds": 42.48
+    },
+    "attribution": {
+      "summed_compute_reduction_percent": 65.8109,
+      "summed_compute_criterion": "PASS: at least 15%",
+      "dag_critical_path_reduction_percent": 31.7371,
+      "dag_critical_path_criterion": "NARROW SUBGRAPH ONLY: not the frozen-DAG acceptance metric",
+      "regression_route_reduction_percent": 31.7371,
+      "quarantine_route_reduction_percent": 100.0
+    }
+  },
+  "authoritative_frozen_dag": {
+    "source": "raw/base-workloads.yaml::frozen_workload_dag plus explicit install and quality-gate control nodes",
+    "route_mapping": {
+      "install": "measured at all four stages; predecessor of local timed routes",
+      "full-collection": "measured at all four stages under full_workload; selector unchanged",
+      "full-parallel": "required frozen route retained; WP01 has one base execution (1538.777797s), but WP07 has no comparable three-repetition head execution",
+      "orphan-sweep": "retained unchanged; outside WP07 selector change",
+      "regression": "changed whole-tree marker discovery to exact #2782 owner path",
+      "quarantine": "changed whole-tree marker discovery to adjudicated empty Tier-3 manifest",
+      "contract": "retained unchanged; outside WP07 selector change",
+      "architectural": "retained unchanged; outside WP07 selector change",
+      "sibling-e2e": "retained unchanged in sibling repository; outside WP07 selector change",
+      "quality-gate": "zero-duration dependency aggregation control node; still blocks on regression and not quarantine"
+    },
+    "edges": [
+      ["install", "full-collection"],
+      ["install", "full-parallel"],
+      ["install", "orphan-sweep"],
+      ["install", "regression"],
+      ["install", "quarantine"],
+      ["install", "contract"],
+      ["install", "architectural"],
+      ["install", "sibling-e2e"],
+      ["full-parallel", "quality-gate"],
+      ["regression", "quality-gate"]
+    ],
+    "comparable_changed_route_cut": {
+      "nodes": ["install", "full-collection", "regression", "quarantine", "quality-gate"],
+      "pre_routing_median_seconds": {"install": 0.02, "full-collection": 61.43, "regression": 62.23, "quarantine": 62.02, "quality-gate": 0.00},
+      "routed_head_median_seconds": {"install": 0.02, "full-collection": 61.37, "regression": 42.48, "quarantine": 0.00, "quality-gate": 0.00},
+      "pre_routing_summed_compute_seconds": 185.70,
+      "routed_head_summed_compute_seconds": 103.87,
+      "summed_compute_reduction_percent": 44.0657,
+      "pre_routing_critical_path_seconds": 62.25,
+      "routed_head_critical_path_seconds": 61.39,
+      "critical_path_reduction_percent": 1.3815,
+      "critical_path_criterion": "MISS: below 15%; full-collection, not the narrowed regression route, dominates routed HEAD"
+    },
+    "full_frozen_dag_acceptance": {
+      "status": "MISS_NOT_ESTABLISHED",
+      "criterion": "At least 15% critical-path reduction",
+      "reason": "The required full-parallel route was retained but lacks four-stage x3 comparable measurements. Its only frozen observation is the single WP01 base execution, so the full-DAG percentage cannot be determined from current evidence.",
+      "full_parallel_base_single_observation_seconds": 1538.7777970419265,
+      "full_parallel_head_comparable_observations": 0
+    }
+  },
+  "routing_contract": {
+    "manifest": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp07-route-manifest.yaml",
+    "manifest_sha256": "6f54882e123dac1714e3932f36790e4ad9430f8f821f67bb2e7784f26ec28fd5",
+    "workflow_sha256": "a61f3b489a4dac9e4980b1e87806c288ce0b8464dde96144695b4d307e4c270d",
+    "regression_owner_count": 1,
+    "regression_expected_nodes": 1,
+    "quarantine_owner_count": 1,
+    "quarantine_expected_nodes": 0,
+    "quality_gate_blocks_on_regression": true,
+    "quality_gate_blocks_on_quarantine": false
+  },
+  "reconciliation": {
+    "arch_shard_map_deleted_entries_removed": 58,
+    "next_shard_map_deleted_entries_removed": 3,
+    "stale_explicit_entries": 0,
+    "duplicate_explicit_assignments": 0,
+    "support_only_zero_node_module_retained": "tests/architectural/test_gate_read_literal_ban.py",
+    "retained_reader": "tests/architectural/test_coord_read_residuals_closeout.py",
+    "dead_nodeid_sidecars_deleted_after_no_reader_proof": [
+      "tests/architectural/baselines/fast-tests-core-misc-nodeids.txt",
+      "tests/architectural/baselines/integration-tests-next-nodeids.txt"
+    ],
+    "ratchet_baselines_reconciled": [
+      "removed deleted test_all_declarations_required section and bespoke reader",
+      "removed deleted test_verdict_seam_census section and deleted IC01 references",
+      "removed 11 orphaned shared-module-object rows that had become children of the verdict census key"
+    ],
+    "sidecars_deleted_after_no-reader_proof": [
+      "tests/architectural/_golden_count_baseline.json",
+      "tests/architectural/verdict_seam_census.yaml",
+      "tests/architectural/census/verdict_seam_IC01.yaml",
+      "tests/architectural/census/verdict_seam_IC08.yaml",
+      "tests/architectural/marker_baseline.txt",
+      "tests/architectural/mission_exit_baseline.txt"
+    ]
+  },
+  "validation": {
+    "status": "passed",
+    "commands": [
+      {
+        "command": "PYTHONHASHSEED=0 PWHEADLESS=1 SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/architectural/ -q -p no:cacheprovider --tb=short",
+        "result": "748 passed, 2 expected xfailed in 587.86s; exit 0 (cycle 2 final)"
+      },
+      {
+        "command": ".venv/bin/pytest -q -p no:cacheprovider tests/architectural/test_ci_quality_path_filters.py tests/architectural/test_marker_job_completeness.py tests/architectural/test_quarantine_marker.py tests/architectural/test_suite_jobs_gate_blocking.py tests/architectural/test_ratchet_baselines.py",
+        "result": "47 passed in 54.07s; exit 0 (includes ratchet repair and #3284 one-universe oracle)"
+      },
+      {
+        "command": ".venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py validate raw/base-census.json raw/base-workloads.yaml dispositions/WP07.yaml",
+        "result": "valid=true; errors=[]; dispositions=1; unique_members=1; exit 0 (cycle 2 final)"
+      },
+      {
+        "command": ".venv/bin/ruff check <all changed Python paths>",
+        "result": "All checks passed; exit 0"
+      },
+      {
+        "command": "<ACTIONLINT_BIN> .github/workflows/ci-quality.yml",
+        "result": "65 inherited runner-label diagnostics on both integrated pre-routing HEAD and routed HEAD; only expected line-number shifts, zero new diagnostic"
+      },
+      {
+        "command": "yaml.safe_load(ci-quality.yml, wp07-route-manifest.yaml, dispositions/WP07.yaml); json.loads(wp07-results.json)",
+        "result": "all parse successfully"
+      },
+      {
+        "command": "git diff --check",
+        "result": "clean; exit 0"
+      }
+    ]
+  }
+}

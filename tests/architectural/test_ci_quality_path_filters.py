@@ -1,541 +1,334 @@
-"""Architectural guards for CI path-filter ownership."""
+"""Architectural guards for the CI path-router two-authority model.
+
+The restored interim ``ci-quality.yml`` husk deliberately still runs on every
+pull request with **no** path filter: it is a small six-job producer (the four
+blocking producers plus ``quality-gate`` and the non-blocking ``sonarcloud``
+reporter reinstated by spec-kitty#3993) cheap enough to run unconditionally.
+The path→job *routing* lives in its own workflow, ``ci-router.yml`` (mission
+``ci-pipeline-reinstatement``, WP07), which reinstates the two-authority model:
+
+1. the dorny ``changes`` filter block (``group → globs[]``, path→group), and
+2. the job ``if: needs.changes.outputs.<group>`` gates (group→job).
+
+Everything else — the fail-closed unmatched catch-all, the fast/heavy
+architectural split, the docs-only-selects-zero-code-shards property — is
+**derived and asserted against** those two hand-authored sources by the tests
+below. The assertions parse the *real on-disk* workflow YAML; they do not
+re-encode the routing as a second hand-maintained map (that duplication is the
+very #2476 hazard the gate-selection authority closes — see
+``test_gate_selection_authority.py``).
+"""
 
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
-from concurrent.futures import ThreadPoolExecutor
+import ast
+import fnmatch
+import re
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
 
-from tests.architectural import _gate_coverage as gc
-
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
-_COLLECT_TIMEOUT_SECONDS = 240
+_CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+_CI_ROUTER = _REPO_ROOT / ".github" / "workflows" / "ci-router.yml"
 
 
 def _load_workflow() -> dict[str, Any]:
-    data: dict[str, Any] = yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))
-    return data
+    return yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
 
 
-def _path_filters(data: dict[str, Any]) -> dict[str, list[str]]:
-    filter_step = next(
-        step for step in data["jobs"]["changes"]["steps"] if step.get("id") == "filter"
+# ---------------------------------------------------------------------------
+# ci-quality husk contract (unchanged by WP07): the interim producer keeps
+# running filter-free on every PR; filters now live in ci-router.yml.
+# ---------------------------------------------------------------------------
+def test_reduced_ci_quality_runs_without_path_filters_live() -> None:
+    workflow = _load_workflow()
+    on_section = workflow.get("on") or workflow[True]
+
+    for event in ("pull_request", "push"):
+        assert "paths" not in on_section[event]
+
+
+def test_reduced_ci_quality_uses_stock_runners_live() -> None:
+    workflow = _load_workflow()
+    text = _CI_QUALITY.read_text(encoding="utf-8")
+
+    assert {job["runs-on"] for job in workflow["jobs"].values()} == {"ubuntu-latest"}
+    assert "blacksmith" not in text.lower()
+    assert "runner-group" not in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# ci-router.yml two-authority model (WP07). Helpers parse the two hand-authored
+# sources straight out of the on-disk workflow.
+# ---------------------------------------------------------------------------
+def _load_router() -> dict[str, Any]:
+    return yaml.safe_load(_CI_ROUTER.read_text(encoding="utf-8"))
+
+
+def _router_on_section(workflow: dict[str, Any]) -> dict[str, Any]:
+    # PyYAML parses the bare ``on:`` key as the boolean ``True``.
+    return workflow.get("on") or workflow[True]
+
+
+def _changes_filters(workflow: dict[str, Any]) -> dict[str, list[str]]:
+    """Authority 1: the dorny ``filters:`` block (``group → globs[]``)."""
+    changes = workflow["jobs"]["changes"]
+    for step in changes["steps"]:
+        if "dorny/paths-filter" in str(step.get("uses", "")):
+            filters = step["with"]["filters"]
+            parsed = yaml.safe_load(filters) if isinstance(filters, str) else filters
+            return {group: list(globs) for group, globs in parsed.items()}
+    raise AssertionError("changes job has no dorny/paths-filter step")
+
+
+# The `any_src` filter row is the FR-004 catch-all PROBE (matches any src/**),
+# consumed only by the `unmatched` step — never a routing group and never gated
+# on a job (contract Invariant 1). It is excluded from the routing-group set.
+_PROBE_GROUPS = frozenset({"any_src"})
+
+_GROUP_REF = re.compile(r"needs\.changes\.outputs\.([A-Za-z0-9_]+)")
+
+
+def _job_group_gates(workflow: dict[str, Any]) -> dict[str, frozenset[str]]:
+    """Authority 2: each non-``changes`` job → the groups its ``if:`` references."""
+    gates: dict[str, frozenset[str]] = {}
+    for name, job in workflow["jobs"].items():
+        if name == "changes" or not isinstance(job, dict):
+            continue
+        condition = job.get("if")
+        gates[name] = frozenset(_GROUP_REF.findall(str(condition))) if condition else frozenset()
+    return gates
+
+
+def _src_backed_groups(filters: dict[str, list[str]]) -> set[str]:
+    """Routing groups carrying a ``src/`` glob are code-backed; the rest are data.
+
+    The ``any_src`` probe row is excluded — it is the fail-closed sensor, not a
+    routing group (contract Invariant 1).
+    """
+    return {group for group, globs in filters.items() if group not in _PROBE_GROUPS and any(str(g).startswith("src/") for g in globs)}
+
+
+def _match_groups(paths: list[str], filters: dict[str, list[str]]) -> set[str]:
+    hit: set[str] = set()
+    for group, globs in filters.items():
+        for pattern in globs:
+            if any(fnmatch.fnmatch(path, str(pattern)) for path in paths):
+                hit.add(group)
+                break
+    return hit
+
+
+def _selected_code_shards(paths: list[str], workflow: dict[str, Any]) -> set[str]:
+    """Code-shard jobs a changed-path set selects, derived from the two authorities."""
+    filters = _changes_filters(workflow)
+    matched = _match_groups(paths, filters)
+    src = _src_backed_groups(filters)
+    return {job for job, groups in _job_group_gates(workflow).items() if groups and (groups & src) and (groups & matched)}
+
+
+def test_ci_router_workflow_exists() -> None:
+    assert _CI_ROUTER.exists(), "ci-router.yml must exist: WP07 reinstates the path→job router as its own workflow (the two-authority model)."
+
+
+def test_ci_router_declares_workflow_dispatch_and_mode_input() -> None:
+    workflow = _load_router()
+    on_section = _router_on_section(workflow)
+    assert "workflow_dispatch" in on_section
+    dispatch = on_section["workflow_dispatch"] or {}
+    assert "mode" in (dispatch.get("inputs") or {}), "router must expose a `mode` input (FR-018/FR-019)"
+    # The router must actually honor the mode input, not merely declare it.
+    assert "inputs.mode" in _CI_ROUTER.read_text(encoding="utf-8")
+
+
+def test_ci_router_dorny_paths_filter_is_sha_pinned() -> None:
+    workflow = _load_router()
+    uses = [str(step.get("uses")) for step in workflow["jobs"]["changes"]["steps"] if "dorny/paths-filter" in str(step.get("uses", ""))]
+    assert uses, "changes job must use dorny/paths-filter (SO#6: reuse, do not hand-roll)"
+    for ref in uses:
+        assert re.fullmatch(r"dorny/paths-filter@[0-9a-f]{40}", ref.split()[0]), f"dorny/paths-filter must be SHA-pinned (DIR-051), got: {ref}"
+
+
+def test_ci_router_two_authority_every_src_group_is_job_gated() -> None:
+    """Derived-surface consistency: no src-backed filter group is zero-gated."""
+    workflow = _load_router()
+    filters = _changes_filters(workflow)
+    src = _src_backed_groups(filters)
+    referenced = set().union(*_job_group_gates(workflow).values()) if workflow["jobs"] else set()
+    zero_gated = src - referenced
+    assert not zero_gated, f"src-backed filter groups referenced by no job if: {sorted(zero_gated)}"
+
+
+def test_ci_router_docs_only_selects_zero_code_shards() -> None:
+    """NFR-002: a docs-only diff selects 0 code shards — objective, not eyeballed."""
+    workflow = _load_router()
+    assert _selected_code_shards(["docs/architecture/status-model.md"], workflow) == set()
+
+
+def test_ci_router_unmatched_src_forces_run_all_not_silent_skip() -> None:
+    """FR-004 fail-closed: an unmapped src/** change trips the loud catch-all."""
+    workflow = _load_router()
+    changes = workflow["jobs"]["changes"]
+    text = _CI_ROUTER.read_text(encoding="utf-8")
+
+    # There is an `unmatched` step that emits a LOUD alarm, never a silent skip.
+    assert "unmatched" in changes["outputs"]
+    assert "::warning::" in text and "unmatched=true" in text
+
+    # A src path in no named group must match no src-backed group (→ trips unmatched).
+    filters = _changes_filters(workflow)
+    unmapped = ["src/specify_cli/__wp07_unmapped_probe__/thing.py"]
+    assert not (_match_groups(unmapped, filters) & _src_backed_groups(filters))
+
+
+def test_ci_router_fast_arch_gates_are_always_on_without_filter_group() -> None:
+    """FR-008/NFR-002: terminology + layer-rule run unconditionally, no filter group."""
+    workflow = _load_router()
+    gates = _job_group_gates(workflow)
+    for fast in ("terminology", "layer-rules"):
+        assert fast in gates, f"fast always-on arch gate `{fast}` missing from router"
+        assert gates[fast] == frozenset(), f"`{fast}` must carry no filter group (always-on)"
+
+
+def test_ci_router_heavy_arch_battery_is_code_scoped() -> None:
+    """FR-008/NFR-002: the heavy battery is code-scoped, so a docs-only PR skips it."""
+    workflow = _load_router()
+    gates = _job_group_gates(workflow)
+    assert "architectural-heavy" in gates, "heavy architectural battery job missing"
+    src = _src_backed_groups(_changes_filters(workflow))
+    assert gates["architectural-heavy"] & src, "heavy battery must gate on src-backed groups"
+    # Objective docs-only check: the heavy battery is not among the selected code shards.
+    assert "architectural-heavy" not in _selected_code_shards(["docs/x.md"], workflow)
+
+
+# ---------------------------------------------------------------------------
+# Quarantine-owner discovery (orthogonal guard, retained): the owner-manifest
+# check must discover every direct quarantine marker.
+# ---------------------------------------------------------------------------
+def _is_direct_pytest_quarantine_marker(node: ast.AST) -> bool:
+    """Return whether *node* is the canonical ``pytest.mark.quarantine`` chain."""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "quarantine"
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "mark"
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "pytest"
     )
-    parsed: dict[str, list[str]] = yaml.safe_load(filter_step["with"]["filters"])
-    return parsed
 
 
-def _job_run_script(data: dict[str, Any], job_name: str, step_name: str) -> str:
-    step = next(
-        step
-        for step in data["jobs"][job_name]["steps"]
-        if step.get("name") == step_name
+def _discover_quarantine_owner_paths(tests_root: Path) -> tuple[str, ...]:
+    """Find test files that directly use the canonical quarantine marker."""
+    repository_root = tests_root.parent
+    owners: list[str] = []
+    for test_path in sorted(tests_root.rglob("*.py")):
+        tree = ast.parse(test_path.read_text(encoding="utf-8"), filename=str(test_path))
+        if any(_is_direct_pytest_quarantine_marker(node) for node in ast.walk(tree)):
+            owners.append(test_path.relative_to(repository_root).as_posix())
+    return tuple(owners)
+
+
+def test_quarantine_marker_discovery_finds_module_and_function_markers(
+    tmp_path: Path,
+) -> None:
+    """The owner-manifest guard must discover every direct quarantine marker."""
+    tests_root = tmp_path / "tests"
+    tests_root.mkdir()
+    (tests_root / "test_module_marker.py").write_text(
+        "import pytest\n\npytestmark = [pytest.mark.quarantine]\n",
+        encoding="utf-8",
     )
-    return str(step["run"])
-
-
-def _job(data: dict[str, Any], job_name: str) -> dict[str, Any]:
-    return dict(data["jobs"][job_name])
-
-
-# Marker selector shared by the legacy catch-all universe and every shard
-# collection in test_core_misc_shards_plus_e2e_owner_cover_legacy_selection.
-_MARKER_EXPR = "not windows_ci and (git_repo or integration or architectural)"
-
-# The legacy catch-all core-misc selection (the pre-shard universe): every
-# ``--ignore`` it carried plus its marker selector. Hoisted to a module
-# constant so the ~117-line test body reads as intent, not literal data.
-_LEGACY_CORE_MISC_ARGS: list[str] = [
-    "--ignore=tests/doctrine",
-    "--ignore=tests/kernel",
-    "--ignore=tests/status",
-    "--ignore=tests/specify_cli/status",
-    "--ignore=tests/sync",
-    "--ignore=tests/merge",
-    "--ignore=tests/missions",
-    "--ignore=tests/post_merge",
-    "--ignore=tests/release",
-    "--ignore=tests/review",
-    "--ignore=tests/next",
-    "--ignore=tests/specify_cli/next",
-    "--ignore=tests/lanes",
-    "--ignore=tests/test_dashboard",
-    "--ignore=tests/upgrade",
-    "--ignore=tests/cli",
-    "--ignore=tests/runtime",
-    "--ignore=tests/charter",
-    "--ignore=tests/agent",
-    "-m",
-    _MARKER_EXPR,
-]
-
-# The per-shard path/ignore universes whose union must cover the legacy
-# selection. Each entry is collected with the same marker selector appended.
-_SHARD_COMMANDS: list[list[str]] = [
-    ["tests/adversarial", "tests/architectural", "tests/architecture", "tests/lint"],
-    ["tests/integration"],
-    [
-        "tests/specify_cli/migration",
-        "tests/specify_cli/invocation",
-        "tests/specify_cli/test_charter_activate_cli.py",
-    ],
-    [
-        "tests/specify_cli",
-        "--ignore=tests/specify_cli/migration",
-        "--ignore=tests/specify_cli/invocation",
-        "--ignore=tests/specify_cli/test_charter_activate_cli.py",
-        "--ignore=tests/specify_cli/status",
-        "--ignore=tests/specify_cli/next",
-    ],
-    ["tests/auth", "tests/audit", "tests/git_ops", "tests/git", "tests/cli_gate"],
-    [
-        "tests/calibration",
-        "tests/ci",
-        "tests/concurrency",
-        "tests/contract",
-        "tests/core",
-        "tests/cross_branch",
-        "tests/docs",
-        "tests/doctor",
-        "tests/init",
-        "tests/migration",
-        "tests/mission_runtime",
-        "tests/packaging",
-        "tests/policy",
-        "tests/readiness",
-        "tests/regression",
-        "tests/regressions",
-        "tests/research",
-        "tests/retrospective",
-        "tests/saas",
-        "tests/stress",
-        "tests/tasks",
-        "tests/unit",
-    ],
-]
-
-
-def _collect_nodes(args: list[str]) -> set[str]:
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-qq", *args],
-        cwd=_REPO_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        # Generous wall-clock (_COLLECT_TIMEOUT_SECONDS): these `--collect-only`
-        # subprocesses run several at a time (see the worker-capped
-        # ThreadPoolExecutor below), so on a CPU-constrained CI runner a single
-        # collection's wall-clock can stretch well past a tight cap even though
-        # it is fast in isolation.
-        timeout=_COLLECT_TIMEOUT_SECONDS,
+    (tests_root / "test_function_marker.py").write_text(
+        "import pytest\n\n@pytest.mark.quarantine\ndef test_flake():\n    pass\n",
+        encoding="utf-8",
     )
-    return {
-        line.strip()
-        for line in result.stdout.splitlines()
-        if line.startswith("tests/") and "::" in line
+    (tests_root / "test_unmarked.py").write_text(
+        "def test_stable():\n    pass\n",
+        encoding="utf-8",
+    )
+
+    assert _discover_quarantine_owner_paths(tests_root) == (
+        "tests/test_function_marker.py",
+        "tests/test_module_marker.py",
+    )
+
+
+# T021 (mission review-cycle-verdict-seam-rebuild-01KZ2W7W, WP05): a shard job
+# must not condition its own execution on a predecessor's `.result` — it
+# should still run and report its own outcome regardless of whether the
+# predecessor passed or failed. This regex catches both classes of gate this
+# WP removed: `needs.<job>.result != 'failure'` (Class 1, e.g. a coverage
+# shard gated on kernel-tests/fast-tests-status) and `needs.<job>.result ==
+# 'success'` (Class 2, an integration-tests-* job gated on its fast-tests-*
+# counterpart).
+_RESULT_GATE_PATTERN = re.compile(r"needs\.[\w-]+\.result\s*(?:!=\s*'failure'|==\s*'success')")
+
+# Single named, justified exception (see the DoD in
+# kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP05-ci-shard-independence.md):
+# ``consumer-compatibility``'s ``needs.build-wheel.result == 'success'`` gate
+# is a release-packaging aggregator dependency (a wheel it consumes), not a
+# coverage-shard result-gate the way the removed edges were — build-wheel
+# produces the artifact consumer-compatibility installs, so gating on its
+# result is a genuine "don't bother installing a wheel that was never built"
+# check, not the redundant "predecessor's test outcome shouldn't block my own
+# report" coupling this test exists to forbid. This is a single named
+# constant, not a general allowlist: any job matching the pattern that is NOT
+# named here fails the test below, and adding a name here requires the same
+# explicit justification as this comment.
+_NON_SHARD_AGGREGATOR_EXCEPTIONS = frozenset({"consumer-compatibility"})
+
+
+def _find_result_gated_jobs(jobs: dict[str, Any]) -> dict[str, str]:
+    """Return ``{job_name: if_expr}`` for jobs gating on a predecessor's ``.result``.
+
+    A job's ``if:`` arrives here, post-PyYAML-parse, as one of three shapes: a
+    plain string, a folded ``>-`` block scalar (also just a ``str`` once
+    parsed), or absent (key missing, defaults to always-run) — all three are
+    handled uniformly by coercing to ``str`` and skipping ``None``.
+    """
+    offending: dict[str, str] = {}
+    for job_name, job in jobs.items():
+        if job_name in _NON_SHARD_AGGREGATOR_EXCEPTIONS:
+            continue
+        if_expr = job.get("if") if isinstance(job, dict) else None
+        if if_expr is None:
+            continue
+        if _RESULT_GATE_PATTERN.search(str(if_expr)):
+            offending[job_name] = str(if_expr)
+    return offending
+
+
+def test_result_gate_checker_catches_a_reintroduced_gate() -> None:
+    """Synthetic-poison proof that ``_find_result_gated_jobs`` reds on a new gate.
+
+    Permanent regression proof for T021: constructs a minimal synthetic
+    ``jobs`` mapping containing a deliberately (re)introduced Class 1 style
+    gate (``!= 'failure'``, folded ``if: >-`` block shape) and a Class 2 style
+    gate (``== 'success'``), alongside an ungated job and a job with no ``if:``
+    key at all, and confirms the checker flags exactly the two poisoned jobs.
+    This is what proves the checker actually catches the regression it exists
+    to prevent — not merely that it currently passes against an
+    already-fixed workflow.
+    """
+    poisoned_jobs = {
+        "fast-tests-example": {
+            "if": ("always()\n&& (needs.changes.outputs.example == 'true' || github.event_name == 'push')\n&& needs.fast-tests-status.result != 'failure'\n"),
+        },
+        "integration-tests-example": {
+            "if": ("always()\n&& (needs.changes.outputs.example == 'true' || github.event_name == 'push')\n&& needs.fast-tests-example.result == 'success'\n"),
+        },
+        "clean-job": {
+            "if": "always() && (needs.changes.outputs.example == 'true' || github.event_name == 'push')",
+        },
+        "no-if-job": {},
+        "consumer-compatibility": {
+            "if": "always() && needs.changes.outputs.release == 'true' && needs.build-wheel.result == 'success'",
+        },
     }
-
-
-def test_missions_filter_includes_missions_package_and_tests() -> None:
-    """Mission package tests must both trigger and run the mission test slice."""
-    data = _load_workflow()
-    missions_filter = set(_path_filters(data)["missions"])
-    assert "src/specify_cli/missions/**" in missions_filter
-    assert "tests/fixtures/missions/**" in missions_filter
-    assert "tests/specify_cli/missions/**" in missions_filter
-
-    fast_run = _job_run_script(data, "fast-tests-missions", "Run fast tests — missions")
-    integration_run = _job_run_script(
-        data,
-        "integration-tests-missions",
-        "Run integration tests — missions",
-    )
-    assert "tests/specify_cli/missions/" in fast_run
-    assert "tests/specify_cli/missions/" in integration_run
-
-
-def test_lanes_filter_and_jobs_include_lanes_package_tests() -> None:
-    """Lane package tests must both trigger and run the lane test slice."""
-    data = _load_workflow()
-    lanes_filter = set(_path_filters(data)["lanes"])
-    assert "tests/specify_cli/lanes/**" in lanes_filter
-
-    fast_run = _job_run_script(data, "fast-tests-lanes", "Run fast tests — lanes")
-    integration_run = _job_run_script(
-        data,
-        "integration-tests-lanes",
-        "Run integration tests — lanes",
-    )
-    assert "tests/specify_cli/lanes/" in fast_run
-    assert "tests/specify_cli/lanes/" in integration_run
-
-
-def test_next_filter_includes_canonical_runtime_packages() -> None:
-    """The next trigger must watch the canonical runtime, not just the shim.
-
-    src/specify_cli/next/ is a deprecation shim (removed in 3.3.0); the
-    canonical runtime lives in src/runtime/next/ and depends on
-    src/mission_runtime/. Both must trigger the next test suites.
-    """
-    data = _load_workflow()
-    next_filter = set(_path_filters(data)["next"])
-    assert "src/runtime/next/**" in next_filter
-    assert "src/mission_runtime/**" in next_filter
-
-
-def test_next_jobs_measure_canonical_runtime_coverage() -> None:
-    """Both next suites must measure src/runtime/next, not only the shim."""
-    data = _load_workflow()
-    fast_run = _job_run_script(data, "fast-tests-next", "Run fast tests — next")
-    integration_run = _job_run_script(
-        data,
-        "integration-tests-next",
-        "Run integration tests — next",
-    )
-    assert "--cov=src/runtime/next" in fast_run
-    assert "--cov=src/runtime/next" in integration_run
-
-
-def test_diff_coverage_critical_paths_include_canonical_runtime() -> None:
-    """The enforced diff-coverage gate must include the canonical runtime."""
-    run_script = _job_run_script(
-        _load_workflow(),
-        "diff-coverage",
-        "diff-coverage (critical-path, enforced)",
-    )
-    assert "'src/runtime/next/*'" in run_script
-    assert "'src/mission_runtime/*'" in run_script
-
-
-def test_diff_coverage_critical_paths_all_resolve_to_existing_files() -> None:
-    """Every diff-coverage ``--include`` critical-path entry must resolve to a real file.
-
-    Guards #2443: a critical-path allowlist entry that names no existing file
-    silently contributes nothing to the enforced gate, so a moved/renamed/phantom
-    module drops coverage enforcement with no signal. ``mission_detection.py`` was
-    exactly this — a phantom that never existed in git history yet sat in the
-    allowlist looking enforced.
-
-    Reuses the canonical allowlist parser
-    (``_gate_coverage._diff_cover_critical_paths``) — deliberately NOT a second
-    hand-rolled shell-array parser (charter: single canonical authority). Per entry:
-    a **glob** (contains ``*``) is expanded with ``Path.glob`` and must match >=1
-    file (this also catches a vacuous glob that expands to zero files — the retired
-    ``src/specify_cli/next/*`` rot precedent); a **literal** must ``.exists()``.
-    """
-    run_script = _job_run_script(
-        _load_workflow(),
-        "diff-coverage",
-        "diff-coverage (critical-path, enforced)",
-    )
-    entries = gc._diff_cover_critical_paths(run_script)
-    assert entries, (
-        "no critical_paths=( ... ) entries parsed from the enforced diff-coverage "
-        "step — the canonical parser found nothing (workflow shape drifted?)"
-    )
-
-    unresolved: list[str] = []
-    for entry in entries:
-        if "*" in entry:
-            if not any(_REPO_ROOT.glob(entry)):
-                unresolved.append(entry)
-        elif not (_REPO_ROOT / entry).exists():
-            unresolved.append(entry)
-
-    assert not unresolved, (
-        "diff-coverage --include critical-path entries resolve to no file on disk "
-        "(stale/phantom allowlist -> silent coverage-enforcement rot): "
-        f"{unresolved}"
-    )
-
-
-def test_execution_context_parity_ratchet_runs_unconditionally() -> None:
-    """The CWD parity ratchet must still run — now unconditionally, in the pole.
-
-    Re-pinned for mission ci-topology-shrink (FR-005/FR-013), then re-pinned
-    again for mission ci-health-charter-path-and-arch-shard-01KWRTB2 (#2397)
-    when the single ``architectural`` shard was split into three
-    marker-routed shards (``arch_shard_1/2/3``). WP03 (ci-topology-shrink)
-    removed the exec-context special-path block that used to run
-    ``test_execution_context_parity.py`` inside ``integration-tests-core-misc``
-    only when ``core_misc != 'true' AND execution_context == 'true'``. The
-    parity gate now lives in the standalone, always-on ``arch-adversarial``
-    pole: every one of its three legs collects ``tests/architectural`` (where
-    the parity file lives, per ``paths`` staying identical across all three
-    shards) under the ``git_repo``/``architectural`` marker the parity tests
-    carry, and the job is ``if: always()`` with no filter gate — so an
-    execution-context change (indeed ANY change) still runs the ratchet, more
-    strongly than the old conditional path. Behavioral intent preserved: the
-    parity ratchet is never skippable, regardless of which shard collects it.
-    """
-    data = _load_workflow()
-    arch_job = _job(data, "arch-adversarial")
-
-    # Always-on: no result-gated or path/status-gated skip can drop the ratchet.
-    # The only permitted guards are the pr:deferred / pr:skip-ci full-CI-block
-    # labels (ddac71ebc), which block ALL PR workflows but cannot mask this pole
-    # via a change filter.
-    assert gc.gate_is_always_on_modulo_full_ci_block(
-        str(arch_job["if"]), require_always=True
-    ), f"arch-adversarial pole gained a masking filter: if={arch_job['if']!r}"
-
-    # Every matrix leg collects the tests/architectural tree, which owns
-    # test_execution_context_parity.py — so the parity ratchet is in-scope no
-    # matter which arch_shard_N marker ends up selecting it.
-    arch_legs = arch_job["strategy"]["matrix"]["include"]
-    assert arch_legs, "arch-adversarial matrix must not be empty"
-    for entry in arch_legs:
-        assert "tests/architectural" in str(entry["paths"]), (
-            f"matrix leg {entry.get('shard')!r} dropped tests/architectural "
-            "from its paths — the parity ratchet could fall out of scope"
-        )
-    parity_file = (
-        _REPO_ROOT
-        / "tests"
-        / "architectural"
-        / "test_execution_context_parity.py"
-    )
-    assert parity_file.exists(), (
-        "the CWD parity ratchet file moved out of tests/architectural — update "
-        "this guard so the arch-adversarial pole still collects it"
-    )
-
-    # The pole runs under a marker that positively selects the parity tests'
-    # architectural/git_repo markers, so collection is not silently empty.
-    run_script = _job_run_script(
-        data,
-        "arch-adversarial",
-        "Run architectural + adversarial suite (always-on pole)",
-    )
-    assert "git_repo or integration or architectural" in run_script
-
-
-def test_core_misc_integration_is_sharded_and_parallelized() -> None:
-    """The slow core-misc integration bucket must stay split and parallel.
-
-    Re-pinned for mission ci-topology-shrink (FR-005/FR-013): the
-    ``architectural`` shard was EXTRACTED from this matrix into the standalone
-    always-on ``arch-adversarial`` pole (de-serialized), so it is no longer an
-    ``integration-tests-core-misc`` shard. The remaining five shards must stay
-    split and parallel, and the extracted arch pole must still run.
-
-    Re-pinned again for mission ci-health-charter-path-and-arch-shard-01KWRTB2
-    (#2397): the extracted pole itself is now a 3-shard matrix
-    (``arch_shard_1/2/3``) rather than the single ``architectural`` shard, so
-    this asserts the pole's matrix is non-empty and marker-routed instead of
-    hard-pinning the retired single shard name.
-    """
-    data = _load_workflow()
-    job = _job(data, "integration-tests-core-misc")
-    matrix = job["strategy"]["matrix"]["include"]
-    shard_names = {entry["shard"] for entry in matrix}
-
-    assert shard_names == {
-        "integration",
-        "specify-cli-heavy",
-        "specify-cli-rest",
-        "auth-audit-git",
-        "misc",
-    }
-    # The extracted architectural pole must not have vanished — it lives in the
-    # always-on ``arch-adversarial`` job now (its de-serialization is pinned by
-    # test_arch_pole_deserialized.py; here we pin that the pole still exists
-    # and is the 3-way marker-routed split mission 01KWRTB2 introduced).
-    arch_shards = {
-        entry["shard"]
-        for entry in _job(data, "arch-adversarial")["strategy"]["matrix"]["include"]
-    }
-    assert arch_shards == {"arch_shard_1", "arch_shard_2", "arch_shard_3"}
-
-    run_script = _job_run_script(
-        data,
-        "integration-tests-core-misc",
-        "Run integration tests — core misc",
-    )
-    assert "-n auto --dist loadfile" in run_script
-    assert "--durations=50" in run_script
-
-
-def test_ci_quality_guards_trigger_core_misc_validation() -> None:
-    """CI workflow and architectural guard edits must run the validating shard."""
-    core_misc_filter = set(_path_filters(_load_workflow())["core_misc"])
-    assert ".github/workflows/ci-quality.yml" in core_misc_filter
-    assert "tests/architectural/**" in core_misc_filter
-
-
-def test_core_misc_shards_plus_e2e_owner_cover_legacy_selection() -> None:
-    """The shard split must not drop tests covered by the legacy catch-all job.
-
-    This compares the legacy catch-all node universe against the union of the
-    new shard universes; the invariant is ``legacy_nodes - new_nodes == {}``
-    over IDENTICAL path/marker universes. The 8 distinct ``--collect-only``
-    subprocesses are launched concurrently (each is I/O-bound, waiting on a
-    child pytest process) instead of serially. De-duplicating/parallelizing the
-    distinct collections this way leaves node→selector attribution unchanged:
-    every collection runs with the exact same args it ran with serially, and is
-    bucketed back to ``legacy`` vs ``new`` by an explicit key — concurrency only
-    overlaps the waits, it never merges or reattributes node sets.
-    """
-    marker_args = ["-m", _MARKER_EXPR]
-    e2e_args = [
-        "tests/e2e",
-        "tests/cross_cutting",
-        "-m",
-        "not distribution and not windows_ci",
-    ]
-
-    # (bucket, args) for each distinct collection. "legacy" feeds the catch-all
-    # universe; "new" feeds the union of shard universes. Attribution is fixed
-    # here, before any concurrency, so parallel execution cannot change it.
-    collections: list[tuple[str, list[str]]] = [("legacy", _LEGACY_CORE_MISC_ARGS)]
-    collections.extend(
-        ("new", [*command, *marker_args]) for command in _SHARD_COMMANDS
-    )
-    collections.append(("new", e2e_args))
-
-    # Each _collect_nodes call spawns a child pytest process and blocks on it;
-    # run them concurrently so the wall-clock is bounded by the slowest single
-    # collection instead of their serial sum. Cap concurrency at the CPU count
-    # (min 2): launching all of them at once oversubscribes a 2-core CI runner,
-    # which inflates each child's wall-clock and made a single collection blow
-    # its per-subprocess timeout. Pacing to the available cores keeps each
-    # collection fast without serialising the whole set.
-    max_workers = min(len(collections), max(2, os.cpu_count() or 2))
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = list(
-            executor.map(lambda item: (item[0], _collect_nodes(item[1])), collections),
-        )
-
-    legacy_nodes: set[str] = set()
-    new_nodes: set[str] = set()
-    for bucket, nodes in results:
-        (legacy_nodes if bucket == "legacy" else new_nodes).update(nodes)
-
-    missing = sorted(legacy_nodes - new_nodes)
-    assert not missing, "Shard split dropped legacy core-misc tests:\n" + "\n".join(
-        missing[:20],
-    )
-
-
-def test_core_misc_excludes_e2e_and_cross_cutting_suites() -> None:
-    """E2E and cross-cutting suites belong to e2e-cross-cutting, not core-misc."""
-    data = _load_workflow()
-    path_filters = _path_filters(data)
-    assert "tests/e2e/**" not in path_filters["core_misc"]
-    assert "tests/cross_cutting/**" not in path_filters["core_misc"]
-    assert "tests/e2e/**" in path_filters["e2e"]
-    assert "tests/cross_cutting/**" in path_filters["e2e"]
-
-    # Re-pinned for mission ci-topology-shrink (FR-003): the fast core-misc job
-    # was split into a shard matrix and its per-run ``--ignore`` list moved from
-    # a literal in the run step into each shard's ``matrix.ignore_args``. The
-    # behavioral intent is unchanged — the whole-tree residual ``core-misc``
-    # shard must still exclude e2e/cross_cutting — just asserted at the new
-    # structural location. The run step now interpolates ``${{ matrix.ignore_args }}``.
-    fast_run = _job_run_script(data, "fast-tests-core-misc", "Run fast tests — core misc")
-    assert "${{ matrix.ignore_args }}" in fast_run
-    fast_job = _job(data, "fast-tests-core-misc")
-    fast_core_misc_shard = next(
-        entry
-        for entry in fast_job["strategy"]["matrix"]["include"]
-        if entry["shard"] == "core-misc"
-    )
-    fast_ignores = str(fast_core_misc_shard["ignore_args"])
-    assert "--ignore=tests/e2e" in fast_ignores
-    assert "--ignore=tests/cross_cutting" in fast_ignores
-
-    job = _job(data, "integration-tests-core-misc")
-    matrix = job["strategy"]["matrix"]["include"]
-    matrix_text = "\n".join(
-        f"{entry.get('paths', '')}\n{entry.get('ignore_args', '')}" for entry in matrix
-    )
-    assert "tests/e2e" not in matrix_text
-    assert "tests/cross_cutting" not in matrix_text
-
-
-def test_e2e_cross_cutting_runs_independently_of_fast_fanout() -> None:
-    """The dedicated e2e job should not wait on unrelated fast-test shards."""
-    data = _load_workflow()
-    job = _job(data, "e2e-cross-cutting")
-    assert job["needs"] == ["changes"]
-
-    condition = str(job["if"])
-    assert "needs.changes.outputs.e2e == 'true'" in condition
-    assert "needs.changes.outputs.core_misc == 'true'" in condition
-    assert "needs.changes.outputs.execution_context == 'true'" in condition
-
-    path_filters = _path_filters(data)
-    assert ".github/workflows/ci-quality.yml" in path_filters["e2e"]
-
-    run_script = _job_run_script(
-        data,
-        "e2e-cross-cutting",
-        "[ENFORCED] Run e2e and cross_cutting tests with coverage",
-    )
-    assert "tests/e2e/ tests/cross_cutting/" in run_script
-    assert "--durations=50" in run_script
-
-
-def test_e2e_cross_cutting_failures_are_quality_gated() -> None:
-    """The owner job for e2e/cross-cutting coverage must block merges on failure.
-
-    Post-FR-011 (mission ci-suite-map-bind WP03) the quality-gate verdict is
-    computed by ``scripts/ci/quality_gate_decision.py`` over the FULL needs
-    context (``toJSON(needs)``): membership in ``needs:`` IS the blocking
-    relation (a failed/cancelled needs job always fails the gate), so the old
-    literal per-job ``needs.<job>.result`` read this test used to pin cannot
-    silently omit a job anymore.
-    """
-    quality_gate = _job(_load_workflow(), "quality-gate")
-    assert "e2e-cross-cutting" in quality_gate["needs"]
-
-    decision_step = next(
-        step
-        for step in quality_gate["steps"]
-        if step.get("name") == "Evaluate quality-gate decision"
-    )
-    assert decision_step["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
-    assert "scripts/ci/quality_gate_decision.py" in decision_step["run"]
-    # The decision script pipes into ``tee -a "$GITHUB_STEP_SUMMARY"``. Under
-    # GitHub's default ``bash -e {0}`` (no pipefail) the pipe returns tee's
-    # always-zero exit, SWALLOWING the script's blocking (exit 1) / contract
-    # (exit 2) verdict — the gate would be vacuous. ``shell: bash`` makes
-    # GitHub run ``bash --noprofile --norc -eo pipefail {0}`` so the script's
-    # non-zero propagates through the pipe. Pin it so the mask cannot return.
-    assert decision_step.get("shell") == "bash", (
-        "quality-gate decision step must set ``shell: bash`` so pipefail is "
-        "enabled and the script's non-zero exit is not swallowed by ``| tee``"
-    )
-
-
-@pytest.mark.parametrize("step_id", ["bandit", "pip_audit"])
-def test_security_scan_steps_set_pipefail(step_id: str) -> None:
-    """Bandit and pip-audit must ``set -o pipefail`` so the security gate isn't vacuous.
-
-    Both scans pipe into ``| tee out/reports/...``. Under GitHub's default
-    ``bash -e {0}`` (no pipefail) the pipe returns tee's always-zero exit, so
-    ``steps.<id>.outcome`` is ``success`` even when the scan finds issues — and
-    the downstream ``[ENFORCED] Fail job if security checks failed`` arm (which
-    tests ``steps.bandit.outcome != 'success'``) never fires. ``set -o pipefail``
-    makes each step's exit reflect the scan's real exit (tee still writes the
-    report). Same swallowed-exit class the mission fixed for its own
-    quality-gate decision step (aggregate-squad alphonso). Parse-only guard.
-    """
-    step = next(
-        step
-        for step in _job(_load_workflow(), "lint")["steps"]
-        if step.get("id") == step_id
-    )
-    assert "set -o pipefail" in str(step["run"]), (
-        f"security scan step '{step_id}' must ``set -o pipefail`` so its ``| tee`` "
-        "pipeline does not swallow a non-zero scan exit (vacuous security gate)"
-    )
+    offending = _find_result_gated_jobs(poisoned_jobs)
+    assert set(offending) == {"fast-tests-example", "integration-tests-example"}

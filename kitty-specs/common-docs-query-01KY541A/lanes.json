@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "common-docs-query-01KY541A",
+  "mission_id": "01KY541A8N75AV1MG0ZM2VQV5Y",
+  "mission_branch": "kitty/mission-common-docs-query-01KY541A",
+  "target_branch": "feat/agent-knowledge-canonical-homes",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "scripts/docs/docs_index.py",
+        "tests/docs/test_docs_index.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        "scripts/docs/check_docs_freshness.py",
+        "tests/docs/test_docs_index_freshness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/docs.py",
+        "tests/docs/test_docs_query_cli.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-22T14:59:39.907247+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

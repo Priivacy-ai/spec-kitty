@@ -1,0 +1,44 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: PLAN-ARCH-001
+    lens: Blast radius
+    severity: 3
+    title: Plan carries no CHANGELOG/release-note work item for the exit-code-breaking behavior change spec.md itself flags
+    evidence:
+      - artifact: "plan.md § The Gate Set (18-item CI-gate inventory) and § Project Structure (Scale/Scope touched-file list)"
+      - artifact: "spec.md § Reflexivity: what happens to missions and packs mid-flight, line 539: \"CI jobs that gate on `pack validate`'s exit code ... will newly fail for packs exhibiting FR-002/003/004's three shapes ... should be called out in the mission's changelog entry / release note at merge time, not just in this spec.\""
+      - code: ".kittify/charter/charter.md:401 (\"Breaking changes documented in CHANGELOG.md\", binding Code Review Checklist item)"
+    claim: >
+      spec.md's own Reflexivity section explicitly names an obligation that a pack which
+      validated clean before this mission can newly fail `pack validate` after it (FR-002,
+      FR-003, FR-004 each add a new error-severity diagnostic for a previously-silent defect),
+      and explicitly states this "should be called out in the mission's changelog entry /
+      release note at merge time, not just in this spec." This workspace sits alongside sibling
+      workspaces (`team-kitty-missions`, `muster-missions`) that consume the published
+      spec-kitty package and author/validate org packs; any org pack in the wild carrying one of
+      the three newly-detected shapes will see `pack validate`'s exit code flip from 0 to 1 on
+      upgrade, with no advance warning if the release omits a note. Grepping plan.md for
+      "changelog", "CHANGELOG", "release note", "team-kitty", "muster", "downstream", and "blast
+      radius" returns zero hits (confirmed directly) outside one unrelated use of "blast radius"
+      in spec.md's User Story 3 priority framing. Despite the plan's otherwise exhaustive Gate
+      Set (18 named CI gates, each individually reasoned about) and its detailed
+      Implementation Concern Map (IC-01..IC-04, each with a Risks subsection), no IC, no gate
+      entry, and no Project Structure row assigns CHANGELOG.md as a touched surface or the
+      changelog/release-note obligation as a work item for any FR. The obligation spec.md itself
+      raises is not carried forward into the plan that is supposed to allocate concrete work.
+    remediation: >
+      Add CHANGELOG.md to the plan's Scale/Scope / Project Structure touched-file list, and add
+      an explicit note (either as a fifth line in FR-004's IC-04 — the FR with the destructive
+      "zeroes the action grain" framing that most needs advance warning — or as its own line in
+      "The Gate Set") that the mission's PR must include a CHANGELOG.md entry documenting that
+      `pack validate` now fails (exit code 1) for three previously-passing pack shapes:
+      merge-time-skipped agent profiles, nested `assets/<pack>/x.asset.yaml` manifests with
+      schema violations, and DRG content living only under `drg/` with no pack-root
+      `*.graph.yaml`. This closes the gap between spec.md's stated obligation and the plan's
+      actual work allocation, and gives downstream pack authors (including sibling workspaces)
+      a release-note trail before their CI starts failing.

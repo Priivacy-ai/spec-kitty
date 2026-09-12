@@ -429,7 +429,7 @@ class TestDiscoverMissionNamesFallback:
     """The OSError fallback is single-sourced from the doctrine roster (#2669)."""
 
     def test_oserror_fallback_returns_canonical_roster_including_plan(self) -> None:
-        from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+        from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
         with patch(
             "specify_cli.runtime.show_origin.get_package_asset_root",

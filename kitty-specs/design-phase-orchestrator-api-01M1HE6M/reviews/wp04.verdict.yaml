@@ -1,0 +1,148 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP04
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  WP04's SK-93 mechanism is implemented exactly as plan.md § (j) option (a) specifies
+  and is independently re-derived, not merely read: `record-analysis` captures
+  `now_utc_iso()` immediately before invoking `write_analysis_report`/`commit_for_mission`
+  directly via `_do_record_analysis_write` (bypassing `record_analysis`'s own unbounded
+  `trigger_feature_dossier_sync_if_enabled` tail entirely), runs that call inside a real
+  `Thread.join(timeout=...)` bound (`_run_write_with_timeout`, module-level
+  `_RECORD_ANALYSIS_TIMEOUT_SECONDS`, monkeypatchable) as defense-in-depth, then
+  unconditionally re-reads `analysis-report.md` off disk as the sole success signal:
+  `success = write_confirmed and submitted_verdict != VERDICT_UNKNOWN and reread.verdict
+  == submitted_verdict`, where `write_confirmed` requires `generated_at` STRICTLY later
+  than call-start via `_is_strictly_after` (parses through `kernel.clock.parse_iso`, never
+  string comparison). All three SC-005 tests were re-run directly and pass, and each is
+  genuinely distinct: SC-005(a) mocks `write_analysis_report` to write for real then raise
+  -> `success: true`; SC-005(b) mocks it to block forever on an unset `threading.Event`
+  with the timeout constant monkeypatched to 0.3s, asserts `elapsed < 5.0` via
+  `time.monotonic()` bracketing and that no artifact exists -> proves the timeout is a real
+  wall-clock bound, not decorative; SC-005(c) pre-seeds a stale, verdict-matching
+  `analysis-report.md` and makes the write fail before reaching `write_analysis_report` ->
+  `success: false`, stale file provably untouched. The SK-06/#3133 test
+  (`test_record_analysis_never_reports_unknown_verdict_as_success`) was independently
+  traced through `parse_structured_findings`'s own documented contract (returns `None`,
+  not an exception, for a legacy/no-carrier body -> `submitted_verdict = VERDICT_UNKNOWN`)
+  and confirmed to genuinely reach `_classify_record_analysis_failure`'s
+  `RECORD_ANALYSIS_VERDICT_UNRELIABLE` branch after a REAL write (report file exists,
+  `verdict: unknown` is really on disk) -- not short-circuited earlier at parse time. RED-
+  first was independently reproduced: checking out `commands.py` +
+  `upstream_contract.json` to base commit 4f85a9049's content makes all 7 new-file tests
+  fail (`USAGE_ERROR` / "No such command"), and restoring HEAD gives 7/7 green, 42 passed
+  across the file plus the two fail-closed files plus tests/contract/test_orchestrator_api.py
+  (14/14 there, exactly matching the WP's own claim), 331 passed/12 skipped/0 failed across
+  the full orchestrator_api+contract dirs, and 339 passed/2 skipped/0 failed across the
+  three-directory baseline surface (orchestrator_api/next/runtime-next) -- strictly more
+  green than the baseline's 299/2/0, zero regressions in every grouping tried. Contract
+  registration is bidirectionally consistent: all 8 new `upstream_contract.json` error
+  codes are genuinely emitted by the new verb code (grep-verified), and every code the new
+  code emits is registered; `check-prerequisites`/`record-analysis` are in
+  `allowed_commands`. Envelope conformance matches WP03's established pattern exactly
+  (`_parse_policy_or_fail`, `_resolve_mission_dir_or_fail`, the shared `_fail`/
+  `validate_outbound_payload`+`make_envelope`+`_emit` path). `CONTRACT_VERSION` is
+  confirmed untouched (zero diff on envelope.py) -- correctly deferred to WP07. Markers/CI
+  collection was checked against the REAL `.github/workflows/ci-quality.yml` filter
+  strings (not paraphrased): `--collect-only` under
+  `-m 'not windows_ci and (git_repo or integration or architectural) and not timing and
+  not regression'` (integration-tests-core-misc, line 2068) selects all 7 tests in the new
+  file; under `-m "fast and not windows_ci and not regression"`
+  (fast-tests-core-misc, line 1794) selects 0; the 6 new negative-path tests carry
+  `pytestmark = [pytest.mark.fast]` and are correctly picked up there instead. C-001's grep
+  is empty. Gates independently re-run: ruff clean, `mypy --strict` clean on commands.py,
+  TID251 9/9, `check_patch_targets.py` reports "All 5259 patch() targets valid" (exact
+  match), terminology-guard file 16/16 (a superset of the claimed count, zero failures).
+  The self-reported `git checkout --` deviation left no trace: `git diff 4f85a9049..
+  3be4a7aea --stat` touches exactly WP04's owned files plus the tracer doc across all four
+  commits, each commit's own diff is scoped to what its message describes, and both the
+  main checkout and lane worktree are clean at HEAD (unmoved) after this review. The SK-114
+  question was resolved by LIVE reproduction, not reading: a throwaway test dirtied the
+  tree with an unrelated untracked file and called `record-analysis` through the real CLI
+  runner -- it fails closed with `error_code: DIRTY_WORKTREE` and the full delegate payload
+  (`dirty_paths`, `remediation`) intact, proving the code is neither renamed nor silently
+  swallowed. WP04 inherits SK-114's `.kittify/lint-report.json` half UNFIXED (see
+  WP04-002) because it correctly reuses `_enforce_analysis_report_write_preflight`
+  unmodified per plan.md's own option (a) -- in scope to inherit, not to fix. The
+  dossier-sync bypass ("does the orchestrator-api verb now diverge from the host CLI's
+  record-analysis?") is INTENDED and DOCUMENTED, not a silent fork: spec.md's NFR-004(b),
+  Acceptance Scenario 7, Edge Cases, and Clarification 5 all name this exact exclusion as
+  one of the two pre-authorized mechanisms, and plan.md § (j) and the WP04 task file repeat
+  it verbatim; the code's own docstrings cite all three. Two minor findings and one nit
+  below; none reach severity 4, so this WP is approved.
+findings:
+  - id: WP04-001
+    severity: 2
+    title: The strict generated_at > call_start comparison has no documented fallback for a clock tie or backward step
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:2425 (_is_strictly_after)"
+      - code: "src/kernel/clock.py:158 (now_utc_iso -> DEFAULT_CLOCK.now_iso() -> datetime.now(UTC).isoformat())"
+      - code: "src/specify_cli/analysis_report.py:512 (generated_at: now_utc_iso())"
+    claim: >
+      `call_start = now_utc_iso()` (commands.py) and `generated_at = now_utc_iso()`
+      (analysis_report.py:512, inside the write path invoked strictly after) both read
+      the same wall clock via `datetime.now(UTC).isoformat()`, and `_is_strictly_after`
+      requires `parse_iso(generated_at) > parse_iso(call_start)` -- a TIE (both calls
+      resolve to the identical microsecond, plausible on a coarse-resolution clock or
+      under unlucky scheduling) or a backward wall-clock step between the two reads
+      (an NTP correction, however rare) makes a genuinely fresh, correct write report
+      `RECORD_ANALYSIS_WRITE_NOT_CONFIRMED` -- a false negative. Safer direction than a
+      false positive (SK-93's actual regression), but nothing in the code comments,
+      docstrings, spec.md, or the SC-005 test suite acknowledges this edge or explains
+      why it is considered negligible in practice.
+    remediation: >
+      Either document explicitly (a code comment on `_is_strictly_after` plus a spec.md
+      Edge Case) why a tie/backward-step is treated as acceptable residual risk given
+      Python's practical clock resolution and the real work done between the two reads,
+      or harden it: pass an explicit monotonic sequence token (e.g. a
+      `uuid`/nonce written into the report and echoed back) instead of relying solely on
+      wall-clock strict-inequality, removing the dependency on clock monotonicity
+      entirely.
+  - id: WP04-002
+    severity: 1
+    title: SK-114's lint-report.json dirty-tree trap is inherited unfixed (in scope to inherit, not a WP04 defect)
+    evidence:
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:186 (_enforce_analysis_report_write_preflight, reused unmodified)"
+      - code: "src/specify_cli/coordination/coherence.py:50 (is_self_bookkeeping_churn -- does not allowlist .kittify/lint-report.json)"
+    claim: >
+      SK-114 names two live self-inflicted dirty-tree traps for `record-analysis`: (1)
+      `charter lint --json`'s `.kittify/lint-report.json` residue, and (2) the
+      dossier-sync trigger's own `snapshot-latest.json` rewrite. WP04's bypass of the
+      dossier-sync tail (plan.md § (j) option (a)) genuinely eliminates trap (2) for this
+      verb as a side effect. Trap (1) is untouched: `record-analysis` reuses
+      `_enforce_analysis_report_write_preflight` verbatim, whose `is_self_bookkeeping_churn`
+      allowlist still does not cover `.kittify/lint-report.json` -- confirmed live by a
+      throwaway test that dirtied the tree and got back `error_code: "DIRTY_WORKTREE"`
+      unrenamed, matching the host CLI's own behavior exactly. This is correct WP04 scope
+      (plan.md explicitly authorizes reusing this preflight logic unmodified rather than
+      reimplementing it) and the implementer's own tracer entry shows they understood the
+      SK-114 family well enough to correctly distinguish a DIFFERENT residue trap
+      (`tasks`-verb's `.kittify/sync-state.json`) they hit while building their own test
+      fixture, fixing it in the test fixture rather than conflating it with this one.
+      Recording this for ledger-tracking completeness per the review brief's explicit
+      ask, not as a WP04 defect.
+    remediation: >
+      No WP04 action required. When SK-114 itself is fixed upstream (e.g. by adding
+      `.kittify/lint-report.json` to `is_self_bookkeeping_churn`'s allowlist), record-
+      analysis's orchestrator-api verb inherits the fix automatically since it calls the
+      same preflight function.
+  - id: WP04-003
+    severity: 1
+    title: A few self-reported gate pass-counts could not be reproduced verbatim
+    evidence:
+      - code: "tests/specify_cli/orchestrator_api/ + tests/contract/ (331 passed, 12 skipped observed vs. a claimed 53)"
+      - code: "tests/specify_cli/orchestrator_api/ + tests/specify_cli/next/ + tests/runtime/next/ (339 passed, 2 skipped observed vs. a claimed 353)"
+    claim: >
+      The review brief's claimed counts ("53 passed across orchestrator_api + contract
+      dirs", "terminology guard 10 passed", "full surface 353 passed / 2 skipped / 0
+      failed") did not match any directory grouping this review constructed -- every
+      actual run performed showed strictly MORE passing tests and zero failures (e.g. 331
+      passed/12 skipped for orchestrator_api+contract, 339 passed/2 skipped for the
+      three-dir baseline surface, both supersets with 0 failures). No evidence of a
+      hidden regression was found; this is most likely a different exact test-path/marker
+      selection than what this review reconstructed, not a fabricated claim.
+    remediation: >
+      Record the EXACT command line used for each self-reported gate count (not just the
+      resulting number) in the WP's tracer or commit message, so a reviewer can reproduce
+      the identical invocation rather than reconstructing a plausible equivalent.

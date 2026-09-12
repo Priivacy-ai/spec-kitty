@@ -1,0 +1,20 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+round: 2
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: Project Structure's kind_vocabulary.py bullet now names both edits ("_org_scan_dirs (:200-209) fix, plus the _scan_roots docstring update at :158-160") and no longer claims a sole "only production edit," matching Campsite-Clean Scope's mandate.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: The compiler.py assertion commitment was dropped (Test Placement Decision explicitly states the new module "does not carry a compiler._resolve_config_activated_ids assertion") and Nothing Generated/No Contract Movement now frames both compiler.py and consistency_check.py coverage as deliberately deferred, narrowing back to spec.md's unamended FR-002/C-001 rather than rewording an unauthorized commitment.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: The Seam now cites only ":466" as _source_urn's call site and correctly describes it as invoked "on every charter activate call — with or without --cascade," matching the live code (activate.py:433 only resolves layer_roots; :466 is the sole unconditional call).
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: Tracer Files' cross-reference no longer cites a "workspace-root ledger" and instead points to tracer-tooling-friction.md's own self-contained "Commit blocked"/"Resolution" entries, explicitly noting "not any repository-external tracking surface" — consistent with there being no repository-root SPEC-KITTY-LEDGER.md in this checkout.
+  - id: PLAN-FRESH-005
+    status: resolved
+    reason: "_layer_candidate_dir is now cited as :212-216 (matching its actual body) and the consistency_check.py sentence correctly distinguishes that only _resolve_graph_kind_parity_stem (:815-819) reports directly while the forward-parity site (:744-748) does a bare continue relying on _check_unknown_references, both verified against the live code."

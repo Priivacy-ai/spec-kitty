@@ -22,7 +22,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition
 from specify_cli.tool_surface.registry import ToolSurfaceRegistry
@@ -45,7 +45,7 @@ _SENTINEL_PATTERN = "<session-presence>"
 _MANIFEST_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
 
 
-def _definition(path_pattern: str, kind: SurfaceKind) -> SurfaceDefinition:
+def _definition(path_pattern: str, kind: ToolSurfaceKind) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -60,11 +60,11 @@ def _definition(path_pattern: str, kind: SurfaceKind) -> SurfaceDefinition:
 
 def _registry() -> ToolSurfaceRegistry:
     registry = ToolSurfaceRegistry()
-    registry.register_definition("claude", _definition(_COMMAND_SKILL_PATTERN, SurfaceKind.COMMAND_SKILL))
-    registry.register_definition("claude", _definition(_PROFILE_PATTERN, SurfaceKind.AGENT_PROFILE))
+    registry.register_definition("claude", _definition(_COMMAND_SKILL_PATTERN, ToolSurfaceKind.COMMAND_SKILL))
+    registry.register_definition("claude", _definition(_PROFILE_PATTERN, ToolSurfaceKind.AGENT_PROFILE))
     # Sentinel + manifest-embedded patterns must be excluded from validation.
-    registry.register_definition("claude", _definition(_SENTINEL_PATTERN, SurfaceKind.CONTEXT_FILE))
-    registry.register_definition("claude", _definition(_MANIFEST_PATTERN, SurfaceKind.DOCTRINE_SKILL))
+    registry.register_definition("claude", _definition(_SENTINEL_PATTERN, ToolSurfaceKind.CONTEXT_FILE))
+    registry.register_definition("claude", _definition(_MANIFEST_PATTERN, ToolSurfaceKind.DOCTRINE_SKILL))
     return registry
 
 

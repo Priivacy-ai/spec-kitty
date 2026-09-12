@@ -1,0 +1,30 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Verified against the live artifacts: WP07-contract-version-bump.md's
+      T033/Files section (lines 90-96) permits a new test file with zero
+      pytestmark instruction (grep for pytestmark/mark. in the file returns
+      nothing), unlike WP02 (line 209), WP03 (line 145), WP04 (line 161),
+      WP05 (line 138), WP06 (line 113) and WP08 (line 188), which all carry
+      explicit pytestmark instructions at exactly the cited line numbers;
+      wps.yaml's WP07 owned_files (lines 154-155) lists only envelope.py
+      with no test file, unlike WP08's owned_files which explicitly lists
+      its test files; ci-quality.yml's fast-tests-core-misc filter (line
+      1794, `-m "fast and not windows_ci and not regression"`) and
+      integration-tests-core-misc filter (line 2068, `-m 'not windows_ci
+      and (git_repo or integration or architectural) and not timing and
+      not regression...'`) match the finding's quotes verbatim, and
+      tests/specify_cli/orchestrator_api/ is not in the specify-cli-rest
+      shard's ignore_args (lines 1699-1710), confirming it lands in that
+      shard by default; tests/conftest.py's pytest_collection_modifyitems /
+      _apply_shard_markers only auto-adds windows_ci-skip, quarantine-skip,
+      performance-skip, and arch/next shard markers — never a fast or
+      integration marker — so a genuinely unmarked new test file would
+      match neither filter and be silently uncollected by both jobs. No
+      existing test_contract_version.py-style file was found in the repo,
+      so the "new file" branch is a live possibility, not a moot one.

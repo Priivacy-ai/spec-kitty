@@ -10,20 +10,29 @@ Public API:
 Source-of-truth spec: kitty-specs/retrospective-default-policy-01KS049J/data-model.md
 Contract:             kitty-specs/retrospective-default-policy-01KS049J/contracts/retrospective-policy.schema.json
 FR refs: FR-001, FR-002, FR-003, FR-004, FR-015, FR-024
+
+Resolution authority (FR-005c of ``doctrine-charter-split-unification``):
+``charter.yaml`` ``governance.retrospective`` is the authority and takes
+precedence; ``charter.md`` YAML frontmatter is a readable, *overridden*
+secondary retained for legacy ``charter.md``-only projects (C-003).
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from pydantic import ValidationError
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
+from charter.bundle import CHARTER_MD, CHARTER_YAML
+from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.schemas import RetrospectiveGovernance
 from specify_cli.retrospective.deprecation import (
     _DOCS_URL,
     REPLACEMENT_KEYS,
@@ -33,11 +42,19 @@ from specify_cli.retrospective.deprecation import (
 _log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Charter path constant (shared with mode.py — do not introduce a second value)
+# Charter path constants
 # ---------------------------------------------------------------------------
+#
+# ``charter.bundle.CHARTER_MD``/``CHARTER_YAML`` are the single-door path
+# authority (FR-001) for the whole retrospective package (FR-005 / WP06 T003).
+# This module, ``mode.py``, and ``gate.py`` all import them directly from
+# ``charter.bundle`` rather than redeclaring the literal or reaching into a
+# sibling module's private alias (#3163).  Do not reintroduce a second value.
 
-_CHARTER_REL: Path = Path(".kittify") / "charter" / "charter.md"
 _CONFIG_REL: Path = Path(".kittify") / "config.yaml"
+
+#: Source-attribution prefix suffix for the authority block.
+_YAML_BLOCK_PATH = "governance.retrospective"
 
 # ---------------------------------------------------------------------------
 # Valid enum values
@@ -230,13 +247,27 @@ def _load_charter_retrospective_block(
         - ``charter_path_str`` is the relative path string used as source key.
         - ``error`` is set when the charter is present but malformed.
     """
-    charter_path = repo_root / _CHARTER_REL
-    source_str = str(_CHARTER_REL)
+    charter_path = repo_root / CHARTER_MD
+    source_str = str(CHARTER_MD)
 
     if not charter_path.exists():
         return None, source_str, None
 
-    raw = charter_path.read_text(encoding="utf-8")
+    try:
+        raw = charter_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of this module's structured PolicyResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader but
+        # missed this charter.md reader).
+        err = PolicyResolutionError(
+            source=source_str,
+            reason="invalid_yaml",
+            detail=str(exc),
+        )
+        return None, source_str, err
 
     if not raw.startswith("---"):
         # No frontmatter; not malformed — treat as no retrospective block.
@@ -299,6 +330,145 @@ def _load_charter_retrospective_block(
     return retro_block, source_str, None
 
 
+def _authored_keys_only(model: RetrospectiveGovernance) -> dict[str, object] | None:
+    """Reduce a validated authority block to the keys the operator authored.
+
+    Every field on :class:`~charter.activation.schemas.RetrospectiveGovernance` is
+    three-state ``X | None``, where ``None`` means "the charter does not claim
+    this key".  Dropping the ``None``\\ s is what keeps ``charter.md``
+    frontmatter a *contributing* secondary (C-003) instead of being wholesale
+    overridden by unclaimed keys.  An authored-but-empty ``permissions:`` block
+    is dropped for the same reason: claiming ``permissions`` without claiming
+    any flag would needlessly gate the secondary and ``.kittify/config.yaml``.
+
+    Returns ``None`` when nothing at all was authored.
+    """
+    block: dict[str, object] = model.model_dump(exclude_none=True)
+    permissions = block.get("permissions")
+    if isinstance(permissions, dict) and not permissions:
+        del block["permissions"]
+    return block or None
+
+
+def _format_validation_error(exc: ValidationError) -> str:
+    """Render a pydantic ``ValidationError`` as a flat, operator-readable detail."""
+    return "; ".join(
+        f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}"
+        for error in exc.errors()
+    )
+
+
+def _charter_yaml_error(reason: str, detail: str) -> PolicyResolutionError:
+    """Build a ``PolicyResolutionError`` attributed to ``charter.yaml``."""
+    return PolicyResolutionError(
+        source=str(CHARTER_YAML), reason=reason, detail=detail
+    )
+
+
+#: pydantic error ``type`` codes that represent a genuine bad-enum-value
+#: error (an operator-authored string that isn't one of the ``Literal``'s
+#: permitted values) -- as opposed to a structural type mismatch (e.g. a list
+#: where a bool was expected).  Kept narrow and explicit rather than a
+#: catch-all so a new pydantic error type defaults to the safer
+#: ``invalid_type`` classification instead of silently being treated as an
+#: enum error.
+_ENUM_VALIDATION_ERROR_TYPES: frozenset[str] = frozenset({"literal_error", "enum"})
+
+
+def _reason_for_validation_error(exc: ValidationError) -> str:
+    """Classify a pydantic ``ValidationError`` into this module's reason vocabulary.
+
+    Every :class:`~charter.activation.schemas.RetrospectiveGovernance` field is a
+    ``Literal`` or ``bool``, so a raw pydantic error type is either
+    ``"literal_error"`` (an operator typo'd the enum value, e.g.
+    ``failure_policy: explode``) or a structural type mismatch such as
+    ``"bool_type"`` (e.g. ``enabled: [1, 2]``).  Previously *every*
+    ``ValidationError`` was mapped to ``reason="invalid_enum"`` regardless of
+    which kind occurred, which gives a caller/UI branching on ``reason`` the
+    same machine-readable code for two unrelated failure classes (#3163).
+
+    Returns ``"invalid_enum"`` only when *every* underlying pydantic error is
+    enum-related; any other error type -- alone or mixed in with enum errors
+    -- yields ``"invalid_type"`` so the more general failure is not masked.
+    """
+    error_types = {error["type"] for error in exc.errors()}
+    if error_types and error_types <= _ENUM_VALIDATION_ERROR_TYPES:
+        return "invalid_enum"
+    return "invalid_type"
+
+
+def _load_charter_yaml_retrospective_block(
+    repo_root: Path,
+) -> tuple[dict[str, object] | None, PolicyResolutionError | None]:
+    """Extract the authoritative ``governance.retrospective:`` block.
+
+    Reads ``.kittify/charter/charter.yaml`` — the deterministic, schema-guarded
+    resolution authority (C-001) — through the charter layer's own reader
+    (``charter.activation.charter_yaml_io.load_charter_yaml`` + the ``charter.bundle``
+    path constant).  This is a strictly **downward** import: the retrospective
+    resolver consumes the charter layer, never the reverse.
+
+    The raw mapping is validated through
+    :class:`~charter.activation.schemas.RetrospectiveGovernance` so an operator typo in a
+    ``Literal`` field surfaces as this module's structured
+    :class:`PolicyResolutionError` rather than leaking a raw
+    ``pydantic.ValidationError`` to the caller.
+
+    Returns:
+        ``(block, error)`` where ``block`` holds only the keys the operator
+        actually authored, or ``None`` when charter.yaml is absent / carries no
+        ``governance.retrospective`` block.
+    """
+    charter_yaml_path = repo_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
+        return None, None
+
+    try:
+        document = load_charter_yaml(charter_yaml_path)
+    except (_YAMLError, OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError subclass
+        # -- ``load_charter_yaml`` opens the file with ``encoding="utf-8"``,
+        # so invalid UTF-8 bytes raise UnicodeDecodeError during the read,
+        # which the original ``(_YAMLError, OSError)`` tuple did not catch
+        # (#3163). Caught explicitly here so it surfaces as this module's
+        # structured PolicyResolutionError instead of a raw crash.
+        return None, _charter_yaml_error("invalid_yaml", str(exc))
+
+    if not isinstance(document, dict):
+        return None, _charter_yaml_error(
+            "invalid_type_for_retrospective_block",
+            f"charter.yaml root is not a YAML mapping; got {type(document).__name__}.",
+        )
+
+    governance = document.get("governance")
+    if governance is None:
+        return None, None
+    if not isinstance(governance, dict):
+        return None, _charter_yaml_error(
+            "invalid_type_for_retrospective_block",
+            f"charter.yaml 'governance:' value must be a mapping; "
+            f"got {type(governance).__name__}.",
+        )
+
+    raw_block = governance.get("retrospective")
+    if raw_block is None:
+        return None, None
+    if not isinstance(raw_block, dict):
+        return None, _charter_yaml_error(
+            "invalid_type_for_retrospective_block",
+            f"charter.yaml '{_YAML_BLOCK_PATH}:' value must be a mapping; "
+            f"got {type(raw_block).__name__}.",
+        )
+
+    try:
+        model = RetrospectiveGovernance.model_validate(raw_block)
+    except ValidationError as exc:
+        reason = _reason_for_validation_error(exc)
+        return None, _charter_yaml_error(reason, _format_validation_error(exc))
+
+    return _authored_keys_only(model), None
+
+
 def _load_config_retrospective_block(
     repo_root: Path,
 ) -> tuple[dict[str, object] | None, PolicyResolutionError | None]:
@@ -315,7 +485,21 @@ def _load_config_retrospective_block(
     if not config_path.exists():
         return None, None
 
-    raw = config_path.read_text(encoding="utf-8")
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of this module's structured PolicyResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader but
+        # missed this config.yaml reader).
+        err = PolicyResolutionError(
+            source=source_str,
+            reason="invalid_yaml",
+            detail=str(exc),
+        )
+        return None, err
 
     try:
         yaml = _YAML(typ="safe")
@@ -529,20 +713,43 @@ def _set_policy_field(
 # ---------------------------------------------------------------------------
 
 
+#: One charter-sourced block paired with its source-attribution prefix.
+#: Layers are always ordered LOWEST precedence first, so applying them in
+#: order leaves the highest-precedence source as the last writer of any key
+#: it claims.  Today that ordering is ``charter.md`` (secondary) then
+#: ``charter.yaml`` (authority) — the FR-005c precedence flip.
+CharterLayer = tuple[dict[str, object], str]
+
+
+def _apply_charter_layers(
+    policy: RetrospectivePolicy,
+    source_map: dict[str, str],
+    charter_layers: Sequence[CharterLayer],
+    strict_keys: bool,
+) -> None:
+    """Apply every charter layer in ascending precedence order."""
+    for block, prefix in charter_layers:
+        err = _apply_block_to_policy(
+            policy, source_map, block, prefix,
+            strict_keys=strict_keys, keys_to_apply=None,
+        )
+        if err is not None:
+            raise err
+
+
 def _apply_blocks_config_precedence(
     policy: RetrospectivePolicy,
     source_map: dict[str, str],
-    charter_block: dict[str, object] | None,
+    charter_layers: Sequence[CharterLayer],
     config_block: dict[str, object] | None,
-    charter_prefix: str,
     config_prefix: str,
     strict_keys: bool,
 ) -> None:
     """Apply charter + config under ``precedence: config`` delegation (T003).
 
-    Config is applied first (fills in defaults), then charter overrides what it
-    explicitly set.  Result: charter wins for its own explicit fields; config wins
-    for fields charter did not set.
+    Config is applied first (fills in defaults), then the charter layers
+    override what they explicitly set.  Result: charter wins for its own
+    explicit fields; config wins for fields no charter layer set.
     """
     if config_block is not None:
         err = _apply_block_to_policy(
@@ -552,48 +759,39 @@ def _apply_blocks_config_precedence(
         if err is not None:
             raise err
 
-    if charter_block is not None:
-        err = _apply_block_to_policy(
-            policy, source_map, charter_block, charter_prefix,
-            strict_keys=strict_keys, keys_to_apply=None,
-        )
-        if err is not None:
-            raise err
+    _apply_charter_layers(policy, source_map, charter_layers, strict_keys)
 
 
 def _apply_blocks_charter_precedence(
     policy: RetrospectivePolicy,
     source_map: dict[str, str],
-    charter_block: dict[str, object] | None,
+    charter_layers: Sequence[CharterLayer],
     config_block: dict[str, object] | None,
-    charter_prefix: str,
     config_prefix: str,
     strict_keys: bool,
 ) -> None:
     """Apply charter + config under default (charter-wins) precedence (T002).
 
-    Charter is applied first; config only fills fields charter did NOT set.
+    The charter layers are applied first; config only fills fields that NO
+    charter layer set.
     """
-    charter_set_keys: frozenset[str] = frozenset()
+    _apply_charter_layers(policy, source_map, charter_layers, strict_keys)
 
-    if charter_block is not None:
-        err = _apply_block_to_policy(
-            policy, source_map, charter_block, charter_prefix,
-            strict_keys=strict_keys, keys_to_apply=None,
-        )
-        if err is not None:
-            raise err
-        charter_set_keys = _top_level_keys_in_block(charter_block)
+    if config_block is None:
+        return
 
-    if config_block is not None:
-        config_eligible = _KNOWN_KEYS - charter_set_keys - {"strict_keys"}
-        config_leaf_eligible = _expand_eligible_to_leaf_keys(config_eligible)
-        err = _apply_block_to_policy(
-            policy, source_map, config_block, config_prefix,
-            strict_keys=strict_keys, keys_to_apply=config_leaf_eligible,
-        )
-        if err is not None:
-            raise err
+    charter_set_keys: set[str] = set()
+    for block, _prefix in charter_layers:
+        charter_set_keys |= _top_level_keys_in_block(block)
+
+    config_eligible = _KNOWN_KEYS - charter_set_keys - {"strict_keys"}
+    config_leaf_eligible = _expand_eligible_to_leaf_keys(config_eligible)
+    err = _apply_block_to_policy(
+        policy, source_map, config_block, config_prefix,
+        strict_keys=strict_keys, keys_to_apply=config_leaf_eligible,
+    )
+    if err is not None:
+        raise err
 
 
 # ---------------------------------------------------------------------------
@@ -610,13 +808,19 @@ def resolve_policy(
 
     Resolution order (first authoritative source wins per field):
 
-    1. Charter frontmatter ``retrospective:`` block.
-    2. ``.kittify/config.yaml`` ``retrospective:`` block — but ONLY if:
-       - The charter is absent or did not set that field, OR
-       - The charter explicitly set ``retrospective.precedence: config`` (then
-         config wins for fields present in config that charter did NOT set;
-         charter's own explicit values are never overridden by config).
-    3. Built-in defaults.
+    1. ``charter.yaml`` ``governance.retrospective`` — the deterministic,
+       schema-guarded **authority** (C-001).  Wins over every other source for
+       the keys it actually authors (FR-005c / SC-002).
+    2. ``charter.md`` YAML frontmatter ``retrospective:`` block — a readable
+       but **overridden** secondary.  It still resolves for keys the authority
+       does not claim, and it is the only charter source on legacy
+       ``charter.md``-only projects (C-003, backward compatible).
+    3. ``.kittify/config.yaml`` ``retrospective:`` block — but ONLY if:
+       - No charter layer set that field, OR
+       - A charter layer explicitly set ``retrospective.precedence: config``
+         (then config wins for fields present in config that no charter layer
+         set; explicit charter values are never overridden by config).
+    4. Built-in defaults.
 
     Env-var observation (T005 / FR-015):
        ``SPEC_KITTY_RETROSPECTIVE`` and ``SPEC_KITTY_MODE`` are *observed* but
@@ -634,10 +838,23 @@ def resolve_policy(
         mapping every leaf policy field to its authoritative source string.
 
     Raises:
-        PolicyResolutionError: If charter or config is malformed.  The return
+        PolicyResolutionError: If charter.yaml, charter.md or config is
+            malformed — including a ``charter.yaml`` block that fails
+            :class:`~charter.activation.schemas.RetrospectiveGovernance` validation, which
+            is translated here rather than leaking as a raw
+            ``pydantic.ValidationError``.  The return
             value is still ``(default_policy(), source_map_with_sentinel)``
             for callers that want to continue on the happy path; the caller is
             responsible for catching this and routing per failure policy.
+
+            Exception (#3163): a malformed ``charter.yaml`` whose raw text
+            never mentions ``"retrospective"`` at all is provably unrelated
+            to this policy (see :func:`_charter_yaml_mentions_retrospective`)
+            and does NOT raise here — resolution falls through to
+            ``charter.md`` / config / defaults as if charter.yaml carried no
+            retrospective block. A malformed ``charter.yaml`` that DOES
+            mention "retrospective" still raises, preserving the
+            yaml-wins-on-conflict guarantee.
     """
     effective_env: Mapping[str, str] = env if env is not None else os.environ
 
@@ -645,18 +862,42 @@ def resolve_policy(
     source_map = _default_source_map()
 
     # ------------------------------------------------------------------
-    # Step 1: Load charter block
+    # Step 1: Load the authority block (charter.yaml governance.retrospective)
     # ------------------------------------------------------------------
-    charter_block, charter_source_str, charter_error = _load_charter_retrospective_block(
+    yaml_block, yaml_error = _load_charter_yaml_retrospective_block(repo_root)
+
+    if yaml_error is not None:
+        # #3163: a malformed charter.yaml that never even mentions
+        # "retrospective" cannot itself carry a governance.retrospective:
+        # block -- the malformation is provably unrelated, so fall through to
+        # charter.md instead of hard-failing a md-only-configured project.
+        if _charter_yaml_mentions_retrospective(repo_root / CHARTER_YAML):
+            _mark_source_map_error(source_map, str(CHARTER_YAML))
+            raise yaml_error
+        _log.warning(
+            "Discarding a %s parse error ([%s] %s) because the file does "
+            "not mention a retrospective block; falling through to %s / "
+            "config / defaults instead of raising (#3163).",
+            CHARTER_YAML,
+            yaml_error.reason,
+            yaml_error.detail,
+            CHARTER_MD,
+        )
+        yaml_block, yaml_error = None, None
+
+    # ------------------------------------------------------------------
+    # Step 2: Load the secondary block (charter.md frontmatter)
+    # ------------------------------------------------------------------
+    md_block, charter_source_str, charter_error = _load_charter_retrospective_block(
         repo_root
     )
 
     if charter_error is not None:
-        _mark_source_map_error(source_map, charter_source_str or str(_CHARTER_REL))
+        _mark_source_map_error(source_map, charter_source_str or str(CHARTER_MD))
         raise charter_error
 
     # ------------------------------------------------------------------
-    # Step 2: Load config block
+    # Step 3: Load config block
     # ------------------------------------------------------------------
     config_block, config_error = _load_config_retrospective_block(repo_root)
 
@@ -665,27 +906,31 @@ def resolve_policy(
         raise config_error
 
     # ------------------------------------------------------------------
-    # Step 3: Determine precedence and apply blocks
+    # Step 4: Determine precedence and apply blocks
     # ------------------------------------------------------------------
-    precedence: str | None = None
-    if charter_block is not None:
-        precedence_raw = charter_block.get("precedence")
-        if isinstance(precedence_raw, str) and precedence_raw in _VALID_PRECEDENCE:
-            precedence = precedence_raw
+    # Ascending precedence: the secondary first, the authority last, so the
+    # authority is the last writer of every key it claims (FR-005c / SC-002).
+    charter_layers: list[CharterLayer] = []
+    if md_block is not None:
+        charter_layers.append((md_block, f"{charter_source_str}:retrospective"))
+    if yaml_block is not None:
+        charter_layers.append(
+            (yaml_block, f"{CHARTER_YAML}:{_YAML_BLOCK_PATH}")
+        )
 
-    strict_keys = _resolve_strict_keys(charter_block, config_block)
-    charter_prefix = f"{charter_source_str}:retrospective"
+    precedence = _resolve_precedence(charter_layers)
+    strict_keys = _resolve_strict_keys(yaml_block, md_block, config_block)
     config_prefix = ".kittify/config.yaml#retrospective"
 
     if precedence == "config":
         _apply_blocks_config_precedence(
-            policy, source_map, charter_block, config_block,
-            charter_prefix, config_prefix, strict_keys,
+            policy, source_map, charter_layers, config_block,
+            config_prefix, strict_keys,
         )
     else:
         _apply_blocks_charter_precedence(
-            policy, source_map, charter_block, config_block,
-            charter_prefix, config_prefix, strict_keys,
+            policy, source_map, charter_layers, config_block,
+            config_prefix, strict_keys,
         )
 
     # ------------------------------------------------------------------
@@ -731,16 +976,128 @@ def _mark_source_map_error(source_map: dict[str, str], source: str) -> None:  # 
             source_map[key] = "<resolution_error>"
 
 
-def _resolve_strict_keys(
-    charter_block: dict[str, object] | None,
-    config_block: dict[str, object] | None,
-) -> bool:
-    """Return True if strict_keys mode is active (from either block)."""
-    for block in (charter_block, config_block):
-        if block is not None:
-            val = block.get("strict_keys")
-            if val is True:
-                return True
+#: Literal substring used by :func:`_charter_yaml_mentions_retrospective` --
+#: kept as a named constant rather than an inline literal in the two spots
+#: that need it (the docstring example and the check itself).
+_RETROSPECTIVE_KEY = "retrospective"
+
+
+def _charter_yaml_mentions_retrospective(charter_yaml_path: Path) -> bool:
+    """Return whether ``charter_yaml_path``'s raw bytes mention "retrospective".
+
+    Used only as a conservative fallback guard when ``charter.yaml`` failed to
+    parse or validate (#3163). Before this guard, ANY malformed
+    ``charter.yaml`` -- even one with no ``governance.retrospective:`` block
+    at all -- raised ``PolicyResolutionError`` before ``charter.md`` was ever
+    consulted, breaking a project that configures retrospective behavior
+    ONLY via ``charter.md`` frontmatter but happens to have an unrelated,
+    merely-malformed ``charter.yaml`` sitting around.
+
+    If the raw text never spells the literal key name ``"retrospective"``
+    anywhere, the file structurally cannot contain a
+    ``governance.retrospective:`` block once parsed -- YAML keys are literal
+    substrings of their source -- so the malformation is provably unrelated
+    and safe to skip in favor of ``charter.md``. A hit is always treated as
+    "still relevant" here even when the match turns out to be incidental
+    (e.g. inside a comment or unrelated string) -- this is a fail-closed
+    heuristic that only ever *widens* which malformed files still raise, it
+    never narrows the existing yaml-wins-on-conflict guarantee for a file
+    that does carry retrospective content.
+
+    Non-UTF-8 encodings (landing-fold follow-up to #3163, second-round
+    adversarial review): a ``charter.yaml`` written by, e.g., Windows
+    PowerShell's ``Out-File``/``>`` redirection (which defaults to UTF-16
+    with a byte-order mark) fails outright when decoded as UTF-8 -- the BOM
+    (``\\xff\\xfe`` / ``\\xfe\\xff``) is not a valid UTF-8 start byte. The
+    original implementation searched for the literal ASCII bytes
+    ``b"retrospective"`` directly in the raw bytes, which a UTF-16/UTF-32
+    file NEVER contains even when it carries a real
+    ``governance.retrospective:`` block: every character is interleaved with
+    a NUL byte (``r\\x00e\\x00t\\x00...``), so the contiguous ASCII substring
+    never appears. That silently discarded a charter.yaml parse error for a
+    file that DID carry retrospective config -- directly contradicting this
+    function's "provably unrelated" guarantee. A decode failure is therefore
+    treated as "cannot prove unrelated" and fails closed (returns ``True``,
+    so the caller's yaml error still raises) instead of silently falling
+    through to ``charter.md``.
+
+    A BOM-less UTF-16/UTF-32 encoding is a subtler case: its NUL-interleaved
+    bytes often decode successfully as UTF-8 (NUL and ASCII bytes are both
+    valid single-byte UTF-8 code points), just as a string riddled with NUL
+    characters. Stripping NUL characters from a *successful* UTF-8 decode
+    before the substring search recovers the original ASCII content
+    regardless of interleaving, so the "genuinely absent" check stays
+    reliable without needing to special-case every possible non-UTF-8
+    encoding by name.
+    """
+    try:
+        raw = charter_yaml_path.read_bytes()
+    except OSError:
+        return True  # fail closed: can't inspect, assume still relevant
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        # Cannot decode at all -> cannot prove the file is unrelated to
+        # retrospective config. Fail closed (see docstring) and log so a
+        # discarded charter.yaml parse error is never silent (#3163
+        # follow-up, second-round adversarial review).
+        _log.warning(
+            "charter.yaml at %s is malformed and could not be decoded as "
+            "UTF-8 while checking whether it mentions a retrospective "
+            "block; failing closed (treating it as still-relevant, so the "
+            "original parse error still raises) instead of silently "
+            "falling through to charter.md.",
+            charter_yaml_path,
+        )
+        return True
+
+    # Strip NUL characters so a BOM-less UTF-16/UTF-32 file that happens to
+    # decode as UTF-8 (NUL-interleaved ASCII) still surfaces its content.
+    cleaned = text.replace("\x00", "")
+    return _RETROSPECTIVE_KEY in cleaned.lower()
+
+
+def _resolve_precedence(charter_layers: Sequence[CharterLayer]) -> str | None:
+    """Return the effective ``precedence`` declaration across charter layers.
+
+    ``charter_layers`` is ordered lowest precedence first, so the last layer
+    that declares a valid value wins — i.e. a ``precedence:`` authored in
+    ``charter.yaml`` overrides one authored in ``charter.md`` frontmatter,
+    consistent with every other key (SC-002).
+    """
+    precedence: str | None = None
+    for block, _prefix in charter_layers:
+        raw = block.get("precedence")
+        if isinstance(raw, str) and raw in _VALID_PRECEDENCE:
+            precedence = raw
+    return precedence
+
+
+def _resolve_strict_keys(*blocks: dict[str, object] | None) -> bool:
+    """Return the effective ``strict_keys`` value via ordered-source precedence.
+
+    Mirrors the yaml-first precedence used for every other governed key
+    (FR-005c / SC-002): callers pass ``blocks`` pre-ordered highest-precedence
+    first (``yaml_block, md_block, config_block`` at the call site), and the
+    first block that explicitly sets ``strict_keys`` wins outright.  This is
+    NOT an OR-across-sources -- an explicit ``strict_keys: false`` in a
+    higher-precedence source must suppress a lower-precedence source's
+    ``strict_keys: true`` rather than being overridden by it (#3163).
+
+    A source's value only counts as an explicit set when it is actually a
+    ``bool``.  A malformed non-bool value (e.g. ``strict_keys: 'yes'``) is
+    NOT authoritative -- it falls through to the next source in precedence
+    order, so a lower-precedence source's valid boolean is used instead of
+    being silently suppressed by a higher-precedence source's typo.
+    Defaults to ``False`` when no source sets the key.
+    """
+    for block in blocks:
+        if block is None:
+            continue
+        value = block.get("strict_keys")
+        if isinstance(value, bool):
+            return value
     return False
 
 

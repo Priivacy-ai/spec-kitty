@@ -1,0 +1,36 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      Independently re-derived against src/charter/activation/resolver.py: the function spans
+      675-737 (last line `return sorted(activated_directives), "activation"` at 737, matching
+      the corrected range), `if doctrine.selected_directives:` is now cited at line 716 (was
+      707), the charter-priority/validation branch is now cited as 716-726 (ends at
+      `return list(doctrine.selected_directives), "charter"`), and the PackContext-aware
+      fallback is now cited as 728-737 (starts at the `from charter.activation.pack_context
+      import PackContext` lazy import) — all four numbers match the live file exactly.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      The fabricated `render_skill` symbol is replaced with `command_renderer.render(...,
+      repo_root=repo_root)`, and independently re-derived line numbers confirm the call sits at
+      command_installer.py:264-266 and the function is defined at command_renderer.py:384,
+      exactly as now cited; the untouched `install_skills_for_agent (init.py:910)` entry-point
+      link a few words earlier in the same sentence is actually a different, unrelated branch
+      (the real entry point into this chain is `command_installer.install` at init.py:889) but
+      that citation predates this fix round, was not part of this finding's claim, and was not
+      touched by this correction, so it does not make the corrected symbol/line inaccurate.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      `collect_governance_diagnostics` is now named as the fifth call site with citations
+      `resolver.py:937-952` (def at 937, `exc.issues` at 951, `resolution.diagnostics` at 952 —
+      all verified exact) and `charter/__init__.py:125,202` (both verified exact), `grep -rn
+      "resolve_project_governance(" src/` now turns up exactly five real call sites matching
+      the spec's list, and the Non-Goals section explicitly states why the fifth site needs no
+      separate FR — the exhaustiveness claim SPEC-FRESH-003 disputed is now accurate and
+      grep-confirmed.

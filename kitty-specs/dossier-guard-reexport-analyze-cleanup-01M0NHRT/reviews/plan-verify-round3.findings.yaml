@@ -1,0 +1,62 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-VERIFY-001
+    lens: "§591 ATDD-First / red-first fit for the Reflexivity recovery-path split (FR-006 branch)"
+    severity: 3
+    title: FR-006 recovery-path RED-first fixture instruction leaves test mechanics unspecified, unlike IC-01's §591 sequencing
+    evidence:
+      - artifact: "plan.md § Reflexivity, 'Recovery path (binding, not left to improvisation)', lines 528-533 (\"If the commit-subject fails commitlint (FR-006)\")"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 380-397 (IC-01's own RED-first instruction, for comparison)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:365 (current f\"Add analysis report for mission {slug}\" message= construction the fixture would need to exercise)"
+    claim: >
+      IC-01's §591 sequencing names the exact fixture idiom to follow
+      (`test_detector_flags_planted_positional_call`), the exact pre-widening
+      code lines to run the new tests against (92-96), and the exact four
+      pre-existing tests to re-run for the GREEN regression check -- an
+      implementer cannot get the mechanics wrong. The FR-006 recovery-path
+      bullet, by contrast, only says "Add a RED-first fixture that runs the
+      repo's real commitlint invocation against the actual failing subject
+      string ... BEFORE amending mission_record_analysis.py's message=
+      construction -- confirm that fixture is RED against the failing
+      subject." It does not say: (a) what test file/function houses this
+      fixture, (b) whether it must be a persisted, committed pytest test (as
+      charter C-011 generally requires -- "the ATDD test is committed as a
+      separate commit ... BEFORE any implementation commits") or a one-off
+      manual commitlint invocation during the fix-forward loop, or (c) how a
+      "RED-first" fixture can even be written in advance for FR-006's failure
+      mode, since -- unlike FR-001/FR-002's two positive-control fixtures,
+      which are planted files authored ahead of time -- this path is only
+      reachable AFTER this mission's own record-analysis commit already
+      exists on the branch and has already failed commitlint, so the
+      "failing subject string" is a specific git commit SHA not known at
+      plan-authoring time, not a string the WP can hardcode into a fixture.
+      The bullet's only anchor is "per SC-005's live-commitlint acceptance
+      method," which the Test Strategy table (FR-006 row) defines as
+      `commitlint --from <parent-sha> --to <analysis-commit-sha>` -- but that
+      invocation is framed there as post-hoc verification of an already-made
+      commit, not as a RED-first fixture construction recipe, so the
+      cross-reference does not fully resolve the ambiguity. An implementing
+      WP is left to invent whether this becomes a permanent regression test
+      (e.g. a new pytest test that shells to `git log` for the analyze-phase
+      commit and pipes its subject through commitlint) or a throwaway manual
+      check, which is exactly the kind of gap likely to cause rework or a
+      review disagreement about whether §591/C-011 was actually satisfied for
+      this branch of the recovery path.
+    remediation: >
+      In the FR-006 recovery-path bullet, state explicitly: (1) the concrete
+      commitlint invocation to use for the RED-first fixture, reusing the
+      Test Strategy table's exact syntax
+      (`commitlint --from <parent-sha> --to <analysis-commit-sha>`, with
+      `<analysis-commit-sha>` bound to this mission's own already-made
+      record-analysis commit rather than a hardcoded string); and (2)
+      whether this fixture must be committed as a persisted, reusable pytest
+      test (naming the target file, e.g. a new test in
+      tests/specify_cli/test_analysis_report.py or a dedicated commitlint
+      integration test module) or is explicitly permitted to be a one-off,
+      uncommitted manual verification step during the fix-forward loop --
+      matching the level of concreteness IC-01's §591 section already gives
+      (named idiom to mimic, named lines, named tests to re-run).

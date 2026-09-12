@@ -1,0 +1,146 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: TASKS-DECOMP-001
+    lens: WP concreteness — implementable without re-deriving the plan
+    severity: 3
+    title: >-
+      WP03/T010's literal "replace the two trailing lines" steps produce text that
+      fails its own T012 ordering assertion; the actual required fix (move the
+      --lenient pointer before the "Required Actions:" block) is never stated
+    evidence:
+      - artifact: "tasks/WP03-honest-remediation-text.md § Subtask T010, Steps 1-3"
+      - artifact: "tasks/WP03-honest-remediation-text.md § Subtask T010, Step 4 (the hedge: \"if the existing suggestions section ... would violate the ordering requirement, restructure ...\")"
+      - artifact: "tasks/WP03-honest-remediation-text.md § Subtask T012, item 1 (the \"--lenient before mkdir -p\" string-order assertion)"
+      - code: "src/specify_cli/validators/paths.py:61-78 (format_errors(): suggestions/\"Required Actions:\" block is appended to `lines` BEFORE the final trailing line WP3 edits)"
+    claim: >-
+      T010 Steps 1-3 instruct the implementer to locate and "replace" only the
+      final two lines of `format_errors()` (the "These directories are required..."
+      sentence) in place, keeping everything else — including the "Required
+      Actions:" section, which already contains the real `mkdir -p <path>`
+      suggestion lines — exactly where it is today, i.e. rendered BEFORE the
+      trailing line. Reproduced this exact scenario locally: building a
+      `PathValidationResult`-shaped output with today's `format_errors()`
+      structure and only swapping the trailing sentence for T010's own example
+      wording ("Run `accept --lenient` ... — or, if you want to adopt the
+      convention, create them: `mkdir -p <path>`") yields a joined string where
+      `"mkdir -p"` (from the pre-existing "Required Actions:" bullet) appears at
+      index 128 and `"--lenient"` appears at index 178 — i.e. `mkdir -p` occurs
+      FIRST. This directly fails T012's own required assertion
+      (`output.index("--lenient") < output.index("mkdir -p")`, per spec.md AC4 /
+      SC-003). T010's Step 4 explicitly anticipates this exact failure mode
+      ("if the existing suggestions section ... would violate the ordering
+      requirement, restructure ... e.g. move it to appear before the 'Required
+      Actions:' section") but only as a conditional escape hatch discovered by
+      running T012's test — it never states the concrete required edit (move the
+      new --lenient-pointer sentence to render immediately after the per-path
+      warning lines and BEFORE "Required Actions:"; keep the "Required Actions:"
+      / `mkdir -p` block, marked as secondary, after it). An implementer who
+      does exactly what Steps 1-3 say produces a wrong implementation on the
+      first pass and must redesign `format_errors()`'s section order mid-WP —
+      exactly the "ambiguity/gap likely to cause rework inside one work package"
+      this lens flags. (plan.md's own WP3 section carries the identical
+      unresolved hedge; the tasks-phase artifact was the place to close it and
+      did not.)
+    remediation: >-
+      Rewrite T010's Steps to state the concrete restructuring directly: move
+      the new --lenient-pointer sentence to be appended to `lines` immediately
+      after the per-path warning loop and BEFORE the `if self.suggestions:` /
+      "Required Actions:" block is appended; keep "Required Actions:" and its
+      `mkdir -p`/`touch` suggestion lines rendered after it, with the
+      --lenient sentence's own wording marking those suggestions as the
+      secondary/optional path (e.g. "Run `accept --lenient` to treat these as
+      warnings instead — or, if you want to adopt the convention, see the
+      commands below:" followed by the existing "Required Actions:" section).
+      State this as the required section order in T010's Steps, not as a
+      conditional fallback in Step 4, and drop the "verify ... before
+      finalizing" hedge since the concrete order removes the ambiguity T012
+      was written to catch after the fact.
+
+  - id: TASKS-DECOMP-002
+    lens: WP concreteness / architecture-scout (recurring boundary leak risk)
+    severity: 3
+    title: >-
+      WP02/T006 hand-duplicates WP01's artifact_tokens defensive-recipe instead
+      of consuming a shared helper WP01 could export, creating a second,
+      independently-maintained copy of the "what counts as an artifact token"
+      rule
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Context (\"evaluate_path_conventions recomputes the same artifact_tokens set validate_mission_paths computes internally\")"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T006, Step 1, first bullet (\"Recompute artifact_tokens using the identical defensive recipe validate_mission_paths uses internally\")"
+      - code: "src/specify_cli/validators/paths.py:183-192 (artifact_tokens computed inline inside validate_mission_paths, not exposed as a separate importable function)"
+      - code: "src/specify_cli/acceptance/summary_core.py:110-148 (evaluate_path_conventions, the second call site that would recompute the same recipe)"
+    claim: >-
+      `validate_mission_paths` computes `artifact_tokens` inline (`paths.py:183-192`,
+      confirmed on this checkout) via a defensive `getattr(mission.config,
+      "artifacts", None)` / `getattr(artifacts, "required"/"optional", ()) or
+      ()` recipe. WP02's T006 instructs `evaluate_path_conventions`
+      (`summary_core.py`, a different module WP01 does not own) to
+      "recompute the identical defensive recipe" verbatim rather than call a
+      shared function. This is a real, verifiable second copy of the same
+      business rule ("what tokens count as a mission artifact, defensively
+      against a partial mock"), not a hypothetical — after WP02 lands there
+      are two independent inline copies of this getattr/default chain in two
+      different files. Per the charter's Governing Principles ("Single
+      canonical authority... reconcile (extend/reference) existing doctrine
+      rather than add a second authority") and Standing Order 6 ("chase
+      unification, not parity with a dead quirk"), this is exactly the
+      whack-a-field pattern this lens group is tuned to catch: if the
+      defensive recipe's behavior needs to change later (e.g. a bug in how a
+      partial `MissionConfig` mock is handled), a maintainer fixing
+      `validate_mission_paths`'s copy has no structural signal that
+      `evaluate_path_conventions`'s copy also needs the same fix — they will
+      silently drift. Nothing in plan.md's WP2 section argues for duplication
+      over extraction on its merits (e.g. avoiding new coupling, keeping
+      `summary_core.py`'s pure-transform boundary); it only describes the
+      duplicate mechanism as "the identical defensive recipe... at no added
+      cost beyond one extra artifact_tokens recomputation" — i.e. an
+      unexamined default, not a considered rejection of sharing.
+    remediation: >-
+      Add a subtask to WP01 (which already owns `validators/paths.py` and
+      already touches this exact code, `paths.py:183-192`, for T001/T002) to
+      extract the `artifact_tokens` computation into a small, exported,
+      pure helper — e.g. `def artifact_tokens_for_mission(mission: Mission) ->
+      set[str]` — and have `validate_mission_paths` call it instead of
+      inlining. Update WP02's T006 to import and call that helper from
+      `summary_core.py` instead of reimplementing the getattr/default chain.
+      This does not change the mission's WP boundaries, dependency order, or
+      file ownership (WP01 already owns the source function; WP02 already
+      depends on WP01 and already imports from `validators/paths.py`
+      indirectly via `PathValidationResult`) — it only changes where one
+      already-planned computation lives, closing the drift risk at zero
+      additional WP-shape cost.
+
+  - id: TASKS-DECOMP-003
+    lens: WP concreteness — descriptions concrete enough to implement without re-deriving the plan
+    severity: 2
+    title: >-
+      WP02/T009's own instructions leave it undecided whether WP02 must itself
+      write the `--json`-consistency test for FR-002 Scenario 4, even though
+      plan.md's Test Strategy table already assigns that test to WP04 alone
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009, Step 1, last bullet (\"this may be a separate test or an additional assertion in the same one; either is acceptable as long as it's covered here or explicitly deferred to WP4's fixture (confirm which, and note it in this WP's implementation notes if deferred)\")"
+      - artifact: "plan.md § Test strategy per Acceptance Scenario, row \"US2 | 4 ... | WP2 + WP4 | WP4 fixture assertion 3\""
+      - artifact: "tasks/WP04-red-first-tests.md § Subtask T014, Assertion 3 (the `--json` CLI invocation/consistency check, explicitly assigned to WP04)"
+    claim: >-
+      plan.md's Test Strategy table's own "Test" column for US2/Scenario 4
+      names only "WP4 fixture assertion 3" as the concrete test — and WP04's
+      T014 Assertion 3 does implement exactly that check end-to-end via a real
+      `--json` CLI invocation. Despite this already-settled assignment, WP02's
+      T009 Step 1 still frames the `--json` assertion as optional-but-undecided
+      ("this may be... or explicitly deferred... confirm which"), pushing a
+      scope decision onto the WP02 implementer that the plan had already made.
+      This does not risk a coverage gap (WP04 covers it regardless), but it
+      does risk wasted implementer effort second-guessing whether to duplicate
+      the JSON check inside WP02, and it is exactly the kind of ambiguity the
+      tasks phase exists to remove before an implementer starts.
+    remediation: >-
+      Simplify WP02/T009 Step 1's last bullet to state definitively that the
+      `--json`-consistency assertion is WP04's responsibility (per plan.md's
+      Test Strategy table) and that WP02's own test (a) only needs the
+      object-level (`AcceptanceSummary`) dedup + `.ok` assertions — drop the
+      "confirm which / note if deferred" hedge entirely.

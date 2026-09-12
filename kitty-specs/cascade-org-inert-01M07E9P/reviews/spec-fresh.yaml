@@ -1,0 +1,39 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: cascade-org-inert-01M07E9P
+note: >
+  Fresh sweep performed directly by the phase agent (deviation recorded in spec-refute-1.yaml's
+  note) via a full end-to-end re-read of the current spec.md after the fix round, specifically
+  hunting for: contradictions with unchanged sections, new scope creep, weakened acceptance
+  criteria, broken cross-references (grepped AC3/AC4/AC5 references for dangling pointers to
+  moved/renumbered items -- none found), charter violations, and terminology drift (grepped for
+  bare "feature" usage against the Terminology Canon -- none found; only feature_dir, a real code
+  symbol name, appears). No new problems introduced by this fix round.
+
+  One PRE-EXISTING minor readability nit was noticed but is explicitly NOT filed here because it
+  predates this fix round (present identically in the first authored draft, before any review
+  findings existed) and is therefore outside this fresh sweep's "what the fixes introduced" scope:
+  the informal "Item 1"/"Item 4" labels used in a few places (Edge Cases, the Grounding section
+  heading) are never explicitly mapped to User Stories 1-5 / FR-001..004 anywhere in spec.md
+  itself -- a reader unfamiliar with the mission's originating GitHub issue thread has to infer
+  the mapping from context. Recorded here for visibility only, not as a blocking finding.
+
+  ADDENDUM (second correction round, same phase-agent session): after this fresh sweep passed,
+  the orchestrator identified that scope item 4 (the load_validated_graph asymmetric-guard /
+  whole-bundle-collapse defect, retired as FR-004) is already fixed in open PR #3401
+  (org-pack-drg-root-graph-guard-01KZY0QT, closes #3384) -- verified live via `gh pr view 3401`
+  (state OPEN, description matches exactly, implementation touches the same two files
+  _drg_helpers.py and action_doctrine_bundle.py this mission's own FR-004 would have touched).
+  FR-004 and SC-003 were retired from spec.md; every AC/scenario/entity that referenced them was
+  swept and corrected to state the "out of scope, PR #3401 owns it" reasoning explicitly rather
+  than leaving a gap. A fresh full re-read after this second round found one self-introduced ID
+  collision (a new Constraints-table row numbered C-005 collided with an EXISTING external
+  "C-005 shared-reference-safety contract" reference already used at spec.md lines 141/163/513) --
+  caught and fixed by renumbering the new row to C-006 with an explicit disambiguation note. No
+  other new problems found on the full re-read (checked: no other FR-004/Item-4 references left
+  unaddressed via grep; SC-004's "four call sites" language corrected to "three"; NFR-002's
+  "applying to all four FRs" corrected to name FR-001/002/003 and explicitly exclude the retired
+  scope). This addendum keeps the trail honest about the two-round nature of the spec fix work.
+findings: []

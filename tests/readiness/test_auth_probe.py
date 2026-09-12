@@ -13,6 +13,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.readiness import auth as auth_module
+from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.readiness.auth import probe_auth_status
 from specify_cli.readiness.coordinator import AuthStatus
 
@@ -21,15 +22,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 class _FakeTokenManager:
-    def __init__(self, authenticated: bool, raise_on_authenticated: bool = False) -> None:
-        self._authenticated = authenticated
-        self._raise = raise_on_authenticated
+    def __init__(self, assessment: SessionAssessment) -> None:
+        self._assessment = assessment
 
     @property
-    def is_authenticated(self) -> bool:
-        if self._raise:
-            raise RuntimeError("synthetic token-manager failure")
-        return self._authenticated
+    def session_assessment(self) -> SessionAssessment:
+        return self._assessment
 
 
 def _patch_token_manager(monkeypatch: pytest.MonkeyPatch, tm: _FakeTokenManager) -> None:
@@ -51,7 +49,10 @@ def _patch_detector(monkeypatch: pytest.MonkeyPatch, return_value: str | None) -
 
 
 def test_probe_authenticated_returns_authenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=True))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, True, "session_usable")),
+    )
     # Detector should not be consulted when authenticated; if it is, fail loudly.
     _patch_detector(monkeypatch, "should-not-be-read")
 
@@ -62,7 +63,10 @@ def test_probe_authenticated_returns_authenticated(monkeypatch: pytest.MonkeyPat
 
 
 def test_probe_logged_out_with_teamspace_handle(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=False))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, False, "session_absent")),
+    )
     _patch_detector(monkeypatch, "acme-team")
 
     status, handle = probe_auth_status()
@@ -72,7 +76,10 @@ def test_probe_logged_out_with_teamspace_handle(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_probe_logged_out_with_whitespace_handle_is_stripped(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=False))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, False, "session_absent")),
+    )
     _patch_detector(monkeypatch, "   acme-team   ")
 
     status, handle = probe_auth_status()
@@ -82,7 +89,10 @@ def test_probe_logged_out_with_whitespace_handle_is_stripped(monkeypatch: pytest
 
 
 def test_probe_logged_out_with_empty_handle_is_not_in_teamspace(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=False))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, False, "session_absent")),
+    )
     _patch_detector(monkeypatch, "   ")
 
     status, handle = probe_auth_status()
@@ -92,7 +102,10 @@ def test_probe_logged_out_with_empty_handle_is_not_in_teamspace(monkeypatch: pyt
 
 
 def test_probe_not_in_teamspace_when_helper_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=False))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, False, "session_absent")),
+    )
     _patch_detector(monkeypatch, None)
 
     status, handle = probe_auth_status()
@@ -117,15 +130,42 @@ def test_probe_unknown_on_token_manager_import_failure(monkeypatch: pytest.Monke
     assert handle is None
 
 
-def test_probe_unknown_on_token_manager_is_authenticated_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    # ``is_authenticated`` raises. Probe should not treat it as "authenticated"; it
-    # should swallow the exception and fall through to the detector. With the
-    # detector returning None we expect NOT_IN_TEAMSPACE (defensive fall-through),
-    # not UNKNOWN — UNKNOWN is reserved for the catastrophic failure path.
+def test_probe_falls_through_to_detector_on_failed_session_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # An inconclusive assessment (e.g. a storage read failure) is not
+    # authentication. It should swallow into "not authenticated" and fall
+    # through to the detector — same as the historical Boolean contract's
+    # exception handling — rather than short-circuiting to UNKNOWN.
     _patch_token_manager(
         monkeypatch,
-        _FakeTokenManager(authenticated=False, raise_on_authenticated=True),
+        _FakeTokenManager(SessionAssessment(False, None, "storage_read_failed")),
     )
+    _patch_detector(monkeypatch, "acme-team")
+
+    status, handle = probe_auth_status()
+
+    assert status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
+    assert handle == "acme-team"
+
+
+class _RaisingSessionAssessmentTokenManager:
+    @property
+    def session_assessment(self) -> SessionAssessment:
+        raise RuntimeError("synthetic session assessment failure")
+
+
+def test_probe_falls_through_to_detector_on_session_assessment_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ``session_assessment`` raises. Probe should not treat it as
+    # "authenticated"; it should swallow the exception and fall through to
+    # the detector. With the detector returning None we expect
+    # NOT_IN_TEAMSPACE (defensive fall-through), not UNKNOWN — UNKNOWN is
+    # reserved for the catastrophic failure path.
+    import specify_cli.auth as auth_pkg
+
+    monkeypatch.setattr(auth_pkg, "get_token_manager", lambda: _RaisingSessionAssessmentTokenManager())
     _patch_detector(monkeypatch, None)
 
     status, handle = probe_auth_status()
@@ -135,7 +175,10 @@ def test_probe_unknown_on_token_manager_is_authenticated_failure(monkeypatch: py
 
 
 def test_probe_unknown_on_detector_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_token_manager(monkeypatch, _FakeTokenManager(authenticated=False))
+    _patch_token_manager(
+        monkeypatch,
+        _FakeTokenManager(SessionAssessment(True, False, "session_absent")),
+    )
 
     import specify_cli.cli.commands._auth_recovery as recovery_mod
 

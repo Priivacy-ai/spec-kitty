@@ -14,17 +14,69 @@ on-disk mission corpus carrying evictable frontmatter + checkbox state:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+from specify_cli.cli.commands.migrate_cmd import app as migrate_app
 from specify_cli.migration import backfill_runtime_state as b
+from specify_cli.migration import runtime_state_cutover
+from specify_cli.migration.runtime_state_cutover import stamp_accept_cutover
 from specify_cli.migration.strip_frontmatter import strip_mutable_fields
+from specify_cli.upgrade.migrations.m_zz_runtime_state_backfill import (
+    RuntimeStateBackfillMigration,
+)
 from specify_cli.status.models import Lane
 from specify_cli.status.reducer import materialize_snapshot
 from tests.unit.migration._backfill_fixture import build_mission, corrupt_seed_value
 
 pytestmark = pytest.mark.integration
+
+_MIGRATE_LOCATE = "specify_cli.cli.commands.migrate_cmd.locate_project_root"
+
+
+def _build_issue_2985_terminal_mission(
+    tmp_path: Path,
+    *,
+    slug: str,
+) -> Path:
+    """Build legacy claim state plus a direct terminal transition."""
+    feature_dir = build_mission(
+        tmp_path,
+        slug=slug,
+        mission_id=f"01{slug.upper().replace('-', '')}000000000000",
+    )
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    terminal = {
+        "event_id": "01AAAAAAAAAAAAAAAAAAAAAAA1",
+        "mission_slug": slug,
+        "mission_id": meta["mission_id"],
+        "wp_id": "WP01",
+        "from_lane": "planned",
+        "to_lane": "done",
+        "at": "2026-01-02T03:04:05+00:00",
+        "actor": "legitimate-history",
+        "force": True,
+        "execution_mode": "worktree",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(terminal, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
+def _pin_synthetic_primary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runtime_state_cutover,
+        "_resolve_primary_home_or_degrade",
+        lambda feature_dir: feature_dir,
+    )
 
 
 def _snapshot_runtime(feature_dir: Path) -> dict[str, object]:
@@ -122,3 +174,76 @@ def test_lane_history_preserved_through_backfill(tmp_path: Path) -> None:
     b.backfill_runtime_state(feature_dir)
     wp = materialize_snapshot(feature_dir).work_packages["WP01"]
     assert wp["lane"] == str(Lane.IN_PROGRESS)
+
+
+def test_accept_stamp_preserves_terminal_lane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature_dir = _build_issue_2985_terminal_mission(
+        tmp_path,
+        slug="accept-terminal",
+    )
+    _pin_synthetic_primary(monkeypatch)
+
+    result = stamp_accept_cutover(feature_dir)
+
+    assert result.error is None
+    assert result.verify is not None and result.verify.ok
+    assert result.flipped
+    assert materialize_snapshot(feature_dir).work_packages["WP01"]["lane"] == "done"
+
+
+def test_upgrade_migration_preserves_terminal_lane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    feature_dir = _build_issue_2985_terminal_mission(
+        tmp_path,
+        slug="upgrade-terminal",
+    )
+    _pin_synthetic_primary(monkeypatch)
+
+    result = RuntimeStateBackfillMigration().apply(tmp_path)
+
+    assert result.success
+    assert materialize_snapshot(feature_dir).work_packages["WP01"]["lane"] == "done"
+
+
+def test_migrate_cli_single_then_corpus_preserves_terminal_lanes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    single = _build_issue_2985_terminal_mission(
+        tmp_path,
+        slug="single-terminal",
+    )
+    corpus = _build_issue_2985_terminal_mission(
+        tmp_path,
+        slug="corpus-terminal",
+    )
+    _pin_synthetic_primary(monkeypatch)
+    runner = CliRunner()
+
+    with patch(_MIGRATE_LOCATE, return_value=tmp_path):
+        single_result = runner.invoke(
+            migrate_app,
+            [
+                "backfill-runtime-state",
+                "--mission",
+                "single-terminal",
+                "--json",
+            ],
+        )
+        corpus_result = runner.invoke(
+            migrate_app,
+            ["backfill-runtime-state", "--json"],
+        )
+
+    assert single_result.exit_code == 0, single_result.stdout
+    assert corpus_result.exit_code == 0, corpus_result.stdout
+    for feature_dir in (single, corpus):
+        assert (
+            materialize_snapshot(feature_dir).work_packages["WP01"]["lane"]
+            == "done"
+        )

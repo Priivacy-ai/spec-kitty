@@ -1,0 +1,34 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: New User Story 5, FR-013 (answer-decision), Clarification 3 rewritten into Mechanism A/B, and SC-007 add real scope for the DecisionKind.decision_required / `next --answer` resolution path, grounded in verified code (decision.py DecisionKind, planner.py:387-468 decision_required sites, next_cmd.py _handle_answer/pending_decisions, runtime_bridge.py answer_decision_via_runtime) rather than reworded prose.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: No occurrences of decision-open/decision-resolve/decision-defer/decision-cancel or analyze-context/analyze-record remain anywhere in spec.md; renamed consistently to VERB-NOUN open-decision/resolve-decision/defer-decision/cancel-decision and check-prerequisites/record-analysis across FR table, user stories, ACs, edge cases, and success criteria.
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: FR-010 now names the literal verb `design-status` (matching mission-state's noun-phrase style) and it is used consistently in the FR title, User Story 4's ACs, edge cases, and SC-006.
+  - id: SPEC-GOV-004
+    status: resolved
+    reason: Clarification 5 was rewritten to a per-verb grep-verified breakdown (start-implementation/start-review/transition pass sync_dossier=False at commands.py:1239-1240,1333-1334,1516-1517; append-history's emit_inner_state_changed has no sync_dossier param; merge-mission's done_bookkeeping.py:284-285,439-440 also opt out) — all verified accurate against current code — replacing the blanket claim, and it flags record-analysis as the one verb that genuinely inherits the exposure.
+  - id: SPEC-GOV-005
+    status: resolved
+    reason: FR-001 AC-1 and Clarification 1 now name the ENRICHED _create_mission_for_specify_json/_with_specify_scaffold_state shape (scaffold_only, spec_state, next_action, next_step) as the specify verb's target, verified accurate against lifecycle.py:51-92, correctly distinguishing it from plan/tasks's raw pass-through shape.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: Clarification #2 and User Story 2 AC1 are re-anchored on the canonical packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md source with the correct `agent mission check-prerequisites --json --include-tasks` command (verified against the real file and agent/__init__.py:23); the only remaining "mission-run" occurrence is the explicit callout that the stale .kittify/overrides copy is drifted and out of scope, not a leftover citation error.
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: New Clarification 6 names both candidate engines (resolve_next_workflow_action and decide_next, verified to exist in planner.py/runtime_bridge_engine.py) and gives an explicit, reasoned decision not to delegate FR-010 to either, closing the missing-precedent gap with a real analysis rather than a bare assertion.
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: NFR-004 was rewritten to state the in-process invocation explicitly and require a time-bound around the call; SC-005 now includes test (b) for the underlying write path HANGING (never returning), directly covering the majority SK-93 failure shape the original AC's exit-code framing missed.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: NFR-004 adds an explicit freshness/idempotency requirement (call-start timestamp vs. re-read generated_at, verified present in analysis_report.py:512) and User Story 2 gained AC5 plus an Edge Case and SC-005(c) test for a stale artifact whose verdict coincidentally matches but predates the call, closing the verdict-only-equality gap.
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: User Story 2 AC6 and a new Edge Case explicitly cover a retry submitting a DIFFERENT verdict than what is currently on disk, stating it is treated as a fresh, independently-verified write attempt compared against the new submission rather than the stale value.

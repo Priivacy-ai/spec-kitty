@@ -1,5 +1,5 @@
 {
-  "event_count": 49,
+  "event_count": 55,
   "last_event_id": "01KTHG7NBAM07MMQYKFHA8DJVW",
   "materialized_at": "2026-06-07T16:56:37.994691+00:00",
   "mission_number": "",
@@ -19,45 +19,57 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTHG797747WA27DQ7RPDSRVV",
-      "last_transition_at": "2026-06-07T16:56:25.575472+00:00"
+      "last_transition_at": "2026-06-07T16:56:25.575472+00:00",
+      "review_result": null
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7BV0BJ0BJZ46AVEC9353",
-      "last_transition_at": "2026-06-07T16:56:28.256843+00:00"
+      "last_transition_at": "2026-06-07T16:56:28.256843+00:00",
+      "review_result": null
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KTHG7E5DB70T6BT0HSSTRDTZ",
-      "last_transition_at": "2026-06-07T16:56:30.637386+00:00"
+      "last_transition_at": "2026-06-07T16:56:30.637386+00:00",
+      "review_result": null
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KTHG7GGK3Z3YRAWJDP8DJBBJ",
-      "last_transition_at": "2026-06-07T16:56:33.043907+00:00"
+      "last_transition_at": "2026-06-07T16:56:33.043907+00:00",
+      "review_result": null
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7JYD06MD2F6GC5W2BADA",
-      "last_transition_at": "2026-06-07T16:56:35.533079+00:00"
+      "last_transition_at": "2026-06-07T16:56:35.533079+00:00",
+      "review_result": null
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTHG7NBAM07MMQYKFHA8DJVW",
-      "last_transition_at": "2026-06-07T16:56:37.994691+00:00"
+      "last_transition_at": "2026-06-07T16:56:37.994691+00:00",
+      "review_result": null
     }
   }
 }

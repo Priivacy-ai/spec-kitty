@@ -14,13 +14,16 @@ helper in isolation.
 from __future__ import annotations
 
 import subprocess
+from functools import partial
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands import merge as merge_module
 from specify_cli.cli.commands.merge import merge
 from specify_cli.git.sparse_checkout import _reset_session_warning_state
+from specify_cli.task_utils import find_repo_root
 
 
 # ---------------------------------------------------------------------------
@@ -77,8 +80,22 @@ class TestMergePreflightBlocks:
         yield
         _reset_session_warning_state()
 
-    def _invoke(self, repo: Path, extra_args: list[str]) -> object:
-        """Invoke the real merge Typer command in ``repo``."""
+    def _invoke(
+        self, repo: Path, extra_args: list[str], monkeypatch: pytest.MonkeyPatch
+    ) -> object:
+        """Invoke the real merge Typer command in ``repo``.
+
+        ``find_repo_root()`` walks unboundedly in production. Bound the walk
+        to ``repo`` (issue #128): nothing above it is under test control, and
+        under a full parallel run a sibling test's shared ancestor can
+        transiently gain a ``.git``/``.kittify``, which would make ``merge``
+        resolve the wrong repo root instead of reaching the sparse-checkout
+        preflight against *this* repo (same class of bug as #130/#139's
+        ``_find_project_root``).
+        """
+        monkeypatch.setattr(
+            merge_module, "find_repo_root", partial(find_repo_root, stop=repo)
+        )
         runner = CliRunner()
         # The Typer command must be wrapped in a Typer app to receive options
         # correctly. The real CLI mounts merge() on the root app; here we
@@ -100,7 +117,9 @@ class TestMergePreflightBlocks:
         finally:
             os.chdir(original_cwd)
 
-    def test_sparse_repo_blocks_merge(self, tmp_path: Path) -> None:
+    def test_sparse_repo_blocks_merge(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """FR-006: merge exits non-zero under sparse-checkout, no state written, HEAD unchanged."""
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -110,7 +129,7 @@ class TestMergePreflightBlocks:
 
         head_before = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
 
-        result = self._invoke(repo, ["--mission", slug])
+        result = self._invoke(repo, ["--mission", slug], monkeypatch)
 
         exit_code = getattr(result, "exit_code", None)
         if exit_code is None:
@@ -134,7 +153,9 @@ class TestMergePreflightBlocks:
             "HEAD must not advance when preflight aborts the merge."
         )
 
-    def test_force_flag_does_not_bypass_preflight(self, tmp_path: Path) -> None:
+    def test_force_flag_does_not_bypass_preflight(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """FR-009 / T038: ``--force`` must NOT open a bypass path.
 
         The merge command deliberately has no ``--force`` flag — the only
@@ -157,7 +178,7 @@ class TestMergePreflightBlocks:
 
         head_before = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
 
-        result = self._invoke(repo, ["--mission", slug, "--force"])
+        result = self._invoke(repo, ["--mission", slug, "--force"], monkeypatch)
 
         exit_code = getattr(result, "exit_code", None)
         if exit_code is None:

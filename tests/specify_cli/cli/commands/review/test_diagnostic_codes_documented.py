@@ -108,8 +108,8 @@ class TestNFR008CrossReference:
         )
 
     def test_member_count(self) -> None:
-        """Exactly 12 diagnostic codes defined (10 original + 2 added by issue #989)."""
-        assert len(list(MissionReviewDiagnostic)) == 12, (
-            f"Expected 12 MissionReviewDiagnostic members, "
+        """Exactly 13 diagnostic codes defined, including issue #2987's fail-closed verdict."""
+        assert len(list(MissionReviewDiagnostic)) == 13, (
+            f"Expected 13 MissionReviewDiagnostic members, "
             f"got {len(list(MissionReviewDiagnostic))}: {list(MissionReviewDiagnostic)}"
         )

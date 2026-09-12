@@ -2,12 +2,86 @@
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import os
 import tempfile
 import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from stat import S_IMODE, S_ISDIR, S_ISREG
+
+
+#: Errnos that mean **absent** (or "not the kind of thing that could ever be a
+#: directory/file", e.g. a dangling symlink or a non-directory in the middle of
+#: a path) rather than **unreadable**. Reproduced from ``pathlib._ignore_error``
+#: (private, and 3.13 moved it out of the top-level namespace) rather than
+#: imported, for the same reason ``specify_cli.decisions.ownership`` reproduces
+#: it: replacing ``is_dir()``/``is_file()``/``exists()`` with a guarded
+#: ``stat()`` must not also change how genuinely absent-like failures are
+#: classified — only make ``EACCES`` observable instead of silently swallowed.
+_ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+_WRITE_BITS = 0o222
+
+#: The write bit for owner/group/other. A managed tree (e.g. skills set
+#: read-only by ``skills/installer._make_tree_read_only``) strips these, which
+#: makes the atomic ``replace`` in :func:`write_text_within_directory` fail with
+#: ``PermissionError`` (``[WinError 5]``) on Windows. Restoring the bit before
+#: the replace is the #3771 fix; the value mirrors
+#: ``runtime/generated_writer._WRITE_BITS``.
+_WRITE_BITS = 0o222
+
+
+def safe_is_dir(path: Path) -> bool:
+    """``Path.is_dir()``, but with ONE behaviour across interpreters, not three.
+
+    ``Path.is_dir()`` (and its siblings ``exists()``, ``is_file()``,
+    ``is_symlink()``) call ``stat()`` and swallow ``OSError`` — but not
+    identically everywhere: through Python 3.13 only the absent-like errnos
+    above were swallowed and ``EACCES`` propagated, while 3.14 rewrote the
+    predicates to swallow every ``OSError`` including ``EACCES``, so an
+    unreadable ancestor silently answers ``False`` ("not a directory") on 3.14
+    where every earlier interpreter raised. Measured (non-root euid, via a
+    symlink into a ``0o000`` directory) in
+    ``specify_cli.decisions.ownership``'s module docstring, which hit this
+    exact divergence three times before the pattern was generalized here.
+
+    This reproduces ``pathlib``'s own PRE-3.14 ``is_dir()`` — ``S_ISDIR(p.stat().st_mode)``
+    under ``except OSError: if not _ignore_error(e): raise`` — so the answer
+    is the same on every interpreter: ``False`` for absent-like failures
+    (``ENOENT``/``ENOTDIR``/``EBADF``/``ELOOP``), and the ``OSError`` (typically
+    ``EACCES``) is left to propagate for everything else, rather than being
+    laundered into a bare ``False`` that a caller cannot tell apart from
+    "not a directory".
+
+    Callers that want to *tolerate* an unreadable candidate (skip it, warn
+    about it, whatever the calling code's existing failure posture is) catch
+    ``OSError`` around the call themselves, exactly as they already had to on
+    3.11-3.13 before this helper existed — this only makes that requirement a
+    property of ``stat()`` itself instead of an accident of interpreter version.
+    """
+    try:
+        return S_ISDIR(path.stat().st_mode)
+    except OSError as exc:
+        if exc.errno in _ABSENT_ERRNOS:
+            return False
+        raise
+
+
+def safe_is_file(path: Path) -> bool:
+    """``Path.is_file()``, with the same one-behaviour-everywhere fix as :func:`safe_is_dir`.
+
+    See :func:`safe_is_dir` for the full rationale; this is its ``S_ISREG``
+    sibling for call sites asking "is this a regular file" rather than "is
+    this a directory".
+    """
+    try:
+        return S_ISREG(path.stat().st_mode)
+    except OSError as exc:
+        if exc.errno in _ABSENT_ERRNOS:
+            return False
+        raise
 
 
 def format_path(path: Path, relative_to: Path | None = None) -> str:
@@ -92,12 +166,27 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     safe_path = ensure_within_directory(path, root)
     safe_path.parent.mkdir(parents=True, exist_ok=True)
 
+    existing_mode: int | None = None
+    if safe_is_file(safe_path):
+        existing_mode = S_IMODE(safe_path.stat().st_mode)
+        # Best effort: Windows needs the target write bit cleared before an
+        # atomic replace, while POSIX can still replace it when chmod itself
+        # is denied but the parent directory is writable.
+        with contextlib.suppress(OSError):
+            safe_path.chmod(existing_mode | _WRITE_BITS)
+
     fd, temp_path = tempfile.mkstemp(dir=safe_path.parent, prefix=f".{safe_path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
             handle.write(content)
         Path(temp_path).replace(safe_path)
+        if existing_mode is not None:
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
     except Exception:
+        if existing_mode is not None:
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
         Path(temp_path).unlink(missing_ok=True)
         raise
     return safe_path
@@ -126,5 +215,7 @@ __all__ = [
     "ensure_within_directory",
     "write_text_within_directory",
     "safe_remove",
+    "safe_is_dir",
+    "safe_is_file",
     "get_platform",
 ]

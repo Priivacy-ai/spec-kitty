@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-23T04:33:44.112640Z",
+      "decision_id": "01M0PEAQ5G1VDR3CSJSV51SD8Y",
+      "final_answer": "Full consolidate on top-level *-references. Remove ALL context-sources.* fields; migrate the one live use (directives) onto directive-references (already authored by all 25 shipped profiles); extractor projects agent_profile DRG edges from the *-references surface; schema change + migration + update 25 shipped profiles. One canonical rationale-bearing DRG-provisioned delivery surface, zero dead fields. Research squad evidence: renderer reads *-references, context-sources.* is a redundant/inert second surface; additional/doctrine-layers have no edge shape.",
+      "input_key": "context_sources_strategy",
+      "mission_id": "01M0PE7E326XKYV2MCFP62X241",
+      "mission_slug": "doctrine-drg-silent-drop-boundary-01M0PE7E",
+      "opened_by": "cli",
+      "options": [
+        "replace-with-DRG-edges",
+        "remove-dead-fields",
+        "per-kind-mix",
+        "research-squad-to-decide"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should context-sources.{tactics,toolguides,styleguides,doctrine-layers,additional} be replaced by DRG edges/relationships, cleaned up/removed, or a per-kind mix?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T04:40:10.595118Z",
+      "resolved_by": null,
+      "slot_key": "specify.context-sources.projection-strategy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M0PE7E326XKYV2MCFP62X241",
+  "version": 1
+}

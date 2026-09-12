@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from collections.abc import Callable
-from datetime import datetime, UTC
+from kernel.clock import UTC, datetime, now_utc, parse_iso
 from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -43,10 +43,14 @@ from specify_cli.core.constants import (
     MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from specify_cli.status import Lane, StatusEvent
+from specify_cli.status import (
+    Lane,
+    StatusEvent,
+    event_sourced_review_result,
+    is_changes_requested,
+    to_artifact_verdict,
+)
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
-from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +86,13 @@ def _issue_matrix_evaluation(
         IssueMatrixVerdict,
         validate_issue_matrix,
     )
-    from specify_cli.tasks.issue_matrix import detect_issue_references
+    from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-    refs = detect_issue_references((spec_feature_dir or feature_dir) / SPEC_MD_FILENAME)
+    # WP08 T029/FR-004: discovery scans every PRIMARY-partition mission
+    # artifact (spec.md, plan.md, research.md, analysis-report.md,
+    # tasks/*.md, contracts/*.md) under the resolved primary dir, not
+    # spec.md alone.
+    refs = discover_issue_references(spec_feature_dir or feature_dir)
     result = validate_issue_matrix(feature_dir / "issue-matrix.md")
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = _issue_matrix_row_issues(result)
@@ -160,20 +168,28 @@ def _issue_matrix_approval_blocker(
     (mission merge/acceptance) ``in-mission`` is rejected: every issue must have
     reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
     ``deferred-with-followup``) before the mission lands.
+
+    Placement (coord-commit-integrity SURFACE A #1c): ``issue-matrix.md`` is a
+    COORD-partition kind, so the matrix is read from ``feature_dir`` — the
+    caller's topology-resolved read surface (the coordination worktree under
+    coord / lanes-with-coord topology; the primary dir when coord-less). There is
+    NO PRIMARY fallback: a PRIMARY fallback for a COORD kind was the split-brain
+    anti-pattern (a stale primary copy silently satisfying a stale/unfilled coord
+    matrix). ``primary_feature_dir`` is consulted ONLY for discovery (WP08
+    T029/FR-004: spec.md, plan.md, research.md, analysis-report.md,
+    tasks/*.md, contracts/*.md — all genuine PRIMARY-partition kinds) — to
+    detect the referenced issues.
     """
     spec_feature_dir = (
         primary_feature_dir
         if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists()
         else feature_dir
     )
-    spec_path = spec_feature_dir / SPEC_MD_FILENAME
-    if not spec_path.exists():
-        return None
 
     try:
-        from specify_cli.tasks.issue_matrix import detect_issue_references
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-        refs = detect_issue_references(spec_path)
+        refs = discover_issue_references(spec_feature_dir)
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
@@ -185,20 +201,24 @@ def _issue_matrix_approval_blocker(
     if not refs:
         return None
 
-    matrix_path = feature_dir / "issue-matrix.md"
-    if not matrix_path.exists():
-        if _primary_issue_matrix_satisfies(
-            primary_feature_dir=primary_feature_dir,
-            feature_dir=feature_dir,
-            spec_feature_dir=spec_feature_dir,
-            target_lane=target_lane,
-        ):
-            return None
+    # T043 (C-008 / B-1 fix): presence is a dir-based check
+    # (:func:`issue_matrix_artifact_present`), not a ``.md``-only
+    # ``.exists()`` — the prior precheck made a JSON-only mission (B3) hard-
+    # fail approval before ``_issue_matrix_evaluation`` (which already
+    # resolves JSON-first via WP05's canonical dir-based reader,
+    # :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`)
+    # ever ran.
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    if not issue_matrix_artifact_present(feature_dir):
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
             f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
             f"Referenced issues: {issue_list}\n"
-            f"Fill verdicts {_FILL_VERDICTS_HINT}."
+            f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
+            f"This file is normally scaffolded automatically. If it is missing, "
+            f"regenerate it: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}\n"
+            f"Schema and worked example: src/specify_cli/cli/commands/review/ERROR_CODES.md"
         )
 
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
@@ -209,13 +229,6 @@ def _issue_matrix_approval_blocker(
         unresolved_in_mission = []
 
     if result.passed and not missing_issues and not unresolved_in_mission:
-        return None
-    if _primary_issue_matrix_satisfies(
-        primary_feature_dir=primary_feature_dir,
-        feature_dir=feature_dir,
-        spec_feature_dir=spec_feature_dir,
-        target_lane=target_lane,
-    ):
         return None
 
     unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
@@ -240,32 +253,6 @@ def _issue_matrix_approval_blocker(
     for message in other_messages:
         lines.append(f"- {message}")
     return "\n".join(lines)
-
-
-def _primary_issue_matrix_satisfies(
-    *,
-    primary_feature_dir: Path | None,
-    feature_dir: Path,
-    spec_feature_dir: Path,
-    target_lane: Lane | None,
-) -> bool:
-    if primary_feature_dir is None or primary_feature_dir == feature_dir:
-        return False
-    if not (primary_feature_dir / "issue-matrix.md").exists():
-        return False
-
-    try:
-        result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
-            primary_feature_dir,
-            spec_feature_dir=spec_feature_dir,
-        )
-    except Exception as exc:  # noqa: BLE001 -- fallback must not hide real blockers
-        logger.debug("Could not evaluate primary issue-matrix fallback: %s", exc)
-        return False
-
-    if target_lane != Lane.DONE:
-        unresolved_in_mission = []
-    return result.passed and not missing_issues and not unresolved_in_mission
 
 
 # ---------------------------------------------------------------------------
@@ -303,60 +290,14 @@ def _self_review_fallback_option_error(
 # ---------------------------------------------------------------------------
 # Review-cycle verdict + status-flag helpers (verbatim move, WP06/T022)
 # ---------------------------------------------------------------------------
-
-
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
-def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
-    """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
-
-    Scans *wp_dir* for ``review-cycle-<N>.md`` files, picks the highest-numbered
-    one, and returns the ``verdict`` frontmatter value together with the artifact
-    path so callers can name the file in error messages.
-
-    Returns (None, None) when no review-cycle artifacts exist.
-    Returns (None, artifact_path) when the artifact exists but verdict is absent
-    or malformed.
-
-    If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
-    logged (but the value is still returned — callers decide what to do with it).
-    """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
-        return None, None
-    artifact = cycles[-1]
-    try:
-        text = artifact.read_text(encoding="utf-8")
-        frontmatter_str, _, _ = split_frontmatter(text)
-        if not frontmatter_str:
-            return None, artifact
-        verdict = extract_scalar(frontmatter_str, "verdict")
-        if verdict is not None and verdict not in _VALID_VERDICTS:
-            logger.warning(
-                "Warning: %s has unrecognized verdict '%s' — expected one of %s",
-                artifact.name,
-                verdict,
-                sorted(_VALID_VERDICTS),
-            )
-        return verdict, artifact
-    except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
-        return None, artifact
-
-
-def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict[str, object]) -> Path | None:
-    """Return the review-cycle artifact dir for a WP status row."""
-    wp_file = wp.get("file")
-    if isinstance(wp_file, str) and wp_file.endswith(".md"):
-        return tasks_dir / Path(wp_file).stem
-    wp_id = wp.get("id")
-    return tasks_dir / str(wp_id) if wp_id else None
+#
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003) retired
+# ``_get_latest_review_cycle_verdict`` (the frontmatter verdict reader) along
+# with its two now-dead private helpers, ``_review_cycle_number`` (the
+# review-cycle-filename sort key) and ``_review_artifact_dir_for_wp`` (the
+# tasks_dir-anchored artifact-dir resolver) -- neither has any remaining
+# caller anywhere in this repository once the verdict reader they existed to
+# support is gone.
 
 
 def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
@@ -366,7 +307,7 @@ def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime
         if event.wp_id != wp_id or not event.at:
             continue
         try:
-            parsed = datetime.fromisoformat(event.at)
+            parsed = parse_iso(event.at)
         except ValueError:
             continue
         parsed = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
@@ -375,17 +316,73 @@ def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime
     return latest
 
 
+def _apply_wp_review_verdict_flag(
+    wp: dict[str, object],
+    *,
+    wp_id: str,
+    feature_dir: Path,
+    stale_verdicts: list[dict[str, object]],
+) -> None:
+    """Annotate a single terminal-lane WP row with its event-sourced verdict
+    (FR-004/T024 -- repointed off ``review-cycle-N.md`` frontmatter onto
+    :func:`~specify_cli.status.event_sourced_review_result`, the WP05 collapse).
+
+    T064/FR-012: a damaged event-log ``review_result`` slot is folded into the
+    SAME ``stale_verdicts`` channel this module already returns (a
+    ``"damaged": True`` entry), rather than a new return slot -- this keeps
+    the 2-tuple return shape callers outside this WP's owned surface
+    (``tasks_status_cmd.py``) already unpack unchanged. **Absent** (no slot at
+    all -- an un-migrated mission, or a WP that never exited ``in_review``) is
+    NOT damage and raises no warning at all (mirrors the retired reader's
+    "no artifact yet" case).
+    """
+    lookup = event_sourced_review_result(feature_dir, wp_id)
+    if not lookup.slot_present:
+        return
+    if lookup.result is None:
+        # refuse (FR-012): the event log recorded a verdict transition for
+        # this WP but the ``review_result`` slot itself is damaged/malformed
+        # -- distinguishable from "no verdict at all" purely by
+        # ``slot_present``.
+        damaged_warning: dict[str, object] = {
+            "wp_id": wp_id,
+            "artifact": None,
+            "verdict": None,
+            "damaged": True,
+        }
+        stale_verdicts.append(damaged_warning)
+        wp["_damaged_verdict"] = True
+        wp["damaged_review_artifact"] = damaged_warning
+        return
+    if is_changes_requested(lookup.result.verdict):
+        stale_warning: dict[str, object] = {
+            "wp_id": wp_id,
+            "artifact": lookup.result.reference,
+            "verdict": to_artifact_verdict(lookup.result.verdict),
+        }
+        stale_verdicts.append(stale_warning)
+        wp["_stale_verdict"] = True
+        wp["stale_review_artifact"] = stale_warning
+
+
 def _apply_review_status_flags(
     work_packages: list[dict[str, object]],
     *,
-    tasks_dir: Path,
+    feature_dir: Path,
     events: list[StatusEvent],
     stall_threshold_minutes: int,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Annotate status rows with stale verdict and stalled-review warnings."""
+    """Annotate status rows with stale verdict, damaged verdict, and
+    stalled-review warnings.
+
+    ``feature_dir`` is the STATUS_STATE-authoritative mission dir (the event
+    log's home) -- WP05 (verdict-seam-write-unification-01KZ9Q35) repointed
+    this off a ``tasks_dir``-anchored ``review-cycle-N.md`` frontmatter glob
+    (:func:`_apply_wp_review_verdict_flag`).
+    """
     stale_verdicts: list[dict[str, object]] = []
     stalled_wps: list[dict[str, object]] = []
-    now = datetime.now(UTC)
+    now = now_utc()
 
     for wp in work_packages:
         wp_id = wp.get("id")
@@ -394,18 +391,9 @@ def _apply_review_status_flags(
 
         lane = wp.get("lane")
         if lane in (Lane.APPROVED, Lane.DONE):
-            wp_dir = _review_artifact_dir_for_wp(tasks_dir, wp)
-            if wp_dir is not None:
-                verdict, artifact = _get_latest_review_cycle_verdict(wp_dir)
-                if verdict == "rejected" and artifact is not None:
-                    stale_warning: dict[str, object] = {
-                        "wp_id": wp_id,
-                        "artifact": artifact.name,
-                        "verdict": verdict,
-                    }
-                    stale_verdicts.append(stale_warning)
-                    wp["_stale_verdict"] = True
-                    wp["stale_review_artifact"] = stale_warning
+            _apply_wp_review_verdict_flag(
+                wp, wp_id=wp_id, feature_dir=feature_dir, stale_verdicts=stale_verdicts
+            )
 
         if lane == Lane.IN_REVIEW:
             last_event_time = _latest_status_event_time(events, wp_id)
@@ -748,6 +736,50 @@ def _check_implementation_commit_present(
     return guidance
 
 
+def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
+    """Resolve the planning branch the lane kitty-specs guard measures against.
+
+    FR-009 / FR-010: reads the planning branch from meta.json — ``planning_base_
+    branch`` with precedence, else the meta ``target_branch`` (routed through the
+    single ``read_target_branch_from_meta`` authority per FR-008 / #2139). Returns
+    ``None`` for legacy missions without meta.json so callers fall back to the
+    lane base ref.
+
+    #3271: this ref is now the guard's DELTA base, not just the error-message
+    hint. In coord topology a lane legitimately inherits prior missions' committed
+    ``kitty-specs/**`` from the base and — via the recorded planning-commit merge
+    (ADR 2026-07-29-1 / #2993) — this mission's own planning artifacts. Both are
+    ancestors of the planning branch, so diffing the lane against it yields an
+    empty delta for that inherited content while still flagging genuine lane-
+    authored ``kitty-specs`` edits. The lane's coordination/mission base ref
+    (``check_branch``), by contrast, predates the inherited content and produced a
+    false positive on every transition.
+    """
+    try:
+        # FR-007 route: this site was INVISIBLE to the WP07 census, whose raw
+        # ``grep "load_meta("`` cannot see an aliased import. Routed onto the
+        # one fail-closed reader like every other divergent wrapper. The broad
+        # catch below is retained deliberately: it guards the two imports and
+        # BOTH readers (pre-existing best-effort contract -- the lane guard must
+        # still report contamination when the optional planning-branch metadata
+        # is unavailable).
+        from specify_cli.core.paths import load_meta_fail_closed as _load_meta_lggrd
+        from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
+
+        _meta = _load_meta_lggrd(feature_dir)
+        if _meta:
+            _planning = _meta.get("planning_base_branch")
+            if isinstance(_planning, str) and _planning:
+                return _planning
+            _target: str | None = _read_target_branch_lggrd(feature_dir)
+            return _target
+    except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
+        logger.debug(
+            "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
+        )
+    return None
+
+
 def _check_kitty_specs_contamination(
     *,
     worktree_path: Path,
@@ -758,32 +790,20 @@ def _check_kitty_specs_contamination(
     list_wp_branch_specs_changes_for_guard: Callable[..., list[str]],
 ) -> list[str] | None:
     """Block when kitty-specs/ files were committed on the lane branch."""
+    # #3271: measure the lane-hygiene delta against the PLANNING branch, not the
+    # lane's coordination/mission base ref (``check_branch``). See
+    # ``_resolve_planning_branch_for_lane_guard`` for why — inherited base content
+    # and the #2993-merged planning artifacts are ancestors of the planning
+    # branch, so they no longer false-positive. Legacy missions without meta.json
+    # fall back to ``check_branch`` (unchanged behaviour for the flat/legacy case).
+    _planning_branch = _resolve_planning_branch_for_lane_guard(feature_dir)
+    _guard_base = _planning_branch or check_branch
     contamination_files = list_wp_branch_specs_changes_for_guard(
         worktree_path=worktree_path,
-        base_branch=check_branch,
+        base_branch=_guard_base,
     )
     if not contamination_files:
         return None
-
-    # FR-009 / FR-010: resolve the planning branch from meta.json so
-    # the error message names the branch and gives a `git show` example.
-    # Falls back gracefully for legacy missions without meta.json.
-    # FR-008 / #2139: the target_branch half of this lookup routes through the
-    # single read_target_branch_from_meta authority rather than a raw
-    # `_meta.get("target_branch")` extraction; planning_base_branch keeps
-    # precedence exactly as before.
-    _planning_branch: str | None = None
-    try:
-        from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
-        from specify_cli.mission_metadata import load_meta as _load_meta_lggrd
-
-        _meta = _load_meta_lggrd(feature_dir)
-        if _meta:
-            _planning_branch = _meta.get("planning_base_branch") or _read_target_branch_lggrd(feature_dir)
-    except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
-        logger.debug(
-            "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
-        )
 
     guidance: list[str] = []
     guidance.append("Committed kitty-specs files on this lane branch:")
@@ -810,7 +830,7 @@ def _check_kitty_specs_contamination(
     guidance.append("")
     guidance.append(f"Clean the branch before moving to {target_lane}:")
     guidance.append(f"  cd {worktree_path}")
-    guidance.append(f"  git restore --source {check_branch} --staged --worktree -- {KITTY_SPECS_DIR}/")
+    guidance.append(f"  git restore --source {_guard_base} --staged --worktree -- {KITTY_SPECS_DIR}/")
     guidance.append('  git commit -m "chore: remove planning artifacts from lane branch"')
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
@@ -831,6 +851,9 @@ def _validate_worktree_state(
     behind_commits_touch_only_planning_artifacts: Callable[[Path, str, str], bool],
     filter_runtime_state_paths: Callable[[str], str],
     list_wp_branch_specs_changes_for_guard: Callable[..., list[str]],
+    workspace_override: ResolvedWorkspace | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
 ) -> tuple[bool, list[str]] | None:
     """Check 2 (software-dev): worktree currency + commit gates.
 
@@ -845,10 +868,13 @@ def _validate_worktree_state(
     # in tests that mock surrounding state), fall through to the legacy
     # worktree-existence checks below rather than hard-failing.
     workspace: ResolvedWorkspace | None
-    try:
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-    except (ValueError, FileNotFoundError):
-        workspace = None
+    if workspace_override is not None:
+        workspace = workspace_override
+    else:
+        try:
+            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        except (ValueError, FileNotFoundError):
+            workspace = None
 
     if workspace is not None and workspace.resolution_kind == "repo_root":
         return True, []
@@ -870,7 +896,7 @@ def _validate_worktree_state(
     # track. In the lane-only model this is usually the mission branch.
     target_branch = get_feature_target_branch(repo_root, mission_slug)
 
-    check_branch = review_currency_check_branch(
+    check_branch = review_base_ref or review_currency_check_branch(
         main_repo_root=main_repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
@@ -906,16 +932,17 @@ def _validate_worktree_state(
     if no_commit is not None:
         return False, no_commit
 
-    contamination = _check_kitty_specs_contamination(
-        worktree_path=worktree_path,
-        check_branch=check_branch,
-        feature_dir=feature_dir,
-        wp_id=wp_id,
-        target_lane=target_lane,
-        list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
-    )
-    if contamination is not None:
-        return False, contamination
+    if check_kitty_specs:
+        contamination = _check_kitty_specs_contamination(
+            worktree_path=worktree_path,
+            check_branch=check_branch,
+            feature_dir=feature_dir,
+            wp_id=wp_id,
+            target_lane=target_lane,
+            list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
+        )
+        if contamination is not None:
+            return False, contamination
 
     return None
 
@@ -927,6 +954,10 @@ def _validate_ready_for_review(
     force: bool,
     target_lane: str = "for_review",
     *,
+    effective_root: Path | None = None,
+    workspace_override: ResolvedWorkspace | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
     get_main_repo_root: Callable[[Path], Path],
     get_mission_type: Callable[[Path], str],
     get_feature_target_branch: Callable[[Path, str], str],
@@ -972,10 +1003,15 @@ def _validate_ready_for_review(
     # research.md / meta.json / spec.md all live on PRIMARY (not the coord husk).
     # resolve_feature_dir_for_mission (coord-aware) would return the STATUS-only
     # coord husk for coord-topology missions, where these planning artifacts are absent.
-    from mission_runtime import MissionArtifactKind  # late import — keeps cold-start cost low
+    from mission_runtime import (  # late import — keeps cold-start cost low
+        MissionArtifactKind,
+        placement_seam,
+    )
 
-    feature_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.RESEARCH
+    feature_dir = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).read_dir(
+        MissionArtifactKind.RESEARCH
     )
 
     # Detect mission type from feature's meta.json
@@ -984,7 +1020,7 @@ def _validate_ready_for_review(
     # Check 1: Uncommitted research artifacts in planning repo (applies to ALL missions)
     # Research artifacts live in kitty-specs/ which is in the planning repo, not worktrees
     research_guidance = _validate_research_artifacts(
-        main_repo_root=main_repo_root,
+        main_repo_root=effective_root or main_repo_root,
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,
@@ -1010,6 +1046,9 @@ def _validate_ready_for_review(
             behind_commits_touch_only_planning_artifacts=behind_commits_touch_only_planning_artifacts,
             filter_runtime_state_paths=filter_runtime_state_paths,
             list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
+            workspace_override=workspace_override,
+            review_base_ref=review_base_ref,
+            check_kitty_specs=check_kitty_specs,
         )
         if worktree_result is not None:
             return worktree_result
@@ -1023,13 +1062,18 @@ __all__ = [
     # _check_kitty_specs_contamination, _check_uncommitted_worktree_changes,
     # _check_worktree_health, _issue_matrix_diagnostic_lines,
     # _issue_matrix_evaluation, _issue_matrix_in_mission_rows,
-    # _issue_matrix_row_issues, _latest_status_event_time,
-    # _primary_issue_matrix_satisfies:
+    # _issue_matrix_row_issues, _latest_status_event_time:
     # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
-    # _review_artifact_dir_for_wp, _review_cycle_number,
+    # (_primary_issue_matrix_satisfies was DELETED — coord-commit-integrity
+    # SURFACE A #1c: a PRIMARY fallback for the COORD-partition issue-matrix was
+    # the split-brain anti-pattern.)
+    # (_review_artifact_dir_for_wp, _review_cycle_number,
+    # _get_latest_review_cycle_verdict were DELETED — WP05
+    # verdict-seam-write-unification-01KZ9Q35/FR-003: the frontmatter verdict
+    # reader and its two support helpers, retired in favour of
+    # ``event_sourced_review_result``.)
     # _validate_research_artifacts, _validate_worktree_state:
     # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
-    "_get_latest_review_cycle_verdict",
     "_issue_matrix_approval_blocker",
     "_self_review_fallback_option_error",
     "_validate_ready_for_review",

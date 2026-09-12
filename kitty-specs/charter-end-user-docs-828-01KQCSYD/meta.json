@@ -24,6 +24,7 @@
     "last_audit_date": null,
     "target_audience": "operators, upgraders, integrators, maintainers, docs contributors"
   },
+  "flattened": false,
   "friendly_name": "Charter End-User Docs Parity (#828)",
   "mission_id": "01KQCSYDGQN09RV05M6V8Q5H1B",
   "mission_number": null,
@@ -35,5 +36,6 @@
   "slug": "charter-end-user-docs-828-01KQCSYD",
   "source_issue": "https://github.com/Priivacy-ai/spec-kitty/issues/828",
   "status_phase": "1",
-  "target_branch": "main"
+  "target_branch": "main",
+  "topology": "lanes"
 }

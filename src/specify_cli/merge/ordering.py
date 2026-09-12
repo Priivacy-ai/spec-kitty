@@ -12,6 +12,7 @@ import: this module never imports the command shim.
 
 from __future__ import annotations
 
+import functools
 import logging
 from pathlib import Path
 
@@ -22,12 +23,17 @@ from specify_cli.core.dependency_graph import (
     detect_cycles,
     topological_sort,
 )
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.merge._constants import logger as _merge_logger
 from specify_cli.merge.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
 from specify_cli.merge.state import MergeState
 from specify_cli.mission_metadata import load_meta, write_meta
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 __all__ = [
     "get_merge_order",
@@ -38,8 +44,6 @@ __all__ = [
     "_already_baked",
     "_mark_mission_number_baked",
     "_is_assigned_mission_number",
-    "_compute_next_mission_number_or_none",
-    "_write_mission_number_to_branch",
     "_bake_mission_number_into_mission_branch",
     "_assign_planning_only_mission_number_if_needed",
 ]
@@ -102,10 +106,7 @@ def get_merge_order(
     # Check if we have any dependency info
     if not has_dependency_info(graph):
         # No dependency info - fall back to numerical order with warning
-        logger.warning(
-            "No dependency information found in WP frontmatter. "
-            "Falling back to numerical order (WP01, WP02, ...)."
-        )
+        logger.warning("No dependency information found in WP frontmatter. Falling back to numerical order (WP01, WP02, ...).")
         return sorted(wp_workspaces, key=lambda x: x[1])  # Sort by wp_id
 
     # Detect cycles - show full cycle path in error
@@ -114,10 +115,7 @@ def get_merge_order(
         # Format the cycle path clearly: WP01 → WP02 → WP03 → WP01
         cycle = cycles[0]
         cycle_str = " → ".join(cycle)
-        raise MergeOrderError(
-            f"Circular dependency detected: {cycle_str}\n"
-            "Fix the dependencies in the WP frontmatter to remove this cycle."
-        )
+        raise MergeOrderError(f"Circular dependency detected: {cycle_str}\nFix the dependencies in the WP frontmatter to remove this cycle.")
 
     # Topological sort
     try:
@@ -188,8 +186,11 @@ def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path
             continue
         try:
             identity = resolve_mission_identity(child)
-        except (ValueError, TypeError):
-            # Malformed mission_number — skip rather than crash the merge.
+        except (ValueError, TypeError, MissionMetaReadError):
+            # Malformed mission_number, or (landing-fold, PR #3155:
+            # resolve_mission_identity now routes through
+            # load_meta_fail_closed) a corrupt meta.json -- skip rather than
+            # crash the merge either way.
             logger.warning(
                 "Skipping mission %s during number assignment scan: malformed mission_number",
                 child.name,
@@ -249,6 +250,7 @@ def _mark_mission_number_baked(
         return
     merge_state.mission_number_baked = True
     from specify_cli.merge.state import save_state as _save_state
+
     _save_state(merge_state, main_repo)
 
 
@@ -271,6 +273,15 @@ def _compute_next_mission_number_or_none(
     """
     import subprocess as _subprocess
     import tempfile as _tempfile
+
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        _merge_logger.warning(
+            "Refusing mission_number assignment for unsafe mission_slug %r (traversal guard).",
+            mission_slug,
+        )
+        return None
 
     tmp_dir = _tempfile.mkdtemp(prefix="kitty-numassign-")
     tmp_path = Path(tmp_dir)
@@ -302,13 +313,13 @@ def _compute_next_mission_number_or_none(
             # merge-time numbering step; it falls through to normal assignment
             # below, matching the pre-existing non-dict-tolerant branch.
             target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
-            existing_on_target = (
-                target_meta.get("mission_number") if isinstance(target_meta, dict) else None
-            )
+            existing_on_target = target_meta.get("mission_number") if isinstance(target_meta, dict) else None
             if _is_assigned_mission_number(existing_on_target):
                 _merge_logger.debug(
                     "Mission %s already has mission_number=%d on target branch %s; no-op",
-                    mission_slug, existing_on_target, target_branch,
+                    mission_slug,
+                    existing_on_target,
+                    target_branch,
                 )
                 return None
 
@@ -339,6 +350,15 @@ def _write_mission_number_to_branch(
     """
     import subprocess as _subprocess
     import tempfile as _tempfile
+
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        _merge_logger.warning(
+            "Refusing to bake mission_number for unsafe mission_slug %r (traversal guard).",
+            mission_slug,
+        )
+        return False
 
     if not _has_branch_ref(main_repo, mission_branch):
         _merge_logger.warning(
@@ -379,8 +399,7 @@ def _write_mission_number_to_branch(
         meta_path = _compose_meta(mission_tmp_path, mission_slug)
         if path_is_under_worktrees(meta_path):
             _merge_logger.warning(
-                "Refusing to bake mission_number for %s: resolved meta path is under "
-                "%s (%s)",
+                "Refusing to bake mission_number for %s: resolved meta path is under %s (%s)",
                 mission_slug,
                 WORKTREES_DIR,
                 meta_path,
@@ -409,10 +428,7 @@ def _write_mission_number_to_branch(
 
         # T025 / FR-010 — idempotency check INSIDE the merge-state lock.
         existing_on_mission = meta_data.get("mission_number")
-        if (
-            _is_assigned_mission_number(existing_on_mission)
-            and existing_on_mission == next_number
-        ):
+        if _is_assigned_mission_number(existing_on_mission) and existing_on_mission == next_number:
             _merge_logger.info(
                 "mission_number=%d already present on mission branch %s for %s; skipping write (idempotency check)",
                 next_number,
@@ -461,14 +477,16 @@ def _write_mission_number_to_branch(
         ).stdout.strip()
         # Fast-forward the mission branch ref, resyncing any worktree (e.g.
         # the coordination worktree) that has it checked out (#1826 / AC-B2).
-        # Coordination status residue on the primary checkout is legitimate
-        # after a coord-branch write, so exclude it from the dirty gate
-        # (#1878 / FR-012) rather than abort the post-write ff-advance.
+        # Toolchain-generated churn (coordination status/matrix residue,
+        # spec-kitty's own bookkeeping) on the primary checkout is legitimate,
+        # so exclude it from the dirty gate via the single canonical churn
+        # owner (#1878 / #2795 / FR-012 / WP13-IC-07c) rather than abort the
+        # post-write ff-advance.
         advance_branch_ref(
             main_repo,
             mission_branch,
             new_sha,
-            coord_owned_filenames=COORD_OWNED_STATUS_FILES,
+            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
         )
         return True
     finally:
@@ -515,6 +533,24 @@ def _bake_mission_number_into_mission_branch(
     partial merge are responsible for clearing the flag (or running
     ``spec-kitty merge --abort``).
 
+    **coord-write-placement-closure-01KYCF83 WP09 (IC-08 / FR-009) design note:**
+    this function's detached-mission-branch-worktree mechanism was considered as
+    the wiring point for the birth-time runtime cutover (:func:`~specify_cli
+    .migration.runtime_state_cutover.cutover_mission`) — "the structural twin" —
+    but is deliberately NOT used for it. ``cutover_mission``'s sole ``status_phase``
+    writer (``_flip_phase``) resolves its write target via ``canonicalize_feature_dir``,
+    which follows ANY real worktree's ``.git`` pointer back to the canonical
+    main-repo root (confirmed via ``core.paths.resolve_canonical_root``). Because
+    planning artifacts (``meta.json``) already live on the target branch from
+    mission-creation time, that redirect would silently retarget the flip onto
+    ``main_repo``'s STALE pre-merge ``meta.json`` instead of the detached
+    mission-branch tip this function writes to — the exact same hazard this
+    function itself avoids by using ``compose_meta_json_path`` + direct
+    ``write_meta`` (never ``canonicalize_feature_dir``). The birth-cutover is
+    wired POST-target instead, in ``executor._run_birth_cutover`` (called from
+    ``_phase_record_done_and_project``); see ``tracers/design-decisions.md``
+    (IC-08) for the full analysis.
+
     **Retry safety**: the assignment always re-derives from the target tip.
     If a prior run assigned a number from a stale target and the push failed,
     re-running after ``git fetch`` sees the updated target and computes the
@@ -547,19 +583,13 @@ def _bake_mission_number_into_mission_branch(
         return None
 
     if dry_run:
-        console.print(
-            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
-        )
+        console.print(f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}")
         return None
 
-    if not _write_mission_number_to_branch(
-        main_repo, mission_branch, mission_slug, next_number, merge_state
-    ):
+    if not _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number, merge_state):
         return None
 
-    console.print(
-        f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}"
-    )
+    console.print(f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}")
     _merge_logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
     _mark_mission_number_baked(merge_state, main_repo)
 
@@ -580,10 +610,12 @@ def _assign_planning_only_mission_number_if_needed(
         main_repo,
         main_repo / KITTY_SPECS_DIR,
     )
-    meta = load_meta(feature_dir) or {}
+    # FR-007 route: a corrupt meta.json surfaces the typed
+    # ``MissionMetaReadError`` (never a raw ``ValueError``) and PROPAGATES --
+    # this is a ``route-unwrapped`` census site, so swallowing corruption here
+    # would silently overwrite an unreadable meta.json with a one-key dict.
+    meta = load_meta_fail_closed(feature_dir) or {}
     meta["mission_number"] = next_number
     write_meta(feature_dir, meta, validate=False)
-    console.print(
-        f"  [green]✓[/green] Assigned mission_number={next_number} on target branch"
-    )
+    console.print(f"  [green]✓[/green] Assigned mission_number={next_number} on target branch")
     return feature_dir / "meta.json"

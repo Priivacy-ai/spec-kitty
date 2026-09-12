@@ -29,11 +29,14 @@
       "execution_mode": "direct_repo",
       "reason": null,
       "review_ref": null,
+      "review_result": null,
       "evidence": null,
       "policy_metadata": null,
       "mission_id": "TESTMISSIONID12345678901234"
     },
-    "actions": ["from_lane_defaulted"],
+    "actions": [
+      "from_lane_defaulted"
+    ],
     "error": null,
     "generated_ids_after": null
   }

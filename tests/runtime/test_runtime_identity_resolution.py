@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_identity as identity
 from specify_cli.lanes.branch_naming import BranchIdentityUnresolved
@@ -21,33 +22,36 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_primary_runtime_feature_dir_delegates_to_read_path_resolver(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The moved body still composes via ``_canonicalize_primary_read_handle``
-    + ``primary_feature_dir_for_mission`` (#2091 fix) -- pinned against stubs
-    so this test does not depend on the real read-path resolver's internals."""
+    """The moved body composes via the kind-aware placement seam's PRIMARY leg
+    (#2091 fix) -- pinned against a stub seam so this test does not depend on
+    the real read-path resolver's internals.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035,
+    reconciliation sweep): this test predated WP07's own T032 routing of
+    ``_primary_runtime_feature_dir`` onto
+    ``placement_seam(...).read_dir(PRIMARY_METADATA)`` (see that function's
+    docstring) -- it was patching ``_canonicalize_primary_read_handle`` /
+    the (now-deleted) public wrapper, neither of which the routed body calls
+    any longer (a WP07 test-authoring gap, not a WP08 regression). Re-pointed
+    to patch the seam it actually calls.
+    """
     calls: dict[str, Any] = {}
 
-    def _fake_canonicalize(repo_root: Path, mission_slug: str) -> str:
-        calls["canonicalize"] = (repo_root, mission_slug)
-        return f"canonical-{mission_slug}"
+    class _StubSeam:
+        def __init__(self, repo_root: Path, mission_slug: str) -> None:
+            calls["seam_init"] = (repo_root, mission_slug)
 
-    def _fake_primary_dir(repo_root: Path, handle: str) -> Path:
-        calls["primary_dir"] = (repo_root, handle)
-        return repo_root / "kitty-specs" / handle
+        def read_dir(self, kind: object) -> Path:
+            calls["read_dir_kind"] = kind
+            return calls["seam_init"][0] / "kitty-specs" / calls["seam_init"][1]
 
-    monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver._canonicalize_primary_read_handle",
-        _fake_canonicalize,
-    )
-    monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
-        _fake_primary_dir,
-    )
+    monkeypatch.setattr("mission_runtime.placement_seam", _StubSeam)
 
     result = identity._primary_runtime_feature_dir(tmp_path, "my-slug")
 
-    assert calls["canonicalize"] == (tmp_path, "my-slug")
-    assert calls["primary_dir"] == (tmp_path, "canonical-my-slug")
-    assert result == tmp_path / "kitty-specs" / "canonical-my-slug"
+    assert calls["seam_init"] == (tmp_path, "my-slug")
+    assert calls["read_dir_kind"] is MissionArtifactKind.PRIMARY_METADATA
+    assert result == tmp_path / "kitty-specs" / "my-slug"
 
 
 def test_resolve_coordination_branch_returns_declared_branch_from_meta(

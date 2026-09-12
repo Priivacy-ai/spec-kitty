@@ -1,0 +1,11 @@
+source_id,type,locator,ref,retrieved_at,why_it_is_authoritative
+S-01,source-code,src/specify_cli/sync/batch.py:336-341,abca7ec96,2026-08-04,"The subject of the mission: _is_checkout_sync_enabled_for_batch, the event-drain gate still on Chain B"
+S-02,source-code,src/specify_cli/sync/routing.py:255-278,abca7ec96,2026-08-04,"Chain B entry point is_sync_enabled_for_checkout and its own fail-closed note"
+S-03,source-code,src/specify_cli/sync/body_upload.py:54-112,abca7ec96,2026-08-04,"Canonical replacement project_consents_to_hosted_sync; its docstring states Chain B is the wrong question and names the fresh-clone mechanism"
+S-04,source-code,src/specify_cli/sync/background.py:280-306,abca7ec96,2026-08-04,"Per-row consent precedent for the body drain, incl. the cwd-derived-answer defect statement"
+S-05,source-code,src/specify_cli/sync/runtime.py:196-250,abca7ec96,2026-08-04,"event_project_consents_to_publish: the per-event Chain A gate, plus the batching hazard warning at :227-229 and the false drain-coverage claim at :203-205"
+S-06,source-code,src/specify_cli/sync/runtime.py:75-166,abca7ec96,2026-08-04,"The auto-start decision containing :106, and _read_project_auto_start's binding auto-start-is-not-consent statement"
+S-07,source-code,src/specify_cli/sync/consent.py:694,abca7ec96,2026-08-04,"Chain A: consented_project_uuids, the single declared consent seam"
+S-08,source-code,src/specify_cli/sync/queue.py:55;:325-326;:651;:1029-1048;:1570,abca7ec96,2026-08-04,"Queue schemas: event table has no project_uuid column, body table does; dotted-path identity resolver; drain_queue"
+S-09,issue,Priivacy-ai/spec-kitty#3167,n/a,2026-08-04,"The filed follow-up defining the mission's scope claim"
+S-10,source-code,tests/sync/_leak_guard.py:333-423,abca7ec96,2026-08-04,"The 12 pinned leaks; :371/:389/:395 are the 3 in files this mission owns (hazard H1)"

@@ -54,8 +54,16 @@ __all__ = [
 ]
 
 
-DEFAULT_REFERENCE_PATH: Final[str] = "docs/reference/cli-commands.md"
-DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/reference/agent-subcommands.md"
+# The canonical CLI reference pages live under docs/api/. docs/reference/ was
+# retired for them by Mission B WP16 — check_docs_freshness.py's sibling
+# constants were repointed then; these two (and the pair in
+# check_cli_reference_freshness.py) were missed. Left at docs/reference/, a bare
+# invocation does not fail loudly: it silently WRITES duplicate, untracked
+# cli-commands.md / agent-subcommands.md into the still-existing docs/reference/
+# tree (which legitimately holds agent_profiles/), while the real pages under
+# docs/api/ go stale and the freshness gate reds on REF-MISSING.
+DEFAULT_REFERENCE_PATH: Final[str] = "docs/api/cli-commands.md"
+DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/api/agent-subcommands.md"
 
 BEGIN_MARKER: Final[str] = "<!-- BEGIN GENERATED -->"
 END_MARKER: Final[str] = "<!-- END GENERATED -->"
@@ -154,21 +162,10 @@ class RenderedSection:
 def render_section(entry: CommandPathEntry, help_text: str) -> RenderedSection:
     """Render a single markdown section for ``entry`` with normalized help."""
     title = "spec-kitty " + " ".join(entry.path)
-    deprecated_banner = (
-        "> **Deprecated**: " + (entry.help_summary or "this command is deprecated") + "\n\n"
-        if entry.deprecated
-        else ""
-    )
-    summary_line = (
-        f"_{entry.help_summary}_\n\n" if entry.help_summary and not entry.deprecated else ""
-    )
-    body = (
-        f"## {title}\n\n"
-        f"{deprecated_banner}{summary_line}"
-        "```\n"
-        f"{help_text.rstrip()}\n"
-        "```\n"
-    )
+    internal_banner = "> **Internal**: hidden from the default `--help` output.\n\n" if entry.hidden else ""
+    deprecated_banner = "> **Deprecated**: " + (entry.help_summary or "this command is deprecated") + "\n\n" if entry.deprecated else ""
+    summary_line = f"_{entry.help_summary}_\n\n" if entry.help_summary and not entry.deprecated else ""
+    body = f"## {title}\n\n{internal_banner}{deprecated_banner}{summary_line}```\n{help_text.rstrip()}\n```\n"
     return RenderedSection(
         path=entry.path,
         kind=entry.kind,
@@ -189,10 +186,7 @@ def render_document(
         parts.append(section.body)
     if include_hidden_sections:
         parts.append("## Internal / hidden commands\n")
-        parts.append(
-            "> The following commands are hidden from the default `--help` "
-            "output but documented here for internal reference.\n\n"
-        )
+        parts.append("> The following commands are hidden from the default `--help` output but documented here for internal reference.\n\n")
         for section in include_hidden_sections:
             parts.append(section.body)
     return "\n".join(parts).rstrip() + "\n"
@@ -211,9 +205,7 @@ def wrap_with_markers(generated: str, *, existing: str | None) -> str:
     if BEGIN_MARKER in existing and END_MARKER in existing:
         before, _, rest = existing.partition(BEGIN_MARKER)
         _, _, after = rest.partition(END_MARKER)
-        return before.rstrip() + ("\n\n" if before.strip() else "") + new_block + (
-            "\n" + after.lstrip() if after.strip() else ""
-        )
+        return before.rstrip() + ("\n\n" if before.strip() else "") + new_block + ("\n" + after.lstrip() if after.strip() else "")
     return existing.rstrip() + "\n\n" + new_block
 
 
@@ -275,7 +267,7 @@ def partition_paths(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="build_cli_reference",
-        description="Build docs/reference/cli-commands.md from the live Typer surface.",
+        description="Build docs/api/cli-commands.md from the live Typer surface.",
     )
     parser.add_argument(
         "--output",
@@ -353,9 +345,7 @@ def _classification_table(entries: Sequence[CommandPathEntry]) -> str:
             continue
         status = "deprecated" if e.deprecated else "hidden"
         summary = e.help_summary.replace("|", "\\|")
-        rows.append(
-            f"| `spec-kitty {' '.join(e.path)}` | {e.kind} | {status} | {summary} |"
-        )
+        rows.append(f"| `spec-kitty {' '.join(e.path)}` | {e.kind} | {status} | {summary} |")
     return "\n".join(rows) + "\n"
 
 
@@ -406,10 +396,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if _os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        sys.stderr.write(
-            "BUILD-ENV-MISSING-SAAS-SYNC\n  SPEC_KITTY_ENABLE_SAAS_SYNC=1 must "
-            "be set before import.\n"
-        )
+        sys.stderr.write("BUILD-ENV-MISSING-SAAS-SYNC\n  SPEC_KITTY_ENABLE_SAAS_SYNC=1 must be set before import.\n")
         return 3
 
     # Import the live typer surface (lazy to keep the script importable
@@ -430,18 +417,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     entries = walk(app)
 
-    main_entries, agent_entries, hidden_entries = partition_paths(
-        entries, include_hidden=args.include_hidden
-    )
+    main_entries, agent_entries, hidden_entries = partition_paths(entries, include_hidden=args.include_hidden)
 
     repo_root = args.repo_root.resolve()
     if not args.dry_run and not args.force:
         for target in (args.output, args.agent_output):
             if is_target_dirty(target, repo_root=repo_root):
-                sys.stderr.write(
-                    f"BUILD-TARGET-DIRTY  {target}\n  Target has uncommitted "
-                    "edits. Stash, commit, or pass --force.\n"
-                )
+                sys.stderr.write(f"BUILD-TARGET-DIRTY  {target}\n  Target has uncommitted edits. Stash, commit, or pass --force.\n")
                 return 3
 
     _generate_for_target(
@@ -466,10 +448,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     visible_count = len([e for e in entries if not e.hidden])
     hidden_count = len([e for e in entries if e.hidden])
     deprecated_count = len([e for e in entries if e.deprecated])
-    sys.stderr.write(
-        f"build_cli_reference: visible={visible_count} hidden={hidden_count} "
-        f"deprecated={deprecated_count} mode={args.mode}\n"
-    )
+    sys.stderr.write(f"build_cli_reference: visible={visible_count} hidden={hidden_count} deprecated={deprecated_count} mode={args.mode}\n")
     return 0
 
 

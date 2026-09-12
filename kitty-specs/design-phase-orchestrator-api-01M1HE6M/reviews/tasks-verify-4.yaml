@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: "All three next_cmd.py citations in WP01 (line 70 prose, line 119 subtask title, line 217 DoD item) now read :425, matching the live grep of 'type: ignore[arg-type]' in next_cmd.py which returns exactly one hit at line 425; no residual :424 citation remains in the tasks-phase artifacts."
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: "tasks.md mission-note 3 and all five affected WPs (WP03/04/05/06/08) now state PR #3826 merged into main on 2026-09-02 in past tense with no future-conditional ('if #3826 lands') phrasing remaining, and no rebase/merge git operation was added as a task — only descriptive re-verification language, consistent with remediation option (b)."

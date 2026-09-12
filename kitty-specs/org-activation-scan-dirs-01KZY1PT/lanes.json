@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "org-activation-scan-dirs-01KZY1PT",
+  "mission_id": "01KZY1PTVN277Y88FBC7SWZZ9W",
+  "mission_branch": "kitty/mission-org-activation-scan-dirs-01KZY1PT",
+  "target_branch": "pr/org-activation-scan-dirs",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/kind_vocabulary.py",
+        "tests/charter/test_kind_vocabulary_scan_roots.py",
+        "tests/charter/test_org_scan_dirs_activation_regression.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-13T19:57:09.252929+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

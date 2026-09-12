@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
 from runtime.next.runtime_bridge import (
     _normalize_action_for_composition,
     _should_dispatch_via_composition,
@@ -49,21 +50,33 @@ _RESEARCH_ACTIONS = ["scoping", "methodology", "gathering", "synthesis", "output
 def _inject_mission_type_repository_mock(
     mock_repo: MagicMock,
 ) -> dict:
-    """Inject a mock MissionTypeRepository into sys.modules and return cleanup dict."""
-    mock_repo_cls = MagicMock()
-    mock_repo_cls.default.return_value = mock_repo
+    """Inject a mock ``resolve_layered_mission_types`` into sys.modules.
 
-    fake_pkg = types.ModuleType("doctrine.missions")
-    fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
-    fake_module.MissionTypeRepository = mock_repo_cls  # type: ignore[attr-defined]
+    WP04 (mission up-mission-type-seam-01KZY1JB): ``_resolve_action_slot``
+    calls ``charter.offering.missions.mission_type_repository.resolve_layered_mission_types``
+    (WP03's layered factory), not ``MissionTypeRepository.default()`` -- a
+    repository-call swap. *mock_repo* already exposes the ``.get(id)``
+    interface the returned roster needs, so it doubles as the fake factory's
+    return value unchanged.
+
+    Mirrors ``tests/charter/test_action_sequence_dispatch.py``'s helper of the
+    same name; both must move together.
+
+    Returns saved_modules for cleanup.
+    """
+    mock_resolve_layered = MagicMock(return_value=mock_repo)
+
+    fake_pkg = types.ModuleType("charter.offering.missions")
+    fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
+    fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved: dict = {}
-    for key in ("doctrine.missions", "doctrine.missions.mission_type_repository"):
+    for key in ("charter.offering.missions", "charter.offering.missions.mission_type_repository"):
         saved[key] = sys.modules.get(key)
 
-    if "doctrine.missions" not in sys.modules:
-        sys.modules["doctrine.missions"] = fake_pkg
-    sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+    if "charter.offering.missions" not in sys.modules:
+        sys.modules["charter.offering.missions"] = fake_pkg
+    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
     return saved
 
 
@@ -73,6 +86,22 @@ def _restore_modules(saved: dict) -> None:
             sys.modules.pop(key, None)
         else:
             sys.modules[key] = val
+
+
+def _provision_mission_type_activation(repo_root: Path) -> None:
+    """Provision ``mission_type_activations`` for a bare ``tmp_path`` repo.
+
+    WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    authority, so ``resolve_mission_type_context`` fails closed on a repo
+    root with no ``.kittify/config.yaml`` at all. These tests exercise the
+    REAL resolution path (not a mocked ``existing_mission_types``), so they
+    need a genuine activation record on disk.
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +119,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_specify_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'specify' lane dispatches via composition (not legacy DAG)."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -100,7 +129,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_plan_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'plan' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -110,7 +139,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_tasks_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'tasks' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -120,7 +149,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_implement_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'implement' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -130,7 +159,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_review_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'review' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -143,7 +172,7 @@ class TestSoftwareDevDispatchNFR002:
     ) -> None:
         """Parametrized gate: all five software-dev actions return True."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -178,7 +207,7 @@ class TestFrozensetsDeletion:
             return types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS)
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=_record_call,
         ):
             result = _should_dispatch_via_composition(
@@ -212,7 +241,7 @@ class TestLegacyTasksNormalization:
     def test_legacy_tasks_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """tasks_outline / tasks_packages / tasks_finalize normalize to 'tasks'."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             for legacy_id in ("tasks_outline", "tasks_packages", "tasks_finalize"):
@@ -231,10 +260,10 @@ class TestGracefulDegradation:
 
     def test_unknown_mission_type_returns_false(self, tmp_path: Path) -> None:
         """An unknown mission type causes degradation to False (not a crash)."""
-        from charter.mission_type_profiles import UnknownMissionTypeError
+        from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=UnknownMissionTypeError("unknown-type"),
         ):
             result = _should_dispatch_via_composition(
@@ -273,44 +302,72 @@ class TestPerformance:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ):
-                from charter.mission_type_profiles import resolve_mission_type_context
+                from charter.activation.mission_type_profiles import resolve_mission_type_context
+
+                # Warm the import cache.
+                resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+                result = resolve_mission_type_context(
+                    tmp_path, mission_type="software-dev"
+                ).action_sequence
+        finally:
+            _restore_modules(saved)
+
+        assert result == _SW_DEV_ACTIONS
+
+    @pytest.mark.performance
+    def test_resolve_mission_type_context_under_100ms(self, tmp_path: Path) -> None:
+        """charter.resolve_mission_type_context(repo_root, mission_type='software-dev') < 100ms."""
+        # Build a mock repo that returns immediately (no I/O).
+        sw_dev = MagicMock()
+        sw_dev.id = "software-dev"
+        sw_dev.action_sequence = _SW_DEV_ACTIONS
+        sw_dev.extends = None
+
+        mock_repo = MagicMock()
+        mock_repo.get.side_effect = lambda k: sw_dev if k == "software-dev" else None
+        saved = _inject_mission_type_repository_mock(mock_repo)
+
+        try:
+            with patch(
+                "charter.activation.mission_type_profiles.existing_mission_types",
+                return_value=["documentation", "plan", "research", "software-dev"],
+            ):
+                from charter.activation.mission_type_profiles import resolve_mission_type_context
 
                 # Warm the import cache.
                 resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
                 # Time the second (warm) call.
                 start = time.monotonic()
-                result = resolve_mission_type_context(
+                resolve_mission_type_context(
                     tmp_path, mission_type="software-dev"
-                ).action_sequence
+                )
                 elapsed_ms = (time.monotonic() - start) * 1000
         finally:
             _restore_modules(saved)
 
-        assert result == _SW_DEV_ACTIONS
-        assert elapsed_ms < 100, (
-            f"charter.resolve_mission_type_context took {elapsed_ms:.1f}ms — exceeds 100ms NFR-001 budget"
-        )
+        assert_timing_budget(elapsed_ms, 100, name="resolve_mission_type_context NFR-001")
 
 
 class TestNFR001LazyGovernanceBoundary:
     """NFR-001: the real hot path never triggers action-grain I/O (WP05).
 
     The previous NFR-001 gate here (``test_pack_context_from_config_p99_under_100ms``)
-    timed ``charter.pack_context.PackContext.from_config()`` — a function that
-    never calls :func:`~charter.mission_type_profiles.resolve_mission_type_context`
+    timed ``charter.activation.pack_context.PackContext.from_config()`` — a function that
+    never calls :func:`~charter.activation.mission_type_profiles.resolve_mission_type_context`
     or ``load_action_index`` at all, so it could never regress under the budget
     it claimed to protect. It is replaced with a direct spy over the ACTUAL
     disk-reading call the budget exists for:
-    ``charter.mission_type_profiles.aggregate_action_grain`` (imported from
-    :mod:`charter.action_grain`), which the ``governance_thunk`` built by
+    ``charter.activation.mission_type_profiles.aggregate_action_grain`` (imported from
+    :mod:`charter.activation.action_grain`), which the ``governance_thunk`` built by
     ``_resolve_governance_slot`` invokes lazily behind
     ``ResolvedMissionType.governance``'s ``@cached_property`` — and which
     transitively fans out to
-    :func:`doctrine.missions.action_index.load_action_index` for every action
+    :func:`charter.offering.missions.action_index.load_action_index` for every action
     a mission type ships.
 
     ``TestPerformance.test_resolve_mission_type_context_within_100ms`` above
@@ -323,10 +380,11 @@ class TestNFR001LazyGovernanceBoundary:
         self, tmp_path: Path
     ) -> None:
         """The real production hot path (``.action_sequence`` only) does zero action-grain I/O."""
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
+        _provision_mission_type_activation(tmp_path)
         with patch(
-            "charter.mission_type_profiles.aggregate_action_grain"
+            "charter.activation.mission_type_profiles.aggregate_action_grain"
         ) as spy_aggregate:
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
             # This is the real hot path: runtime-next's FSM reads only
@@ -339,10 +397,11 @@ class TestNFR001LazyGovernanceBoundary:
         self, tmp_path: Path
     ) -> None:
         """Proves the lazy boundary is real: first ``.governance`` read DOES call it."""
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
+        _provision_mission_type_activation(tmp_path)
         with patch(
-            "charter.mission_type_profiles.aggregate_action_grain",
+            "charter.activation.mission_type_profiles.aggregate_action_grain",
             return_value={},
         ) as spy_aggregate:
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")

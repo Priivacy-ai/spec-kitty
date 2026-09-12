@@ -1,0 +1,62 @@
+{
+  "rows": {
+    "#3030": {
+      "evidence_ref": "Not reopened by this mission. Present only because 578a659162 / 4f8e4ca781 shipped the reset_token_manager() hardening as self-declared UNPROVEN. FR-009 resolved that claim in both directions with a DISCRIMINATING measurement -- per-site suppression 8/24/18/50/30, non-zero at every site, on a discriminating arm -- so the named floor (a null verdict from a mutant suppressing ZERO calls is void) was not reached. reset_token_manager() found NOT load-bearing; corrected docstrings verified at all five sites; the deletion clause was found unsatisfiable and recorded.",
+      "fr": [
+        "FR-009"
+      ],
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "Not reopened by this mission. Present only because 578a659162 / 4f8e4ca781 shipped the reset_token_manager() hardening as self-declared UNPROVEN. FR-009 resolves that claim in both directions and applies its own verdict. Expected verdict verified-already-fixed; falls back to deferred-with-followup if FR-009 cannot obtain a discriminating measurement -- which now has a named floor: a null verdict drawn from a run whose mutant suppressed ZERO calls is a finding about the mutant and is void, so it is not a discriminating measurement and the row falls back rather than closing on it. On that fallback the successor number goes in evidence_ref ITSELF: _issue_matrix.py:350-359 searches evidence_ref for '#NNN' or 'Follow-up:' and reads neither scope nor any WP note, so a handle recorded anywhere else reds the row. It may not remain in-mission at done.",
+      "source_file": "spec.md",
+      "title": "P0 sync/egress consent hardening (predecessor mission, PR #3098)",
+      "verdict": "verified-already-fixed",
+      "wp": "WP07"
+    },
+    "#3113": {
+      "evidence_ref": "Non-adoption IS the resolution, not a deferral. FR-013 landed the all-positional transport call as a stated completeness limit (limits 7->8); FR-014 landed both positional shapes as xfail(strict=True) pinned holes with case (B) named as the adoption gate; FR-015 took its own src/-wide count as a re-runnable test (1198 files, non-zero FPs) and that measurement is the recorded reason the matcher was left alone. C-006 rejects a tightening needing an author-chosen identifier regardless of count, so a declined tightening is a satisfied requirement. All three FRs close.",
+      "fr": [
+        "FR-013",
+        "FR-014",
+        "FR-015"
+      ],
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "Name the positional/no-headers= transport call as a stated completeness limit, grow the bite-test a second positional shape whose first argument is OUTSIDE _URL_ARG_NAMES (that case is the adoption gate), and tighten the matcher only at a measured zero false-positive cost. The src/-wide count was taken during planning: 5 false positives at >=3 positional args, so the tightening is expected to be declined and the shapes land as strict xfails. Expected verdict fixed -- non-adoption IS the resolution, not a deferral: FR-013's stated completeness limit lands, FR-014's two positional shapes land as xfail(strict=True) pinned holes, and FR-015's measured count is the recorded reason the matcher was left alone. All three FRs close, so the row closes as fixed even though no matcher line changed; C-006 rejects a tightening that needs an author-chosen identifier regardless of its count, so a declined tightening is a satisfied requirement rather than an outstanding one. Falls back to deferred-with-followup only if WP10 cannot obtain its OWN src/-wide count (the planning number is not a substitute -- a planning paragraph is not a measurement) or if its count returns zero and the scanner restructure is therefore funded but cannot be completed in-mission. On that fallback the successor number goes in evidence_ref ITSELF: _issue_matrix.py:350-359 searches evidence_ref for '#NNN' or 'Follow-up:' and reads neither scope nor any WP note, so a handle recorded anywhere else reds the row. It may not remain in-mission at done.",
+      "source_file": "spec.md",
+      "title": "egress-boundary guard misses all-positional transport calls",
+      "verdict": "fixed",
+      "wp": "WP10"
+    },
+    "#3115": {
+      "evidence_ref": "sync half deferred-with-followup: Follow-up: #3136 (producer named as CPython subprocess.Popen._wait POSIX busy-wait; call site unattributed). CLI half fixed by FR-002/FR-003. The whole row defers because the issue is one defect report and is not closed while one of its named affected tests is unexplained -- a green shard does not close it.",
+      "fr": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-004",
+        "FR-005",
+        "FR-006",
+        "FR-007",
+        "FR-009",
+        "FR-010",
+        "FR-011",
+        "FR-012",
+        "FR-016",
+        "FR-017",
+        "FR-018"
+      ],
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "CLI half re-scoped to the measured console render-width defect (rich returns (80,25) from the is_dumb_terminal branch before COLUMNS is read; uuids fold in an overflow=fold column). Sync half narrowed to the process-wide time.sleep patch. The pytest.ini timeout gap is FOLDED INTO THIS ISSUE by operator decision -- no separate issue exists; it is carried by FR-016, FR-017 and FR-018. FR-008 (the _isolated_home convergence) was CUT from this mission by operator decision after the post-plan squad and is carried by successor issue #3121 (OPEN, Priivacy-ai/spec-kitty), which inherits the measured equivalence-class evidence in notes/post-plan-squad-findings.md; #3121 is recorded here and in that notes file only -- issue_reference_discovery.py:42-50 scans spec.md, plan.md, research.md, analysis-report.md, tasks/*.md and contracts/*.md and scans neither notes/ nor this file, so naming it in a scanned artifact would mint a fourth mandatory matrix row this mission cannot resolve. Expected verdict fixed. This row spans 12 WPs across two halves, and the two halves do not resolve together: the CLI half (FR-001..FR-004, FR-009, FR-011), the /tmp artifact (FR-012) and the timeout gap (FR-016..FR-018) are bounded and land regardless. When the sync-half leg defers -- WP14 outcome B, FR-010's budget exhausted with the sleep-count cause unidentified -- the WHOLE row takes deferred-with-followup, not fixed: the issue is one defect report and it is not closed while one of its named affected tests is unexplained. A green shard does not close it (that is the exact path that produced 578a659162). On that fallback the WP14 successor number goes in evidence_ref ITSELF, alongside the merge commit for the landed halves: _issue_matrix.py:350-359 searches evidence_ref for '#NNN' or 'Follow-up:' and reads neither scope nor any WP note, so a handle recorded anywhere else reds the row. It may not remain in-mission at done.",
+      "source_file": "spec.md",
+      "title": "shard-parallel test-isolation flakiness in sync CLI/consent tests",
+      "verdict": "deferred-with-followup",
+      "wp": "WP14"
+    }
+  },
+  "schema_version": 1
+}

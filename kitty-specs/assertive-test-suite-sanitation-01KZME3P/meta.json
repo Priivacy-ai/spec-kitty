@@ -1,0 +1,19 @@
+{
+  "coordination_branch": "kitty/mission-assertive-test-suite-sanitation-01KZME3P",
+  "created_at": "2026-08-09T23:35:43.749023+00:00",
+  "flattened": false,
+  "friendly_name": "Assertive Test Suite Sanitation",
+  "mission_id": "01KZME3PVS904M4RA3V5RH7CQ6",
+  "mission_number": null,
+  "mission_slug": "assertive-test-suite-sanitation-01KZME3P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty maintainers need a smaller, faster, trustworthy suite. Every test must earn retention through a live contract or durable invariant and evidence that a relevant fault makes it fail; permanently skipped, dominated duplicate, obsolete, synthetic, spent-scaffold, or shape-pinning tests are retired.",
+  "purpose_tldr": "Delete tests that cannot realistically catch product or architectural regressions while preserving causal contract coverage.",
+  "slug": "assertive-test-suite-sanitation-01KZME3P",
+  "status_phase": "1",
+  "target_branch": "pr/assertive-test-suite-sanitation",
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T00:59:14.047551+00:00"
+}

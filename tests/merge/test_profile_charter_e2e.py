@@ -11,17 +11,17 @@ from typer.testing import CliRunner
 
 import pytest
 
-from doctrine.service import DoctrineService
+from charter.offering.service import DoctrineService
 from specify_cli.cli.commands.charter import app
-from charter.catalog import DoctrineCatalog
-from charter.compiler import compile_charter, write_compiled_charter
+from charter.activation.catalog import DoctrineCatalog
+from charter.activation.compiler import compile_charter, write_compiled_charter
 
-from charter.interview import (
+from charter.activation.interview import (
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
 )
-from charter.resolver import resolve_governance_for_profile
+from charter.activation.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.git_repo]
@@ -33,12 +33,22 @@ def _write_yaml(path: Path, data: dict[object, object]) -> None:
         yaml.dump(data, handle)
 
 
-def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_path: Path) -> None:
+def test_profile_aware_charter_compilation_resolves_transitive_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ``built_in_root`` still simulates the doctrine root ``resolve_doctrine_root``
+    # is patched to return below (missions/ and the synthetic graph.yaml -- both
+    # unrelated to the WP04 DoctrineService seam). The directive/tactic/
+    # styleguide/agent_profile content DoctrineService itself resolves lives in
+    # a SEPARATE flat ``packs/built-in/<kind>/`` tree, injected via
+    # SPEC_KITTY_PACKS_ROOT (the removed built_in_root= param's replacement).
     built_in_root = tmp_path / "doctrine"
+    packs_root = tmp_path / "packs"
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
     output_dir = tmp_path / "repo" / ".kittify" / "charter"
 
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "001-review.directive.yaml",
+        packs_root / "built-in" / "directives" / "001-review.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "REVIEW_FIRST",
@@ -51,7 +61,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "tactics" / "built-in" / "review-tactic.tactic.yaml",
+        packs_root / "built-in" / "tactics" / "review-tactic.tactic.yaml",
         {
             "schema_version": "1.0",
             "id": "review-tactic",
@@ -75,7 +85,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "review-style.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "review-style.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "review-style",
@@ -85,7 +95,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "002-interview.directive.yaml",
+        packs_root / "built-in" / "directives" / "002-interview.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "INTERVIEW_ONLY",
@@ -96,7 +106,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "reviewer.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "reviewer.agent.yaml",
         {
             "profile-id": "reviewer",
             "name": "Reviewer",
@@ -115,6 +125,20 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     )
     _write_yaml(
         built_in_root / "missions" / "software-dev" / "mission.yaml",
+        {
+            "name": "software-dev",
+            "description": "Software development mission.",
+        },
+    )
+    # Post `resolution-activation-foundation` (unified single-PACKS_ROOT read):
+    # ``MissionTemplateRepository.default_missions_root()`` now resolves the
+    # ``missions`` leaf from ``SPEC_KITTY_PACKS_ROOT`` (``packs/built-in/missions``),
+    # not the patched ``resolve_doctrine_root``. ``default_interview`` below reads
+    # it before the ``resolve_doctrine_root`` patch is even applied, so mirror the
+    # mission template under the packs root or it fails closed with
+    # ``MissionsRootNotFound``.
+    _write_yaml(
+        packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml",
         {
             "name": "software-dev",
             "description": "Software development mission.",
@@ -163,7 +187,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
 
-    doctrine_service = DoctrineService(built_in_root=built_in_root)
+    doctrine_service = DoctrineService()
     doctrine_catalog = DoctrineCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),
@@ -183,8 +207,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
 
     # Load the fixture graph explicitly so resolve_governance_for_profile
     # does not attempt to read the installed doctrine package.
-    from doctrine.drg.loader import load_graph, merge_layers
-    from doctrine.drg.validator import assert_valid
+    from charter.offering.drg.loader import load_graph, merge_layers
+    from charter.offering.drg.validator import assert_valid
 
     drg = merge_layers(load_graph(built_in_root / "graph.yaml"), None)
     assert_valid(drg)
@@ -202,8 +226,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     # the binding there.
     #
     # The compiler resolves the *built-in DRG graph* through a SECOND,
-    # deliberately-separate seam: ``doctrine.drg.loader.load_built_in_graph``
-    # (via ``built_in_graph_source`` -> ``files("doctrine")``). That seam does
+    # deliberately-separate seam: ``charter.offering.drg.loader.load_built_in_graph``
+    # (via ``built_in_graph_source`` -> ``files("charter.offering")``). That seam does
     # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
     # the dependency graph (C-004) and must not import upward. Without patching
     # it, the compiler's transitive walk loads the *installed* package graph,
@@ -211,10 +235,10 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
     # recorded as an unresolved reference. Patch it to the same synthetic graph
     # the resolver used so both seams agree.
     with patch(
-        "charter.compiler.resolve_doctrine_root",
+        "charter.activation.compiler.resolve_doctrine_root",
         return_value=built_in_root,
     ), patch(
-        "doctrine.drg.loader.load_built_in_graph",
+        "charter.offering.drg.loader.load_built_in_graph",
         return_value=drg,
     ):
         compiled = compile_charter(

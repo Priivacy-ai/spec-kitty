@@ -37,10 +37,12 @@
     },
     "WP04": {
       "actor": "agent-gamma",
+      "cancellation_reason": null,
       "force_count": 0,
       "lane": "canceled",
       "last_event_id": "01JFAA0000000000000000AAAA",
-      "last_transition_at": "2026-01-15T10:45:00+00:00"
+      "last_transition_at": "2026-01-15T10:45:00+00:00",
+      "reason_source": "synthetic"
     }
   }
 }

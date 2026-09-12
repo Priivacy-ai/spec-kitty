@@ -1,0 +1,472 @@
+schema_version: 1
+mission_id: 01M1V6E1A1Z8H2Y360MJHVKX5B
+mission_slug: upgrade-preview-mission-health-01M1V6E1
+mission_number: 199
+friendly_name: Upgrade preview reliability and mission corpus health
+mission_type: software-dev
+target_branch: codex/upgrade-preview-mission-health
+created_at: '2026-09-07T18:38:47.131274+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-07T18:38:47.131274+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-018
+- id: h-002
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-018
+- id: h-003
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-018
+- id: h-004
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-018
+not_helpful:
+- id: n-031
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-050
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-022
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-041
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-023
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-042
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-024
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-043
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-025
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-044
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-026
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-045
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-027
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-046
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-028
+  category: implementation
+  summary: WP08 needed 3 implementation cycles
+  evidence_refs:
+  - e-047
+  details: WP WP08 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-029
+  category: implementation
+  summary: WP09 needed 4 implementation cycles
+  evidence_refs:
+  - e-048
+  details: WP WP09 entered in_progress 4 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-030
+  category: implementation
+  summary: WP12 needed 2 implementation cycles
+  evidence_refs:
+  - e-049
+  details: WP WP12 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-010
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-030
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-013
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-031
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-014
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-032
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-015
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-033
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-016
+  category: process
+  summary: WP08 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-034
+  details: WP WP08 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-017
+  category: process
+  summary: WP09 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-035
+  details: WP WP09 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-018
+  category: process
+  summary: WP10 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-036
+  details: WP WP10 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-021
+  category: process
+  summary: WP10 used self-review fallback instead of independent review
+  evidence_refs:
+  - e-039
+  details: 'WP WP10 recorded 1 ReviewerSelfApproval event(s): user self-reviewed after intended reviewer adversarial-squad
+    failed (Workspace-credit dispatch failed repeatedly; operator explicitly directed inline completion.). Treat this as a
+    review-independence gap.'
+- id: n-019
+  category: process
+  summary: WP12 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-037
+  details: WP WP12 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-020
+  category: process
+  summary: WP13 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-038
+  details: WP WP13 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-019
+  details: WP WP02 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-020
+  details: WP WP03 was sent back from review to planning 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-021
+  details: WP WP04 was sent back from review to planning 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-022
+  details: WP WP05 was sent back from review to planning 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-023
+  details: WP WP06 was sent back from review to planning 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-024
+  details: WP WP07 was sent back from review to planning 1 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP08 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-025
+  details: WP WP08 was sent back from review to planning 2 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP09 required 3 rejection cycle(s) before approval
+  evidence_refs:
+  - e-026
+  details: WP WP09 was sent back from review to planning 3 time(s).
+- id: n-009
+  category: review_loop
+  summary: WP12 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP12 was sent back from review to planning 1 time(s).
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP09 (2x)
+  evidence_refs:
+  - e-040
+  details: WP WP09 required 2 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP01-preview-oracle.md
+- id: e-006
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP02-owner-assessment-contract.md
+- id: e-007
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP03-global-runtime-assessment.md
+- id: e-008
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP04-command-skill-effects.md
+- id: e-009
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP05-managed-skill-assessment.md
+- id: e-010
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP06-profile-projection-assessment.md
+- id: e-011
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP07-native-session-assessment.md
+- id: e-012
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP08-staged-bundle-assessment.md
+- id: e-013
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP09-charter-provisioning-preparation.md
+- id: e-014
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP10-upgrade-composition-reporting.md
+- id: e-015
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP11-corpus-recovery.md
+- id: e-016
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP12-archive-preservation-gate.md
+- id: e-017
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/tasks/WP13-integrated-preview-acceptance.md
+- id: e-018
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+- id: e-019
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VKZ7C2K7Z0AWFEJBP3490V
+- id: e-020
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W0ACHAS9C9A5PCZ454KTH2
+- id: e-021
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W2R344RA0HHNT7RZF105SK
+- id: e-022
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1WBYX5ZRF6KNR4RR85RZKSN
+- id: e-023
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W0SWGZHS1S1N3PZW3RXVBZ
+- id: e-024
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VVW8ZTK91G99T85B44EQ52
+- id: e-025
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1WQAX7EBTN8Y8A8ZGMCQXCJ..01M1WSKAJ9HQZ93E6A9D06C026
+- id: e-026
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VQGMKWMNF513HX11EP0Y9V..01M1W49A3D4SPR4SJVZ2XGCZAD
+- id: e-027
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W02BPWVZ2VCG2MA74HGD58
+- id: e-028
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VKZ7C2K7Z0AWFEJBP3490V
+- id: e-029
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W0ACHAS9C9A5PCZ454KTH2
+- id: e-030
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W2R344RA0HHNT7RZF105SK
+- id: e-031
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1WBYX5ZRF6KNR4RR85RZKSN
+- id: e-032
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W0SWGZHS1S1N3PZW3RXVBZ
+- id: e-033
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VVW8ZTK91G99T85B44EQ52
+- id: e-034
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1WQAX7EBTN8Y8A8ZGMCQXCJ..01M1WSKAJ9HQZ93E6A9D06C026
+- id: e-035
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1VQGMKWMNF513HX11EP0Y9V..01M1W49A3D4SPR4SJVZ2XGCZAD
+- id: e-036
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1Y9PP517WPA6Y3P4ZMB84C6
+- id: e-037
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W02BPWVZ2VCG2MA74HGD58
+- id: e-038
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1YCSNE2QRMD6HBQT301MTSZ..01M1YCWAWETD1V8PPN2RJJZ05G
+- id: e-039
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1Y9PR22BEZ6C26107A5STEA
+- id: e-040
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: 01M1W3DPYSGES2D2HFP377JXPK..01M1W49A3D4SPR4SJVZ2XGCZAD
+- id: e-041
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-042
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-043
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-044
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-045
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-046
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-047
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-048
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-049
+  kind: event_range
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/status.events.jsonl
+  range: implementation_cycles
+- id: e-050
+  kind: file
+  path: kitty-specs/upgrade-preview-mission-health-01M1V6E1/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

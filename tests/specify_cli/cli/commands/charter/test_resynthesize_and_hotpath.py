@@ -38,17 +38,19 @@ from textwrap import dedent
 from typing import Any
 from unittest.mock import Mock
 
+from charter.activation.interview import default_interview, write_interview_answers
+
 import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation_engine import promote_activations
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import CharterPackManager
+from charter.activation.activation_engine import promote_activations
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_manager import CharterPackManager
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
-from charter.charter_yaml_io import update_charter_yaml_section
+from charter.activation.charter_yaml_io import update_charter_yaml_section
 
 from tests.specify_cli.charter_preflight._fixtures import (
     init_git_repo,
@@ -68,7 +70,7 @@ pytestmark = [pytest.mark.git_repo]
 # the package-attribute level: ``import specify_cli...generate as X`` (or
 # ``from specify_cli...charter import generate``) resolves via attribute
 # traversal and would silently bind ``X`` to the FUNCTION, not the module --
-# patching that would never be seen by ``run_resynthesize_pipeline``'s lazy
+# patching that would never be seen by ``run_full_synthesize``'s lazy
 # ``from ...generate import generate as _generate`` (which reads the
 # submodule's OWN namespace via ``sys.modules``, not package-attribute
 # traversal). ``importlib.import_module`` returns the real submodule
@@ -95,10 +97,19 @@ _REAL_PARADIGM_STEM_B = "atomic-design"
 
 
 def _minimal_project(tmp_path: Path) -> Path:
-    """A minimal project with only ``.kittify/config.yaml`` (no charter bundle)."""
+    """A minimal project with only ``.kittify/config.yaml`` (no charter bundle).
+
+    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned
+    charter is the sole mission-type activation authority, so
+    ``PackContext.from_config`` fails closed when the key is absent.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("# empty config\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+    init_git_repo(tmp_path)
+    write_interview_answers(tmp_path / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     return tmp_path
 
 
@@ -140,8 +151,8 @@ def _seed_project_graph(repo: Path) -> Path:
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
-    ``doctrine.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
-    required) once ``charter.consistency_check``'s graph-kind-parity check
+    ``charter.offering.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
+    required) once ``charter.activation.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """
     graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
@@ -192,6 +203,7 @@ def _seed_synthesized_repo(
     it); it no longer drives freshness on its own.
     """
     init_git_repo(repo)
+    write_interview_answers(repo / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
     charter_dir = repo / ".kittify" / "charter"
@@ -199,11 +211,18 @@ def _seed_synthesized_repo(
     (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
     _write_references(charter_dir, ref_entries)
     charter_yaml_path = seed_charter_yaml(repo)
-    if activation:
-        # Bake the pre-mutation activation state into charter.yaml BEFORE the
-        # manifest is stamped, so the recomputed bundle hash covers it and the
-        # precondition reads ``fresh``.
-        update_charter_yaml_section(charter_yaml_path, "activation", activation)
+    # Bake the pre-mutation activation state into charter.yaml BEFORE the
+    # manifest is stamped, so the recomputed bundle hash covers it and the
+    # precondition reads ``fresh``. ``mission_type_activations`` is always
+    # baked (WP04, C-A1): the provisioned charter (here, this fixture's
+    # charter.yaml, which config.yaml's ``charter:`` pointer routes activation
+    # reads to) is the sole mission-type activation authority, so
+    # ``PackContext.from_config`` fails closed when the key is absent.
+    update_charter_yaml_section(
+        charter_yaml_path,
+        "activation",
+        {"mission_type_activations": ["software-dev"], **(activation or {})},
+    )
     seed_manifest(repo, built_in_only=False)
     _seed_project_graph(repo)
     # Migrated-project shape: config.yaml points at charter.yaml so activation
@@ -233,7 +252,7 @@ def _invoke(subcommand: str, project_root: Path, *args: str) -> Any:
 def _patch_synthesis_spies(monkeypatch: pytest.MonkeyPatch) -> tuple[Mock, Mock]:
     """Replace the real ``generate``/``charter_synthesize`` entry points with spies.
 
-    Patched on the SOURCE modules -- ``run_resynthesize_pipeline`` imports
+    Patched on the SOURCE modules -- ``run_full_synthesize`` imports
     them lazily (``from ...generate import generate as _generate``) inside
     its own body, so the patched object is what the lazy import resolves at
     call time.
@@ -292,7 +311,11 @@ def test_default_deactivate_triggers_zero_synthesis_calls(
 ) -> None:
     """``charter deactivate`` without ``--resynthesize`` never calls generate/synthesize."""
     project_root = _minimal_project(tmp_path)
-    _write_config(project_root, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
+    _write_config(
+        project_root,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
+        "mission_type_activations:\n  - software-dev\n",
+    )
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke("deactivate", project_root, "directive", _REAL_DIRECTIVE_STEM)
@@ -334,7 +357,11 @@ def test_deactivate_resynthesize_invokes_existing_pipeline_exactly_once(
 ) -> None:
     """``deactivate --resynthesize`` is symmetric with ``activate --resynthesize``."""
     project_root = _minimal_project(tmp_path)
-    _write_config(project_root, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
+    _write_config(
+        project_root,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
+        "mission_type_activations:\n  - software-dev\n",
+    )
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke(
@@ -471,10 +498,10 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
 ) -> None:
     """``promote_activations`` (upgrade migration + ``org_charter`` union) never synthesizes.
 
-    Structural by construction (``charter.activation_engine`` never imports
+    Structural by construction (``charter.activation.activation_engine`` never imports
     ``specify_cli`` -- C-001) -- this test locks that invariant in behavior,
     not just by inspection: the write path taken by ``spec-kitty upgrade``'s
-    ``m_unify_charter_activation`` migration and ``doctrine.org_charter``'s
+    ``m_unify_charter_activation`` migration and ``charter.offering.org_charter``'s
     ``required_*`` union both funnel through this exact function.
     """
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)

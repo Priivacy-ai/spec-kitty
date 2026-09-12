@@ -11,45 +11,32 @@ from __future__ import annotations
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
 )
-# ``primary_feature_dir_for_mission`` keeps an explicit ``as`` re-export: its
-# direct call site relocated to ``tasks_move_task`` in WP05
-# (tasks-py-degod-wave2-01KWH9EQ), but the module binding is a live patch seam
-# (``@patch("...agent.tasks.primary_feature_dir_for_mission")``,
-# test_pre30_guard_wiring) that the relocated ``_mt_issue_matrix_facts`` body
-# routes back through ``_tasks.<attr>``.
+# ``primary_feature_dir_for_mission`` re-export DELETED (read-side-seam-
+# primary-primitive-closure-01KYKMMT WP08, T037): its direct call site
+# relocated to ``tasks_move_task`` in WP05 (tasks-py-degod-wave2-01KWH9EQ),
+# and WP06 (T029) routed that relocated ``_mt_issue_matrix_facts`` call off
+# this wrapper onto ``mission_runtime.placement_seam(...).read_dir(SPEC)``
+# directly (WP06 also rewrote the ``test_tasks_move_task_seam.py``
+# interception test that pinned the old ``_tasks.<attr>`` route) — this
+# re-export had NO production caller left, kept alive only by
+# ``test_pre30_guard_wiring.py``'s vestigial patch seam (Ledger M15,
+# DIRECTIVE_041 PATCHWORK: production code kept alive by a test patch target,
+# not by any real caller). The public primitive itself is also deleted
+# (T035); this module has no substitute re-export to offer.
 # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: the kind-blind
 # ``resolve_feature_dir_for_mission`` re-export is RETIRED — its last two
 # direct call sites (``list_tasks`` / ``validate_workflow``, below) now route
 # through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
-from specify_cli.missions._read_path_resolver import (
-    primary_feature_dir_for_mission as primary_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
-import contextlib
 import logging
 import subprocess
-import traceback
-from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
+from kernel.clock import now_utc_stamp
 from specify_cli.cli.console import console
 from typing import Annotated
-
-# ``emit_error_logged`` keeps an explicit ``as`` re-export: its direct call
-# site relocated to ``tasks_move_task`` in WP05 (tasks-py-degod-wave2), but the
-# module binding is a live D7 patch seam routed back through ``_tasks.<attr>``.
-# ``emit_history_added`` likewise (WP08): ``add_history`` still calls it
-# directly here, AND the relocated ``_ms_emit_history`` (tasks_mark_status)
-# routes it back through ``_tasks.<attr>`` — a live patch seam
-# (``@patch("...agent.tasks.emit_history_added")``, ×10) that must stay an
-# explicit module export under ``mypy --strict`` no-implicit-reexport.
-from specify_cli.sync.events import (
-    emit_history_added as emit_history_added,
-    emit_error_logged as emit_error_logged,
-)
 
 # ``emit_status_transition_transactional`` keeps an explicit ``as`` re-export:
 # its direct adapter call site relocated to ``tasks_command_adapters`` in WP03
@@ -190,10 +177,11 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _VALID_VERDICTS as _VALID_VERDICTS,
     _apply_review_status_flags as _apply_review_status_flags,
-    # Explicit ``as`` re-export (WP02 mypy campsite fold): ``test_tasks.py``
-    # imports this from ``tasks``; the implicit re-export is an
-    # ``attr-defined`` error under ``mypy --strict``.
-    _get_latest_review_cycle_verdict as _get_latest_review_cycle_verdict,
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, out-of-map): the
+    # ``_get_latest_review_cycle_verdict`` re-export was DELETED here in
+    # lockstep with the underlying frontmatter-verdict-reader function's
+    # retirement in ``tasks_parsing_validation.py`` (FR-003) -- the compat
+    # symbol cannot be kept once its source no longer exists.
     _issue_matrix_approval_blocker as _issue_matrix_approval_blocker,
 )
 
@@ -321,6 +309,16 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _wp_branch_merged_into_target as _wp_branch_merged_into_target,
 )
 
+# WP05 (#3590): advisory authoring-time un-terminable-work detector. Pure matcher
+# lives in the owned ``tasks_authoring`` package; the ``check-terminability``
+# command below owns only the file I/O + rendering (FR-007/FR-008, C-005 — no
+# ``mission_finalize.py`` coupling).
+from specify_cli.tasks_authoring import (
+    TRIGGER_SET_VERSION,
+    PostIntegrationWarning,
+    scan_work_package,
+)
+
 # Re-exported lane helpers consumed by tests via
 # ``from ...agent.tasks import <name>`` even though tasks.py uses them only
 # indirectly; listed in ``__all__`` so the re-export is explicit (C-007).
@@ -353,7 +351,9 @@ logger = logging.getLogger(__name__)
 # and reads it back through ``_tasks.SPEC_MD_FILENAME`` (the WP05
 # ``UTC_SECOND_TIMESTAMP_FORMAT`` precedent).
 SPEC_MD_FILENAME = "spec.md"
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): UTC_SECOND_TIMESTAMP_FORMAT is now
+# defined once on the door (kernel.clock), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 app = typer.Typer(name="tasks", help="Task workflow commands for AI agents", no_args_is_help=True)
@@ -384,6 +384,17 @@ globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] =
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskArgs as _MoveTaskArgs,
     _MoveTaskState as _MoveTaskState,
+    _PostTransitionSideEffectFailure as _PostTransitionSideEffectFailure,
+    # coord-commit-integrity (#2861, FR-005): the lane->binding-role map helper
+    # extracted from the duplicated role maps at the move-task emit seam joins
+    # the family surface like every other native move-task def (identity
+    # re-export so ``@patch("...agent.tasks._binding_role_for_lane")`` keeps
+    # intercepting).
+    _binding_role_for_lane as _binding_role_for_lane,
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, T007): campsite
+    # extraction out of the cc=14 ``_mt_emit_runtime_state`` -- a genuine
+    # native def, so it joins the family surface like every other one.
+    _build_claim_review_override as _build_claim_review_override,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
     # coord event-path probe, the event-field shaper and the reviewer detector
@@ -400,6 +411,9 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # #2335: the for_review deliverable-recovery pair (lane porcelain parser +
     # pre-guard auto-commit) joins the family surface like every other def.
     _lane_deliverable_paths as _lane_deliverable_paths,
+    # write-path-integrity WP02 (#2549, FR-003): the Seam-A residue filter for
+    # the raw lane-deliverable commit joins the family surface like every other def.
+    _drop_lane_coord_residue as _drop_lane_coord_residue,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
     # WP06 (wp-runtime-state-eviction, FR-006/FR-008, T023): the god-write cut
@@ -425,10 +439,14 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_gather_late_facts as _mt_gather_late_facts,
     _mt_gather_review_facts as _mt_gather_review_facts,
     _mt_hop_actor as _mt_hop_actor,
+    _mt_hop_reason_source as _mt_hop_reason_source,
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
+    _mt_matches_owned_file as _mt_matches_owned_file,
+    _mt_owned_file_patterns as _mt_owned_file_patterns,
     _mt_persist_wp_file as _mt_persist_wp_file,
+    _mt_post_transition_diagnostic as _mt_post_transition_diagnostic,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
     _mt_pre_review_dirty_paths as _mt_pre_review_dirty_paths,
@@ -439,20 +457,58 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_env_disable_reason as _mt_pre_review_gate_env_disable_reason,
     _mt_pre_review_gate_metadata as _mt_pre_review_gate_metadata,
     _mt_pre_review_gate_skip_reason as _mt_pre_review_gate_skip_reason,
-    _mt_pre_review_gate_verdict as _mt_pre_review_gate_verdict,
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,
+    _mt_resolve_gate_baseline as _mt_resolve_gate_baseline,
     # #2816/IC-04 (runtime-state-corpus-cutover, WP05): the ownership-read reroute
     # onto the snapshot seam joins the family surface like every other native def
     # (the identity re-export the compat guard's superset invariant requires).
     _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
+    _mt_owned_workspace as _mt_owned_workspace,
+    _mt_preflight_owned_request as _mt_preflight_owned_request,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
+    _mt_resolve_owned_review_base as _mt_resolve_owned_review_base,
+    # fix(review): the --reviewer resolution shared by the rejected
+    # review-cycle artifact's frontmatter and the structured ReviewResult
+    # derivation joins the family surface like every other native move-task
+    # def (the compat guard's superset invariant requires it).
+    _mt_resolve_reviewer_identity as _mt_resolve_reviewer_identity,
     _mt_resolve_targets as _mt_resolve_targets,
+    _mt_require_owned_implementation as _mt_require_owned_implementation,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
+    # WP09 (doctrine-controlled-transition-gates-01KY51Z7): the inverted,
+    # doctrine-resolved transition gate + its thin-orchestrator helpers. The
+    # frozen compat surface superset invariant requires every natively-defined
+    # symbol's barrel line + tuple entry to move together (squad P-F1), so the
+    # whole extraction is re-exported here as identity re-exports.
+    _TransitionGateEffect as _TransitionGateEffect,
+    _TransitionGateInputs as _TransitionGateInputs,
+    _mt_build_transition_gate_context as _mt_build_transition_gate_context,
+    _mt_cancelled_verdict as _mt_cancelled_verdict,
+    _mt_collect_transition_gate_verdicts as _mt_collect_transition_gate_verdicts,
+    _mt_dispatch_one_gate as _mt_dispatch_one_gate,
+    _mt_dispatch_transition_gates as _mt_dispatch_transition_gates,
+    _mt_human_gate_status_observer as _mt_human_gate_status_observer,
+    _mt_emit_skipped_gate as _mt_emit_skipped_gate,
+    _mt_emit_transition_gate_effect as _mt_emit_transition_gate_effect,
+    # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
+    # dirty-path byproduct diff now enrols into the tool-artifact owner
+    # compensator — a native move-task seam def joining the surface like
+    # every other (the compat guard's superset invariant requires it).
+    _mt_enrol_gate_byproducts as _mt_enrol_gate_byproducts,
+    _mt_fail_open_gate as _mt_fail_open_gate,
+    _mt_gate_representative as _mt_gate_representative,
+    _mt_resolve_active_gate_bindings as _mt_resolve_active_gate_bindings,
+    _mt_resolve_scope_source as _mt_resolve_scope_source,
+    _mt_resolve_transition_gate_inputs as _mt_resolve_transition_gate_inputs,
+    _mt_resolve_transition_gate_verdicts as _mt_resolve_transition_gate_verdicts,
+    _mt_run_transition_gates as _mt_run_transition_gates,
+    _mt_translate_gate_verdicts as _mt_translate_gate_verdicts,
+    _mt_warn_pre_review_test_command_deprecated as _mt_warn_pre_review_test_command_deprecated,
     _mt_warn_worktree_kitty_specs as _mt_warn_worktree_kitty_specs,
     _pre_review_gate_composite_routing as _pre_review_gate_composite_routing,
     _pre_review_gate_filter_groups as _pre_review_gate_filter_groups,
@@ -469,9 +525,22 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_emit_runtime_state as _mt_emit_runtime_state,
     _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
     _mt_hop_policy_metadata as _mt_hop_policy_metadata,
+    # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
+    # hop's policy_metadata builder and the per-hop review_ref resolver —
+    # native move-task seam defs, so they join the family surface like every
+    # other one.
+    _mt_approval_policy_metadata as _mt_approval_policy_metadata,
+    _mt_hop_review_ref as _mt_hop_review_ref,
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
     _mt_shell_pid_baseline as _mt_shell_pid_baseline,
+    # #3578: the rollback-to-``planned`` operator signal (summary value object +
+    # its builder + the JSON/human emitters) — native defs, so they join the
+    # family surface like every other one.
+    _RollbackResetSummary as _RollbackResetSummary,
+    _mt_build_rollback_summary as _mt_build_rollback_summary,
+    _mt_apply_rollback_signal as _mt_apply_rollback_signal,
+    _mt_rollback_signal_lines as _mt_rollback_signal_lines,
 )
 
 
@@ -506,6 +575,9 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
     _map_requirements_feature_dir as _map_requirements_feature_dir,
     _mr_auto_commit as _mr_auto_commit,
     _mr_build_new_mappings as _mr_build_new_mappings,
+    # bare-prose-requirements-uncounted-01KZYV3C WP06 (#3396) T032a: the
+    # fail-loud bare-prose requirement-id detector wrapper _mr_plan calls.
+    _mr_detect_bare_prose_requirement_ids as _mr_detect_bare_prose_requirement_ids,
     _mr_emit_output as _mr_emit_output,
     _mr_gate_offenders as _mr_gate_offenders,
     _mr_plan as _mr_plan,
@@ -591,7 +663,16 @@ def move_task(
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
     review_feedback_file: Annotated[
-        Path | None, typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned, including with --force)")
+        Path | None,
+        typer.Option(
+            "--review-feedback-file",
+            help=(
+                "Path to review feedback file. Required for review-rejection edges "
+                "(--to planned, incl. with --force; and in_review->in_progress). "
+                "Recorded as the transition's on-wire review_ref rationale; omitting "
+                "it makes the status event contract-invalid and hosted sync drops it."
+            ),
+        ),
     ] = None,
     approval_ref: Annotated[str | None, typer.Option("--approval-ref", help="Approval reference for approval/done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[str | None, typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
@@ -642,14 +723,30 @@ def move_task(
             "--skip-pre-review-gate",
             help=(
                 "Skip the pre-review regression gate on a --to for_review move "
-                "(also honored via the SPEC_KITTY_SYNC_DISABLE / "
-                "SPEC_KITTY_SYNC_MINIMAL_IMPORT env vars). The gate still runs "
-                "and enforces by default."
+                "(also honored via the SPEC_KITTY_SKIP_PRE_REVIEW_GATE env "
+                "var). The gate still runs and enforces by default."
             ),
         ),
     ] = False,
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option(
+            "--owned-checkout",
+            help=(
+                "Use an owned single_branch checkout for the local review lifecycle "
+                "(force/skip, done, and arbiter modes unsupported)."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
+
+    Review-rejection edges (a backward move out of review — ``--to planned`` from
+    in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
+    carry a rationale: pass ``--review-feedback-file`` (or ``--note``). That
+    rationale is emitted as the status event's ``review_ref``/reason and is
+    required by the shared status contract; a rejection emitted without it is
+    accepted locally but silently rejected by hosted sync, so it never propagates.
 
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
@@ -688,6 +785,7 @@ def move_task(
             auto_commit=auto_commit,
             json_output=json_output,
             skip_pre_review_gate=skip_pre_review_gate,
+            owned_checkout=owned_checkout,
         )
     )
 
@@ -702,8 +800,7 @@ def move_task(
 # every patched seam symbol back through ``_tasks.<attr>`` (lazy in-function
 # import, research.md D1/D7), so ``@patch("...agent.tasks.<sym>")`` /
 # ``monkeypatch.setattr(tasks, ...)`` keep INTERCEPTING (incl. the heavy
-# ``feature_status_lock`` and ``emit_history_added`` seams,
-# ``_protected_branch_status_commit_error`` (C-001 REFUSE arm — no skip
+# ``feature_status_lock`` seam, ``_protected_branch_status_commit_error`` (C-001 REFUSE arm — no skip
 # pre-gate, harness label T005), ``_resolve_inline_subtasks`` (which stays
 # ``tasks.py``-resident below) and the port adapters constructed by the moved
 # ``_default_mark_status_ports``). The ``@app.command`` Typer wrapper below
@@ -717,8 +814,6 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _do_mark_status as _do_mark_status,
     _ms_apply_updates as _ms_apply_updates,
     _ms_commit as _ms_commit,
-    _ms_dossier_sync as _ms_dossier_sync,
-    _ms_emit_history as _ms_emit_history,
     _ms_emit_subtask_state as _ms_emit_subtask_state,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
@@ -732,6 +827,20 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     # (test_tasks_mark_status_seam.py) that ``_ms_apply_updates`` routes back
     # through ``_tasks.<attr>``.
     _resolve_inline_subtasks as _resolve_inline_subtasks,
+    # #2962 campsite fix: the fifth subtask-id resolver (authored `subtasks:`
+    # frontmatter roster) and the owning-WP helper the two event-emit sites
+    # share with it. Re-exported for the same reason as the straggler above —
+    # the consolidated compat guard requires every symbol natively defined in a
+    # seam module to appear in `tasks`' key-set, so a new helper that skips this
+    # block is invisible to the guard that exists to notice exactly that.
+    _resolve_authored_roster as _resolve_authored_roster,
+    owning_wp_from_authored_roster as owning_wp_from_authored_roster,
+    # #3865: the owned-mode error recovery was extracted out of
+    # ``_do_mark_status``'s inline ``except`` into two testable helpers. Same
+    # consolidated-compat-guard rule as the two rows above — every native
+    # def of the seam module appears in ``tasks``' key-set.
+    _reconstruct_applied_events as _reconstruct_applied_events,
+    _recovery_commit_sha as _recovery_commit_sha,
 )
 
 
@@ -740,6 +849,11 @@ def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option("--owned-checkout", help="Explicit single-branch checkout root."),
+    ] = None,
 
     auto_commit: Annotated[
         bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")
@@ -774,6 +888,7 @@ def mark_status(
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
+        owned_checkout=owned_checkout,
     )
 
 
@@ -805,9 +920,12 @@ def list_tasks(
         # Find all task files — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg
         # split — WP03 T010): WP task files live on the primary checkout regardless
         # of topology; a coord-topology mission's STATUS-only husk has no tasks/.
-        tasks_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        ) / "tasks"
+        tasks_dir = (
+            placement_seam(main_repo_root, mission_slug).read_dir(
+                MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
@@ -906,8 +1024,8 @@ def add_history(
         # Resolve through the kind-aware authority (resolution-authority gate:
         # add_history is a WRITE-classified function, so a kind-blind
         # resolve_feature_dir_for_mission here would be a coord-authority violation).
-        _ah_feature_dir = resolve_planning_read_dir(
-            _ah_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        _ah_feature_dir = placement_seam(_ah_main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.TASKS_INDEX
         )
         try:
             check_pre30_layout(_ah_feature_dir)
@@ -923,7 +1041,7 @@ def add_history(
         # through reconstruct_wp_view (the snapshot is the sole authority) --
         # rather than a bare extract_scalar, so this reader never bypasses the
         # snapshot-authority seam (#2093).
-        timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+        timestamp = now_utc_stamp()
         agent_name = agent or wp.agent or "unknown"
         shell_pid_val = shell_pid or wp.shell_pid or ""
 
@@ -937,17 +1055,6 @@ def add_history(
         updated_doc = build_document(wp.frontmatter, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
-        # Emit HistoryAdded event (T015 - FR-021)
-        try:
-            emit_history_added(
-                wp_id=task_id,
-                entry_type="note",
-                entry_content=note,
-                author=agent or "user",
-            )
-        except Exception as e:
-            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
-
         result = {"result": "success", "task_id": task_id, "note": note}
 
         _output_result(json_output, result, f"[green]✓[/green] Added history entry to {task_id}")
@@ -955,15 +1062,6 @@ def add_history(
     except typer.Exit:
         raise
     except Exception as e:
-        # Emit ErrorLogged event (T016)
-        with contextlib.suppress(Exception):
-            emit_error_logged(
-                error_type="runtime",
-                error_message=str(e),
-                wp_id=task_id if "task_id" in dir() else None,
-                stack_trace=traceback.format_exc(),
-                agent_id=agent if "agent" in dir() else None,
-            )
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None
 
@@ -1118,8 +1216,8 @@ def validate_workflow(
         # Resolve through the kind-aware authority (resolution-authority gate:
         # validate_workflow is WRITE-classified, so a kind-blind resolver here
         # would be a coord-authority violation).
-        _vw_guard_feature_dir = resolve_planning_read_dir(
-            _vw_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        _vw_guard_feature_dir = placement_seam(_vw_main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.TASKS_INDEX
         )
         try:
             check_pre30_layout(_vw_guard_feature_dir)
@@ -1193,14 +1291,6 @@ def validate_workflow(
     except typer.Exit:
         raise
     except Exception as e:
-        # Emit ErrorLogged event (T016)
-        with contextlib.suppress(Exception):
-            emit_error_logged(
-                error_type="validation",
-                error_message=str(e),
-                wp_id=task_id if "task_id" in dir() else None,
-                stack_trace=traceback.format_exc(),
-            )
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None
 
@@ -1266,8 +1356,8 @@ def list_dependents(
         # BOTH the boundary guard and the graph builder. The WP02 T013 proof establishes
         # the guard outcome is byte-identical across legs on a modern mission
         # (SC-002/NFR-001); the redundant second reassignment is removed.
-        feature_dir = resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.WORK_PACKAGE_TASK
         )
         # Boundary guard — hard-reject pre-3.0 layout before reading any WP (#1057)
         try:
@@ -1310,6 +1400,124 @@ def list_dependents(
                 console.print(f"\n[yellow]⚠️  Changes to {wp_id} may impact: {', '.join(dependents)}[/yellow]")
             console.print()
 
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1) from None
+
+
+# WP05 (#3590): guidance printed alongside a warning so the operator knows the
+# remedy — re-home the post-integration obligation, don't try to satisfy it in
+# the lane. Hoisted to a constant (Sonar S1192) so the human and any future
+# surface share one wording.
+_TERMINABILITY_GUIDANCE = (
+    "Re-home post-integration content to a tracked post-merge obligations "
+    "document; a work package's acceptance criteria must be verifiable in its "
+    "own diff."
+)
+
+
+def _collect_terminability_warnings(tasks_dir: Path) -> list[PostIntegrationWarning]:
+    """Read every WP file under ``tasks_dir`` and run the pure detector on each.
+
+    This is the I/O boundary for the advisory check: it maps each ``WP*.md`` to
+    its ``(wp_id, text)`` pair and delegates matching to
+    :func:`scan_work_package` (which stays pure). Warnings are returned in
+    (file, document) order.
+    """
+    warnings: list[PostIntegrationWarning] = []
+    for task_file in sorted(tasks_dir.glob("WP*.md")):
+        if task_file.name.lower() == "readme.md":
+            continue
+        content = task_file.read_text(encoding="utf-8-sig")
+        frontmatter, body, _ = split_frontmatter(content)
+        wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
+        warnings.extend(scan_work_package(wp_id, body))
+    return warnings
+
+
+def _render_terminability(
+    warnings: list[PostIntegrationWarning],
+    mission_slug: str,
+    json_output: bool,
+) -> None:
+    """Render advisory warnings (JSON envelope or human console). Never blocks."""
+    if json_output:
+        render = RealRender()
+        print(
+            render.json_envelope(
+                {
+                    "mission": mission_slug,
+                    "trigger_set_version": TRIGGER_SET_VERSION,
+                    "warnings": [w.to_dict() for w in warnings],
+                    "count": len(warnings),
+                    "guidance": _TERMINABILITY_GUIDANCE if warnings else None,
+                }
+            )
+        )
+        return
+    if not warnings:
+        console.print(
+            f"[green]✓[/green] No un-terminable-work warnings for {mission_slug}."
+        )
+        return
+    console.print(
+        f"[yellow]⚠️  {len(warnings)} un-terminable-work warning(s) for "
+        f"{mission_slug} (advisory — authoring is not blocked):[/yellow]\n"
+    )
+    for warning in warnings:
+        console.print(
+            f"  [bold]{warning.wp_id}[/bold] matched "
+            f"[cyan]{warning.matched_phrase!r}[/cyan]: {warning.criterion_excerpt}"
+        )
+    console.print(f"\n[dim]{_TERMINABILITY_GUIDANCE}[/dim]")
+
+
+@app.command(name="check-terminability")
+def check_terminability(
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Advisory scan for work packages that can only be terminated post-integration.
+
+    Warns when a WP's acceptance criteria contain a post-integration trigger
+    phrase (the #3590 trap) — content that cannot be verified in the WP's own
+    diff. This is **advisory only**: it never refuses or fails authoring
+    (FR-008) — it exits 0 even when warnings fire. It does not touch the
+    finalize / lane-compute path (C-005).
+
+    Examples:
+        spec-kitty agent tasks check-terminability --mission my-mission --json
+    """
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        mission_slug = _find_mission_slug(
+            explicit_mission=mission, json_output=json_output, repo_root=repo_root
+        )
+        main_repo_root, _ = _ensure_target_branch_checked_out(
+            repo_root, mission_slug, json_output
+        )
+        # tasks/ is PRIMARY-partition (WORK_PACKAGE_TASK), same seam as list-tasks.
+        tasks_dir = (
+            placement_seam(main_repo_root, mission_slug).read_dir(
+                MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
+        if not tasks_dir.exists():
+            _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
+            raise typer.Exit(1)
+
+        warnings = _collect_terminability_warnings(tasks_dir)
+        _render_terminability(warnings, mission_slug, json_output)
+        # FR-008: advisory only. Warnings never yield a non-zero exit — the
+        # command returns normally here (exit 0) even when ``warnings`` is
+        # non-empty.
+    except typer.Exit:
+        raise
     except Exception as e:
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None

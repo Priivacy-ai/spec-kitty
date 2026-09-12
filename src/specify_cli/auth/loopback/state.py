@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
+
+from kernel.clock import datetime, now_utc, timedelta
 
 _STATE_TTL = timedelta(minutes=5)
 
@@ -55,7 +56,7 @@ class PKCEState:
         Returns:
             A new :class:`PKCEState` with ``expires_at = created_at + 5 minutes``.
         """
-        now = datetime.now(UTC)
+        now = now_utc()
         return cls(
             state=secrets.token_urlsafe(32),
             code_verifier=verifier,
@@ -67,4 +68,4 @@ class PKCEState:
 
     def is_expired(self) -> bool:
         """Return ``True`` iff the current UTC time is at or past ``expires_at``."""
-        return datetime.now(UTC) >= self.expires_at
+        return now_utc() >= self.expires_at

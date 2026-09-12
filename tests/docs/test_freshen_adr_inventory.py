@@ -56,6 +56,42 @@ _README_TEMPLATE = dedent(
     """
 )
 
+_README_REDIRECT_TEMPLATE = dedent(
+    """\
+    ---
+    title: 3.x ADRs
+    description: Redirect to the canonical era index.
+    doc_status: active
+    updated: '2026-08-10'
+    ---
+    This page has moved to [index.md](index.md).
+    """
+)
+
+_LEGACY_INDEX_TEMPLATE = dedent(
+    """\
+    ---
+    title: 1.x ADRs
+    description: Index and era history for archived 1.x decisions.
+    doc_status: active
+    updated: '2026-08-10'
+    ---
+
+    # 1.x ADRs
+
+    Architectural Decision Records for the legacy 1.x track.
+
+    ## Era history
+
+    These decisions are retained as history. This landing page intentionally
+    has no maintained ADR table.
+
+    ## Source of Truth
+
+    This folder is canonical for 1.x decisions.
+    """
+)
+
 
 def _adr(title: str, date: str, *, body: str = "Decision body.") -> str:
     return dedent(
@@ -157,6 +193,104 @@ def test_new_adr_gets_inventory_and_readme_rows(tmp_path: Path) -> None:
     inv = (repo_root / DEFAULT_INVENTORY_PATH).read_text(encoding="utf-8")
     assert "docs/adr/3.x/2026-06-30-1-new-thing.md" in inv
     assert result.inventory_written is True
+
+
+def test_canonical_index_is_used_when_readme_is_redirect(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    index = era / "index.md"
+    index.write_text(_README_TEMPLATE, encoding="utf-8")
+    readme = era / "README.md"
+    readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
+    redirect_before = readme.read_text(encoding="utf-8")
+    new_adr = era / "2026-06-30-1-new-thing.md"
+    new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
+    assert new_adr in detect_missing_adrs(docs_root)
+
+    result = freshen(
+        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
+    )
+
+    assert new_adr.name in result.readme_rows_added
+    assert f"]({new_adr.name})" in index.read_text(encoding="utf-8")
+    assert readme.read_text(encoding="utf-8") == redirect_before
+    check_result = freshen(
+        [new_adr], docs_root=docs_root, repo_root=repo_root, check=True
+    )
+    assert check_result.is_clean
+    assert new_adr not in detect_missing_adrs(docs_root)
+
+
+def test_all_refuses_malformed_canonical_index(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    (era / "index.md").write_text(
+        "# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8"
+    )
+    readme = era / "README.md"
+    readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
+    redirect_before = readme.read_text(encoding="utf-8")
+
+    exit_code = main(
+        ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
+    )
+
+    assert exit_code == 2
+    assert readme.read_text(encoding="utf-8") == redirect_before
+
+
+def test_explicit_check_refuses_malformed_declared_index(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    (era / "index.md").write_text(
+        "# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8"
+    )
+    (era / "README.md").write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
+    _write_inventory(repo_root, docs_root)
+
+    exit_code = main(
+        [
+            str(era / "2026-04-03-1-execution-lanes.md"),
+            "--check",
+            "--repo-root",
+            str(repo_root),
+            "--docs-root",
+            str(docs_root),
+        ]
+    )
+
+    assert exit_code == 2
+
+
+def test_all_skips_production_shaped_legacy_tableless_index(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    readme = era / "README.md"
+    readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
+    (era / "index.md").write_text(_LEGACY_INDEX_TEMPLATE, encoding="utf-8")
+    _write_inventory(repo_root, docs_root)
+
+    assert detect_missing_adrs(docs_root) == []
+    assert main(
+        ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
+    ) == 0
+    assert (
+        main(
+            [
+                "--all",
+                "--check",
+                "--repo-root",
+                str(repo_root),
+                "--docs-root",
+                str(docs_root),
+            ]
+        )
+        == 0
+    )
 
 
 # --------------------------------------------------------------------------- #

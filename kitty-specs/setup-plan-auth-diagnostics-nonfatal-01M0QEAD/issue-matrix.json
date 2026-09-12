@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2695": {
+      "evidence_ref": "Fixed by docs/operations/logged-out-teamspace.md policy parity for agent mission create/setup-plan plus real setup-plan JSON/human reporter acceptance in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; fatal-contract documentation/test remediation is pinned at 90ecbcb2c08cf8bba0e8ff0cbb6dd952d25e0a28 and verified by the final mission-focused gate (334 passed in 12.87s) at product/test ref a825b142853d6ef4805bfc2e28282edfd297f272",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Local mission commands apply inconsistent logged-out SaaS severity",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3127": {
+      "evidence_ref": "Follow-up: #3127 remains the external P0 release-readiness gate; it is not a code-lane or Mission-completion dependency",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "ci: fast-tests-status has been silently skipped for 4+ runs by a job-dependency gate, not a path filter",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3621": {
+      "evidence_ref": "Fixed by WP01-WP04. Historical production hosted-boundary ref: 1ea3abee88617455776a3bd0e96b52f30737f0b6. Package-wide hosted-effect gate: 3507370e8107cb47b78b6e04a3a5c47c0262e7ef; fatal-contract documentation/test remediation: 90ecbcb2c08cf8bba0e8ff0cbb6dd952d25e0a28; final isolation fix and product/test ref: a825b142853d6ef4805bfc2e28282edfd297f272. Evidence covers real encrypted/unreadable storage, the complete local-outcome/readiness matrix, local-outcome freeze before hostile hosted assessment, single JSON reporting, zero hosted sinks on refusal, package-wide sink ownership/import-edge enforcement, narrow executor import, identity dominance, boundary census, and hostile mutation controls. Final gates: mission-focused 334 passed in 12.87s; contract 297 passed, 5 skipped in 44.62s; architecture 1712 passed, 5 skipped, 2 xfailed, 1 existing warning in 860.47s; E2E 6 passed in 406.82s with harness ref 71d8202.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "setup-plan refuses with SAAS_SYNC_UNAUTHENTICATED on a host that IS logged in to SaaS, and must not refuse even when it isn't",
+      "verdict": "fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

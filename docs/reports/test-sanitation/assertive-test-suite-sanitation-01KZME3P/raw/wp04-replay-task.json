@@ -1,0 +1,121 @@
+{
+  "argv": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "wp04_fault_plugin",
+    "--junitxml=/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp04-replay-u2b0arix/junit.xml",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded",
+    "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker"
+  ],
+  "campaign": "task",
+  "configured_timeout_seconds": 300.0,
+  "elapsed_seconds": 46.798,
+  "ended_at": "2026-08-10T12:09:56.709069+00:00",
+  "environment": {
+    "PYTHONPATH_prefix": "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-20260810-011637-xWqxfc/spec-kitty/.worktrees/assertive-test-suite-sanitation-01KZME3P-lane-d/docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw",
+    "WP04_REPLAY_CAMPAIGN": "task",
+    "platform": "macOS-15.7.7-arm64-arm-64bit",
+    "python": "3.11.15"
+  },
+  "exit_code": 1,
+  "failed_nodeids": [
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_outline::test_parse_pipe_table_header_at_top",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_outline::test_is_pipe_table_task_row_match",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_outline::test_is_pipe_table_task_row_padded",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_parsing_validation::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_materialization.TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_materialization.TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted",
+    "None::tests.specify_cli.cli.commands.agent.test_tasks_materialization.TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker"
+  ],
+  "materialized_faults": [
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_outline._parse_pipe_table_header",
+      "binding": "_parse_pipe_table_header",
+      "contract": "fixtures=[]; concrete_inputs=['_parse_pipe_table_header(0)']; asserted_observables=['assert result == {}']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_outline._is_pipe_table_task_row",
+      "binding": "_is_pipe_table_task_row",
+      "contract": "fixtures=[]; concrete_inputs=[\"_is_pipe_table_task_row('| T001 | description | WP01 | No |', 'T001')\"]; asserted_observables=[\"assert _is_pipe_table_task_row('| T001 | description | WP01 | No |', 'T001') is True\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_outline._is_pipe_table_task_row",
+      "binding": "_is_pipe_table_task_row",
+      "contract": "fixtures=[]; concrete_inputs=[\"_is_pipe_table_task_row('|  T001  | desc |', 'T001')\"]; asserted_observables=[\"assert _is_pipe_table_task_row('|  T001  | desc |', 'T001') is True\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_parsing_validation._issue_matrix_approval_blocker",
+      "binding": "_issue_matrix_approval_blocker",
+      "contract": "fixtures=['tmp_path']; concrete_inputs=['feature_dir.mkdir(True)', \"(feature_dir / 'spec.md').write_text('Fix Priivacy-ai/spec-kitty issue #1582.\\\\n', 'utf-8')\", \"_write_issue_matrix('unknown')\", \"_write_issue_matrix('fixed', '#1111')\", \"_write_issue_matrix('fixed')\"]; asserted_observables=['assert blocker is not None', \"assert 'issue-matrix.md is required' in blocker\", \"assert '#1582' in blocker\", \"assert 'Unknown: #1582' in blocker\", \"assert 'Missing rows: #1582' in blocker\", 'assert _issue_matrix_approval_blocker(feature_dir) is None']",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_materialization._update_pipe_table_status",
+      "binding": "_update_pipe_table_status",
+      "contract": "fixtures=[]; concrete_inputs=[\"_update_pipe_table_status('done')\"]; asserted_observables=[\"assert '[D]' in result\", \"assert 'WP01' in result\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_materialization._update_pipe_table_status",
+      "binding": "_update_pipe_table_status",
+      "contract": "fixtures=[]; concrete_inputs=[\"_update_pipe_table_status('done')\"]; asserted_observables=[\"assert '[P]' in result\", \"assert '[D]' in result\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted"
+    },
+    {
+      "authority": "specify_cli.cli.commands.agent.tasks_materialization._update_pipe_table_status",
+      "binding": "_update_pipe_table_status",
+      "contract": "fixtures=[]; concrete_inputs=[\"_update_pipe_table_status('pending')\"]; asserted_observables=[\"assert '[ ]' in result\", \"assert '[D]' not in result\"]",
+      "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
+      "kind": "binding",
+      "nodeid": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker"
+    }
+  ],
+  "orchestrator_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay.py",
+  "orchestrator_sha256": "658d33bedc1c399ffc379e191c29ce7aeb6036f8b2145be1475e1e6ed1a708f4",
+  "passed_nodeids": [],
+  "runner_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py",
+  "runner_sha256": "dbb2a53398e39203d31eddf4001164b36830a67accde721107efb07d8da9c43e",
+  "schema_version": "wp04-replay-receipt/v1",
+  "selected_nodeids": [
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match",
+    "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded",
+    "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted",
+    "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker"
+  ],
+  "spec_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay-spec.json",
+  "spec_sha256": "d4dc56fb8d526ff0a1bc751339803c63a88de3beda258ab79b34df637f616872",
+  "started_at": "2026-08-10T12:09:09.898176+00:00",
+  "stderr": "",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout": "FFFFFFF                                                                  [100%]\n=================================== FAILURES ===================================\n_____________________ test_parse_pipe_table_header_at_top ______________________\ntests/specify_cli/cli/commands/agent/test_tasks_outline.py:133: in test_parse_pipe_table_header_at_top\n    result = _parse_pipe_table_header(lines, 0)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______________________ test_is_pipe_table_task_row_match _______________________\ntests/specify_cli/cli/commands/agent/test_tasks_outline.py:79: in test_is_pipe_table_task_row_match\n    assert _is_pipe_table_task_row(\"| T001 | description | WP01 | No |\", \"T001\") is True\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______________________ test_is_pipe_table_task_row_padded ______________________\ntests/specify_cli/cli/commands/agent/test_tasks_outline.py:83: in test_is_pipe_table_task_row_padded\n    assert _is_pipe_table_task_row(\"|  T001  | desc |\", \"T001\") is True\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n________ test_issue_matrix_approval_blocker_requires_resolved_verdicts _________\ntests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py:153: in test_issue_matrix_approval_blocker_requires_resolved_verdicts\n    blocker = _issue_matrix_approval_blocker(feature_dir)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n_____ TestUpdatePipeTableStatus.test_updates_dedicated_status_column_only ______\ntests/specify_cli/cli/commands/agent/test_tasks_materialization.py:49: in test_updates_dedicated_status_column_only\n    result = _update_pipe_table_status(line, \"done\", header_map)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______ TestUpdatePipeTableStatus.test_parallel_column_is_never_corrupted _______\ntests/specify_cli/cli/commands/agent/test_tasks_materialization.py:64: in test_parallel_column_is_never_corrupted\n    result = _update_pipe_table_status(line, \"done\", header_map)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n______ TestUpdatePipeTableStatus.test_pending_status_writes_empty_marker _______\ntests/specify_cli/cli/commands/agent/test_tasks_materialization.py:84: in test_pending_status_writes_empty_marker\n    result = _update_pipe_table_status(line, \"pending\", header_map)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndocs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py:28: in _fault\n    raise AssertionError(\"WP04_REPLAY_FAULT: live authority perturbed\")\nE   AssertionError: WP04_REPLAY_FAULT: live authority perturbed\n=========================== short test summary info ============================\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_updates_dedicated_status_column_only\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_parallel_column_is_never_corrupted\nFAILED tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus::test_pending_status_writes_empty_marker\n7 failed in 45.59s\n",
+  "stdout_sha256": "b0a78041a07e1970cabecab064815ef220fdfe034511d3b1c6851d366fb0f3f0",
+  "timed_out": false
+}

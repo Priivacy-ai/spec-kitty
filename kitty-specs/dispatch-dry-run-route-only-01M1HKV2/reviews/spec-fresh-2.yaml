@@ -1,0 +1,60 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: dispatch-dry-run-route-only-01M1HKV2
+round: 2
+findings:
+  - id: SPEC-FRESH2-001
+    lens: fresh-sweep-round2
+    severity: 4
+    title: FR-006's "priority breaks ties WITHIN a tier ... between two domain-keyword
+      candidates ... unchanged from today's behavior" directly contradicts FR-007/AC-4,
+      and round 2's new SC-006 now pins the contradiction as a testable, numbered
+      success criterion
+    evidence:
+      - artifact: "spec.md § FR-006 — \"routing_priority continues to break ties WITHIN a tier — e.g. between two canonical-verb candidates, or between two domain-keyword candidates — unchanged from today's behavior; it is only removed as a way for a domain-keyword candidate to outrank a canonical-verb one.\""
+      - artifact: "spec.md § FR-007 — \"whenever zero verb-tier candidates exist, the router MUST raise ROUTER_AMBIGUOUS regardless of how many domain-keyword-tier candidates there are or how their routing_priority values compare ... so the existing priority-based auto-select no longer applies once there are zero verb-tier candidates.\""
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 4 — \"profile B at routing_priority 80 and profile C at routing_priority 10, both keyword-only ... the router raises RouterAmbiguityError (ROUTER_AMBIGUOUS) regardless of the routing_priority spread between B and C\""
+      - artifact: "spec.md § Success Criteria, new SC-006 (round-2 addition) — \"On a request with zero verb-tier candidates and two or more domain-keyword-tier candidates at different routing_priority values, real dispatch ... exits 1 with error_code: ROUTER_AMBIGUOUS ... regardless of the routing_priority spread between the candidates\""
+      - code: "src/specify_cli/invocation/router.py:352-370 — today's routing_priority tiebreaker operates on the flat, tier-unaware `candidates` list; when `len(top_candidates) == 1` it returns that candidate directly with no tier check at all, so ANY 2+-candidate set with a unique top priority (verb-only, keyword-only, or mixed) currently auto-selects — there is no existing code path where a keyword-vs-keyword priority tie is treated any differently from a verb-vs-keyword one"
+    claim: >
+      FR-006 (fixed in round 1 to close SPEC-ARCH-002) states that routing_priority
+      keeps resolving ties "between two domain-keyword candidates ... unchanged from
+      today's behavior" — i.e. when two-or-more domain-keyword-only candidates have
+      different routing_priority values, the higher one auto-selects, exactly as
+      today's code does. FR-007 (generalized in the SAME round-1 commit, to close
+      SPEC-ARCH-003) states the opposite for the identical scenario: whenever the
+      candidate set has zero verb-tier members — which is definitionally true of any
+      "two domain-keyword candidates" case, since a verb-tier candidate's presence
+      would make the set non-zero-verb-tier — the priority-based auto-select "no
+      longer applies," and ROUTER_AMBIGUOUS must be raised regardless of the priority
+      spread. There is no third scenario where FR-006's "domain-keyword vs
+      domain-keyword, priority breaks the tie" claim can be true without contradicting
+      FR-007: any 2+-candidate set that is entirely domain-keyword-tier IS the
+      zero-verb-tier case. (When a verb-tier candidate IS present alongside 2+
+      keyword-tier ones, the verb-tier candidate wins outright per FR-006's own
+      cross-tier rule — the keyword-tier candidates' mutual priority never gets
+      compared to decide a winner at all.) This latent contradiction between two
+      requirements fixed in the same round-1 commit was not caught by round 1's own
+      fresh-sweep (SPEC-FRESH-001..004), and round 2 makes it materially worse: the
+      new SC-006 (round 2) is a numbered, testable success criterion that locks in
+      FR-007's side of the contradiction with a concrete regression-test obligation,
+      while FR-006's directly conflicting "unchanged from today's behavior" sentence
+      for the same scenario was left untouched. A WP3 implementer who reads FR-006
+      first (it is listed and titled before FR-007) has a real chance of preserving
+      priority-based auto-select for keyword-vs-keyword ties per FR-006's explicit
+      instruction, only special-casing the single-candidate branch for FR-007/AC-2,
+      and missing AC-4/SC-006 entirely — producing a wrong implementation that a
+      literal reading of FR-006 actively endorses.
+    remediation: >
+      Correct FR-006's "within a tier" sentence to remove or properly scope the
+      domain-keyword-vs-domain-keyword example: state that routing_priority
+      continues to break ties WITHIN the canonical-verb tier (two canonical-verb
+      candidates) unchanged from today, but no longer functions as a tiebreaker
+      between domain-keyword-tier candidates in isolation — per FR-007, whenever
+      zero verb-tier candidates are present, 2+ domain-keyword-tier candidates
+      always raise ROUTER_AMBIGUOUS regardless of routing_priority, never
+      auto-select by priority. Cross-reference FR-007/AC-4/SC-006 from FR-006's
+      sentence so the two requirements cannot be read as endorsing opposite
+      behavior for the same scenario.

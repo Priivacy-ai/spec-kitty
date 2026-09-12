@@ -7,7 +7,7 @@ and their frontmatter metadata.
 from __future__ import annotations
 
 import re
-from datetime import datetime, UTC
+from kernel.clock import now_utc_stamp
 from pathlib import Path
 
 import yaml
@@ -124,7 +124,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
 
     try:
         content = task_file.read_text(encoding="utf-8-sig")
-        frontmatter, body, padding = parse_frontmatter(content)
+        frontmatter, body, _ = parse_frontmatter(content)
     except Exception as exc:
         return False, f"Failed to parse frontmatter: {exc}"
 
@@ -133,7 +133,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
 
     # Add activity log entry if requested
     if add_history:
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = now_utc_stamp()
         # WP04/T015 (NFR-003/SC-004): the runtime ``shell_pid`` slot is no longer
         # emitted as a parseable frontmatter field — no repair/template path may
         # re-introduce a runtime slot into ``tasks/WP##.md``. The claiming pid is
@@ -175,7 +175,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
     try:
         # Convert frontmatter dict back to YAML string
         frontmatter_yaml = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
-        new_content = build_document(frontmatter_yaml, body, padding)
+        new_content = build_document(frontmatter_yaml, body, "\n")
         task_file.write_text(new_content, encoding="utf-8-sig")
         return True, None
     except Exception as exc:

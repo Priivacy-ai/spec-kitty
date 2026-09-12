@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+round: 3
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+- id: PLAN-FRESH3-001
+  lens: cross-section-consistency
+  severity: 3
+  title: Project Structure's own "Structure Decision" sentence contradicts the source-tree comment three
+    lines above it — "one function edited in place" omits the _scan_roots docstring edit the tree comment
+    itself lists
+  evidence:
+  - artifact: 'plan.md § Project Structure — Source Code tree comment: "kind_vocabulary.py  # _org_scan_dirs
+      (:200-209) fix, plus the _scan_roots docstring update at :158-160 (see Campsite-Clean Scope)"'
+  - artifact: 'plan.md § Project Structure — Structure Decision, same section, three lines below: "Single
+      project (this repository). No new directory, no new package — one function edited in place, two
+      test files (one extended, one new) ..."'
+  - artifact: plan.md § Campsite-Clean Scope — "the implementing WP must update this docstring sentence"
+      (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+  claim: 'This is the same defect class rounds 1 and 2 already fixed twice elsewhere (Project Structure''s
+    tree comment itself, and The Seam''s "Production surface" bullet): a summary sentence claiming only
+    `_org_scan_dirs` is edited, contradicting the mandatory `_scan_roots` docstring edit established in
+    Campsite-Clean Scope. Here the contradiction is even tighter than the previous two occurrences — it
+    is not just cross-section, it is self-contradiction within the same "Project Structure" section, three
+    lines apart. The code-tree comment directly above (lines 422-423) correctly lists two edits to `kind_vocabulary.py`
+    (the `_org_scan_dirs` fix and the `_scan_roots` docstring update), but the "Structure Decision" prose
+    immediately below it (line 432) says "one function edited in place," undoing what the tree comment
+    just established one paragraph earlier. Neither round-1 nor round-2''s fix commits touched this line
+    — `git log -p` shows no edit to "Structure Decision" or "one function edited in place" across any
+    of the three fix commits.
+
+    '
+  remediation: 'Update the Structure Decision sentence to match its own tree comment: "one function''s
+    behavior edited in place (`_org_scan_dirs`), plus a docstring update on its caller (`_scan_roots`)"
+    — or simply drop the function-count claim and say "one production file edited in place" (file-level,
+    not function-level), which is actually true and needs no further caveat.
+
+    '
+- id: PLAN-FRESH3-002
+  lens: cross-section-consistency
+  severity: 2
+  title: Technical Context's Scale/Scope line ("One function (_org_scan_dirs), ~5 LOC changed in one file")
+    is a third, still-unpatched echo of the same production-edit-count contradiction
+  evidence:
+  - artifact: 'plan.md § Technical Context — "**Scale/Scope**: One function (`_org_scan_dirs`), ~5 LOC
+      changed in one file (`src/charter/kind_vocabulary.py`), plus test changes in exactly two test files
+      ..."'
+  - artifact: plan.md § Campsite-Clean Scope — "the implementing WP must update this docstring sentence"
+      (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+  - artifact: plan.md § The Seam (round-3 fixed) — "`_org_scan_dirs` (`:200-209`) is the sole *behavioral*
+      edit ... `_scan_roots`'s docstring is also edited, though"
+  claim: 'Same defect class as PLAN-FRESH3-001 and the two prior rounds'' findings, in a fourth location:
+    the Technical Context section''s "Scale/Scope" field, which is read before The Seam, Campsite-Clean
+    Scope, or Project Structure, tells the reader up front that exactly "one function" changes and "~5
+    LOC" are changed "in one file" — without qualifying that a second function''s (`_scan_roots`''s) docstring
+    in that same file is also mandatorily edited. Taken literally, "~5 LOC changed in one file" undercounts
+    the diff once the docstring rewrite (Campsite-Clean Scope''s mandated multi-line sentence replacement)
+    is included. This line has not been touched by any of the three fix commits (confirmed via `git diff
+    b0c516a4b..HEAD` scoped to this section — no hunk touches "Scale/Scope" or "LOC changed"). Lower severity
+    than PLAN-FRESH3-001 because the "~5 LOC" figure is already hedged with a tilde and the sentence is
+    read early, before the more load-bearing sections establish the docstring mandate — a first-time reader
+    is not yet being told something that actively conflicts with prior text, only something that will
+    later prove incomplete.
+
+    '
+  remediation: 'Append a clause to Scale/Scope acknowledging the docstring edit, e.g.: "One function''s
+    behavior changed (`_org_scan_dirs`), ~5 LOC, in one file (`src/charter/kind_vocabulary.py`) — plus
+    a docstring-only update to that function''s caller (`_scan_roots`, see Campsite-Clean Scope) in the
+    same file — plus test changes in exactly two test files ..."
+
+    '
+findings_source: 'plan-fresh-round3.yaml (round 3 fresh sweep). Early-stop triggered: severity>=3 count
+  did not reduce round2->round3 (1->1), and all remaining findings are severity<=3, so this is the FINAL
+  fix round per R6 (one more R4, then a single R5a, no further fresh sweep).'

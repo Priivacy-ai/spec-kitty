@@ -4,7 +4,7 @@ Strips PII fields from event envelopes before they are written to any
 git-committed file.  The function is intentionally *pure*: it accepts a
 dict, returns a new dict, never mutates the input, and has no side effects.
 
-Python 3.11+ required: datetime.fromisoformat() handles the ``Z`` UTC suffix
+Python 3.11+ required: parse_iso() handles the ``Z`` UTC suffix
 only from 3.11 onward (PEP 680 / bpo-35829).
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from datetime import datetime
+from kernel.clock import datetime, parse_iso
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ def _replace_session_timestamps(envelope: dict[str, Any]) -> dict[str, Any]:
 
     if started_raw is not None:
         try:
-            started = datetime.fromisoformat(started_raw)
+            started = parse_iso(started_raw)
         except (ValueError, TypeError):
             logger.debug(
                 "sanitize_event_for_log: could not parse session_started_at=%r — field removed",
@@ -105,7 +105,7 @@ def _replace_session_timestamps(envelope: dict[str, Any]) -> dict[str, Any]:
 
     if ended_raw is not None:
         try:
-            ended = datetime.fromisoformat(ended_raw)
+            ended = parse_iso(ended_raw)
         except (ValueError, TypeError):
             logger.debug(
                 "sanitize_event_for_log: could not parse session_ended_at=%r — field removed",

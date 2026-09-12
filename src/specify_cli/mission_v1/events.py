@@ -16,7 +16,7 @@ import json
 import logging
 from pathlib import Path
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,13 @@ def _write_event(feature_dir: Path, event: dict) -> None:
         f.write(line)
 
 
-def read_events(feature_dir: Path) -> list[dict]:
-    """Read all events from the mission events log.
+def _read_events(feature_dir: Path) -> list[dict]:
+    """Read all events from the mission events log (test/tooling helper).
+
+    No production caller remains since the legacy DSL readers in
+    ``runtime/next/decision.py`` were deleted (mission
+    ``dead-port-disposition-01M1TZVN``, WP04); kept underscore-private for the
+    event-log tests.
 
     Returns empty list if the log does not exist.
 

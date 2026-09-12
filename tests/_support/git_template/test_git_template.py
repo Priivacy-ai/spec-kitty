@@ -39,7 +39,9 @@ def test_template_is_bare_with_single_commit() -> None:
 
 def test_template_is_cached_per_process() -> None:
     """Repeated calls return the same template path (build-once semantics)."""
-    assert _template_repo() == _template_repo()
+    first_template = _template_repo()
+    second_template = _template_repo()
+    assert first_template == second_template
 
 
 def test_clone_template_yields_clean_working_repo(tmp_path: Path) -> None:

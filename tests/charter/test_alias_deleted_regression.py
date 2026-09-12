@@ -33,7 +33,7 @@ def test_resolve_governance_import_raises_import_error() -> None:
     """Importing ``resolve_governance`` from ``charter`` must raise ImportError.
 
     This is the primary AC-5 gate.  If the alias still exists in
-    ``charter.resolver`` or ``charter.__init__``, this test fails (RED).
+    ``charter.activation.resolver`` or ``charter.__init__``, this test fails (RED).
     Once WP04 deletes both the alias assignment and the __init__ export,
     this test turns GREEN.
     """

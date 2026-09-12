@@ -1,0 +1,51 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      FR-004/FR-005 were relabeled VC-001/VC-002 in a new Contingent Verification Criteria
+      subsection; verified live against src/specify_cli/requirement_mapping.py's
+      _REF_FIND_PATTERN (\b(?:FR|NFR|C)-\d+\b) that "VC-001"/"VC-002" produce zero regex
+      matches (no word boundary between V and C), so finalize-tasks will never add them to
+      unmapped_functional_requirements; all cross-references (SC-005, the requirements table)
+      were updated and grep confirms no stray FR-004/FR-005 mentions remain in spec.md.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      The Clarifications rationale now cites RECONCILE_CHANGE_SCOPE_TENSIONS step 3 (Locality
+      of Change) and explicitly concedes touching the neighboring functions "would not grow
+      the file set at all," replacing the prior file-set-growth misstatement while keeping the
+      same scope decision (C-003 unchanged).
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >-
+      FR-001 now states an explicit flat-over-legacy precedence rule plus a "flat entry ordered
+      before legacy" list-order requirement, and a new Acceptance Scenario 4 pins the same-stem
+      collision case; this is mechanically consistent with resolve_artifact_urn's verified
+      first-match-wins iteration over _iter_artifact_paths, so ordering flat first in
+      _org_scan_dirs's return value deterministically makes flat win, closing the previously
+      silent, list-order-dependent ambiguity.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      Acceptance Scenario 1 (plus FR-002, SC-002, User Story 1/2 prose) was rewritten so the
+      WHEN clause activates the org directive's own config-stem through the full
+      activate()->filter_graph_by_activation() round trip, not an unrelated built-in stem; this
+      was traced against the live drg.py mechanism (_node_is_activated Step 3 at :467-473 gates
+      on the node's own URN being a member of resolved_urns_by_kind, itself built by
+      _resolve_activated_urns_for_kind resolving only stems already in activated_ids) and now
+      correctly satisfies that gate. A new Scenario 5 preserves the additive/order-independent
+      property without re-overclaiming that an unrelated activation alone can surface the org
+      node.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >-
+      Acceptance Scenario 1 and FR-002 now require a root-level *.graph.yaml DRG-node fixture
+      alongside the org directive's artifact file, named explicitly as fixture-construction
+      detail distinct from #3384's production fix (C-002 respected); verified against
+      _drg_helpers.py's load_validated_graph (load_graph_or_dir(org_root), a non-recursive glob
+      at the root path itself) that a root-level fragment is exactly what the current,
+      unfixed-by-this-mission loader would find, so the fixture is placed where the mechanism
+      the scenario depends on actually looks.

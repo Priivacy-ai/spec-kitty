@@ -293,6 +293,54 @@ def test_cancel_nonexistent_raises_not_found(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Fold-in review finding -- resolve_decision rejects an empty/whitespace-only
+# final_answer BEFORE the ledger is ever mutated, mirroring the emptiness
+# check defer_decision/cancel_decision already get for --rationale at each
+# CLI-layer caller (decision.py's cmd_defer/cmd_cancel,
+# orchestrator_api/commands.py's ``_validate_rationale_or_fail``). Fixed
+# HERE, in the shared ``resolve_decision`` service function both the host
+# CLI's ``cmd_resolve`` and the orchestrator-api's ``resolve-decision`` verb
+# call directly, so neither caller can drift from the other (unlike the
+# rationale check, which is duplicated per-caller).
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_empty_final_answer_raises_missing_step_or_slot(tmp_path: Path) -> None:
+    _setup_meta(tmp_path)
+    did = _open_decision(tmp_path)
+
+    with pytest.raises(DecisionError) as exc_info:
+        _resolve(tmp_path, did, final_answer="")
+
+    assert exc_info.value.code == DecisionErrorCode.MISSING_STEP_OR_SLOT
+    assert exc_info.value.details == {"field": "final_answer"}
+
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
+    assert entry.status == DecisionStatus.OPEN
+    assert entry.final_answer is None
+
+
+def test_resolve_whitespace_only_final_answer_raises_missing_step_or_slot(
+    tmp_path: Path,
+) -> None:
+    _setup_meta(tmp_path)
+    did = _open_decision(tmp_path)
+
+    with pytest.raises(DecisionError) as exc_info:
+        _resolve(tmp_path, did, final_answer="   \t\n")
+
+    assert exc_info.value.code == DecisionErrorCode.MISSING_STEP_OR_SLOT
+
+    entry = next(
+        e for e in _store.load_index(_mission_dir(tmp_path)).entries if e.decision_id == did
+    )
+    assert entry.status == DecisionStatus.OPEN
+    assert entry.final_answer is None
+
+
+# ---------------------------------------------------------------------------
 # T018h — dry_run returns mock response with no filesystem side effects
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "mission_slug": "docs-structural-sanity-01KY53KJ",
+  "mission_id": "01KY53KJ63D2QGQMM36KEGSKBQ",
+  "mission_branch": "kitty/mission-docs-structural-sanity-01KY53KJ",
+  "target_branch": "docs/common-docs-section-audit",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/built-in/042-common-docs.directive.yaml",
+        "src/doctrine/styleguides/built-in/common-docs.styleguide.yaml",
+        "src/doctrine/tactics/built-in/common-docs-curation.tactic.yaml",
+        "src/doctrine/tactics/built-in/common-docs-scaffold.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/883-mission-type-authority-brief.md",
+        "docs/architecture/883-research-synthesis.md",
+        "docs/architecture/assessments/code-as-a-crime-scene-overview.md",
+        "docs/architecture/audits/",
+        "docs/architecture/index.md",
+        "docs/migrations/teamspace-mission-state-920-closeout.md",
+        "docs/plans/engineering-notes/883-mission-type-authority-brief.md",
+        "docs/plans/engineering-notes/883-research-synthesis.md",
+        "docs/plans/engineering-notes/architecture-audits/",
+        "docs/plans/engineering-notes/code-as-a-crime-scene-overview.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/adr-connector-auth-binding-separation.md",
+        "docs/architecture/feature-detection.md",
+        "docs/architecture/gap-analysis-connector-installation-model.md",
+        "docs/plans/notes/"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        "scripts/docs/docs_structural_lint.py",
+        "tests/docs/test_docs_structural_lint.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/development/3-2-page-inventory.yaml",
+        "scripts/docs/bulk_ref_rewrite.py",
+        "scripts/docs/redirect_map.yaml",
+        "scripts/docs/redirect_stub_generator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-22T15:23:02.512314+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

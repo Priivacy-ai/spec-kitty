@@ -11,7 +11,7 @@
   "slug": "single-authority-resolution-gates-01KW1P0F",
   "status_phase": "1",
   "target_branch": "design/infra-logic-separation-2173",
-  "topology": "flat",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-26T12:05:47.937465+00:00"
 }

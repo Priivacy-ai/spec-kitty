@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from charter.interview import QUESTION_ORDER
-from charter.synthesizer.interview_mapping import (
+from charter.activation.interview import QUESTION_ORDER
+from charter.activation.synthesizer.interview_mapping import (
     INTERVIEW_MAPPINGS,
     InterviewSectionMapping,
     _EXPANDED_SECTIONS,

@@ -23,7 +23,7 @@ from typer.testing import CliRunner
 from unittest.mock import patch
 
 from specify_cli.cli.commands.agent.mission import app
-from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -119,7 +119,13 @@ def test_primary_anchored_dir_agrees_with_finalize_anchor(tmp_path: Path) -> Non
     _git_init(repo)
     primary = _write_mission_dir(repo, coordination=True)
     resolved = _primary_anchored_feature_dir(repo, _SLUG)
-    assert resolved == primary == primary_feature_dir_for_mission(repo, _SLUG)
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the
+    # independent oracle is the module-private leaf, not the deleted public
+    # wrapper -- ``_primary_anchored_feature_dir`` already routed through the
+    # seam's ``_planning_read_dir`` chokepoint (not the wrapper) before this
+    # WP; the leaf is the same topology-blind compose the seam's PRIMARY leg
+    # is built on.
+    assert resolved == primary == _compose_primary_feature_dir(repo, _SLUG)
 
 
 def test_primary_anchored_dir_none_when_absent_or_empty(tmp_path: Path) -> None:

@@ -18,7 +18,7 @@ layer gives you a cleaner way to express the same intent.
 
 For background on the model, see [Understanding the Org Doctrine
 Layer](../architecture/org-doctrine-layer.md). For pack authoring details, see
-[How to create an org doctrine pack](../guides/create-an-org-doctrine-pack.md).
+[How to create an org doctrine pack](../guides/how-to/governance/create-an-org-doctrine-pack.md).
 
 ---
 
@@ -131,7 +131,7 @@ git push origin v1.0.0
 ```
 
 For HTTPS bundle or API options, see
-[How to create an org doctrine pack — Step 7](../guides/create-an-org-doctrine-pack.md#step-7-publish-the-pack).
+[How to create an org doctrine pack — Step 7](../guides/how-to/governance/create-an-org-doctrine-pack.md#step-7-publish-the-pack).
 
 ### Step 4: Configure the consumer projects
 
@@ -197,7 +197,7 @@ above and put them in an org pack.
 
 The project charter (`.kittify/charter/charter.md`) remains the human-edited governance
 centre of every project. External documents are referenced from the charter rather than
-loaded directly. See [How to set up project governance](../guides/setup-governance.md)
+loaded directly. See [How to set up project governance](../guides/how-to/governance/setup-governance.md)
 for the canonical charter workflow.
 
 ---
@@ -251,5 +251,5 @@ touched (beyond the deletions you performed in Step 5, which you can revert with
 ## See also
 
 - [Understanding the Org Doctrine Layer](../architecture/org-doctrine-layer.md)
-- [How to create an org doctrine pack](../guides/create-an-org-doctrine-pack.md)
-- [How to set up project governance](../guides/setup-governance.md)
+- [How to create an org doctrine pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)
+- [How to set up project governance](../guides/how-to/governance/setup-governance.md)

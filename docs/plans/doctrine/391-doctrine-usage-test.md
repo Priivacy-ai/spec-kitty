@@ -1,20 +1,22 @@
 ---
 title: '#391 Doctrine Usage Test (WP11 dogfood)'
 description: 'The #391 doctrine-usage dogfood test (WP11) for the doctrine-glossary-architecture-consolidation mission, exercising FR-012 and success criteria SC-1/SC-6.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-12'
 ---
 # #391 Doctrine Usage Test (WP11 dogfood)
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 Mission: `doctrine-glossary-architecture-consolidation-01KTNWFC` — FR-012, SC-1/SC-6.
 Date: 2026-06-11. Operator: curator-carla. Tracker: `Priivacy-ai/spec-kitty`.
 
 This record is the usage-test of the doctrine authored in WP04/WP05 — the
-[tracker-organisation-workflow procedure](../../../src/doctrine/procedures/built-in/tracker-organisation-workflow.procedure.yaml),
-the [planning-and-tracking styleguide](../../../src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml),
-the [github-tracker toolguide](../../../src/doctrine/toolguides/built-in/GITHUB_TRACKER.md),
-the [iterative-deepening-review](../../../src/doctrine/tactics/built-in/iterative-deepening-review.tactic.yaml)
-and [moscow-scoping-lens](../../../src/doctrine/tactics/built-in/moscow-scoping-lens.tactic.yaml) tactics,
+[tracker-organisation-workflow procedure](../../../packs/built-in/procedures/tracker-organisation-workflow.procedure.yaml),
+the [planning-and-tracking styleguide](../../../packs/built-in/styleguides/planning-and-tracking.styleguide.yaml),
+the [github-tracker toolguide](../../../packs/built-in/toolguides/GITHUB_TRACKER.md),
+the [iterative-deepening-review](../../../packs/built-in/tactics/iterative-deepening-review.tactic.yaml)
+and [moscow-scoping-lens](../../../packs/built-in/tactics/moscow-scoping-lens.tactic.yaml) tactics,
 and the planning-and-tracking glossary subset — applied to the real #391 epic
 using **only** that doctrine as the method.
 

@@ -1,0 +1,98 @@
+{
+  "schema_version": "test-sanitation-closure/v1",
+  "content_sha256": "34cdb3779357983cff381e06a85a77c09ceb5104e9270c8646bf8a9b2c031053",
+  "mission": "assertive-test-suite-sanitation-01KZME3P",
+  "evidence_commit": "f527f8733b87d567957b771101405478309b8b70",
+  "generated_at": "2026-08-11T06:45:00Z",
+  "environment": "macOS host; Python 3.11 mission .venv; integrated lane f527f8733; exact commands and raw receipt hashes below",
+  "closure_state": "for-review-with-explicit-gate-misses",
+  "overall_verdict": "fail",
+  "outcome": "The integrated suite is leaner by 64 Python test files, 971 source units, 1,431 collected nodes, and 27,371 Python test LOC. The exact integrated repository suite is green. The 1.3815% SC-003 criterion miss remains explicit and is accepted by the root operator under the user-directed KISS wrap; it is not rewritten as a pass. Current PR CI proves Windows success while Linux/macOS jobs remain in progress. Inherited current-main mypy debt and the narrowly scoped nested-wheel-build sibling exception remain visible.",
+  "artifacts": {
+    "aggregate_sha256": "6cfa84f91c8a7580773a1ba85af6e46e1776d2ad3f5228d9411260de9f4c1ad2",
+    "head_census_sha256": "44349d051e845bc13a97babb59eb4034bebb515ab85cc9bc3ba111a6613c9bda",
+    "validator_receipt_sha256": "d327f48f",
+    "full_suite_log_sha256": "b15d569a24468673fd808fe09aae01741c40b961c75dbe5885eb76865343e35c",
+    "full_suite_junit_sha256": "a02e1fc801c0edc404b669480a8bb3e8f625c472f267cdc910c8c797665b4123",
+    "cycle2_closure_receipts": "raw/wp08-cycle2-closure-receipts.json",
+    "source_provenance": "tracked diff clean; ignored allowlisted global.jsonl appended 12 valid built-in-paradigm bookkeeping rows; receipt hashes e12b7e56... -> 1a1d8ec5...; content hashes 7a4920... -> ae72c9..."
+  },
+  "inventory": {
+    "python_test_files": {"base": 2731, "head": 2667, "delta": -64},
+    "source_units": {"base": 29766, "head": 28795, "delta": -971},
+    "collected_nodes": {"base": 37444, "head": 36013, "delta": -1431},
+    "python_test_loc": {"base": 833936, "head": 806565, "delta": -27371},
+    "exact_duplicate_groups": {"base": 173, "head": 43, "delta": -130},
+    "inert_candidates": {"base": 15, "head": 0, "delta": -15},
+    "scanner_candidates": {"base": 234, "head": 131, "delta": -103}
+  },
+  "dispositions": {
+    "rows": 1446,
+    "unique_members": 2286,
+    "verdicts": "815 DELETE, 519 KEEP, 112 CONSOLIDATE"
+  },
+  "performance": {
+    "measurements": [
+      {"measure": "frozen changed-route critical path", "base": "62.25s", "head": "61.39s", "change": "-1.3815%", "verdict": "MISS: below 15%"},
+      {"measure": "matched cold wall-clock scanner", "base": "54.42s", "head": "44.66s", "change": "-17.93%", "verdict": "PASS"},
+      {"measure": "full parallel suite", "base": "1538.778s (red)", "head": "1136.45s (green)", "change": "-26.15%", "verdict": "informational; environments/commits differ"}
+    ],
+    "summary": "SC-003 remains an explicit miss: the comparable frozen-DAG critical-path reduction is 1.3815%, not the required 15%; no threshold was widened and no signal was deleted to manufacture a pass."
+  },
+  "known_red_diff": {
+    "summary": "Repaired-base failures were dispositioned; exact integrated HEAD full suite is green. Separate required gates expose inherited/tooling and environment failures rather than hidden suite failures.",
+    "resolved": "27 repaired-base call failures plus 3 teardown phase errors were terminally adjudicated; integrated full suite has 0 failures and 0 errors.",
+    "shared": "No accepted live full-suite red remains at integrated HEAD.",
+    "head_only": "Project mypy reports 10 redundant-cast errors in six files byte-identical to origin/main; sibling E2E reports two daemon source/executable-boundary failures; neither is represented as a green result."
+  },
+  "gates": [
+    {"name": "integrated full suite", "command": "PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider --ignore=tests/sync/test_orphan_sweep.py", "result": "35912 passed, 88 skipped, 4 xfailed", "duration_seconds": 1136.45, "exit_code": 0, "artifact": "sha256:b15d569a24468673fd808fe09aae01741c40b961c75dbe5885eb76865343e35c"},
+    {"name": "serial orphan sweep", "command": ".venv/bin/pytest tests/sync/test_orphan_sweep.py", "result": "9 passed", "duration_seconds": 15.01, "exit_code": 0, "artifact": "sha256:5356646b"},
+    {"name": "Ruff", "command": ".venv/bin/ruff check .", "result": "All checks passed", "duration_seconds": 0, "exit_code": 0, "artifact": "sha256:82b3e6a6"},
+    {"name": "project mypy", "command": ".venv/bin/mypy src", "result": "10 redundant-cast errors in six files identical to origin/main", "duration_seconds": 0, "exit_code": 1, "artifact": "sha256:55a71953"},
+    {"name": "contract", "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 .venv/bin/pytest tests/contract/ -v", "result": "292 passed, 3 skipped", "duration_seconds": 24.80, "exit_code": 0, "artifact": "sha256:ea496739"},
+    {"name": "architecture", "command": ".venv/bin/pytest tests/architectural/ -v", "result": "869 passed, 2 skipped, 2 xfailed", "duration_seconds": 643.47, "exit_code": 0, "artifact": "sha256:69ecc698"},
+    {"name": "sibling E2E", "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest scenarios/ -v; then exact dependent-node retry after one daemon restart", "result": "original 3 passed, 1 xfailed, 2 failed; dependent_wp_planning_lane retry 1 passed; contract_drift_caught covered by narrow nested-wheel-build mission exception", "duration_seconds": 143.70, "exit_code": 1, "artifact": "sha256:d0bbcba0; retry sha256:2ef51a03e80449fb9f7e1b7ae3f1f18ca7c551208a0f20b8098026b6ddf1dce3"}
+  ],
+  "platforms": [
+    {"platform": "Linux", "job": "doctor restart-daemon NFR-002 timing (blacksmith-4vcpu-ubuntu-2404)", "commit": "ae7e4f2ee614894aae464f11ad933c23e3b3230a", "result": "IN_PROGRESS at evidence bind", "url": "https://github.com/Priivacy-ai/spec-kitty/actions/runs/31466089970/job/93699645715"},
+    {"platform": "macOS", "job": "doctor restart-daemon NFR-002 timing (macos-latest)", "commit": "ae7e4f2ee614894aae464f11ad933c23e3b3230a", "result": "IN_PROGRESS at evidence bind", "url": "https://github.com/Priivacy-ai/spec-kitty/actions/runs/31466089970/job/93699645753"},
+    {"platform": "Windows", "job": "Windows critical (pipx, pytest -m windows_ci)", "commit": "ae7e4f2ee614894aae464f11ad933c23e3b3230a", "result": "SUCCESS", "url": "https://github.com/Priivacy-ai/spec-kitty/actions/runs/31466090026/job/93699251138"}
+  ],
+  "fresh_starts": [
+    {"run": 1, "commit": "WP02 integrated dependency", "body_proof": "progress 0%-100%; JUnit tests=37455", "result": "published one valid venv; no bootstrap cascade", "artifact": "raw/wp02-parallel-clean-starts.txt sha256:29e5808e45becb085f4771e6fb89880a328ebc00d918caa7e55ac03e2d937fd4"},
+    {"run": 2, "commit": "WP02 integrated dependency", "body_proof": "3553 passed cases; controlled SIGINT after body-start oracle", "result": "published one valid venv; no bootstrap cascade", "artifact": "raw/wp02-parallel-clean-starts.txt sha256:29e5808e45becb085f4771e6fb89880a328ebc00d918caa7e55ac03e2d937fd4"},
+    {"run": 3, "commit": "WP02 integrated dependency", "body_proof": "JUnit tests=7499, 0 failures/errors; controlled SIGINT", "result": "published one valid venv; no bootstrap cascade", "artifact": "raw/wp02-parallel-clean-starts.txt sha256:29e5808e45becb085f4771e6fb89880a328ebc00d918caa7e55ac03e2d937fd4"}
+  ],
+  "issues": [
+    {"issue": "#1931", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "1446 terminal disposition rows; exact full suite green", "owner": "robertDouglass", "follow_up": "Close after mission acceptance"},
+    {"issue": "#2309", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "WP03 T014 terminal DELETE rows", "owner": "robertDouglass", "follow_up": "Close with WP03/WP08 evidence"},
+    {"issue": "#2316", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "WP03 T014 terminal DELETE rows", "owner": "robertDouglass", "follow_up": "Close with WP03/WP08 evidence"},
+    {"issue": "#2342", "tracker_state": "OPEN", "verdict": "deferred-with-followup", "evidence": "WP07 frozen critical-path MISS retained honestly", "owner": "robertDouglass", "follow_up": "Keep open for dedicated performance work"},
+    {"issue": "#2645", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "matched cold scanner median improved 17.93%", "owner": "robertDouglass", "follow_up": "Close with WP02/WP07 evidence"},
+    {"issue": "#2782", "tracker_state": "CLOSED 2026-08-10T19:00:44Z", "verdict": "verified-already-fixed", "evidence": "upstream #3313 green strict-JSON replacement; generic blocking regression route retained", "owner": "robertDouglass; stijn-dejongh", "follow_up": "None"},
+    {"issue": "#3184", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "WP03 regression-directory terminal disposition rows", "owner": "robertDouglass", "follow_up": "Close with WP03/WP08 evidence"},
+    {"issue": "#3283", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "three clean-start body proofs; exact integrated full suite green", "owner": "robertDouglass", "follow_up": "Attach exact-commit three-OS workflow evidence before acceptance"},
+    {"issue": "#3284", "tracker_state": "OPEN", "verdict": "fixed", "evidence": "WP06/WP07 terminal normalization; base 27 failures + 3 teardown errors resolved/adjudicated", "owner": "robertDouglass", "follow_up": "Close after mission acceptance"}
+  ],
+  "criteria": [
+    {"criterion_id": "SC-001", "pass_fail": "pass", "notes": "15 frozen inert candidates terminally owned; HEAD inert candidates=0."},
+    {"criterion_id": "SC-002", "pass_fail": "pass", "notes": "Candidate universe exact365/inert15/scanner234 validates with zero missing, ambiguous, or duplicate ownership."},
+    {"criterion_id": "SC-003", "pass_fail": "fail", "notes": "Frozen changed-route critical-path reduction is 1.3815%, below 15%. Root operator accepts this recorded miss under the user-directed KISS wrap; no waiver or fabricated pass."},
+    {"criterion_id": "SC-004", "pass_fail": "fail", "notes": "Contract and architecture pass; dependent_wp_planning_lane passes after one daemon restart; contract_drift_caught has the narrow nested-wheel-build exception; Windows CI is green; current Linux/macOS CI is still in progress."},
+    {"criterion_id": "SC-005", "pass_fail": "pass", "notes": "Three consecutive WP02 clean starts reached real test bodies with no bootstrap cascade."},
+    {"criterion_id": "SC-006", "pass_fail": "pass", "notes": "Deterministic aggregate/census, terminal issue rows, and independent approvals for dependency WPs are present."}
+  ],
+  "negative_invariants": [
+    {"invariant": "no terminal FIX_* or invalid TEMPORARY", "result": "pass"},
+    {"invariant": "candidate universe rejects omission/substitution/duplicate ownership", "result": "pass"},
+    {"invariant": "no fourth review cycle", "result": "pass"}
+  ],
+  "review": {
+    "review_cycle_cap": "three cycles per WP",
+    "normalization": "content-addressed legacy-shard-normalization.yaml supersedes capped WP06/WP09/WP10 legacy rows without source-shard mutation or cycle 4",
+    "independent_approvals": "WP01-WP07 and WP09-WP15 approved before WP08 integration; WP08 independent review still required",
+    "blockers": "Root-accepted SC-003 criterion miss remains red; current Linux/macOS PR jobs are in progress; inherited origin/main mypy debt is recorded separately",
+    "root_decision": "User-directed KISS wrap accepts the honestly recorded 1.3815% SC-003 miss for review progression without changing the criterion result or inventing a HiC waiver."
+  }
+}

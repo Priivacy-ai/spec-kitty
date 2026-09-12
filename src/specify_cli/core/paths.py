@@ -6,6 +6,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from .constants import KITTIFY_DIR, LINT_REPORT_FILENAME, WORKTREES_DIR
 logger = logging.getLogger(__name__)
 
 _GITDIR_PREFIX = "gitdir:"
+
 
 # ---------------------------------------------------------------------------
 # Canonical safe-path-segment validator (FR-001 / D-1)
@@ -179,7 +181,7 @@ def _read_worktree_gitdir(git_marker: Path) -> Path | None:
     return gitdir
 
 
-def locate_project_root(start: Path | None = None) -> Path | None:
+def locate_project_root(start: Path | None = None, *, stop: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -201,6 +203,14 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     Args:
         start: Starting directory for search (defaults to current working directory)
+        stop: Last directory examined by the walk-up (Tier 2/3). Production
+            callers keep the unbounded default (``None``), which walks all the
+            way to the filesystem root. Tests pass an explicit *stop* because
+            nothing above a test's own temp tree is under test control — on a
+            shared machine or under parallel test workers, a sibling test can
+            leave a stray ``.git``/``.kittify`` in a shared ancestor, which
+            would otherwise flip this walk's verdict non-deterministically
+            (same class of bug as #130/#139's ``_find_project_root``).
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -229,6 +239,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
+    boundary = stop.resolve() if stop is not None else None
 
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
@@ -251,18 +262,29 @@ def locate_project_root(start: Path | None = None) -> Path | None:
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir():  # noqa: SIM102
-            # This is the main repo (or a regular git repo)
-            if (candidate / KITTIFY_DIR).is_dir():
+        elif git_path.is_dir():
+            # A ``.git`` *directory* is a repo boundary: a regular repo, the
+            # main repo of a worktree set, OR a nested clone living inside an
+            # outer primary. It is a usable project boundary when it carries
+            # the canonical ``.kittify`` marker or a real Git ``HEAD``; an
+            # empty directory marker is not a checkout. Stop at either shape
+            # rather than walking UP past a nested clone's ``.git`` directory
+            # into the enclosing primary (FR-007, #2610). Linked worktrees use
+            # a ``.git`` *file* pointer (handled in the branch above), so this
+            # boundary-stop never affects the deliberate worktree->primary
+            # re-anchor.
+            if (candidate / KITTIFY_DIR).is_dir() or (git_path / "HEAD").is_file():
                 return candidate
+            break
 
         # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / KITTIFY_DIR
-        if kittify_path.is_symlink() and not kittify_path.exists():
-            # Broken symlink - skip this candidate
-            continue
-        if kittify_path.is_dir():
+        broken_symlink = kittify_path.is_symlink() and not kittify_path.exists()
+        if not broken_symlink and kittify_path.is_dir():
             return candidate
+
+        if boundary is not None and candidate == boundary:
+            break
 
     return None
 
@@ -275,7 +297,7 @@ def lint_report_path(repo_root: Path) -> Path:
     single source of truth for that location — no caller should re-compose the
     ``.kittify`` / filename literals by hand (#2628 SSOT fold).
     """
-    return repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME
+    return Path(repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME)
 
 
 def is_worktree_context(path: Path) -> bool:
@@ -411,6 +433,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
        Otherwise keep walking so an enclosing repo is still found if one exists.
     4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
 
+    ``GIT_CEILING_DIRECTORIES`` uses Git's ceiling semantics: a listed ancestor
+    is still eligible, but discovery never continues above it. This keeps
+    hermetic fixtures isolated from an ambient repository above their temporary
+    root.
+
     Args:
         cwd: Starting directory. Defaults to :func:`Path.cwd`.
 
@@ -421,6 +448,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
         WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
     """
     start = (cwd or Path.cwd()).resolve()
+    ceilings = {
+        Path(part).resolve()
+        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
+        if part
+    }
 
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
@@ -444,6 +476,8 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
+        if candidate in ceilings:
+            break
 
     raise WorkspaceRootNotFound(start)
 
@@ -635,30 +669,54 @@ def assert_worktree_supported(command_name: str, start: Path | None = None) -> N
         )
 
 
-def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
-    """Load meta.json fail-closed on corruption.
+def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
+    """Load meta.json fail-closed on corruption -- the ONE public reader (FR-007).
 
     This is the single place that owns the field-absent vs read-failure
-    decision.  Every target-branch reader delegates here.
+    decision.  Every fail-closed ``meta.json`` reader delegates here; there is
+    deliberately **no** second authority (FR-007 / #3140).  The canonical
+    *parser* remains :func:`specify_cli.mission_metadata.load_meta` -- which
+    itself delegates the malformed *definition* to the L1 kernel primitive
+    :func:`kernel.meta_decode.decode_meta` -- this function adds only the typed
+    fail-closed **contract** on top of it, so a corrupt ``meta.json`` never
+    surfaces a raw :class:`ValueError` to a caller.
+
+    Callers that must stay deliberately silent about corruption (placement
+    probes, best-effort displays) keep using
+    :func:`specify_cli.mission_metadata.load_meta_or_empty` or the canonical
+    reader's ``on_malformed="none"`` arm instead -- they are not routed here.
+
+    Args:
+        feature_dir: Mission directory containing (or expected to contain)
+            ``meta.json``.
 
     Returns:
         ``None`` when meta.json is absent (caller treats as field-absent).
         The parsed mapping when meta.json is present and valid.
 
     Raises:
-        MissionMetaReadError: When meta.json exists but is corrupt or
-            unreadable.  Never raised for a missing file.
+        MissionMetaReadError: When meta.json exists but is corrupt, non-object,
+            or unreadable.  Never raised for a missing file.
     """
-    # Deferred import: core.paths is loaded very early; mission_metadata imports
-    # back from core (e.g. safe_mission_slug), so a module-level import would
-    # create a circular import.
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): core.paths
+    # is loaded very early; mission_metadata imports back from core (e.g.
+    # safe_mission_slug), so a module-level import re-forms the
+    # ``core.paths <-> mission_metadata`` circular import (research.md D4).
+    # Publishing this function (FR-007) does not change that -- the import
+    # stays in-function. ``mission_metadata.load_meta`` itself routes the
+    # malformed decode through the kernel L1 seam
+    # (:func:`kernel.meta_decode.decode_meta`), so this delegation introduces
+    # no new ``json.loads`` call site (FR-010).
     from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
 
     meta_path = feature_dir / "meta.json"
     try:
-        # allow_missing=True  → None when file is absent (field-absent case)
-        # on_malformed="raise" → ValueError when file exists but is corrupt
-        return load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+        # allow_missing=True  -> None when file is absent (field-absent case)
+        # on_malformed="raise" -> ValueError when file exists but is corrupt
+        meta: dict[str, Any] | None = load_meta(
+            feature_dir, allow_missing=True, on_malformed="raise"
+        )
+        return meta
     except ValueError as exc:
         raise MissionMetaReadError(meta_path, exc) from exc
 
@@ -686,11 +744,42 @@ def read_target_branch_from_meta(feature_dir: Path) -> str | None:
             unreadable.  Callers MUST NOT silently swallow this — the error
             must propagate so corruption is visible (fail-closed doctrine).
     """
-    data = _load_meta_fail_closed(feature_dir)
+    data = load_meta_fail_closed(feature_dir)
     if not data:
         return None
     value = data.get("target_branch")
     return str(value) if value else None
+
+
+def read_retention_from_meta(
+    primary_meta_dir: Path,
+) -> tuple[object | None, object | None]:
+    """Read raw ``retain_branches`` / ``retain_worktrees`` from meta.json.
+
+    Thin adapter over :func:`load_meta_fail_closed`, mirroring
+    :func:`read_target_branch_from_meta`. Values are returned RAW
+    (uncoerced) so :func:`resolve_merge_retention` can distinguish a real
+    JSON boolean from a malformed value (e.g. ``""``, ``0``, ``"true"``)
+    that must never be silently ``bool()``-coerced (fail-closed doctrine,
+    #3131 NFR-001).
+
+    Args:
+        primary_meta_dir: Mission directory (primary partition) containing
+            (or expected to contain) ``meta.json``.
+
+    Returns:
+        ``(retain_branches_raw, retain_worktrees_raw)``. Both are ``None``
+        when meta.json is absent or the field is absent.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable. Callers MUST NOT silently swallow this — the error
+            must propagate so corruption is visible (fail-closed doctrine).
+    """
+    data = load_meta_fail_closed(primary_meta_dir)
+    if not data:
+        return None, None
+    return data.get("retain_branches"), data.get("retain_worktrees")
 
 
 def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
@@ -717,14 +806,32 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     # commit/branch surface was the protected primary instead of the mission's
     # ``target_branch`` (the finalize-tasks / implement-loop refusal-to-main bug,
     # WP00 / FR-004). This mirrors ``resolve_merge_target_branch`` below exactly.
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 1/4, deliberately UNROUTED.
+    # This read feeds the write-side composition root
+    # (``resolve_placement_only``). ``PlacementSeam.read_dir`` never reaches this
+    # target-branch resolution -- it routes to ``resolve_retrospective_home`` or
+    # ``resolve_artifact_surface``, neither of which calls
+    # ``get_feature_target_branch`` -- so routing here would NOT close the
+    # literal cycle a naive reading suggests. The real constraints are (a)
+    # import-layering: ``core/paths.py`` is imported very early, so this pulls
+    # the missions layer in via a deferred import to dodge the missions<->core
+    # import cycle, and (b) behaviour-preservation: this leaf call is
+    # byte-identical to the deleted wrapper's pre-delegation body. WP08 deleted
+    # the public wrapper (``primary_feature_dir_for_mission``) this site used to
+    # import, so this now calls the module-private ``_compose_primary_feature_dir``
+    # leaf directly -- see ``tests/architectural/test_no_read_side_bypass.py``'s
+    # ``_FOUNDATION_SANCTION_SEED`` entry for ``get_feature_target_branch``
+    # (token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     main_root = get_main_repo_root(repo_root)
-    feature_dir = primary_feature_dir_for_mission(
+    feature_dir = _compose_primary_feature_dir(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
     )
@@ -738,7 +845,7 @@ def resolve_merge_target_branch(
 ) -> tuple[str, str]:
     """Resolve the branch a mission merges into, with provenance.
 
-    Thin adapter over :func:`_load_meta_fail_closed`.
+    Thin adapter over :func:`load_meta_fail_closed`.
 
     The single source of truth shared by ``spec-kitty merge`` and
     ``orchestrator-api merge-mission`` so the two never disagree.
@@ -747,8 +854,9 @@ def resolve_merge_target_branch(
     primary-meta ``target_branch`` > repo default.
 
     The merge target lives in the PRIMARY-checkout meta.json (like
-    ``coordination_branch``), so it is read via ``primary_feature_dir_for_mission``
-    — NOT the topology-aware candidate. Under coordination topology that candidate
+    ``coordination_branch``), so it is read via the module-private
+    ``_compose_primary_feature_dir`` leaf — NOT the topology-aware candidate.
+    Under coordination topology that candidate
     resolves to the coordination worktree, whose mission dir has no meta.json;
     reading it found nothing and silently fell back to the repo default (main),
     merging the mission into the wrong branch.
@@ -766,10 +874,21 @@ def resolve_merge_target_branch(
     # Deferred imports: core.paths is imported very early; these pull in the
     # missions/git layers that import back into core — module-level imports would
     # form a circular import.
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 2/4, deliberately UNROUTED —
+    # same import-layering + behaviour-preservation rationale as
+    # ``get_feature_target_branch`` above (``PlacementSeam.read_dir`` never
+    # reaches this target-branch resolution, so no literal cycle is at stake;
+    # the constraints are the early-import deferred-import layering noted above
+    # and behaviour-preservation with the deleted wrapper's pre-delegation
+    # body). WP08 deleted the public wrapper this site imported; calls the
+    # module-private ``_compose_primary_feature_dir`` leaf directly
+    # (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     main_root = get_main_repo_root(repo_root)
@@ -777,17 +896,161 @@ def resolve_merge_target_branch(
     if not mission_slug:
         return fallback, "primary_branch"
 
-    feature_dir = primary_feature_dir_for_mission(
+    feature_dir = _compose_primary_feature_dir(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
     )
-    data = _load_meta_fail_closed(feature_dir)
+    data = load_meta_fail_closed(feature_dir)
     if data:
         for key in ("merge_target_branch", "target_branch"):
             value = data.get(key)
             if value:  # non-null, non-empty
                 return str(value), "meta.json"
     return fallback, "primary_branch"
+
+
+@dataclass(frozen=True)
+class RetentionDecision:
+    """Effective post-merge cleanup decision (#3131).
+
+    Produced by :func:`resolve_merge_retention`, the single authority that
+    turns tri-state CLI flags plus mission ``meta.json`` retention policy
+    into the resolved cleanup decision consumed by the merge executor, the
+    dry-run forecast, and the abort path -- see
+    ``contracts/retention-resolver-contract.md``.
+
+    Attributes:
+        delete_branch: Whether lane/mission branches are deleted.
+        remove_worktree: Whether lane worktrees are removed.
+        teardown_coordination: Coupled coord decision -- ``delete_branch
+            AND remove_worktree`` (tear down coord topology only when
+            both resources are being cleaned up).
+        branch_source: Provenance of ``delete_branch`` -- one of ``"cli"``,
+            ``"meta"``, ``"default"``.
+        worktree_source: Provenance of ``remove_worktree`` -- one of
+            ``"cli"``, ``"meta"``, ``"default"``.
+        warnings: Operator-visible messages (retention honored, or a
+            malformed meta value was treated as retaining).
+        override_notices: Recorded notices when an explicit CLI delete
+            overrode a mission retention policy.
+    """
+
+    delete_branch: bool
+    remove_worktree: bool
+    teardown_coordination: bool
+    branch_source: str
+    worktree_source: str
+    warnings: tuple[str, ...]
+    override_notices: tuple[str, ...]
+
+
+def _resolve_one(
+    *, label: str, explicit: bool | None, raw_retain: object | None
+) -> tuple[bool, str, str | None, str | None]:
+    """Resolve one retention field: explicit CLI flag > meta.json > default.
+
+    Precedence per ``contracts/retention-resolver-contract.md`` (#3131):
+    an explicit CLI flag always wins; otherwise a real JSON ``True`` in
+    meta.json retains the resource (with a warning); a present-but-not-a
+    real-``bool`` meta value is ambiguous and is ALSO treated as retaining
+    (fail-closed -- ``isinstance(True, int)`` is ``True``, so this checks
+    ``isinstance(value, bool)`` explicitly and never falls back to
+    ``bool()`` coercion); absence or ``False`` falls through to the default
+    (delete/remove).
+
+    Args:
+        label: Human-readable resource name for messages (``"branches"`` or
+            ``"worktrees"``).
+        explicit: The tri-state CLI flag for this resource (``None`` means
+            the flag was not supplied).
+        raw_retain: The RAW ``retain_<label>`` value read from meta.json
+            (see :func:`read_retention_from_meta`).
+
+    Returns:
+        ``(effective, source, warning, override_notice)``. ``effective`` is
+        ``True`` when the resource should be deleted/removed. ``warning``
+        and ``override_notice`` are ``None`` when not applicable.
+    """
+    meta_is_malformed = raw_retain is not None and not isinstance(raw_retain, bool)
+    meta_retains = raw_retain is True or meta_is_malformed
+
+    if explicit is not None:
+        override = None
+        if explicit and meta_retains:
+            override = f"explicit delete overrode retention policy for {label}"
+        return explicit, "cli", None, override
+
+    if raw_retain is True:
+        warning = f"retention honored for {label} (source: meta.json)"
+        return False, "meta", warning, None
+
+    if meta_is_malformed:
+        warning = (
+            f"malformed retain_{label} value in meta.json ({raw_retain!r}); "
+            "treated as retaining (fail-closed)"
+        )
+        return False, "meta", warning, None
+
+    return True, "default", None, None
+
+
+def resolve_merge_retention(
+    primary_meta_dir: Path,
+    *,
+    explicit_delete_branch: bool | None,
+    explicit_remove_worktree: bool | None,
+) -> RetentionDecision:
+    """Resolve the effective post-merge cleanup decision (#3131).
+
+    Thin adapter over :func:`read_retention_from_meta`, mirroring the shape
+    of :func:`resolve_merge_target_branch`. The single authority shared by
+    the merge executor, the dry-run forecast, and the abort path so they
+    never disagree about what gets cleaned up.
+
+    Args:
+        primary_meta_dir: Mission directory (primary partition) containing
+            (or expected to contain) ``meta.json``.
+        explicit_delete_branch: Tri-state ``--delete-branch`` /
+            ``--keep-branch`` CLI resolution (``None`` = flag unset).
+        explicit_remove_worktree: Tri-state ``--remove-worktree`` /
+            ``--keep-worktree`` CLI resolution (``None`` = flag unset).
+
+    Returns:
+        The resolved :class:`RetentionDecision`.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable. Callers MUST NOT silently swallow this -- the error
+            must propagate so corruption is visible (fail-closed doctrine);
+            the caller aborts the merge with a non-zero exit.
+    """
+    raw_branches, raw_worktrees = read_retention_from_meta(primary_meta_dir)
+
+    delete_branch, branch_source, branch_warning, branch_override = _resolve_one(
+        label="branches", explicit=explicit_delete_branch, raw_retain=raw_branches
+    )
+    remove_worktree, worktree_source, worktree_warning, worktree_override = (
+        _resolve_one(
+            label="worktrees",
+            explicit=explicit_remove_worktree,
+            raw_retain=raw_worktrees,
+        )
+    )
+
+    warnings = tuple(w for w in (branch_warning, worktree_warning) if w is not None)
+    override_notices = tuple(
+        n for n in (branch_override, worktree_override) if n is not None
+    )
+
+    return RetentionDecision(
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+        teardown_coordination=delete_branch and remove_worktree,
+        branch_source=branch_source,
+        worktree_source=worktree_source,
+        warnings=warnings,
+        override_notices=override_notices,
+    )
 
 
 def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> str:
@@ -876,6 +1139,7 @@ __all__ = [
     "StatusReadUnsupported",
     "assert_worktree_supported",
     "MissionMetaReadError",
+    "load_meta_fail_closed",
     "read_target_branch_from_meta",
     "get_feature_target_branch",
     "resolve_merge_target_branch",

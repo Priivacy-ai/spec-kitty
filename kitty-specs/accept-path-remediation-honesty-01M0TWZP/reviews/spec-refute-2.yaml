@@ -1,0 +1,42 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-ARCH-002
+    verdict: refuted
+    reason: >
+      spec.md's own Key Entities section (line 266) explicitly states "FR-004/FR-005
+      change what `format_errors()` asserts" — spec.md itself does state where the
+      --lenient-referencing text must be composed (inside `PathValidationResult.format_errors()`
+      in `validators/paths.py`), directly contradicting the finding's central premise that
+      "nothing in FR-004/FR-005/C-004 states where" the text must be composed; the finding's
+      evidence list omitted this passage.
+  - id: SPEC-VERIFY-001
+    verdict: refuted
+    reason: >
+      The finding's own quoted text already contains the guard it claims is missing — User
+      Story 2 AC1 says the fact is "surfaced through exactly one of missing_optional ...
+      or path_violations ... — never both" and SC-002 says "produces exactly one severity
+      for that fact ... never both" (verified verbatim in spec.md lines 105-107 and 286-289);
+      "exactly one of A or B" is standard XOR phrasing that already forecloses the drop-from-both
+      case the finding worries about, so the artifact already handles this and the finding's
+      suggested remediation text is already substantively present.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Verified spec.md's Story 3 AC4 (lines 156-159) requires the mkdir -p suggestion not be
+      "presented as the only or primary path off the failure" with no other passage in spec.md
+      defining what signal (ordering, labeling, wording) makes something "primary" — the concrete
+      resolution ("rank --lenient first ... note that mkdir -p only silences the check") exists
+      only in tracer-design-decisions.md, confirmed not folded into the AC text itself.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Verified FR-007's row and SC-004 name no specific entry point/function, unlike Story 1's
+      Independent Test which explicitly says "invoke validate_mission_paths directly"; Story 4's
+      Independent Test only says the fixture "runs standalone" and is reproduced via git-stash/
+      revert, with no named function, and NFR-001's "reproduced through the pre-existing entry
+      point" clause covers FR-007 only by general cross-reference (001-007), not a self-contained
+      constraint in FR-007/SC-004 themselves.

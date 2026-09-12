@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -57,12 +57,10 @@ def _untrack(project_path: Path, relative_path: str) -> bool:
 
 
 def _read_gitignore_entries(project_path: Path) -> set[str]:
-    gitignore_path = project_path / ".gitignore"
-    if not gitignore_path.exists():
-        return set()
+    content = read_ignore_file_text(project_path / ".gitignore")
     return {
         line.strip()
-        for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines()
+        for line in content.splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     }
 

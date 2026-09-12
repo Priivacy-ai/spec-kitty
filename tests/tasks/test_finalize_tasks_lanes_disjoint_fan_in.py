@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.lanes.compute import compute_lanes
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 pytestmark = pytest.mark.fast
 
 
 def _manifest(path: str) -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode.CODE_CHANGE,
+        execution_mode=WorkProductKind.CODE_CHANGE,
         owned_files=(path,),
         authoritative_surface=path,
     )

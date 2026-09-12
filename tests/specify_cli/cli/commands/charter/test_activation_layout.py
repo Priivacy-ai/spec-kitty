@@ -5,7 +5,7 @@ when a ``<pack>/doctrine/`` subdirectory existed (``_layer_roots.resolve_layer_r
 and scanned the nested ``<pack>/doctrine/<plural>/org/`` location
 (``pack_manager._scan_layer_dirs``). Runtime, by contrast, resolves org packs from
 the *flat* ``<pack>/<plural>/`` layout via
-``doctrine.drg.org_pack_config.resolve_org_roots`` and feeds those roots to
+``charter.offering.drg.org_pack_config.resolve_org_roots`` and feeds those roots to
 ``DoctrineService`` — so a runtime-resolvable org profile failed to activate with
 "Unknown agent-profile ID".
 
@@ -81,13 +81,21 @@ def _write_flat_directive(pack_root: Path, stem: str, declared_id: str) -> None:
 
 
 def _write_config_with_org_pack(project_root: Path, pack_local_path: str) -> None:
-    """Point ``.kittify/config.yaml`` at a single org pack via the canonical schema."""
+    """Point ``.kittify/config.yaml`` at a single org pack via the canonical schema.
+
+    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned charter
+    is the sole mission-type activation authority, so ``PackContext.from_config``
+    fails closed when the key is absent from the activation source -- these
+    fixtures must provision it like a real ``spec-kitty init``/``upgrade`` would.
+    """
     (project_root / ".kittify" / "config.yaml").write_text(
         "doctrine:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: orgzilla\n"
-        f"        local_path: {pack_local_path}\n",
+        f"        local_path: {pack_local_path}\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
 

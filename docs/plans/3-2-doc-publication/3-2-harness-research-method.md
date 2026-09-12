@@ -1,9 +1,12 @@
 ---
 title: 3.2 Harness Research Method
 description: Defines a repeatable, evidence-driven procedure for classifying the AI coding harnesses (agents) Spec Kitty supports, naming the sources of authority used.
-doc_status: draft
-updated: '2026-06-27'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.
+
 # 3.2 Harness Research Method
 
 **Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/api/supported-harnesses.md`](../../api/supported-harnesses.md).
@@ -94,8 +97,8 @@ done
 
 **Notes:**
 - `spec-kitty-standalone.md` is the lane-bootstrap surface; the full `/spec-kitty.*` command set lives at the source under `src/specify_cli/missions/*/command-templates/` and is materialized by `spec-kitty agent config sync` (see `CLAUDE.md` §"Adding/Removing Agents").
-- `.agents/skills/spec-kitty/` is the Agent Skills package directory (not the SKILL.md file) shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §"Agent Skills Agents"). <!-- tool-surface: ignore -->
-- Current Codex CLI support uses the shared Agent Skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/api/environment-variables.md` §CODEX_HOME).
+- `.agents/skills/spec-kitty/` is the agent skills package directory (not the SKILL.md file) shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §`Agent Skills Agents`). <!-- tool-surface: ignore -->
+- Current Codex CLI support uses the shared agent skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/api/environment-variables.md` §CODEX_HOME).
 - Google Antigravity (`.agent/workflows/`) is present in the current CLI agent registry and is included in the matrix.
 
 ---
@@ -109,7 +112,7 @@ Each row in the support matrix records exactly one `mechanism` value from the `H
 | `slash_command` | The harness exposes user-typed `/...` commands. | Claude Code `.claude/commands/`, Cursor `.cursor/commands/`. |
 | `prompt` | The harness reads prompt files at runtime. | Amazon Q `.amazonq/prompts/`, Kiro `.kiro/prompts/`, GitHub Copilot `.github/prompts/`. |
 | `workflow` | The harness drives multi-step workflows defined by YAML/Markdown. | Windsurf `.windsurf/workflows/`, Kilo Code `.kilocode/workflows/`, Google Antigravity `.agent/workflows/`. |
-| `skill` | The harness loads Agent Skills packages with `SKILL.md`. | Codex CLI, Mistral Vibe, Pi, Letta Code (via `.agents/skills/`). |
+| `skill` | The harness loads agent skills packages with `SKILL.md`. | Codex CLI, Mistral Vibe, Pi, Letta Code (via `.agents/skills/`). |
 | `command_file` | The harness reads command files outside a `commands/` directory. | reserved; no current harness uses this mode. |
 | `config` | The harness needs an additional config-file edit before commands are visible. | Vibe (`.vibe/config.toml` `skill_paths`). |
 
@@ -208,7 +211,7 @@ The matrix in [`docs/api/supported-harnesses.md`](../../api/supported-harnesses.
 | Key | Display name | Mechanism | Tier | Citation | Notes |
 |-----|--------------|-----------|------|----------|-------|
 | `claude` | Claude Code | slash_command | first_class | https://docs.claude.com/en/docs/claude-code/overview | Reference harness; integration tests live in `src/specify_cli/`. |
-| `codex` | Codex CLI | skill | first_class | https://github.com/openai/codex | Heaviest Agent Skills integration; `.agents/skills/spec-kitty.*/SKILL.md` is the authoritative skill tree. |
+| `codex` | Codex CLI | skill | first_class | https://github.com/openai/codex | Heaviest agent skills integration; `.agents/skills/spec-kitty.*/SKILL.md` is the authoritative skill tree. |
 | `opencode` | OpenCode | slash_command | supported | https://opencode.ai/docs | `.opencode/command/` installed. |
 | `cursor` | Cursor | slash_command | supported | https://cursor.com/docs | `.cursor/commands/` installed. |
 | `gemini` | Google Gemini CLI | slash_command | supported | https://github.com/google-gemini/gemini-cli | `.gemini/commands/` installed. |

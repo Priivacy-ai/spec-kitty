@@ -197,7 +197,7 @@ Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), lane met
 
 Always use `spec-kitty implement`.
 
-### Committing in the Repository Root Checkout During Implementation
+### Committing in the repository root checkout during implementation
 
 ```bash
 # WRONG: Committing code in the repository root checkout
@@ -241,11 +241,11 @@ Spec Kitty does not install or manage git hooks. The pre-commit hook that previo
 
 ## Try It
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
 
 ## Reference
 

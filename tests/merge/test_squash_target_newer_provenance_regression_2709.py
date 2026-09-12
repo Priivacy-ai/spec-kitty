@@ -1,13 +1,14 @@
-"""Red-first regression reproduction for #2709.
+"""Regression guard for the fixed #2709 defect (target-newer squash provenance).
 
-RED-FIRST P0 reproduction of #2709 per ADR 2026-07-17-1
-(docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
-Intentionally FAILS until the product bug is fixed — a red mainline is the honest
-signal of this release-blocking P0. Do NOT xfail/skip/quarantine to green; fix the
-product. Tracking issue: #2709.
+Formerly a red-first ``@pytest.mark.regression`` reproduction per ADR
+2026-07-17-1
+(docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md);
+un-marked (landing fold: make ``@pytest.mark.regression`` mean exactly one
+thing) once the fix landed and this test started passing. #2709 is fixed —
+this is now a permanent guard, not a red-first pin.
 
-Defect
-------
+Defect (fixed)
+--------------
 ``spec-kitty merge`` folds the mission branch into the target with a squash merge
 implemented in ``specify_cli.lanes.merge._merge_branch_into`` as::
 
@@ -18,9 +19,10 @@ implemented in ``specify_cli.lanes.merge._merge_branch_into`` as::
 the mission was accepted on the target, minting acceptance provenance
 (``accept_commit``, ``accepted_at``, ``acceptance_history``, ``vcs``,
 ``vcs_locked_at``) and bumping canonical fields (``mission_number``, ``status``) —
-those target-newer values are silently overwritten by, or dropped in favour of,
-the older mission-branch copies. Acceptance provenance must survive a squash
-merge; target-newer canonical state must be reconciled, not replaced wholesale.
+those target-newer values used to be silently overwritten by, or dropped in
+favour of, the older mission-branch copies. Acceptance provenance now survives
+a squash merge; target-newer canonical state is reconciled, not replaced
+wholesale.
 
 This test drives the pre-existing, supported squash-merge entry point
 ``integrate_mission_into_target(..., strategy=MergeStrategy.SQUASH)`` against a
@@ -40,7 +42,7 @@ from specify_cli.lanes.merge import integrate_mission_into_target
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.merge.config import MergeStrategy
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 MISSION_SLUG = "099-target-newer-acceptance"
 META_REL = f"kitty-specs/{MISSION_SLUG}/meta.json"
@@ -124,7 +126,6 @@ def _manifest() -> LanesManifest:
     )
 
 
-@pytest.mark.regression
 def test_squash_merge_preserves_target_newer_acceptance_provenance(
     tmp_path: Path,
 ) -> None:

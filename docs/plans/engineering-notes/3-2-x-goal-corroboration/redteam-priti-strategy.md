@@ -1,7 +1,7 @@
 ---
 title: RED TEAM — Refuting the 3.2.x Strategy & Corroboration (planner-priti, antithesis)
 description: Planner Priti's red-team refutation (dialectic antithesis) of the 3.2.x strategy and corroboration, read-only at 3.2.0.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # RED TEAM — Refuting the 3.2.x Strategy & Corroboration (planner-priti, antithesis)
@@ -128,8 +128,7 @@ naming slice (`gh issue list --milestone 3.2.x`). Meanwhile the open queue:
 |---|---|---|---|---|
 | 3.2.x is a "stabilization-and-depth cycle." | A stabilization cycle that leaves a P0 launch-blocker (#1716) and an *unrecoverable* merge bug (#1827) unmilestoned, while milestoning only 5 mechanical naming issues, is not stabilising the things that destabilise operators. | `gh issue list` P0/P1/launch-blocker vs `--milestone 3.2.x` (5 issues, naming-only). | **HOLDS.** | **HIGH** |
 
-**Verdict (5):** A neutral planner would lead 3.2.1 with **#1716 (P0 launch-blocker)** and **#1827 /
-#1832** (live recoverable-only-by-hand bugs), not the naming ratchet. The milestone scoping reveals the
+**Verdict (5):** A neutral planner would lead 3.2.1 with **#1716 (P0 launch-blocker)** and **#1827 / #1832** (live recoverable-only-by-hand bugs), not the naming ratchet. The milestone scoping reveals the
 priority inversion concretely: 5 naming issues milestoned, 7 P0 / 63 P1 not.
 
 ---

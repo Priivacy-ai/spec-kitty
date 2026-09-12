@@ -43,8 +43,9 @@ from typing import Protocol, runtime_checkable
 
 from rich.console import Console
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import locate_project_root
 from specify_cli.coordination.commit_router import (
     CommitRouterResult,
@@ -55,10 +56,7 @@ from specify_cli.coordination.status_transition import (
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.missions._read_path_resolver import (
-    _canonicalize_primary_read_handle,
-    primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
 )
 from specify_cli.status import StatusEvent, TransitionRequest
 
@@ -69,7 +67,7 @@ from specify_cli.status import StatusEvent, TransitionRequest
 
 @dataclass(frozen=True)
 class MissionHandle:
-    """The two coordinates every real ``tasks.py`` seam consumes.
+    """Repository/mission identity plus an optional owned working checkout.
 
     The canonical resolvers take ``(repo_root, mission_slug)``; this frozen pair
     threads them through the ports as one value so the orchestrators pass a single
@@ -78,6 +76,7 @@ class MissionHandle:
 
     repo_root: Path
     mission_slug: str
+    effective_root: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -141,9 +140,11 @@ class FsReader(Protocol):
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:
         """Resolve the topology-blind PRIMARY anchor dir.
 
-        The blind primitive ``primary_feature_dir_for_mission`` stays **inside**
-        this method, co-located with its ``_canonicalize_primary_read_handle``
-        fold (C-002).
+        Routes through the kind-aware placement seam
+        (``placement_seam(...).read_dir(PRIMARY_METADATA)``, read-side-seam-
+        primary-primitive-closure-01KYKMMT WP04/WP08), which folds the handle
+        to its canonical form internally -- no caller-side canonicalizer fold
+        is co-located here (C-002; drained WP08 T036).
         """
         ...
 
@@ -238,31 +239,46 @@ class RealFsReader:
     def planning_read_dir(
         self, mission: MissionHandle, *, kind: MissionArtifactKind
     ) -> Path:
+        # read-side-placement-seam-migration WP07: a direct 1:1 swap onto the
+        # kind-aware seam (fail-loud on a deleted-coord mismatch, NFR-002) —
+        # ``resolve_planning_read_dir(root, slug, kind=kind)`` →
+        # ``PlacementSeam(root, slug).read_dir(kind)``.
         # Annotated local: the project runs mypy with ``follow_imports = "skip"``,
         # so the imported (typed ``-> Path``) resolver surfaces as ``Any`` here;
         # the annotation re-pins the known concrete type without a suppression.
-        read_dir: Path = resolve_planning_read_dir(
-            mission.repo_root, mission.mission_slug, kind=kind
-        )
+        read_dir: Path = placement_seam(
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
+        ).read_dir(kind)
         return read_dir
 
     def wp_tasks_dir(self, mission: MissionHandle) -> Path:
-        feature_dir: Path = resolve_planning_read_dir(
-            mission.repo_root,
-            mission.mission_slug,
-            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-        )
+        feature_dir: Path = placement_seam(
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
+        ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         return feature_dir / "tasks"
 
     def primary_anchor_dir(self, mission: MissionHandle) -> Path:
-        # C-002: the canonicalizer fold and the blind primitive call are
-        # co-located in THIS method. The resolution-authority canonicalizer gate
-        # is intra-function (def-use); splitting the fold across the boundary
-        # turns it RED. Keep both here.
-        canonical = _canonicalize_primary_read_handle(
-            mission.repo_root, mission.mission_slug
-        )
-        anchor: Path = primary_feature_dir_for_mission(mission.repo_root, canonical)
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004):
+        # routed through the kind-aware placement seam directly rather than
+        # the now-bypassed ``primary_feature_dir_for_mission`` wrapper -- every
+        # PRIMARY-partition kind resolves to the identical anchor (P-1), so
+        # ``PRIMARY_METADATA`` stands in for this port's own topology-blind
+        # answer (the wrapper's own body was exactly this seam call).
+        # WP08 (T036): the caller-side canonicalizer fold DROPPED -- it is
+        # redundant with the seam's OWN internal fold. For a PRIMARY-partition
+        # kind, ``read_dir`` folds the handle through this SAME
+        # ``_canonicalize_primary_read_handle`` primitive before composing
+        # (see ``resolve_planning_read_dir``'s PRIMARY leg), so pre-folding an
+        # already-canonical or already-raw handle here achieves nothing the
+        # seam does not already do — folding twice is idempotent, not merely
+        # equivalent (the fold's own no-op leg for an unresolvable handle
+        # returns it unchanged either way).
+        anchor: Path = placement_seam(
+            mission.repo_root, mission.mission_slug,
+            **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return anchor
 
 
@@ -319,7 +335,12 @@ class RealCoordCommitRouter:
         self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
-        write_dir: Path = resolve_feature_dir_for_mission(
+        if mission.effective_root is not None:
+            write_dir: Path = placement_seam(
+                mission.repo_root, mission.mission_slug, effective_root=mission.effective_root,
+            ).read_dir(MissionArtifactKind.STATUS_STATE)
+            return write_dir
+        write_dir = resolve_feature_dir_for_mission(
             mission.repo_root, mission.mission_slug
         )
         return write_dir
@@ -354,6 +375,7 @@ class RealCoordCommitRouter:
                 policy,
                 kind=kind,
                 target_branch=self._target_branch,
+                **effective_root_kwargs(mission.effective_root),
             )
         else:
             result = self._commit_fn(
@@ -363,6 +385,7 @@ class RealCoordCommitRouter:
                 message,
                 policy,
                 kind=kind,
+                **effective_root_kwargs(mission.effective_root),
             )
         return CommitArtifactResult(
             status=result.status,

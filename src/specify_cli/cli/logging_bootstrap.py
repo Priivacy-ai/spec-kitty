@@ -2,13 +2,13 @@
 
 Installs a minimal but deterministic logging configuration at CLI entry so
 that ``warnings.warn(...)`` calls — including ``CharterCatalogMissWarning``
-emitted by ``charter._catalog_miss.emit_catalog_miss_warning`` — are routed
+emitted by ``charter.activation._catalog_miss.emit_catalog_miss_warning`` — are routed
 through Python's logging subsystem and appear in the operator's terminal.
 
 Background (RISK-3 from Mission B post-merge review)
 -----------------------------------------------------
 Before this bootstrap existed, the call-stack in
-``charter._catalog_miss.emit_catalog_miss_warning`` included two surfaces:
+``charter.activation._catalog_miss.emit_catalog_miss_warning`` included two surfaces:
 
 1. ``warnings.warn(message, CharterCatalogMissWarning, ...)``
    — Python's default warning machinery may print this to stderr as
@@ -30,7 +30,7 @@ Before this bootstrap existed, the call-stack in
 * A ``rich.logging.RichHandler`` (or a minimal stderr ``StreamHandler``
   fallback when Rich is not importable) is attached to the root logger so
   that WARNING-level records — from both the ``logging.warnings`` logger and
-  module-level loggers like ``charter._catalog_miss._LOGGER`` — reach
+  module-level loggers like ``charter.activation._catalog_miss._LOGGER`` — reach
   the terminal.
 
 Idempotency / no double-printing

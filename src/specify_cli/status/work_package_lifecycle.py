@@ -13,6 +13,7 @@ from typing import Any, cast
 
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.review_claim_predicate import review_claim_decision
 from specify_cli.status.models import (
     ActorField,
     Lane,
@@ -23,7 +24,22 @@ from specify_cli.status.models import (
 )
 from specify_cli.workspace import canonicalize_feature_dir
 
-_GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
+#: Placeholder assignee identities written by callers that claim a WP without
+#: a real agent identity (``implement-command`` — the internal ``spec-kitty
+#: implement`` compat surface's default ``effective_actor`` when invoked
+#: without ``--actor``, per its own docstring "compatibility surface for
+#: direct callers"; ``unknown`` — a generic fallback elsewhere). Neither is a
+#: real owner, so every ownership check in this module (and, per FIX-M2-03,
+#: :mod:`specify_cli.cli.commands.agent.tasks_transition_core`'s
+#: ``move-task`` agent-ownership guard) treats a WP whose CURRENT assignee is
+#: one of these as unclaimed-in-practice: the first real agent identity to
+#: touch it becomes the de facto owner, no ``--force`` required. Public (no
+#: leading underscore) so both ownership checks share the ONE definition
+#: instead of drifting out of sync (the original private
+#: ``_GENERIC_IMPLEMENTATION_ACTORS`` spelling here only ever gated the
+#: claim/in_progress start path; ``move-task`` silently lacked the same
+#: allowance until FIX-M2-03).
+GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
 
 
 class WorkPackageClaimConflict(TransitionError):
@@ -74,7 +90,7 @@ def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
     """
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
-    return cast(Path, resolve_status_lock_root(feature_dir, repo_root))
+    return resolve_status_lock_root(feature_dir, repo_root)
 
 
 def _actor_key(actor: object | None) -> str | None:
@@ -92,7 +108,7 @@ def _actors_compatible(existing: object | None, requested: object | None, *, all
         return True
     if existing_key == requested_key:
         return True
-    return allow_generic_existing and existing_key in _GENERIC_IMPLEMENTATION_ACTORS
+    return allow_generic_existing and existing_key in GENERIC_IMPLEMENTATION_ACTORS
 
 
 def start_implementation_status(
@@ -106,7 +122,6 @@ def start_implementation_status(
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
     allow_rework: bool = False,
     rework_reason: str = "Re-implementing after review feedback",
     annotation_delta: WPInnerStateDelta | None = None,
@@ -125,13 +140,15 @@ def start_implementation_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = read_current_wp_state_transactional(
+    with feature_status_lock(lock_root, feature_dir.name):
+        current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
         )
+        current_lane = current.lane
+        current_actor = current.actor
 
         if current_lane == Lane.GENESIS:
             raise WorkPackageStartRejected(
@@ -165,7 +182,6 @@ def start_implementation_status(
                     ),
                 ],
                 ensure_sync_daemon=ensure_sync_daemon,
-                sync_dossier=sync_dossier,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -195,7 +211,6 @@ def start_implementation_status(
                     )
                 ],
                 ensure_sync_daemon=ensure_sync_daemon,
-                sync_dossier=sync_dossier,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -228,7 +243,6 @@ def start_implementation_status(
                     annotation_delta=annotation_delta,
                 ),
                 ensure_sync_daemon=ensure_sync_daemon,
-                sync_dossier=sync_dossier,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -253,7 +267,6 @@ def start_review_status(
     repo_root: Path | None = None,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
     review_ref: str | None = "action-review-claim",
     annotation_delta: WPInnerStateDelta | None = None,
 ) -> WorkPackageStartResult:
@@ -267,13 +280,16 @@ def start_review_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, mission_slug):
-        current_lane, current_actor = read_current_wp_state_transactional(
+    with feature_status_lock(lock_root, feature_dir.name):
+        current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
             repo_root=repo_root,
         )
+        current_lane = current.lane
+        current_actor = current.actor
+        current_role = current.role
 
         if current_lane == Lane.FOR_REVIEW:
             event = emit_status_transition_transactional(
@@ -292,7 +308,6 @@ def start_review_status(
                     annotation_delta=annotation_delta,
                 ),
                 ensure_sync_daemon=ensure_sync_daemon,
-                sync_dossier=sync_dossier,
             )
             return WorkPackageStartResult(
                 wp_id,
@@ -304,8 +319,20 @@ def start_review_status(
             )
 
         if current_lane == Lane.IN_REVIEW:
-            if not _actors_compatible(current_actor, actor):
-                raise WorkPackageClaimConflict(wp_id, current_actor or "unknown", actor, review=True)
+            # Role-aware collision (FR-003): the genuine reviewer-vs-reviewer
+            # gate. Role rides the in-lock ``CurrentWpState`` read (no split-brain
+            # / no guard-path plumbing). Collision is best-effort — a binding-less
+            # holder has ``current_role=None`` and degrades to ALLOW. The requester
+            # role is part of the symmetric predicate contract but is not consulted.
+            requesting_role = actor.get("role") if isinstance(actor, dict) else None
+            decision = review_claim_decision(
+                current_actor,
+                current_role,
+                _actor_key(actor),
+                requesting_role,
+            )
+            if decision.is_collision:
+                raise WorkPackageClaimConflict(wp_id, decision.holder or "unknown", actor, review=True)
             return WorkPackageStartResult(wp_id, Lane.IN_REVIEW, Lane.IN_REVIEW, actor, (), no_op=True, claimed_by=current_actor)
 
     raise WorkPackageStartRejected(f"WP {wp_id} is in '{current_lane}', cannot start review")

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 

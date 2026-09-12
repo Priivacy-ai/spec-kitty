@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-14T05:50:57.677771+00:00",
+  "flattened": false,
   "friendly_name": "Quality and DevEx Hardening 3.2",
   "mission_id": "01KRJGKH4DJCSF277K9QV3WBE7",
   "mission_number": 117,
@@ -10,6 +11,7 @@
   "slug": "quality-devex-hardening-3-2-01KRJGKH",
   "status_phase": "1",
   "target_branch": "fix/quality-check-updates",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-14T08:23:36.910389+00:00"
 }

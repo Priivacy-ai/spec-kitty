@@ -12,7 +12,7 @@ slug) is locked.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -46,8 +46,14 @@ def test_key_candidates_ulid_before_slug(tmp_path: Path) -> None:
     class _Identity:
         mission_id = "01ABCDEF000000000000000000"
 
+    # WP05 (read-side-placement-seam-migration) routed the merge-state-key
+    # feature-dir lookup off `candidate_feature_dir_for_mission` onto
+    # `placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`
+    # (resolve.py:105-106). Patch the seam entry point the module calls now.
     with (
-        patch.object(resolve, "candidate_feature_dir_for_mission", return_value=feature_dir),
+        patch.object(
+            resolve, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=feature_dir))
+        ),
         patch.object(resolve, "get_main_repo_root", return_value=tmp_path),
         patch.object(resolve, "resolve_mission_identity", return_value=_Identity()),
     ):
@@ -57,7 +63,7 @@ def test_key_candidates_ulid_before_slug(tmp_path: Path) -> None:
 
 def test_key_candidates_slug_only_when_no_identity(tmp_path: Path) -> None:
     with (
-        patch.object(resolve, "candidate_feature_dir_for_mission", side_effect=RuntimeError("boom")),
+        patch.object(resolve, "placement_seam", side_effect=RuntimeError("boom")),
         patch.object(resolve, "get_main_repo_root", return_value=tmp_path),
     ):
         keys = resolve._merge_state_key_candidates(tmp_path, "my-mission")

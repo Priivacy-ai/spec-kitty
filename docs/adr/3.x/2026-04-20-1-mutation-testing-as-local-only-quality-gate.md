@@ -1,5 +1,6 @@
 ---
 title: Mutation Testing as a Local-Only Quality Gate
+description: 'Adopts mutmut as a local-only developer quality gate over the source tree, with the methodology captured as doctrine and CI integration deliberately deferred.'
 status: Accepted
 date: '2026-04-20'
 ---

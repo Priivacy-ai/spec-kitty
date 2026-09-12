@@ -1,0 +1,80 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+round: 1
+findings:
+  - id: TASKS-FRESH-001
+    lens: none-as-all-builtins consistency / bug-preserving-test
+    severity: 4
+    title: >-
+      WP02's T009 instructs converting an absent `pack_context` to EMPTY sets
+      (not the catalog "all built-ins" default), contradicting an
+      already-established, still-green codebase convention and silently
+      breaking an untriaged, out-of-scope test
+    evidence:
+      - artifact: "tasks/WP02-action-doctrine-bundle-activated-derivation.md § Subtask T009, step 1"
+      - code: "src/charter/activation/action_doctrine_bundle.py:142-152 (`_load_action_doctrine_bundle`'s `pack_context: PackContext | None = None` parameter)"
+      - code: "tests/charter/test_activation_consumers.py:354-372 (`test_context_bundle_none_path_matches_no_filter_at_all`)"
+      - code: "tests/charter/test_activation_consumers.py:116-130, 162-187, 229-260 (three sibling tests, same `_none_path_matches_no_filter_at_all` naming convention, for `resolve_references_transitively`/`_resolve_transitive_reference_graph`/`filter_graph_by_activation`)"
+    claim: >-
+      WP02's T009 step 1 states the required behavior in full generality:
+      "`pack_context is None` → keep today's degrade-gracefully behavior
+      (empty sets ...)", contrasted explicitly with "`activated_directives is
+      None` → catalog default (ALL built-in directive ids)". This treats a
+      wholly-absent `PackContext` as equivalent to an *explicit* empty
+      `activated_*` ("nothing activated"), not to a `None` field ("all
+      built-ins available") — the exact class of narrowing this mission
+      exists to eliminate everywhere else, and the two standing lenses this
+      review round explicitly re-checks. It is also internally inconsistent
+      with the field-level rule stated one sentence earlier in the same
+      step. This is not merely a hypothetical semantic quibble: a real,
+      currently-GREEN regression test,
+      `test_context_bundle_none_path_matches_no_filter_at_all`
+      (`tests/charter/test_activation_consumers.py`, one of four sibling
+      tests across different consumer surfaces that all assert
+      `pack_context=None` behaves identically to `pack_context` with
+      `activated_directives=None` — i.e. "no filter at all" / all built-ins),
+      asserts `unfiltered.directive_ids == default_allow.directive_ids ==
+      [_REAL_DIRECTIVE_CANONICAL_ID]` where `unfiltered` is produced with
+      `pack_context=None`. Verified live: this test passes on the current
+      checkout (`.venv/bin/pytest tests/charter/test_activation_consumers.py
+      -k none_path -v` → 4 passed). It currently passes only because the
+      OLD, buggy `_classify_artifact_urns` guard uses bare truthiness
+      (`if ... and project_directives and ...`), which treats an
+      accidentally-empty `project_directives` set (derived from
+      `pack_context=None`'s pre-existing, unrelated
+      `doctrine_selection.selected_directives`-derived path) the same as "no
+      filter" — coincidentally matching the `activated_directives=None`
+      case's "no filter" outcome. Once WP02 lands its own FR-006 fix (the
+      `is not None` guard plus early-conversion of `None` to a concrete
+      value), an explicitly-empty `project_directives` set means "exclude
+      everything", not "no filter". If the implementer follows T009 step 1's
+      literal instruction and converts `pack_context is None` to empty sets,
+      `unfiltered.directive_ids` becomes `[]` while `default_allow.directive_ids`
+      (from the correctly-converted `activated_directives=None` → catalog
+      default) stays non-empty, breaking this test's core assertion. This
+      file is not in any WP's `owned_files`, is not listed anywhere in
+      plan.md's Project Structure test-file inventory, and is not named in
+      WP02's Risks or Reviewer Guidance sections — an implementer following
+      T009 literally has no way to know this collision is coming, and the
+      WP itself gives contradictory instructions for the semantically
+      equivalent "nothing configured yet" state depending on whether the
+      caller omitted the whole `PackContext` or just one of its fields.
+    remediation: >-
+      Change T009 step 1's `pack_context is None` branch to match the
+      established codebase convention (and the mission's own core
+      invariant): treat an absent `PackContext` the same as
+      `activated_<kind> is None` for each of `project_directives`/
+      `selected_tactics`/`selected_paradigms` — i.e. the catalog "all
+      built-ins" default, not empty sets — so
+      `test_context_bundle_none_path_matches_no_filter_at_all` (and its
+      three sibling tests' established pattern) keeps passing without a
+      surprise fixup. Add `tests/charter/test_activation_consumers.py` to
+      WP02's Context/Risks section explicitly (even though it stays out of
+      `owned_files`, since no code change to it is needed once the
+      degrade-gracefully default is corrected), and add a note to the
+      baseline-diff instructions in T010 to specifically re-run this file
+      and confirm it stays green, not merely rely on the generic
+      "no newly-red node-id" gate to catch it after the fact.

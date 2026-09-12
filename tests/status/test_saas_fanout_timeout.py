@@ -16,6 +16,7 @@ import time
 import pytest
 
 from specify_cli.status import adapters
+from tests._perf_helpers import assert_timing_budget
 
 # Pure-module threading behaviour (no subprocess/git/network); not `fast`
 # because the orphan-thread teardown joins push some cases past sub-second.
@@ -29,9 +30,9 @@ def _clean_handlers() -> None:
     adapters.reset_handlers()
 
 
-def test_hanging_saas_handler_does_not_block_canonical_persistence(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_hanging_saas_handler_does_not_block_canonical_persistence(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_hanging_saas_handler_returns_within_three_seconds`` (nightly-only)."""
     monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
     entered = threading.Event()
     release = threading.Event()
@@ -43,19 +44,33 @@ def test_hanging_saas_handler_does_not_block_canonical_persistence(
 
     adapters.register_saas_fanout_handler(hanging_handler)
 
+    with caplog.at_level(logging.WARNING):
+        adapters.fire_saas_fanout(wp_id="WP01", from_lane="in_progress", to_lane="for_review", force=False)
+
+    assert entered.is_set(), "handler was expected to start"
+    assert any("timed out" in record.getMessage().lower() for record in caplog.records), "a timeout warning should be logged"
+
+    release.set()  # unblock the orphaned worker thread for clean teardown
+
+
+@pytest.mark.performance
+def test_hanging_saas_handler_returns_within_three_seconds(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """Split from ``test_hanging_saas_handler_does_not_block_canonical_persistence``
+    (#4015); budget preserved (nightly)."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    release = threading.Event()
+
+    def hanging_handler(**_kwargs: object) -> None:
+        release.wait(timeout=10)
+
+    adapters.register_saas_fanout_handler(hanging_handler)
+
     start = time.monotonic()
     with caplog.at_level(logging.WARNING):
-        adapters.fire_saas_fanout(
-            wp_id="WP01", from_lane="in_progress", to_lane="for_review", force=False
-        )
+        adapters.fire_saas_fanout(wp_id="WP01", from_lane="in_progress", to_lane="for_review", force=False)
     elapsed = time.monotonic() - start
 
-    # The canonical caller must return promptly despite the hanging handler.
-    assert elapsed < 3.0, f"fan-out blocked for {elapsed:.1f}s on a hanging handler"
-    assert entered.is_set(), "handler was expected to start"
-    assert any(
-        "timed out" in record.getMessage().lower() for record in caplog.records
-    ), "a timeout warning should be logged"
+    assert_timing_budget(elapsed, 3.0, name="hanging_saas_handler_fanout")
 
     release.set()  # unblock the orphaned worker thread for clean teardown
 
@@ -70,9 +85,7 @@ def test_normal_saas_handler_still_runs_to_completion(
         calls.append(kwargs.get("wp_id"))  # type: ignore[arg-type]
 
     adapters.register_saas_fanout_handler(ok_handler)
-    adapters.fire_saas_fanout(
-        wp_id="WP02", from_lane="planned", to_lane="claimed", force=False
-    )
+    adapters.fire_saas_fanout(wp_id="WP02", from_lane="planned", to_lane="claimed", force=False)
     assert calls == ["WP02"], "a well-behaved handler must run to completion synchronously"
 
 
@@ -84,15 +97,11 @@ def test_raising_saas_handler_is_still_caught(monkeypatch: pytest.MonkeyPatch) -
 
     adapters.register_saas_fanout_handler(boom)
     # Must not propagate — exceptions remain caught even with the bound in place.
-    adapters.fire_saas_fanout(
-        wp_id="WP03", from_lane="planned", to_lane="claimed", force=False
-    )
+    adapters.fire_saas_fanout(wp_id="WP03", from_lane="planned", to_lane="claimed", force=False)
 
 
 @pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "Infinity"])
-def test_nonfinite_timeout_falls_back_to_default_not_disabled(
-    monkeypatch: pytest.MonkeyPatch, bad: str
-) -> None:
+def test_nonfinite_timeout_falls_back_to_default_not_disabled(monkeypatch: pytest.MonkeyPatch, bad: str) -> None:
     # A non-finite value must NOT reach Thread.join() (nan raises immediately,
     # inf overflows) — that would silently disable the bound. It falls back to
     # the default, so a well-behaved handler still runs to completion.
@@ -104,9 +113,7 @@ def test_nonfinite_timeout_falls_back_to_default_not_disabled(
     assert calls == ["WP09"]
 
 
-def test_orphaned_handler_suppresses_an_overlapping_invocation(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_orphaned_handler_suppresses_an_overlapping_invocation(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
     release = threading.Event()
     entry_count: list[int] = []
@@ -132,6 +139,7 @@ def test_orphaned_handler_suppresses_an_overlapping_invocation(
     release.set()  # let the orphan unwind and clear the in-flight key
 
 
+@pytest.mark.performance
 def test_hanging_lifecycle_handler_does_not_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

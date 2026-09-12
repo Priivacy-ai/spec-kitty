@@ -13,6 +13,8 @@ from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from ..skill_update import SKILL_ROOTS, find_skill_files
 from .base import BaseMigration, MigrationResult
@@ -31,9 +33,9 @@ _FILES = [
 
 
 def _load_canonical(relative_path: str) -> str | None:
-    """Load canonical skill file content from doctrine package."""
+    """Load canonical skill file content from charter.offering package."""
     try:
-        doctrine_root = files("doctrine")
+        doctrine_root = files("charter.offering")
         canonical = doctrine_root.joinpath("skills", _SKILL_NAME, relative_path)
         return canonical.read_text(encoding="utf-8")
     except Exception:
@@ -116,7 +118,7 @@ class InstallMissionSystemSkillMigration(BaseMigration):
 
             try:
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_text(content, encoding="utf-8")
+                write_generated_file(dest, content)
                 changes.append(f"Installed {rel}")
             except OSError as e:
                 errors.append(f"Failed to install {rel}: {e}")

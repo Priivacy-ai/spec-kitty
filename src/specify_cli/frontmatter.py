@@ -15,13 +15,18 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.constructor import DuplicateKeyError
 
-# The additive PID-reuse identity baseline (C-007) co-written alongside
-# ``shell_pid`` at every claim-write site (D3b). Declared once here — the
-# single shared constant mirrors the ``"shell_pid"`` field-name pattern in
-# ``WP_FIELD_ORDER`` below — and read by ``core.stale_detection`` (the
-# claim-liveness consumer) so the field name cannot drift into a re-duplicated
-# literal (Sonar S1192).
+# The additive PID-reuse identity baseline (C-007), historically co-written
+# alongside ``shell_pid`` at claim-write time (D3b); WP05
+# (coord-write-placement-closure-01KYCF83, FR-008) confirms that write is
+# retired -- both fields now travel solely via the claim transition's
+# ``policy_metadata`` sidecar into the event log, and ``core.stale_detection``
+# (the claim-liveness consumer) resolves both from the reduced snapshot, never
+# frontmatter. Declared once here — the single shared constant mirrors the
+# ``"shell_pid"`` field-name pattern in ``WP_FIELD_ORDER`` below (retained for
+# legacy-file classification; see the ``WP_RUNTIME_FIELDS`` note) — so the
+# field name cannot drift into a re-duplicated literal (Sonar S1192).
 SHELL_PID_BASELINE_FIELD = "shell_pid_created_at"
 
 
@@ -81,6 +86,13 @@ class FrontmatterManager:
         self.yaml.preserve_quotes = False  # Don't preserve quotes - let YAML decide
         self.yaml.width = 4096  # Prevent line wrapping
         self.yaml.indent(mapping=2, sequence=2, offset=0)
+        # Fail closed on duplicate frontmatter keys (WP09, FR-007/C-002). The
+        # round-trip loader already defaults to this, but pinning it explicitly
+        # makes the guard a hard invariant of this canonical boundary: a future
+        # ``typ``/config change cannot silently reintroduce YAML last-wins
+        # semantics. Duplicates raise ``DuplicateKeyError``, translated into a
+        # legible ``FrontmatterError`` (see ``read`` / ``_format_duplicate_key_error``).
+        self.yaml.allow_duplicate_keys = False
 
     def read(self, file_path: Path) -> tuple[dict[str, Any], str]:
         """Read frontmatter and body from a markdown file.
@@ -119,8 +131,20 @@ class FrontmatterManager:
             frontmatter = self.yaml.load(frontmatter_text)
             if frontmatter is None:
                 frontmatter = {}
+        except DuplicateKeyError as e:
+            # Fail closed *legibly* (WP09, FR-007): a single ruamel raise names
+            # only the FIRST duplicate. Enumerate every duplicated key via WP03's
+            # raw-text detector so the operator sees each offending key and line.
+            raise FrontmatterError(self._format_duplicate_key_error(file_path, content, e)) from e
         except Exception as e:
             raise FrontmatterError(f"Invalid YAML in {file_path}: {e}") from e
+
+        # Frontmatter must be a mapping. A YAML list/scalar (structurally-malformed
+        # doc) would otherwise blow up the key access below with a TypeError that
+        # escapes this method's documented FrontmatterError-only contract and
+        # aborts callers mid-scan (#2883 item 4).
+        if not isinstance(frontmatter, dict):
+            raise FrontmatterError(f"Frontmatter is not a mapping in {file_path}: parsed as {type(frontmatter).__name__}")
 
         # Ensure dependencies field exists for WP files only (backward compatibility with pre-0.11.0)
         if file_path.name.startswith("WP") and "dependencies" not in frontmatter:
@@ -130,6 +154,36 @@ class FrontmatterManager:
         body = "\n".join(lines[closing_idx + 1 :])
 
         return frontmatter, body
+
+    @staticmethod
+    def _format_duplicate_key_error(file_path: Path, content: str, error: DuplicateKeyError) -> str:
+        """Build a legible duplicate-key message naming every offending key.
+
+        Consumes WP03's raw-text detector
+        (:func:`specify_cli.status.dup_key_repair.find_duplicate_keys_in_text`)
+        to enumerate ALL duplicated top-level keys with their 1-based line
+        numbers -- ruamel's own raise names only the first. The import is
+        deferred to break the ``frontmatter`` <-> ``status`` package cycle
+        (``status`` sits above this foundational boundary and imports it back).
+
+        Falls back to ruamel's own message for a duplicate the top-level
+        scanner does not enumerate (e.g. a *nested* duplicate key), so the key
+        stays named in every case.
+        """
+        # Deferred import (cycle break): see docstring. Routed through the
+        # ``status`` facade (SR-2 module-boundary rule) — safe here because this
+        # is a function-scoped import, so the facade is fully initialized by the
+        # time this read path runs.
+        from specify_cli.status import find_duplicate_keys_in_text
+
+        duplicates = find_duplicate_keys_in_text(content)
+        if duplicates:
+            detail = "; ".join(
+                f"'{key}' (lines {', '.join(str(occ.line_index + 1) for occ in occurrences)})"
+                for key, occurrences in duplicates.items()
+            )
+            return f"Duplicate frontmatter key(s) in {file_path}: {detail}"
+        return f"Duplicate frontmatter key in {file_path}: {error}"
 
     def write(self, file_path: Path, frontmatter: dict[str, Any], body: str) -> None:
         """Write frontmatter and body to a markdown file.
@@ -266,10 +320,23 @@ class FrontmatterManager:
         return errors
 
 
-# The runtime claim/workspace-creation frontmatter fields ``spec-kitty implement``
-# writes into ``tasks/WP##.md`` at claim time (``shell_pid``/``shell_pid_created_at``)
-# and at workspace-creation time (``base_branch``/``base_commit``/``planning_base_branch``).
-# Derived from :attr:`FrontmatterManager.WP_FIELD_ORDER` -- the ONE canonical
+# WP05 (coord-write-placement-closure-01KYCF83, FR-008): the claim
+# ``shell_pid``/``shell_pid_created_at`` frontmatter write this comment used
+# to describe is RETIRED -- ``spec-kitty implement`` no longer writes those
+# two fields into ``tasks/WP##.md`` at claim time at all (the claim triple
+# rides the ``planned -> claimed`` transition's ``policy_metadata`` sidecar
+# into the event log instead; see
+# ``cli.commands.agent.workflow_executor._implement_write_claim_and_commit``:
+# "the WP file is NOT mutated for the claim ... this function writes 0
+# runtime bytes to the WP file"). Only ``base_branch``/``base_commit``/
+# ``planning_base_branch`` are still genuinely written, and only once, at
+# workspace-creation time (a distinct, still-live seam this WP does not
+# touch). ``shell_pid``/``SHELL_PID_BASELINE_FIELD`` remain listed below
+# purely as a legacy-classification tolerance: a WP file authored before this
+# retirement may still carry a stale ``shell_pid`` value on disk, and
+# consumers of :data:`WP_RUNTIME_FIELDS` (below) must still recognize it as a
+# non-blocking, runtime-only key rather than a real content change. Derived
+# from :attr:`FrontmatterManager.WP_FIELD_ORDER` -- the ONE canonical
 # field-name source -- so this set can never diverge from the class that
 # actually owns those field names (#2570.1). Consumed by
 # ``cli.commands.implement_cores._drop_runtime_frontmatter_only_wp`` (WP01,

@@ -1,0 +1,1 @@
+Renata fidelity review: sampled WP acceptance criteria across Core WP01-WP08 and SaaS WP01-WP08; findings include unreviewed WP09/WP10 implementation on Core canonical branch, red Core CI on last full run with no CI on head b75a2522, placeholder acceptance matrices in both missions, WP06 SaaS recovery of un-attested approved diff, stale PR descriptions

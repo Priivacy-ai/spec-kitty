@@ -530,19 +530,27 @@ class TestPlanningArtifactAutoCommit:
             auto_commit=True,
         )
 
+        # write-path-integrity WP02 / T008 / FR-001 (SC-001) re-baseline: a
+        # PRIMARY artifact (tasks.md) now lands on the mission's TARGET branch,
+        # NEVER the coordination branch. Pre-fix this test pinned the #3371 bug
+        # (PRIMARY tasks.md committed onto coord); the fix routes it to the
+        # target branch and leaves coord free of PRIMARY files.
         assert git("rev-parse", planning_branch) != git("rev-parse", coord_branch)
         assert (
-            git("show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
+            git("show", f"{planning_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
             == "# tasks"
         )
-        planning_branch_tasks = subprocess.run(
-            ["git", "show", f"{planning_branch}:kitty-specs/{mission_slug}/tasks.md"],
+        coord_branch_tasks = subprocess.run(
+            ["git", "show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md"],
             cwd=repo,
             capture_output=True,
             text=True,
             check=False,
         )
-        assert planning_branch_tasks.returncode != 0
+        assert coord_branch_tasks.returncode != 0, (
+            "PRIMARY tasks.md must NOT be committed onto the coordination branch "
+            "(#3371); it belongs on the mission target branch."
+        )
 
     def test_auto_commit_with_coord_feature_dir_uses_primary_artifact_source(
         self, tmp_path: Path
@@ -600,20 +608,32 @@ class TestPlanningArtifactAutoCommit:
             planning_branch=planning_branch,
             auto_commit=True,
         )
-        coord_feature_dir = (
-            repo
-            / ".worktrees"
-            / f"{mission_slug}-{mid8}-coord"
-            / "kitty-specs"
-            / mission_slug
+        # write-path-integrity WP02 / T008 / FR-001 re-baseline: PRIMARY planning
+        # artifacts (tasks.md, meta.json) are committed to the mission TARGET
+        # branch from the PRIMARY checkout -- they are NO LONGER staged into a
+        # coordination worktree (the removed #3371 mis-route). So the first claim
+        # lands tasks.md on ``planning_branch`` and materialises NO coord worktree
+        # for primary artifacts.
+        assert (
+            git("show", f"{planning_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
+            == "# tasks"
         )
-        assert (coord_feature_dir / "meta.json").exists()
+        coord_first = subprocess.run(
+            ["git", "show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert coord_first.returncode != 0
 
+        # A second claim reads the PRIMARY feature dir as the artifact source and
+        # commits the updated tasks.md to the target branch (never coord).
         tasks.write_text("# tasks\n\nupdated\n", encoding="utf-8")
 
         _ensure_planning_artifacts_committed_git(
             repo_root=repo,
-            feature_dir=coord_feature_dir,
+            feature_dir=primary_feature_dir,
             mission_slug=mission_slug,
             wp_id="WP02",
             planning_branch=planning_branch,
@@ -621,6 +641,17 @@ class TestPlanningArtifactAutoCommit:
         )
 
         assert (
-            git("show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
+            git("show", f"{planning_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
             == "# tasks\n\nupdated"
+        )
+        coord_second = subprocess.run(
+            ["git", "show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert coord_second.returncode != 0, (
+            "PRIMARY tasks.md must never be committed onto the coordination "
+            "branch (#3371)."
         )

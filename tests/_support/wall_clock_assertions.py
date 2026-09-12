@@ -1,10 +1,20 @@
 from __future__ import annotations
 
 import ast
+import functools
+import hashlib
+import hmac
+import json
 import os
-from collections.abc import Callable, Iterable
+import secrets
+import uuid
+from collections import deque
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+
+from filelock import FileLock
 
 
 _BANNED_CALLS = {
@@ -33,6 +43,10 @@ _ClassInitializers = dict[tuple[str, ...], ast.FunctionDef | ast.AsyncFunctionDe
 _SHADOWED_PATH = ("<shadowed>",)
 _SETUP_METHOD_NAMES = {"setup", "setup_method", "setup_class", "setUp", "setUpClass"}
 _MODULE_SETUP_NAMES = {"setup_module", "setup_function", "setUpModule"}
+_SCAN_CACHE_VERSION = 3
+_SCAN_CACHE_LOCK_TIMEOUT_S = 600.0
+_SCAN_CACHE_AUTHORITY_KEY_NAME = "authority.key"
+_SCAN_CACHE_AUTHORITY_KEY_BYTES = 32
 
 
 @dataclass(frozen=True, order=True)
@@ -45,25 +59,217 @@ class WallClockAssertionViolation:
         return f"{self.path}:{self.line}: {self.call}"
 
 
+@dataclass
+class _ImportAliasMetrics:
+    module_visits: int = 0
+    parsed_files: int = 0
+
+
 def find_wall_clock_assertion_violations(paths: Iterable[Path]) -> list[WallClockAssertionViolation]:
     """Find direct wall-clock reads inside pytest assert expressions."""
-    violations: list[WallClockAssertionViolation] = []
     python_paths = sorted({Path(p) for p in paths if Path(p).suffix == ".py"})
-    import_aliases = _collect_import_aliases(python_paths)
-    conftest_fixture_aliases, conftest_module_aliases = _collect_conftest_aliases(python_paths, import_aliases)
+    sources = {path: path.read_text(encoding="utf-8") for path in python_paths}
+    return _find_wall_clock_assertion_violations_from_sources(python_paths, sources)
+
+
+def _find_wall_clock_assertion_violations_from_sources(
+    python_paths: list[Path],
+    sources: Mapping[Path, str],
+) -> list[WallClockAssertionViolation]:
+    violations: list[WallClockAssertionViolation] = []
+    trees = {
+        path: ast.parse(sources[path], filename=str(path))
+        for path in python_paths
+    }
+    import_aliases = _collect_import_aliases(python_paths, _trees=trees)
+    conftest_fixture_aliases, conftest_module_aliases = _collect_conftest_aliases(
+        python_paths,
+        import_aliases,
+        _trees=trees,
+    )
     for path in python_paths:
-        if path.suffix != ".py":
-            continue
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         visitor = _WallClockAssertionVisitor(
             path,
             import_aliases,
             conftest_fixture_aliases.get(path, {}),
             conftest_module_aliases.get(path, {}),
         )
-        visitor.visit(tree)
+        visitor.visit(trees[path])
         violations.extend(visitor.violations)
     return sorted(violations)
+
+
+def find_wall_clock_assertion_violations_cached(
+    paths: Iterable[Path],
+    cache_root: Path,
+    *,
+    config_paths: Iterable[Path] = (),
+) -> list[WallClockAssertionViolation]:
+    """Share one content-addressed scan safely across pytest processes."""
+    python_paths = sorted({Path(p) for p in paths if Path(p).suffix == ".py"})
+    sources = {path: path.read_text(encoding="utf-8") for path in python_paths}
+    digest = _wall_clock_scan_digest(python_paths, sources, config_paths)
+    cache_root.mkdir(parents=True, exist_ok=True)
+    result_path = cache_root / f"{digest}.json"
+    lock_path = cache_root / "scan.lock"
+    with FileLock(str(lock_path), timeout=_SCAN_CACHE_LOCK_TIMEOUT_S):
+        authority_key = _load_or_create_wall_clock_scan_authority_key(cache_root)
+        cached = _read_wall_clock_scan_cache(result_path, digest, authority_key)
+        if cached is not None:
+            return cached
+        violations = _find_wall_clock_assertion_violations_from_sources(python_paths, sources)
+        _write_wall_clock_scan_cache(result_path, digest, violations, authority_key)
+        return violations
+
+
+def _wall_clock_scan_digest(
+    paths: list[Path],
+    sources: Mapping[Path, str],
+    config_paths: Iterable[Path],
+) -> str:
+    # File-integrity identity, not charter content hashing.
+    digest = hashlib.sha256()  # noqa: TID251
+    digest.update(f"wall-clock-scan-v{_SCAN_CACHE_VERSION}\0".encode())
+    all_paths = [*paths, *sorted({Path(path) for path in config_paths})]
+    root = (
+        Path(os.path.commonpath([str(path.parent) for path in all_paths]))
+        if all_paths
+        else Path(".")
+    )
+    for path in all_paths:
+        try:
+            relative = path.relative_to(root).as_posix()
+        except ValueError:
+            relative = str(path.resolve(strict=False))
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        if path in sources:
+            digest.update(sources[path].encode("utf-8"))
+        elif path.is_file():
+            digest.update(path.read_bytes())
+        else:
+            digest.update(b"<missing>")
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _read_wall_clock_scan_cache(
+    result_path: Path,
+    digest: str,
+    authority_key: bytes,
+) -> list[WallClockAssertionViolation] | None:
+    if not result_path.is_file():
+        return None
+    try:
+        payload = json.loads(result_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or payload.get("version") != _SCAN_CACHE_VERSION:
+            return None
+        if payload.get("digest") != digest or not isinstance(payload.get("violations"), list):
+            return None
+        expected_authenticator = _wall_clock_scan_result_authenticator(
+            digest,
+            payload["violations"],
+        )
+        if payload.get("result_sha256") != expected_authenticator:
+            return None
+        expected_authority = _wall_clock_scan_authority(
+            digest,
+            payload["violations"],
+            authority_key,
+        )
+        authority = payload.get("authority_hmac_sha256")
+        if not isinstance(authority, str) or not hmac.compare_digest(authority, expected_authority):
+            return None
+        violations: list[WallClockAssertionViolation] = []
+        for row in payload["violations"]:
+            if not isinstance(row, dict):
+                return None
+            path = row.get("path")
+            line = row.get("line")
+            call = row.get("call")
+            if (
+                not isinstance(path, str)
+                or not isinstance(line, int)
+                or isinstance(line, bool)
+                or line <= 0
+                or not isinstance(call, str)
+            ):
+                return None
+            violations.append(WallClockAssertionViolation(Path(path), line, call))
+        return sorted(violations)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _write_wall_clock_scan_cache(
+    result_path: Path,
+    digest: str,
+    violations: list[WallClockAssertionViolation],
+    authority_key: bytes,
+) -> None:
+    rows = [
+        {"path": str(violation.path), "line": violation.line, "call": violation.call}
+        for violation in violations
+    ]
+    payload = {
+        "version": _SCAN_CACHE_VERSION,
+        "digest": digest,
+        "violations": rows,
+        "result_sha256": _wall_clock_scan_result_authenticator(digest, rows),
+        "authority_hmac_sha256": _wall_clock_scan_authority(digest, rows, authority_key),
+    }
+    temporary = result_path.with_name(f"{result_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}")
+    try:
+        temporary.write_text(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, result_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _wall_clock_scan_result_authenticator(digest: str, rows: object) -> str:
+    """Bind cached result rows to their version and source-input digest."""
+    canonical = json.dumps(
+        {"version": _SCAN_CACHE_VERSION, "digest": digest, "violations": rows},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()  # noqa: TID251
+
+
+def _wall_clock_scan_authority(digest: str, rows: object, authority_key: bytes) -> str:
+    """Authenticate result rows with authority held outside the result document."""
+    canonical = json.dumps(
+        {"version": _SCAN_CACHE_VERSION, "digest": digest, "violations": rows},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    # Cache-integrity HMAC, not charter content hashing.
+    return hmac.new(authority_key, canonical, hashlib.sha256).hexdigest()  # noqa: TID251
+
+
+def _load_or_create_wall_clock_scan_authority_key(cache_root: Path) -> bytes:
+    """Return the cross-process cache authority key, replacing malformed keys."""
+    key_path = cache_root / _SCAN_CACHE_AUTHORITY_KEY_NAME
+    try:
+        key = key_path.read_bytes()
+    except FileNotFoundError:
+        key = b""
+    if len(key) == _SCAN_CACHE_AUTHORITY_KEY_BYTES:
+        return key
+
+    key = secrets.token_bytes(_SCAN_CACHE_AUTHORITY_KEY_BYTES)
+    temporary = key_path.with_name(f"{key_path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(key)
+        os.replace(temporary, key_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return key
 
 
 def find_test_python_paths(root: Path) -> list[Path]:
@@ -71,26 +277,82 @@ def find_test_python_paths(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*.py") if path.is_file())
 
 
-def _collect_import_aliases(paths: list[Path]) -> dict[str, _AliasMap]:
+def _collect_import_aliases(
+    paths: list[Path],
+    *,
+    _metrics: _ImportAliasMetrics | None = None,
+    _trees: Mapping[Path, ast.Module] | None = None,
+) -> dict[str, _AliasMap]:
     if not paths:
         return {}
     root = Path(os.path.commonpath([str(path.parent) for path in paths]))
     module_names = {path: _module_names(path, root) for path in paths}
-    import_aliases: dict[str, _AliasMap] = {}
+    trees: dict[Path, ast.Module]
+    if _trees is None:
+        trees = {
+            path: ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for path in paths
+        }
+        if _metrics is not None:
+            _metrics.parsed_files += len(trees)
+    else:
+        trees = dict(_trees)
+    module_paths = {
+        module_name: path
+        for path, names in module_names.items()
+        for module_name in names
+    }
+    dependents: dict[Path, set[Path]] = {path: set() for path in paths}
+    for dependent_path, tree in trees.items():
+        for dependency_name in _imported_module_names(tree):
+            dependency_path = module_paths.get(dependency_name)
+            if dependency_path is not None and dependency_path != dependent_path:
+                dependents[dependency_path].add(dependent_path)
 
-    for _ in range(4):
-        next_aliases: dict[str, _AliasMap] = {}
-        for path in paths:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            visitor = _WallClockAssertionVisitor(path, import_aliases)
-            visitor.visit(tree)
-            exports = _module_exports(visitor.scopes[0])
-            for module_name in module_names[path]:
-                next_aliases[module_name] = exports
-        if next_aliases == import_aliases:
-            break
-        import_aliases = next_aliases
+    import_aliases: dict[str, _AliasMap] = {}
+    exports_by_path: dict[Path, _AliasMap] = {}
+    queue = deque(paths)
+    queued = set(paths)
+    visits = 0
+    visit_limit = max(32, len(paths) * 16)
+    while queue:
+        path = queue.popleft()
+        queued.remove(path)
+        visits += 1
+        if visits > visit_limit:
+            raise RuntimeError(
+                f"Wall-clock import alias propagation did not converge after {visit_limit} module visits."
+            )
+        if _metrics is not None:
+            _metrics.module_visits += 1
+        visitor = _WallClockAssertionVisitor(path, import_aliases)
+        visitor.visit(trees[path])
+        exports = _module_exports(visitor.scopes[0])
+        if exports_by_path.get(path) == exports:
+            continue
+        exports_by_path[path] = exports
+        for module_name in module_names[path]:
+            import_aliases[module_name] = exports
+        for dependent in dependents[path]:
+            if dependent not in queued:
+                queue.append(dependent)
+                queued.add(dependent)
     return import_aliases
+
+
+def _imported_module_names(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names.add(node.module)
+            names.update(
+                f"{node.module}.{alias.name}"
+                for alias in node.names
+                if alias.name != "*"
+            )
+    return names
 
 
 def _module_names(path: Path, root: Path) -> set[str]:
@@ -118,13 +380,19 @@ def _module_exports(scope: _AliasMap) -> _AliasMap:
 def _collect_conftest_aliases(
     paths: list[Path],
     import_aliases: dict[str, _AliasMap],
+    *,
+    _trees: Mapping[Path, ast.Module] | None = None,
 ) -> tuple[dict[Path, _AliasMap], dict[Path, _AliasMap]]:
     conftest_fixture_aliases: dict[Path, _AliasMap] = {}
     conftest_module_aliases: dict[Path, _AliasMap] = {}
     for path in paths:
         if path.name != "conftest.py":
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        tree = (
+            _trees[path]
+            if _trees is not None
+            else ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        )
         visitor = _WallClockAssertionVisitor(path, import_aliases)
         visitor.visit(tree)
         conftest_fixture_aliases[path] = visitor.fixture_return_aliases()
@@ -777,7 +1045,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             self.global_names_stack
             and self.propagate_global_stack
             and self.propagate_global_stack[-1]
-            and len(target_path) == 1
+            and len(target_path) == 1  # golden-count: cardinality-is-contract
             and target_path[0] in self.global_names_stack[-1]
         ):
             return self.scopes[0]
@@ -1082,7 +1350,7 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
             self.active_helpers.remove(helper_name)
 
     def _scope_for_target(self, target_path: tuple[str, ...]) -> _AliasMap:
-        if len(target_path) == 1 and target_path[0] in self.global_names:
+        if len(target_path) == 1 and target_path[0] in self.global_names:  # golden-count: cardinality-is-contract
             return self.scopes[0]
         if len(target_path) > 1 and self._is_module_attribute_target(target_path):
             return self.scopes[0]
@@ -1096,10 +1364,10 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
 
     def _record_helper_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         source = _attribute_path(value)
-        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None
+        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None  # golden-count: cardinality-is-contract
         for target in targets:
             target_path = _attribute_path(target)
-            if len(target_path) == 1:
+            if len(target_path) == 1:  # golden-count: cardinality-is-contract
                 if helper_name is None:
                     self.local_helper_aliases.pop(target_path[0], None)
                 else:
@@ -1129,7 +1397,7 @@ def _add_assignment_aliases(
     targets: list[ast.expr],
     value: ast.expr,
 ) -> None:
-    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
+    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):  # golden-count: cardinality-is-contract
         for target, element in zip(targets[0].elts, value.elts, strict=False):
             _add_assignment_aliases(scopes, scope_for_target, [target], element)
         return
@@ -1328,7 +1596,7 @@ def _alias_source(node: ast.expr, scopes: list[_AliasMap]) -> tuple[str, ...]:
     if (
         isinstance(node, ast.Call)
         and _attribute_path(node.func) in {("staticmethod",), ("classmethod",)}
-        and len(node.args) == 1
+        and len(node.args) == 1  # golden-count: cardinality-is-contract
     ):
         return _normalize_alias(_attribute_path(node.args[0]), scopes)
     if isinstance(node, ast.Lambda):
@@ -1448,6 +1716,7 @@ def _is_test_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return node.name.startswith("test_")
 
 
+@lru_cache(maxsize=32_768)
 def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     names = _argument_names(node.args)
     visitor = _FunctionBindingVisitor()
@@ -1457,6 +1726,7 @@ def _function_bound_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[s
     return names
 
 
+@lru_cache(maxsize=32_768)
 def _function_global_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     visitor = _FunctionBindingVisitor()
     for statement in node.body:
@@ -1828,7 +2098,7 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
                 self.aliases.pop(instance_path, None)
 
     def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
-        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
+        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):  # golden-count: cardinality-is-contract
             for target, element in zip(targets[0].elts, value.elts, strict=False):
                 self._record_instance_aliases([target], element)
             return
@@ -1846,10 +2116,10 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
 
     def _record_helper_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         source = _attribute_path(value)
-        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None
+        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None  # golden-count: cardinality-is-contract
         for target in targets:
             target_path = _attribute_path(target)
-            if len(target_path) == 1:
+            if len(target_path) == 1:  # golden-count: cardinality-is-contract
                 if helper_name is None:
                     self.local_helper_aliases.pop(target_path[0], None)
                 else:
@@ -2011,7 +2281,7 @@ def _called_name(node: ast.Call, scopes: list[_AliasMap]) -> str | None:
     path = _normalize_alias(_attribute_path(node.func), scopes)
     if path == _SHADOWED_PATH:
         return None
-    if len(path) == 1:
+    if len(path) == 1:  # golden-count: cardinality-is-contract
         return path[0]
     return None
 
@@ -2035,3 +2305,406 @@ def _attribute_path(node: ast.AST) -> tuple[str, ...]:
     if isinstance(current, ast.Name):
         parts.append(current.id)
     return tuple(reversed(parts))
+    return tuple(reversed(parts))
+
+
+# ---------------------------------------------------------------------------
+# Whole-module call-ban entry point (mission kernel-clock-single-door, WP01b,
+# FR-012(b) / SC-001 / C-008).
+#
+# This is a NEW, independent entry point -- it does NOT widen
+# ``find_wall_clock_assertion_violations`` above (which stays assert-scoped,
+# used by the conftest collection-time gate and its own 124-test support
+# suite). Widening that visitor to flag every banned call anywhere in a
+# module would turn the legitimate freshness-bounds idiom
+# ``before = datetime.now(UTC)`` / ``after = datetime.now(UTC)`` (bounds
+# captured OUTSIDE an assert, then compared inside one) into a false
+# positive and red-flag ``tests/_support/test_wall_clock_assertions.py``.
+#
+# Deliberately independent of ``_WallClockAssertionVisitor``'s pytest
+# fixture/parametrize/autouse-propagation machinery: that machinery exists
+# to resolve what a pytest *assertion* aliases to, given fixtures injected
+# by the test framework -- none of that applies to scanning arbitrary
+# production/test module bodies for banned calls. This visitor instead
+# reuses only the shared, stateless primitives (``_BANNED_CALLS``,
+# ``_ALIASABLE_CLOCK_PATHS``, ``_set_alias``/``_set_shadow``,
+# ``_normalize_alias``, ``_attribute_path``, ``_add_assignment_aliases``,
+# ``_function_bound_names``/``_function_default_aliases``,
+# ``_add_star_import_aliases``) with a plain lexical-scope stack (module +
+# one nested scope per function/class body).
+#
+# HONEST LIMITS (disclosed, not silently patched over):
+#   * Cross-statement receiver binding is resolved only within a function's
+#     (or the module's) own local alias map -- an alias assigned in one
+#     function is invisible in another, and comprehension/lambda-local
+#     targets are not separately scoped (they fall through to the enclosing
+#     scope). This mirrors ordinary Python scoping closely enough for real
+#     call-site shapes; it does not attempt full closure/global resolution.
+#   * ``getattr(kernel.clock, "datetime").now()`` yields no attribute chain
+#     for ``_attribute_path`` to walk (the receiver is a ``Call`` node, not
+#     an ``Attribute``/``Name`` chain) and is an accepted, disclosed
+#     residual -- contrived, and it carries no ``datetime`` import for the
+#     import-ban to catch either.
+#
+# THE CRITICAL FIX (plan Sec 1.3): resolving the door re-export
+# (``from kernel.clock import datetime; datetime.now()``) requires knowing
+# the door module's own dotted name as it would appear in an importer's
+# ``from <name> import ...`` statement. Deriving that name via a single
+# ``os.path.commonpath`` over a scan spanning ``src/`` + ``tests/`` +
+# ``scripts/`` (as ``_collect_import_aliases`` above does for the
+# assert-gate, which only ever scans one test tree) collapses the door's
+# path to ``src.kernel.clock`` -- a string no real ``from kernel.clock
+# import ...`` statement's module name ever equals, silently defeating the
+# re-export resolution. ``anchored_module_name`` instead anchors ``src/**``
+# at ``src/`` (so ``src/kernel/clock.py`` resolves to ``kernel.clock``)
+# before falling back to the repository root for anything else
+# (``tests/**``, ``scripts/**``).
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_ROOT = REPO_ROOT / "src"
+DOOR_FILE = SRC_ROOT / "kernel" / "clock.py"
+
+
+def anchored_module_name(path: Path) -> str | None:
+    """Resolve ``path``'s dotted module name, anchored at its own source root.
+
+    Tries the ``src/`` anchor first (so anything under ``src/`` resolves
+    relative to ``src/``, never to a wider root that would also cover
+    ``tests/``/``scripts/``), then falls back to the repository root. Returns
+    ``None`` for a path outside both anchors (e.g. package ``__init__``
+    resolving to an empty name).
+    """
+    resolved = path.resolve()
+    for anchor in (SRC_ROOT, REPO_ROOT):
+        try:
+            relative = resolved.with_suffix("").relative_to(anchor)
+        except ValueError:
+            continue
+        parts = relative.parts
+        if parts and parts[-1] == "__init__":
+            parts = parts[:-1]
+        return ".".join(parts) if parts else None
+    return None
+
+
+def door_module_name() -> str:
+    """The single door's own dotted module name (``kernel.clock``)."""
+    name = anchored_module_name(DOOR_FILE)
+    if name is None:
+        raise RuntimeError(f"the kernel.clock door file is not resolvable under {SRC_ROOT} or {REPO_ROOT}")
+    return name
+
+
+@functools.lru_cache(maxsize=1)
+def _door_exports() -> _AliasMap:
+    """The clock-aliasable names ``kernel.clock`` re-exports (e.g. ``datetime``, ``date``).
+
+    Parses the REAL, already-landed ``src/kernel/clock.py`` (WP01a), reading
+    ONLY its top-level ``Import``/``ImportFrom`` statements -- deliberately
+    NOT ``_WallClockAssertionVisitor`` (tried first; reverted): that visitor's
+    function-return-alias propagation (designed so an assert on a *helper
+    function* wrapping a wall-clock read is still flagged) walks
+    ``now_utc_iso``'s body, sees its ``datetime.now(UTC).isoformat()``
+    return expression, and records ``now_utc_iso`` ITSELF as an alias for
+    the banned ``datetime.now()`` call -- exactly backwards for a producer
+    that is supposed to be safe to call anywhere. A door export, for this
+    engine's purposes, is exactly its own module-level import statements;
+    the door's helper FUNCTIONS (``now_utc_iso``, and later producers) are
+    never aliased here, only its re-exported stdlib names.
+
+    Keeps only the exports whose source is itself a clock-callable path
+    (``_ALIASABLE_CLOCK_PATHS``/``_BANNED_CALLS``) -- a door re-export of a
+    non-clock-callable name (e.g. ``UTC``, ``timedelta``) is correctly
+    dropped: re-exporting a type never creates a sanctioned ``.now()`` path.
+    """
+    tree = ast.parse(DOOR_FILE.read_text(encoding="utf-8"), filename=str(DOOR_FILE))
+    exports: _AliasMap = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module in {"datetime", "time"}:
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                source = (node.module, alias.name)
+                if source in _ALIASABLE_CLOCK_PATHS or source in _BANNED_CALLS:
+                    exports[(alias.asname or alias.name,)] = source
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                parts = tuple(alias.name.split("."))
+                if parts in _ALIASABLE_CLOCK_PATHS or parts in _BANNED_CALLS:
+                    exports[(alias.asname or parts[0],)] = parts
+    return exports
+
+
+@dataclass(frozen=True, order=True)
+class WallClockCallViolation:
+    """One banned wall-clock call site found by :func:`find_wall_clock_call_violations`.
+
+    Carries no ``path`` -- the caller already knows which file it parsed
+    ``tree`` from (mirrors the ``(tree, module_name)`` signature: this
+    function is a pure AST-in, violations-out engine; filesystem walking and
+    path bookkeeping are the caller's concern, same division of labour as
+    ``test_kernel_no_doctrine_import.py``'s own ``_scan_file``).
+
+    ``suggestion`` is the SC-001 message-mapping guidance (WP15): the
+    ``kernel.clock`` producer this call site should migrate to. Computed by
+    :func:`_suggested_producer` from the banned call's canonical family
+    (``.now``/``.utcnow`` vs ``date.today`` vs ``time.time()``) plus, for the
+    ``.now``/``.utcnow`` family, the immediately-chained
+    ``.isoformat()``/``.strftime(<literal>)`` call the flagged call feeds
+    into, when one is present at the call site.
+    """
+
+    line: int
+    call: str
+    suggestion: str
+
+
+def find_wall_clock_call_violations(tree: ast.AST, module_name: str) -> list[WallClockCallViolation]:
+    """Find every banned wall-clock call (``.now``/``.utcnow``/``.today``/``time.time()``) in ``tree``.
+
+    Unlike :func:`find_wall_clock_assertion_violations`, this walks the
+    WHOLE module -- not just ``assert`` expressions -- and resolves the
+    door's re-exported ``datetime``/``date`` names as aliases of the real
+    stdlib types (the re-export-bypass form FR-012(b)/SC-001 requires this
+    gate to catch).
+
+    ``module_name`` must be the caller's own :func:`anchored_module_name`
+    result for the file ``tree`` was parsed from. When it equals
+    :func:`door_module_name`, this returns ``[]`` unconditionally: the door
+    itself is the one sanctioned holder of these calls (see
+    ``src/kernel/clock.py``'s ``now_utc_iso``), and it is scanned by the
+    caller like any other file -- the self-exemption lives here, in the
+    shared engine, rather than being left to every caller to remember.
+    """
+    if module_name == door_module_name():
+        return []
+    visitor = _WholeModuleClockVisitor()
+    visitor.visit(tree)
+    return sorted(visitor.violations)
+
+
+#: SC-001 message-mapping (WP15): canonical banned-call family -> suggested
+#: kernel.clock producer. Keyed on the CANONICAL (alias-resolved) path, not
+#: the as-written receiver text, so ``dt.time()``/``time.time()`` and
+#: ``d.now()``/``datetime.now()`` map identically regardless of aliasing.
+_EPOCH_CALL: tuple[str, ...] = ("time", "time")
+_DATE_TODAY_CALLS: frozenset[tuple[str, ...]] = frozenset({("date", "today"), ("datetime", "date", "today")})
+_NOW_FAMILY_CALLS: frozenset[tuple[str, ...]] = frozenset(
+    {
+        ("datetime", "now"),
+        ("datetime", "datetime", "now"),
+        ("datetime", "utcnow"),
+        ("datetime", "datetime", "utcnow"),
+    }
+)
+_EPOCH_SUGGESTION = "kernel.clock.now_epoch()"
+_DATE_TODAY_SUGGESTION = "kernel.clock.now_utc().date() (or an adjudicated naive-local fix per FR-011)"
+_GENERIC_NOW_SUGGESTION = (
+    "kernel.clock.now_utc() (or now_utc_iso()/now_utc_stamp()/"
+    "now_utc_compact_stamp()/now_utc_seconds() for a specific serialization contract)"
+)
+_UNKNOWN_CALL_SUGGESTION = "the matching kernel.clock producer"
+
+#: The two on-disk stamp contracts the door's producers own (C-003); a
+#: ``.strftime(<literal>)`` chained directly onto the flagged call is only
+#: mapped when the literal matches one of these EXACTLY -- any other format
+#: string falls back to :data:`_GENERIC_NOW_SUGGESTION` rather than guessing.
+_STRFTIME_PRODUCER_SUGGESTIONS: dict[str, str] = {
+    "%Y-%m-%dT%H:%M:%SZ": "kernel.clock.now_utc_stamp()",
+    "%Y%m%dT%H%M%SZ": "kernel.clock.now_utc_compact_stamp()",
+}
+
+
+def _isoformat_producer_suggestion(outer_call: ast.Call) -> str:
+    """``.now(...).isoformat(timespec="seconds")`` -> ``now_utc_seconds()``; else ``now_utc_iso()``."""
+    for keyword in outer_call.keywords:
+        if keyword.arg == "timespec" and isinstance(keyword.value, ast.Constant) and keyword.value.value == "seconds":
+            return "kernel.clock.now_utc_seconds()"
+    return "kernel.clock.now_utc_iso()"
+
+
+def _strftime_producer_suggestion(outer_call: ast.Call) -> str | None:
+    """``.now(...).strftime(<literal format>)`` -> the matching stamp producer, if the format is recognized."""
+    if not outer_call.args:
+        return None
+    fmt_arg = outer_call.args[0]
+    if isinstance(fmt_arg, ast.Constant) and isinstance(fmt_arg.value, str):
+        return _STRFTIME_PRODUCER_SUGGESTIONS.get(fmt_arg.value)
+    return None
+
+
+class _WholeModuleClockVisitor(ast.NodeVisitor):
+    """Whole-module banned-call scanner. See the module-level engine docstring above."""
+
+    def __init__(self) -> None:
+        self.scopes: list[_AliasMap] = [{}]
+        self.violations: list[WallClockCallViolation] = []
+        #: Ancestor stack (root-to-current), maintained by the overridden
+        #: :meth:`visit` below -- exists ONLY so :meth:`_chained_attribute_call`
+        #: can look one/two levels up from a flagged call to detect an
+        #: immediately-chained ``.isoformat()``/``.strftime(...)`` for the
+        #: SC-001 message-mapping suggestion. Nothing else in this visitor
+        #: reads it.
+        self._parent_stack: list[ast.AST] = []
+
+    @property
+    def scope(self) -> _AliasMap:
+        return self.scopes[-1]
+
+    def visit(self, node: ast.AST) -> None:
+        self._parent_stack.append(node)
+        try:
+            super().visit(node)
+        finally:
+            self._parent_stack.pop()
+
+    def _chained_attribute_call(self, call_node: ast.Call) -> tuple[str, ast.Call] | None:
+        """If ``call_node`` is immediately followed by ``.<attr>(...)``, return ``(attr, outer_call)``."""
+        stack = self._parent_stack
+        if len(stack) < 3 or stack[-1] is not call_node:
+            return None
+        parent, grandparent = stack[-2], stack[-3]
+        if (
+            isinstance(parent, ast.Attribute)
+            and parent.value is call_node
+            and isinstance(grandparent, ast.Call)
+            and grandparent.func is parent
+        ):
+            return parent.attr, grandparent
+        return None
+
+    def _suggested_producer(self, call_node: ast.Call, canonical: tuple[str, ...]) -> str:
+        """SC-001 message mapping: the kernel.clock producer this violation should migrate to."""
+        if canonical == _EPOCH_CALL:
+            return _EPOCH_SUGGESTION
+        if canonical in _DATE_TODAY_CALLS:
+            return _DATE_TODAY_SUGGESTION
+        if canonical in _NOW_FAMILY_CALLS:
+            chained = self._chained_attribute_call(call_node)
+            if chained is not None:
+                attr_name, outer_call = chained
+                if attr_name == "isoformat":
+                    return _isoformat_producer_suggestion(outer_call)
+                if attr_name == "strftime":
+                    stamp_suggestion = _strftime_producer_suggestion(outer_call)
+                    if stamp_suggestion is not None:
+                        return stamp_suggestion
+            return _GENERIC_NOW_SUGGESTION
+        return _UNKNOWN_CALL_SUGGESTION
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            parts = tuple(alias.name.split("."))
+            dotted = ".".join(parts)
+            target_path = (alias.asname,) if alias.asname else parts
+            if dotted == door_module_name():
+                self._bind_door_export(target_path)
+            elif parts and parts[0] in {"datetime", "time"}:
+                _set_alias(self.scope, (alias.asname or parts[0],), parts)
+            else:
+                _set_shadow(self.scope, (alias.asname or parts[0],))
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module == door_module_name():
+            self._bind_from_door_import(node.names)
+            return
+        if node.module not in {"datetime", "time"}:
+            for alias in node.names:
+                if alias.name == "*":
+                    _set_shadow(self.scope, ("datetime",))
+                    _set_shadow(self.scope, ("time",))
+                else:
+                    _set_shadow(self.scope, (alias.asname or alias.name,))
+            return
+        for alias in node.names:
+            if alias.name == "*":
+                _add_star_import_aliases(self.scope, node.module)
+                continue
+            _set_alias(self.scope, (alias.asname or alias.name,), (node.module, alias.name))
+
+    def _bind_door_export(self, target_path: tuple[str, ...]) -> None:
+        _set_shadow(self.scope, target_path)
+        for export_path, export_source in _door_exports().items():
+            if export_source is not None:
+                _set_alias(self.scope, (*target_path, *export_path), export_source)
+
+    def _bind_from_door_import(self, aliases: list[ast.alias]) -> None:
+        exports = _door_exports()
+        for alias in aliases:
+            if alias.name == "*":
+                for export_path, source in exports.items():
+                    if source is not None:
+                        _set_alias(self.scope, export_path, source)
+                continue
+            target_name = alias.asname or alias.name
+            source = exports.get((alias.name,))
+            if source is not None:
+                _set_alias(self.scope, (target_name,), source)
+            else:
+                _set_shadow(self.scope, (target_name,))
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        _add_assignment_aliases(self.scopes, lambda _target: self.scope, node.targets, node.value)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            _add_assignment_aliases(self.scopes, lambda _target: self.scope, [node.target], node.value)
+        self.generic_visit(node)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        _add_assignment_aliases(self.scopes, lambda _target: self.scope, [node.target], node.value)
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        raw_path = _attribute_path(node.func)
+        canonical = _normalize_alias(raw_path, self.scopes) if raw_path else ()
+        if raw_path and canonical in _BANNED_CALLS:
+            # Mirrors `_AssertCallVisitor.visit_Call` above: `_BANNED_CALLS`
+            # membership (via the normalized/alias-resolved path) is the
+            # ban CHECK, but the reported `call` text is the literal,
+            # as-written receiver -- e.g. `d.now()` for the variable-split
+            # form, not the canonical `datetime.now()` it resolves to. This
+            # is what makes the violation message greppable against the
+            # actual source line. `suggestion` (SC-001) is keyed on the
+            # CANONICAL path instead, so an aliased/variable-split call still
+            # gets the correct producer recommendation.
+            self.violations.append(
+                WallClockCallViolation(
+                    line=node.lineno,
+                    call=f"{'.'.join(raw_path)}()",
+                    suggestion=self._suggested_producer(node, canonical),
+                )
+            )
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_function_like(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._visit_function_like(node)
+
+    def _visit_function_like(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for default in (*node.args.defaults, *(d for d in node.args.kw_defaults if d is not None)):
+            self.visit(default)
+        local_scope: _AliasMap = {(name,): None for name in _function_bound_names(node)}
+        local_scope.update(_function_default_aliases(node, self.scopes))
+        self.scopes.append(local_scope)
+        try:
+            for statement in node.body:
+                self.visit(statement)
+        finally:
+            self.scopes.pop()
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        self.scopes.append({})
+        try:
+            for statement in node.body:
+                self.visit(statement)
+        finally:
+            self.scopes.pop()

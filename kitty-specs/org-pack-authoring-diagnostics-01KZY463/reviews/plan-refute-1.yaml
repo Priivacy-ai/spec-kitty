@@ -1,0 +1,50 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Repo has exactly 13 .contextive.yml-pattern files (verified via `find`); plan.md's cited
+      grep covers only 8 of them (the 7 under src/specify_cli/.contextive/ plus
+      src/glossary/.contextive.yml), missing the 5 the finding names
+      (cli/dossier/merge/missions/status .contextive.yml); re-running the widened grep across
+      all 13 with the four original terms plus profile_skipped/drg_root_graph_missing confirms
+      zero hits, matching the finding's claim exactly.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      charter.md:401 literally reads "Breaking changes documented in CHANGELOG.md" under a
+      binding Code Review Checklist; spec.md:539-540 (inside "## Reflexivity: what happens to
+      missions and packs mid-flight") explicitly says the exit-code-breaking change "should be
+      called out in the mission's changelog entry / release note at merge time, not just in
+      this spec" (i.e. not deferred away, just timed to merge) and spec.ruling.md never
+      touches this obligation; grep of plan.md for changelog/CHANGELOG/release note/etc.
+      returns zero hits, confirming no IC or touched-file row carries it forward.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      ci-quality.yml:1141-1143's actual `if:` is
+      `always() && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')`
+      and the `doctrine` dorny filter at :443-446 includes `tests/doctrine/**`, which plan.md's
+      own Project Structure lists tests/doctrine/test_agent_profile_model_field.py under —
+      directly contradicting plan.md:215-216's own text, "Applies as a standing CI job (it
+      always runs)... the job itself is unconditional."
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Step 4 (plan.md:315-317) hedges "or once for the combined lane, if implemented as a
+      single lane per Chokepoint," but Chokepoint (plan.md:375-385) already firmly commits to
+      one Lane B sequenced FR-003→FR-002→FR-004 with no contingency left, and IC-02/03/04's
+      Sequencing/depends-on bullets (plan.md:521-522, 543-545, 585-589) name only lane
+      ordering, never a baseline re-run between the three commits, so the traceability claim
+      in step 4 is not actually satisfied by the procedure as written.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Raw markdown at plan.md:302-305 (confirmed via cat -A, no trailing backslashes) is one
+      backtick span opening before "uv" on line 302 and closing after "-q" on line 305 with no
+      fence and no line-continuation, so a literal copy of the raw source yields four separate
+      shell tokens instead of one four-file pytest invocation, exactly as the finding states.

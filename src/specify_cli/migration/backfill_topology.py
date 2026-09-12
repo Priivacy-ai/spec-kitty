@@ -30,13 +30,20 @@ from typing import Any, Literal
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
-from specify_cli.mission_metadata import load_meta
 
 logger = logging.getLogger(__name__)
 
 # Canonical meta.json keys (hoisted per Sonar S1192 — used in >=3 sites).
-_TOPOLOGY_KEY = "topology"
-_FLATTENED_KEY = "flattened"
+#
+# ``TOPOLOGY_KEY`` / ``FLATTENED_KEY`` are PUBLIC (promoted from the former
+# module-private ``_TOPOLOGY_KEY`` / ``_FLATTENED_KEY`` by
+# verdict-seam-write-unification-01KZ9Q35 WP10 / D-PLAN-17): this module is
+# their semantic owner, and ``mission_metadata.flatten_coordination_metadata``
+# (#3219 / FR-015) imports them directly rather than re-spelling the string
+# literals at the import site (squad #16). ``_COORDINATION_BRANCH_KEY`` stays
+# private -- no other module needs to reference it by name.
+TOPOLOGY_KEY = "topology"
+FLATTENED_KEY = "flattened"
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 
 # Valid stored topology string values (the enum's stable .value forms).
@@ -89,15 +96,18 @@ def read_topology(feature_dir: Path) -> MissionTopology:
 
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist.
-        ValueError: If ``meta.json`` is not a JSON object.
+        MissionMetaReadError: If ``meta.json`` is not a JSON object or is corrupt.
     """
-    # post-#2091 canonical reader: allow_missing=False raises FileNotFoundError
-    # on a missing meta.json, on_malformed="raise" (default) raises ValueError
-    # on malformed/non-object content -- matching this function's documented
-    # Raises: contract byte-for-byte.
-    meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError. Missing files still raise
+    # FileNotFoundError to preserve documented contract.
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta_result = load_meta_fail_closed(feature_dir)
+    if meta_result is None:
+        raise FileNotFoundError(feature_dir / "meta.json")
+    meta: dict[str, Any] = meta_result or {}
 
-    stored = meta.get(_TOPOLOGY_KEY)
+    stored = meta.get(TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
         return MissionTopology(stored)
 
@@ -165,9 +175,11 @@ def backfill_mission_topology(
             reason="meta.json not found",
         )
 
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
-    except (FileNotFoundError, ValueError) as exc:
+        meta_result = load_meta_fail_closed(feature_dir)
+        meta: dict[str, Any] = meta_result or {}
+    except MissionMetaReadError as exc:
         logger.warning("Corrupt meta.json in %s: %s", slug, exc)
         return TopologyBackfillResult(
             feature_dir=feature_dir,
@@ -176,7 +188,7 @@ def backfill_mission_topology(
             reason=f"corrupt json: {exc}",
         )
 
-    stored = meta.get(_TOPOLOGY_KEY)
+    stored = meta.get(TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
         return TopologyBackfillResult(
             feature_dir=feature_dir,
@@ -222,8 +234,8 @@ def backfill_mission_topology(
                 )
 
     if not dry_run:
-        meta[_TOPOLOGY_KEY] = topology.value
-        meta.setdefault(_FLATTENED_KEY, False)
+        meta[TOPOLOGY_KEY] = topology.value
+        meta.setdefault(FLATTENED_KEY, False)
         _write_meta_canonical(meta_path, meta)
 
     return TopologyBackfillResult(
@@ -278,6 +290,8 @@ def backfill_topology_repo(
 
 
 __all__ = [
+    "FLATTENED_KEY",
+    "TOPOLOGY_KEY",
     "backfill_topology_repo",
     "read_topology",
 ]

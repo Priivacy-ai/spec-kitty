@@ -45,17 +45,21 @@ class RewriteResult:
 def _get_command_templates_dir() -> Path | None:
     """Return the bundled command prompt source directory, or ``None``."""
     try:
-        import doctrine  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
 
-        doctrine_steps = (
-            Path(doctrine.__file__).parent
-            / "missions"
+        # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+        # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+        doctrine_steps: Path = (
+            MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
         if doctrine_steps.is_dir():
             return doctrine_steps
-    except ImportError:
+    except (ImportError, MissionsRootNotFound):
         pass
 
     from specify_cli.runtime.home import get_kittify_home, get_package_asset_root

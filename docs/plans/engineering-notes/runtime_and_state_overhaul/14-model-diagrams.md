@@ -1,7 +1,7 @@
 ---
 title: 14 — Model Diagrams (multi-tier)
 description: Multi-tier model diagrams (Phase 2) for the runtime and state overhaul's conceptual domain model, authored under the Architect Alphonso persona.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
@@ -131,7 +131,7 @@ This aligns with the deep-dive bounded-context map (doc `03` B: distinct "Missio
 ### 2a · Governance domain
 
 Now shown bridging into execution (the governed-invocation assembly): Mission Type → Mission Step →
-governance bundle → prompt, targeting a Work Package issued by a Mission Run, consumed by an Actor.
+governance bundle → prompt, targeting a work package issued by a Mission Run, consumed by an Actor.
 Cross-domain concepts (other domains) are dashed.
 
 ```mermaid
@@ -166,14 +166,14 @@ graph TD
 > and *selects* a **Mission Type**, which **comprises ordered Mission Steps**. The **action-scoped
 > bundle** is keyed by **(Mission Type × Mission Step)** and combined with the **bound Agent Profile**.
 > The bridge into execution: a **Mission Run** *issues* the current Mission Step; that step (for
-> implement/review) *targets* a **Work Package**; the bundle is *rendered into* the **Executor Prompt**
-> whose subject is that Work Package; the **Actor** *consumes* the prompt. (This static view is the
+> implement/review) *targets* a **work package**; the bundle is *rendered into* the **Executor Prompt**
+> whose subject is that work package; the **Actor** *consumes* the prompt. (This static view is the
 > structural counterpart to the governed-invocation sequence below.)
 
 ### 2b · Mission Management domain (the layered work) — corrected per `13`
 
 Cross-domain concepts dashed. Shows the same execution spine as 2a, from the Mission-Management side:
-a **Mission Step** (Governance) *targets* a **Work Package**; a **Mission Run** (Execution) *drives*
+a **Mission Step** (Governance) *targets* a **work package**; a **Mission Run** (Execution) *drives*
 the Mission and *issues* that step.
 
 ```mermaid
@@ -197,14 +197,14 @@ graph TD
 
 > Disambiguation: the **layered state lives on the Mission** (not the Run — `13`). Mission-level =
 > identity/type/phase/topology/policy; WP-level = the `MissionStatus` aggregate. The execution spine
-> (dashed) is consistent with 2a/2c: **Mission Run → Mission Step → Work Package**. `*` = provisional
+> (dashed) is consistent with 2a/2c: **Mission Run → Mission Step → work package**. `*` = provisional
 > (phase derived-not-enum; interaction policy resolved-and-frozen at plan time).
 
 ### 2c · Execution / Runtime domain (driver + Actor + Context) — corrected per `13`
 
 The domain now drawn in full: it **contains** the Mission Run, the **Actor** (realized here), and the
 **Context** subdomain; it reaches *out* (dashed) to Governance (Mission Step) and Mission Management
-(Mission, Work Package). Same spine as 2a/2b.
+(Mission, work package). Same spine as 2a/2b.
 
 ```mermaid
 graph TD
@@ -400,6 +400,7 @@ sequenceDiagram
 ---
 
 ## Provisional / open markers carried into the diagrams
+
 1. **Context** = harden `ActionContext` (the only unsettled *implementation* area; a supporting subdomain of Execution). `[2e, Tier 1]`
 2. **phase** — derive, don't add an enum. `[2b]`
 3. **interaction policy** — resolve-and-freeze at plan time onto Mission/`lanes.json`. `[2b]`
@@ -408,6 +409,7 @@ sequenceDiagram
 6. **Shared `Actor` type** — vocabulary now; a code type only if a shared seam emerges. `[2d]`
 
 ## Next refinement candidates
+
 - Promote Tier 1 + 2 into a published `docs/architecture/` doc once the Context subdomain settles.
 - Add a **BPMN swimlane** (User / Code / Agent) over the idea→working-code flow, showing which context
   is resolved/consumed at each step — the requirements view (`10`) made executable.

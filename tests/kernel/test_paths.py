@@ -16,12 +16,22 @@ Coverage:
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import pytest
 
-from kernel.paths import get_kittify_home, get_package_asset_root, render_runtime_path
+import kernel.paths as kernel_paths
+from kernel.paths import (
+    get_built_in_pack_root,
+    get_kittify_home,
+    get_package_asset_root,
+    posix_tree_path,
+    render_runtime_path,
+    repo_tree_path,
+    to_posix,
+)
+from tests.kernel.test_sibling_paths import build_post_relocation_wheel_shaped_site_packages
 
 pytestmark = pytest.mark.fast
 
@@ -173,12 +183,28 @@ class TestGetPackageAssetRoot:
     def test_template_root_checkout_root_normalizes_to_doctrine_missions(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A checkout root env var resolves to src/doctrine/missions."""
+        """A checkout root env var resolves to src/charter/offering/missions.
+
+        The fixture carries a realistic decoy at the checkout root itself
+        (``docs/templates/index.md``, mirroring this real repository's own
+        ``docs/templates/index.md``) that satisfies
+        ``_looks_like_missions_root``'s loose ``*/templates/*.md`` content
+        sniff just as well as the real missions directory does. Without the
+        decoy this test cannot distinguish a correct implementation from one
+        that tries the bare checkout-root candidate before the
+        ``src/*/*/missions`` glob -- which would return the checkout root
+        itself instead of ``src/charter/offering/missions`` (the WP04 cycle-1
+        regression this decoy pins).
+        """
         checkout = tmp_path / "spec-kitty"
-        missions = checkout / "src" / "doctrine" / "missions"
+        missions = checkout / "src" / "charter" / "offering" / "missions"
         templates = missions / "software-dev" / "templates"
         templates.mkdir(parents=True)
         (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
+
+        decoy_templates = checkout / "docs" / "templates"
+        decoy_templates.mkdir(parents=True)
+        (decoy_templates / "index.md").write_text("# Docs\n", encoding="utf-8")
 
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
 
@@ -194,7 +220,7 @@ class TestGetPackageAssetRoot:
         stale_software_dev.mkdir(parents=True)
         (stale_software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
 
-        doctrine_missions = checkout / "src" / "doctrine" / "missions"
+        doctrine_missions = checkout / "src" / "charter" / "offering" / "missions"
         templates = doctrine_missions / "software-dev" / "templates"
         templates.mkdir(parents=True)
         (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
@@ -266,28 +292,217 @@ class TestGetPackageAssetRoot:
         assert get_package_asset_root().is_dir()
 
     def test_importlib_failure_raises_file_not_found(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Raises FileNotFoundError when importlib discovery fails."""
+        """Raises FileNotFoundError when the kernel resolution primitive fails.
+
+        Reimplemented for FR-004 (mission
+        doctrine-consumer-surface-missions-extraction-01KZ6G6H):
+        get_package_asset_root() no longer calls
+        importlib.resources.files("charter.offering") directly (SC-002 forbids a
+        doctrine-identifying string literal anywhere in src/kernel/) -- it
+        delegates to kernel.sibling_paths.resolve_installed_sibling instead.
+        This test now forces that primitive to fail, in place of the retired
+        importlib seam it used to mock.
+        """
+        from kernel.sibling_paths import SiblingPathNotFound
+
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        monkeypatch.setattr(
-            "kernel.paths.importlib.resources.files",
-            lambda _pkg: type("Fake", (), {"__truediv__": lambda s, n: Path("/nonexistent")})(),
-        )
+
+        def _raise(**_kwargs: object) -> Path:
+            raise SiblingPathNotFound(PurePosixPath("missions"), Path("/nonexistent"))
+
+        monkeypatch.setattr("kernel.paths.resolve_installed_sibling", _raise)
         with pytest.raises(FileNotFoundError, match="Cannot locate package mission assets"):
             get_package_asset_root()
 
     def test_env_var_takes_precedence_over_importlib(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Env var is checked before importlib."""
+        """Env var is checked before the kernel resolution primitive.
+
+        Reimplemented for FR-004 (see
+        ``test_importlib_failure_raises_file_not_found`` above): the retired
+        importlib seam is replaced by mocking the primitive kernel.paths now
+        delegates to, proving it is never even called when the env var wins.
+        """
         missions = tmp_path / "missions"
         templates = missions / "software-dev" / "templates"
         templates.mkdir(parents=True)
         (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
-        # Even if importlib would fail, env var wins
+        # Even if the primitive would fail, the env var wins and it is never called.
         monkeypatch.setattr(
-            "kernel.paths.importlib.resources.files",
-            lambda _pkg: (_ for _ in ()).throw(ModuleNotFoundError("should not be called")),
+            "kernel.paths.resolve_installed_sibling",
+            lambda **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
         )
         assert get_package_asset_root() == missions
+
+    def test_resolves_in_a_wheel_layout_via_the_caller_s_own_pattern(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Binds ``kernel.paths``' own ``MISSION_ASSETS_SIBLING_PATTERN``, not a
+        pattern written inside the test.
+
+        ``TestWheelShapedAnchor`` (``test_sibling_paths.py``) proves the shared
+        primitive resolves correctly *given* a bare ``"*/missions"`` pattern --
+        but that pattern is supplied by the test itself, not by
+        ``kernel.paths``. The WP04 cycle-1 defect was exactly that this
+        module's own module-level constant carried a ``"src/*/missions"``
+        shape that can never match an installed wheel (no ``src/`` directory
+        exists at any level there). Reusing the same synthetic site-packages
+        tree here, but calling the real public entry point
+        (``get_package_asset_root``) with ``kernel.paths.__file__``
+        monkeypatched to the synthetic anchor, exercises the actual committed
+        constant: this test reds on the cycle-1 pattern and greens on the
+        current one.
+
+        **This is also the caller-level wheel test for mission #3091's own
+        thesis (WP05, FR-005/SC-001).** Mission
+        ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` relocated
+        the missions data from ``src/charter/offering/missions`` to
+        ``packs/built-in/missions``, so the fixture below
+        (:func:`build_post_relocation_wheel_shaped_site_packages`) plants BOTH
+        the real relocated data AND the still-existing, now data-less
+        ``doctrine/missions`` package directory side by side in one synthetic
+        wheel layout. This test only passes if the resolver finds the real
+        data, not the data-less decoy -- it reds if
+        ``MISSION_ASSETS_SIBLING_PATTERN`` ever regresses to a bare/wildcard
+        ``"*/missions"`` shape, which would match the decoy at the
+        site-packages ancestor before ever considering ``packs/built-in``.
+        """
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(tmp_path)
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+
+        result = get_package_asset_root()
+
+        assert result == site / "packs" / "built-in" / "missions"
+        assert result != site / "doctrine" / "missions", (
+            "get_package_asset_root() self-matched the data-less doctrine "
+            "package directory instead of the relocated real data -- the "
+            "exact self-match trap this mission's WP05 exists to close."
+        )
+
+
+class TestGetPackageAssetRootPacksRoot:
+    """SPEC_KITTY_PACKS_ROOT relocates the built-in pack root (DR-1; C-R2/C-R3/C-R4).
+
+    The unified resolver locates the ``built-in`` pack from the env-supplied
+    pack root and the door returns ``<PACKS_ROOT>/built-in/missions`` through
+    the kernel built-in-pack-root primitive. PACKS_ROOT governs pack-root
+    *location* and wins over ``SPEC_KITTY_TEMPLATE_ROOT`` for it (C-R3); a pack
+    root with no ``built-in/missions`` tree fails closed rather than falling
+    through to a legacy layout (C-R4 / FR-013).
+    """
+
+    def test_packs_root_relocates_the_door(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT with ``built-in/missions`` present resolves under it."""
+        packs_root = tmp_path / "packs-root"
+        missions = packs_root / "built-in" / "missions"
+        missions.mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        assert get_package_asset_root() == missions
+
+    def test_packs_root_without_missions_tree_fails_closed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT whose ``built-in`` has no ``missions`` leaf raises, no fall-through."""
+        packs_root = tmp_path / "packs-root"
+        # ``built-in`` exists (the env override resolves) but carries no
+        # ``missions`` leaf: the door must fail closed, never fall through to a
+        # legacy layout or the ancestor walk's real tree.
+        (packs_root / "built-in").mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        with pytest.raises(FileNotFoundError):
+            get_package_asset_root()
+
+    def test_packs_root_wins_over_template_root(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """With BOTH env vars set, PACKS_ROOT governs pack-root location (C-R3)."""
+        packs_root = tmp_path / "packs-root"
+        packs_missions = packs_root / "built-in" / "missions"
+        packs_missions.mkdir(parents=True)
+
+        template_root = tmp_path / "template-root"
+        template_templates = template_root / "software-dev" / "templates"
+        template_templates.mkdir(parents=True)
+        (template_templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(template_root))
+
+        assert get_package_asset_root() == packs_missions
+
+
+class TestGetBuiltInPackRootMisconfiguredPacksRootWarning:
+    """A set-but-unresolvable ``SPEC_KITTY_PACKS_ROOT`` now warns loudly (2026-08-07).
+
+    Supersedes DR-1's original silent-parity framing (see the ADR addendum on
+    ``docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md``):
+    resolution stays fail-open (no raise, still falls back to the installed
+    sibling), but the fallback is no longer silent -- ``get_built_in_pack_root``
+    emits a ``UserWarning`` naming the misconfigured path. The warning must fire
+    ONLY in that set-but-unresolvable case: not when the var is unset, and not
+    when the override resolves cleanly.
+    """
+
+    def test_bogus_packs_root_warns_and_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A nonexistent PACKS_ROOT warns, then still resolves via the ancestor walk."""
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        bogus_root = tmp_path / "does-not-exist"
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(bogus_root))
+
+        with pytest.warns(UserWarning, match="SPEC_KITTY_PACKS_ROOT"):
+            result = get_built_in_pack_root()
+
+        assert result == site / "packs" / "built-in"
+
+    def test_unset_packs_root_emits_no_warning(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, recwarn: pytest.WarningsRecorder
+    ) -> None:
+        """No env var at all -- the ancestor walk resolves silently, no warning."""
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
+
+        result = get_built_in_pack_root()
+
+        assert result == site / "packs" / "built-in"
+        assert len(recwarn.list) == 0, [str(w.message) for w in recwarn.list]
+
+    def test_valid_packs_root_emits_no_warning(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, recwarn: pytest.WarningsRecorder
+    ) -> None:
+        """A PACKS_ROOT whose ``built-in`` child exists wins silently, no warning."""
+        env_root = tmp_path / "env-packs"
+        env_built_in = env_root / "built-in"
+        env_built_in.mkdir(parents=True)
+
+        # Anchor is irrelevant here since the valid override wins outright, but
+        # point it at a real synthetic tree for realism/consistency with the
+        # sibling tests above.
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(env_root))
+
+        result = get_built_in_pack_root()
+
+        assert result == env_built_in
+        assert result != site / "packs" / "built-in"
+        assert len(recwarn.list) == 0, [str(w.message) for w in recwarn.list]
 
 
 class TestRenderRuntimePath:
@@ -508,13 +723,20 @@ class TestGetPackageAssetRootErrorMessage:
         We assert the message starts with the real sentence and contains no
         mutmut sentinel markers, and also verify it contains the actionable
         remediation substring.
+
+        Reimplemented for FR-004: forces the kernel resolution primitive (not
+        the retired importlib.resources.files("charter.offering") seam -- see
+        ``test_importlib_failure_raises_file_not_found`` above) to fail so we
+        reach the final raise/translation.
         """
+        from kernel.sibling_paths import SiblingPathNotFound
+
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        # Force the importlib fallback to fail so we reach the final raise.
-        monkeypatch.setattr(
-            "kernel.paths.importlib.resources.files",
-            lambda _pkg: (_ for _ in ()).throw(ModuleNotFoundError("forced")),
-        )
+
+        def _raise(**_kwargs: object) -> Path:
+            raise SiblingPathNotFound(PurePosixPath("missions"), Path("/nonexistent"))
+
+        monkeypatch.setattr("kernel.paths.resolve_installed_sibling", _raise)
         with pytest.raises(FileNotFoundError) as exc_info:
             get_package_asset_root()
 
@@ -523,3 +745,73 @@ class TestGetPackageAssetRootErrorMessage:
         assert "XX" not in message, f"mutmut sentinel leaked into message: {message!r}"
         assert "SPEC_KITTY_TEMPLATE_ROOT" in message
         assert "spec-kitty-cli" in message
+
+
+# ---------------------------------------------------------------------------
+# Forward-slash normalization seams: to_posix / posix_tree_path / repo_tree_path
+# (#2836 — git HEAD:<path> / ls-files require forward slashes; the single
+# behaviour-agnostic separator seam lives here in kernel).
+# ---------------------------------------------------------------------------
+
+
+class TestToPosix:
+    """``to_posix`` normalizes Path and str inputs to forward slashes."""
+
+    def test_purepath_uses_as_posix(self) -> None:
+        assert to_posix(PurePosixPath("kitty-specs", "m", "spec.md")) == "kitty-specs/m/spec.md"
+
+    def test_path_input(self) -> None:
+        assert to_posix(Path("a") / "b" / "c.md") == "a/b/c.md"
+
+    def test_str_with_backslashes_is_normalized(self) -> None:
+        assert to_posix("a\\b\\c.md") == "a/b/c.md"
+
+    def test_str_already_posix_is_unchanged(self) -> None:
+        assert to_posix("a/b/c.md") == "a/b/c.md"
+
+
+class TestPosixTreePath:
+    """``posix_tree_path`` joins parts as a forward-slashed git tree path."""
+
+    def test_multi_component(self) -> None:
+        assert posix_tree_path(("kitty-specs", "slug", "spec.md")) == "kitty-specs/slug/spec.md"
+
+    def test_single_component(self) -> None:
+        assert posix_tree_path(("spec.md",)) == "spec.md"
+
+    def test_empty_parts_returns_empty_string(self) -> None:
+        # exercises the ``if parts else ""`` branch
+        assert posix_tree_path(()) == ""
+
+    def test_witnesses_windows_backslash_regression(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Substituting PureWindowsPath proves a reverted ``str(Path(*parts))``
+        form would reintroduce backslashes; the PurePosixPath fix is immune."""
+        monkeypatch.setattr("kernel.paths.Path", PureWindowsPath)
+        assert posix_tree_path(("kitty-specs", "slug", "spec.md")) == "kitty-specs/slug/spec.md"
+        assert "\\" not in posix_tree_path(("a", "b", "spec.md"))
+
+
+class TestRepoTreePath:
+    """``repo_tree_path`` resolves (git_cwd, forward-slashed tree path)."""
+
+    def test_primary_checkout(self, tmp_path: Path) -> None:
+        spec = tmp_path / "kitty-specs" / "slug" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("x", encoding="utf-8")
+        git_cwd, tree_path = repo_tree_path(spec, tmp_path)
+        assert git_cwd == tmp_path.resolve()
+        assert tree_path == "kitty-specs/slug/spec.md"
+
+    def test_linked_worktree_strips_worktree_prefix(self, tmp_path: Path) -> None:
+        wt = tmp_path / ".worktrees" / "my-wt"
+        spec = wt / "kitty-specs" / "slug" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("x", encoding="utf-8")
+        git_cwd, tree_path = repo_tree_path(spec, tmp_path)
+        assert git_cwd == wt.resolve()
+        assert tree_path == "kitty-specs/slug/spec.md"
+
+    def test_file_outside_repo_raises_value_error(self, tmp_path: Path) -> None:
+        outside = tmp_path.parent / "elsewhere" / "spec.md"
+        with pytest.raises(ValueError):
+            repo_tree_path(outside, tmp_path / "repo")

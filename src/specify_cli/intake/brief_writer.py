@@ -17,6 +17,8 @@ import os
 from contextlib import suppress
 from pathlib import Path
 
+from specify_cli.core.no_follow import fd_relative_dir_ops_supported
+
 from .errors import (
     IntakeError,
     IntakePathEscapeError,
@@ -67,8 +69,7 @@ class CrossFilesystemWriteError(IntakeError):
 
     def __init__(self, *, target: Path) -> None:
         super().__init__(
-            f"INTAKE_CROSS_FS: refusing to atomic-write across filesystems for {target}; "
-            "set intake.allow_cross_fs=True in .kittify/config.yaml to override.",
+            f"INTAKE_CROSS_FS: refusing to atomic-write across filesystems for {target}; set intake.allow_cross_fs=True in .kittify/config.yaml to override.",
             target=str(target),
         )
 
@@ -79,7 +80,19 @@ def _write_payload_via_parent_dirfd(target: Path, payload: bytes) -> None:
     This keeps the writable directory fixed while addressing only the
     basename relative to that directory, which avoids constructing a
     fresh absolute path at the fallback sink.
+
+    ``dir_fd`` is unavailable on Windows (``os.supports_dir_fd`` is empty
+    there), so this falls back to a plain path-based write in that case.
+    This is already the best-effort cross-filesystem fallback (only reached
+    when the caller opted in via ``allow_cross_fs``), so a path-based write
+    loses no guarantee the dir_fd variant offered.
     """
+    if not fd_relative_dir_ops_supported():
+        with open(target, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return
     parent_fd = os.open(target.parent, os.O_RDONLY)
     target_fd: int | None = None
     try:

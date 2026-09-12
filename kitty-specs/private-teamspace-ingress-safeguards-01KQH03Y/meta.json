@@ -1,5 +1,6 @@
 {
   "created_at": "2026-05-01T05:27:53.915617+00:00",
+  "flattened": false,
   "friendly_name": "CLI Private Teamspace Ingress Safeguards",
   "mission_id": "01KQH03YSS4H9PQVJ5YCTGZYMR",
   "mission_number": 110,
@@ -10,6 +11,7 @@
   "slug": "private-teamspace-ingress-safeguards-01KQH03Y",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-05-01T08:13:54.132656+00:00"
 }

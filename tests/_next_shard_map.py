@@ -43,7 +43,6 @@ _NEXT_SHARD_2_FILES: tuple[str, ...] = (
     "tests/next/test_mission_run_back_reference.py",
     "tests/next/test_next_command_integration.py",
     "tests/next/test_prompt_builder_unit.py",
-    "tests/next/test_retrospective_terminus_wiring.py",
     "tests/next/test_runtime_bridge_unit.py",
 )
 _NEXT_SHARD_3_FILES: tuple[str, ...] = (
@@ -61,16 +60,20 @@ _NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # Whole-file assignments under ``tests/specify_cli/next``.
 _SPECIFY_CLI_NEXT_SHARD_1_FILES: tuple[str, ...] = (
     "tests/specify_cli/next/test_decision_validation.py",
+    "tests/specify_cli/next/test_next_output_preservation.py",
     "tests/specify_cli/next/test_runtime_bridge.py",
     "tests/specify_cli/next/test_runtime_bridge_dispatch.py",
     "tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py",
 )
 _SPECIFY_CLI_NEXT_SHARD_2_FILES: tuple[str, ...] = (
     "tests/specify_cli/next/test_decision_dispatch.py",
+    "tests/specify_cli/next/test_next_cold_start_performance.py",
+    "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py",
     "tests/specify_cli/next/test_workflow_command.py",
     "tests/specify_cli/next/test_workflow_registry.py",
 )
 _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
+    "tests/specify_cli/next/test_next_import_footprint.py",
     "tests/specify_cli/next/test_runtime_bridge_composition.py",
     "tests/specify_cli/next/test_runtime_bridge_documentation_composition.py",
     "tests/specify_cli/next/test_runtime_bridge_research_composition.py",
@@ -80,37 +83,84 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # Whole-file assignments under ``tests/runtime`` (including its ``next/``
 # subdirectory — ``tests/runtime/next/test_import_paths.py`` is still under
 # the ``tests/runtime`` root the CI step runs).
+# 2026-08-04 (PR #3175 landing fold): test_runtime_bridge_identity_git_repo.py
+# split out of test_runtime_bridge_identity.py (marker-correctness Rule 1/2 —
+# the corrupt-meta class drove real git via subprocess and needed its own
+# `git_repo` marker instead of the sibling file's `fast`). Registered here
+# alongside its former home so the GC-1 completeness guard
+# (test_next_shard_marker_completeness.py) still sees a total, disjoint
+# partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3981 landing): mission runtime-advance-guard-topology-wp-
+    # completion-01M1W6VZ added three tests/runtime/next files; registered here
+    # so the GC-1 completeness guard keeps a disjoint partition of tests/runtime.
+    "tests/runtime/next/test_coord_topology_fixture.py",
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_import_paths.py",
+    "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
+    "tests/runtime/test_artifact_presence_placement.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",
+    "tests/runtime/test_cli_guard_family.py",
     "tests/runtime/test_config.py",
     "tests/runtime/test_global_runtime_convergence_unit.py",
     "tests/runtime/test_paths_unit.py",
     "tests/runtime/test_runtime_bridge_identity.py",
+    "tests/runtime/test_runtime_bridge_identity_git_repo.py",
     "tests/runtime/test_runtime_identity_seam_wiring.py",
     "tests/runtime/test_runtime_seam.py",
-    "tests/runtime/test_setup_plan_sync_evidence.py",
     "tests/runtime/test_template_source_consolidation.py",
+    "tests/runtime/test_upgrade_preview_bootstrap.py",
     "tests/runtime/test_utils.py",
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    # 2026-09-07 (#3995 landing fold): test_upgrade_preview_bootstrap.py landed on
+    # main via the #3923 codex/upgrade-preview-mission-health merge without a
+    # _next_shard_map registration. The `next` group has no auto-fallback (unlike
+    # `arch`), so the GC-1 completeness guard
+    # (test_arch_shard_marker_completeness::...[next]) went red on main. shard_2 and
+    # shard_3 were tied lightest (16 rows each) when this landed; shard_2 is the
+    # convention's first pick on a tie.
+    "tests/runtime/test_upgrade_preview_bootstrap.py",
+    "tests/runtime/next/test_advance_guard_uninitialized_wp.py",  # 2026-09-07 (#3981 landing)
+    "tests/runtime/next/test_pertype_presence_gate.py",
+    "tests/runtime/next/test_composed_guard_launder.py",
     "tests/runtime/test_banner_visibility.py",
-    "tests/runtime/test_bridge_compat_surface.py",
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
+    "tests/runtime/test_bridge_decision_log_flush.py",
     "tests/runtime/test_bridge_io.py",
+    "tests/runtime/test_run_state_hardening.py",
     "tests/runtime/test_config_show_origin_integration.py",
     "tests/runtime/test_doctor_command_file_health.py",
     "tests/runtime/test_doctor_unit.py",
     "tests/runtime/test_e2e_runtime_integration.py",
     "tests/runtime/test_package_exports.py",
     "tests/runtime/test_resolver_unit.py",
-    "tests/runtime/test_runtime_bridge_family_arch.py",
+    # 2026-09-10 (PR #4174 landing folds): the #4017 seam-hardening residual-
+    # window tests the review squad drove red-first. shard_2 was the uniquely
+    # lightest runtime shard (17 rows vs 20/20) when these registered.
+    "tests/runtime/test_recheck_mid_write_convergence.py",
+    "tests/runtime/test_check_assets_membership_tolerance.py",
+    "tests/runtime/test_global_preparation_include_role_stickiness.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
+    # 2026-09-09 (PR #4008 fix round): test_meta_fail_closed_pending_batch_a.py
+    # split out of tests/specify_cli/ (top-level tests/specify_cli is in no CI
+    # module test_dirs, so its critical-path coverage was invisible to the
+    # ci-aggregate diff-cover gate). Registered in shard_3 — the uniquely
+    # lightest runtime shard (16 rows vs 17/20) at this landing.
+    "tests/runtime/test_meta_fail_closed_pending_batch_a.py",
+    # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
+    # authority WP01 landed here without its conflicted WP02 sibling, so the
+    # new test file registers now, mirroring upstream's own shard-3 row.
+    "tests/runtime/next/test_advance_guard_coord_reachability.py",  # 2026-09-07 (#3981 landing)
+    "tests/runtime/next/test_committed_authority.py",
+    "tests/runtime/next/test_presence_filenames.py",
+    "tests/runtime/next/test_merged_mission_terminal.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",
@@ -123,6 +173,12 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/test_show_origin_unit.py",
     "tests/runtime/test_tmp_prompt_namespace.py",
     "tests/runtime/test_tool_checker.py",
+    # 2026-09-09 (mission ci-suite-stability-test-isolation-01M22MM5, WP05
+    # T014b): runtime concurrency/re-assess/generic-scope tests for the
+    # #4017 fix. shard_3 was lightest at registration time.
+    "tests/runtime/test_ensure_runtime_concurrency.py",
+    "tests/runtime/test_reassess_under_lock.py",
+    "tests/runtime/test_generic_asset_scope.py",
 )
 
 # ``relpath -> shard`` for the whole ``next`` group (all 3 roots are whole-file

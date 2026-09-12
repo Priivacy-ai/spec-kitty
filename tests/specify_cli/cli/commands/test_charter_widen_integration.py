@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from charter.interview import MINIMAL_QUESTION_ORDER
+from charter.activation.interview import MINIMAL_QUESTION_ORDER
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import (
@@ -138,7 +138,7 @@ class TestIsAlreadyWidened:
         assert _is_already_widened(store, "some-decision-id") is False
 
     def test_returns_true_when_decision_pending(self, tmp_path: Path) -> None:
-        from datetime import UTC, datetime
+        from kernel.clock import now_utc
 
         _setup_repo(tmp_path)
         store = WidenPendingStore(tmp_path, MISSION_SLUG)
@@ -147,7 +147,7 @@ class TestIsAlreadyWidened:
             mission_slug=MISSION_SLUG,
             question_id="charter.project_name",
             question_text="What is the project name?",
-            entered_pending_at=datetime.now(tz=UTC),
+            entered_pending_at=now_utc(),
             widen_endpoint_response={},
         )
         store.add_pending(entry)

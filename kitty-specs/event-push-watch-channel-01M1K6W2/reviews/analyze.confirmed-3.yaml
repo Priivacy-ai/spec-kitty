@@ -1,0 +1,18 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: confirmed-round-3
+mission: event-push-watch-channel-01M1K6W2
+source: reviews/analyze-fresh-2.yaml (round-2 fresh sweep); severity>=3 count is falling round over round
+  (3 -> 1), continuing per R6
+findings:
+- id: ANALYZE-FRESH2-001
+  severity: 4
+  title: NFR-002 still attributes poll-interval ownership to the CLI shell, contradicting the corrected
+    FR-011/NFR-001 core-owns-the-loop architecture
+  remediation: 'Reword NFR-002''s requirement text in spec.md to match FR-011/NFR-001''s corrected framing:
+    the core''s poll interval (tail_events()''s poll_interval parameter, defaulting to DEFAULT_POLL_INTERVAL_SECONDS)
+    MUST default to a fixed, documented value between 100ms and 1000ms; the CLI shell has no poll-interval
+    flag or loop of its own and simply iterates tail_events() at its default. Keep the title (''Poll interval
+    bound'') and the numeric bound/rationale unchanged; only the component-ownership language needs correcting,
+    mirroring the fix already applied to FR-011/NFR-001 in this same table.'

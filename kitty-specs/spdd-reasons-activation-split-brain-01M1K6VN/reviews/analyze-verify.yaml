@@ -1,0 +1,116 @@
+schema_version: 1
+artifact_type: review-verify
+phase: analyze
+complete: true
+verdicts:
+- finding_id: A1
+  status: resolved
+  evidence: >-
+    tasks/WP02-action-doctrine-bundle-activated-derivation.md T007 gained step 7 (git diff lines ~366-388):
+    constructs `activated_directives: frozenset({"024-locality-of-change"})` supplied DIRECTLY via
+    `pack_context.activated_directives`, explicitly instructing "leave any org-pack config
+    absent/unregistered so this fixture's only source of ... is the direct `activated_directives` field
+    itself" — distinct from step 6's org-required-union path. The boundary-1 audit-table entry (lines
+    ~219-229) was rewritten from "Already correct by this round's own design" to
+    "FIXTURE-BACKED this round (analyze-phase Finding A1, severity HIGH)" and now cites T007 step 7 by
+    name. Definition of Done and file-count/case-count language updated from five to six cases throughout
+    (T007 purpose paragraph, Files/Validation lines, Definition of Done). Genuinely closes the gap: a T009
+    implementation that drops `_normalize_directive_id` on the direct-assignment boundary would now fail
+    this fixture while still passing every other case in the file, per the fixture's own stated rationale.
+- finding_id: A2
+  status: resolved
+  evidence: >-
+    spec.md Constraints table row (git diff, spec.md:522) renamed "C-004" to "PROC-001" for the PR-body
+    constraint. `grep -rn "PROC-001" kitty-specs/.../` shows exactly one hit (spec.md:522) — no collision
+    anywhere in the mission dir. `grep -rn "C-004"` across spec.md/plan.md/tasks.md/wps.yaml/all WP files
+    shows every remaining C-004 usage (NFR-003 title, Constraint C-001, plan.md x8, tasks.md frontmatter,
+    WP01 prose, WP02/WP03 gate-recap lines) is consistently the pre-existing layering-gate sense — none is
+    an orphaned reference to the old PR-body sense, confirming the fixer's claim that only spec.md needed
+    the rename. Independently verified.
+- finding_id: ANALYZE-COVER-001
+  status: resolved
+  evidence: >-
+    WP04 diff adds bucket-3 item 10 (`test_performance_under_2s_active`): the rewrite instruction explicitly
+    says "write `selected_paradigms: []`, not `[structured-prompt-driven-development]`" (nulling the legacy
+    write) "and ALSO write `.kittify/config.yaml`'s `activated_paradigms: [...]`" — the exact
+    null-legacy-then-add-new pattern required, not an additive-only change. The "Bucket 1 — kept" paragraph
+    was rewritten to add "with one confirmed exception" naming this method explicitly, replacing the
+    previous false blanket "no fixture change expected" claim. Counts (8->10 total bucket-3 methods, "9
+    total"->"10 total") updated consistently across the section heading, Context, T014 title/steps,
+    Definition of Done, and Reviewer Guidance.
+- finding_id: ANALYZE-VERIFY-001
+  status: resolved
+  evidence: >-
+    Same spec.md hunk as A2. (a) grep confirms "PROC-001" has zero collisions and "C-007" (searched
+    separately) appears only in its pre-existing, unrelated `__all__` Declaration Convention sense
+    (spec.md FR-003 row, WP01/WP02/WP03 "`__all__` / C-007 disposition" section headers, charter.md) — the
+    fixer's rejection of C-007 as the rename target is independently confirmed correct, not an excuse: C-007
+    was genuinely already taken in this mission's own artifact set, so renaming to it would have traded one
+    collision for another. (b) confirmed above under A2 — no orphaned old-sense C-004 reference anywhere.
+    (c) The delegation sentence is present verbatim in the same row: "This requirement, together with
+    NFR-004 (stating the reflexivity/SPDD-flip in the PR body), is satisfied at PR-preparation time by the
+    mission's standard close-out procedure (`mission-wrap-up-sequence`, charter Code Quality section)" —
+    confirmed `mission-wrap-up-sequence` is a real, active procedure
+    (`.kittify/charter/charter.md:393`, `packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml`),
+    not a fabricated reference.
+- finding_id: ANALYZE-COVER-002
+  status: resolved
+  evidence: >-
+    WP01 T002 diff adds step 4a: constructs a pointer-present `config.yaml` (`charter:` pointer key) whose
+    pointed-at `charter.yaml` starts with `activated_paradigms: []`; after the first call, "mutate ONLY the
+    pointed-at `charter.yaml`'s `activated_paradigms` field on disk ... leaving `.kittify/config.yaml`
+    itself completely untouched", then asserts the second same-process call returns `True`. This is a
+    distinct fixture from step 4 (which mutates `config.yaml` directly) and correctly isolates the
+    pointer-target-mtime component of the cache-key fix. Definition of Done updated to require "BOTH of
+    T002's same-process mutation cases" pass.
+- finding_id: ANALYZE-GOV-001
+  status: resolved
+  evidence: >-
+    `git diff --stat -- .../analysis-report.md` returns empty (no changes, exit 0, zero output) — confirmed
+    the file was NOT hand-edited, matching the finding's own remediation (no change needed). No new
+    violation introduced.
+- finding_id: ANALYZE-COVER-003
+  status: resolved
+  evidence: >-
+    WP01's Definition of Done gained a "Traceability note (analyze-phase Finding ANALYZE-COVER-003)"
+    sentence stating T002 delivers C-003 and T001 delivers C-005, and naming the frontmatter-field gap as
+    the reason `requirement_refs` doesn't also list them — accurate against C-003/C-005's actual text in
+    spec.md. `tracer-tooling-friction.md` gained a new section 4 (35 added lines) that is substantive, not a
+    placeholder: names both the finding ID and the confirming refutation-review citation, explains the
+    HARD CONSTRAINT reason no frontmatter hand-edit was made, states what WAS done instead (the WP01 prose
+    sentence, and C-006 left as satisfied-by-omission), and flags the gap for future tooling authors.
+    `git diff --stat` (repo-wide) confirms zero changes to `wps.yaml`, `tasks.md`, `lanes.json`, `meta.json`,
+    or any WP frontmatter block — only the five expected files changed. One nit: unlike this same file's
+    item 3 (which stamps an explicit "2026-09-03" date in its own heading), the new item 4 has no explicit
+    ISO date anywhere in its body — it says "confirmed during R4 fix round" instead, which conveys ordering
+    but not a calendar date, an inconsistency with the file's own established per-item dating convention.
+    Recorded as a new nit finding below; does not change the resolved verdict since the entry is genuinely
+    substantive.
+- finding_id: ANALYZE-COVER-004
+  status: resolved
+  evidence: >-
+    spec.md Non-Goals gained a new bullet naming `resolve_governance_for_profile`
+    (`src/charter/activation/resolver.py`) as a sixth, structurally-identical reader that bypasses
+    `PackContext.activated_*`, with a "confirmed live to have ZERO production call sites under `src/`
+    today" claim. Independently re-verified: `grep -rln "resolve_governance_for_profile" --include="*.py" .`
+    outside `src/charter/__init__.py` (lazy re-export wiring, not a call) and `src/charter/activation/
+    resolver.py` (its own definition/`__all__`/docstring) returns only test files
+    (`tests/charter/test_alias_deleted_regression.py`, `tests/charter/test_resolver.py`,
+    `tests/merge/test_profile_charter_e2e.py`). Zero actual invocations anywhere under `src/` confirmed
+    independently — the fixer's claim holds.
+new_findings:
+- id: ANALYZE-VERIFY2-001
+  severity: 1
+  category: consistency
+  summary: >-
+    tracer-tooling-friction.md's new item 4 (ANALYZE-COVER-003's disposition record) omits an explicit
+    ISO date, breaking the file's own established per-item dating convention (item 3's heading stamps
+    "2026-09-03"; item 1 dates its resolution to "tasks phase R4" with a cited ruling doc). Item 4 only
+    says "confirmed during R4 fix round" — round-relative, not calendar-dated.
+  evidence: >-
+    kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md lines 135-168 (new
+    section "## 4. ..."); compare heading style to line 65's "## 3. ... (WP01 dispatch, 2026-09-03)".
+  remediation: >-
+    Add an explicit date (e.g. "2026-09-03") to item 4's heading or opening sentence, matching item 3's
+    convention, so the friction log remains chronologically greppable independent of round-number
+    cross-referencing.

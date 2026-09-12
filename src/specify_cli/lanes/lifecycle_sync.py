@@ -12,8 +12,7 @@ from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 
 LANE_AUTO_REBASE_FAILED = "LANE_AUTO_REBASE_FAILED"
 WORKTREES_DIRNAME = ".worktrees"
@@ -55,13 +54,24 @@ class LaneAutoRebaseSyncError(RuntimeError):
 
 
 def _git_stdout(repo_root: Path, *args: str) -> str | None:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # coord-commit-integrity WP04/T015 (campsite): tolerate a non-existent
+    # ``cwd``. ``_resolve_lane_branch`` calls this with the lane WORKTREE path,
+    # which may not exist yet (a coord commit whose lane was never
+    # materialized). ``subprocess.run(cwd=<absent dir>)`` raises a raw
+    # ``FileNotFoundError`` ([Errno 2]) that crashed the auto-rebase sync
+    # instead of the documented "Returns None when ... no lane worktree
+    # exists" contract. Treat an absent cwd as an unresolved read (None) so the
+    # caller degrades cleanly to its computed lane-branch candidate.
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return None
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
@@ -135,8 +145,8 @@ def sync_lane_after_coordination_commit(
     # post-coordination lane auto-rebase. Self-resolve the read by its real kind
     # so it lands on PRIMARY regardless of topology; the callers' STATUS legs (the
     # append-only event log) stay coord-aware untouched (C-001).
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     try:
         lanes_manifest = read_lanes_json(lanes_read_dir)

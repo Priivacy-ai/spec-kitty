@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZSMPKCZVDVGRT66TXXX90BE",
+  "completed_at": "2026-08-12T00:16:54.740374+00:00",
+  "outcome": "failed",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp06-planning-gap.md"
+}

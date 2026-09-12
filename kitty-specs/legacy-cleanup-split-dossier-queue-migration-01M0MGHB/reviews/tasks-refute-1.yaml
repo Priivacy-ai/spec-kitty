@@ -1,0 +1,17 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: plan.md's PR Shape LOC table (plan.md:836-852) lists exactly 8 files and never mentions tests/sync/test_events.py, yet tasks.md's WP02 owned files (tasks.md:64,159) include tests/sync/test_events.py with real new content added by T012 (tasks.md:169), and tasks.md's PR Shape restatement (tasks.md:41-49) repeats the unmodified 8-files/570-820-LOC figures without correcting them.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: WP02's prompt (Objectives & Success Criteria, tasks/WP02-...md:86-106) describes the sentinel mechanism and the diagnose.py coordinated-consumer fix only as separate prose bullets with no heading/label naming them as two bundled sub-concerns, matching the finding's narrow nit-level claim.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP04 T020 (tasks/WP04-...md:207-250) explicitly allows a jsonschema.validate fallback plus "a minimal addition (or none beyond a clarifying comment)" when the isinstance check isn't directly possible, has no revert-and-confirm-red step (unlike T006/T011+T012/T016, verified present in WP01/WP02/WP03), and WP04's Test Strategy/Review Guidance (lines 287-320) never mention T020, SC-001, or the isinstance claim — while plan.md's own text (line 330-338) confirms the local mirror duplicates canonical field names, making shape-only checks unable to distinguish the two.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: grep of the full WP04 file for "extras_rejected"/"WirePayloadModelsRejectExtras" returns zero matches, despite plan.md's FR-001 Red-First row (line 977) and spec.md's SC-003 (line 452-456) both naming test_extras_rejected as required to keep passing, and T019 giving the sibling named test (test_preserves_legacy_positional_order) dedicated byte-for-byte diff treatment with no parallel treatment for test_extras_rejected anywhere in WP04.

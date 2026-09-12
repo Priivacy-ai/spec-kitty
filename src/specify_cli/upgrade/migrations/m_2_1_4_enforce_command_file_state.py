@@ -29,6 +29,8 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -108,9 +110,11 @@ def _get_runtime_command_templates_dir() -> Path | None:
     """Return the doctrine mission-steps directory for the active mission type.
 
     Templates now live under
-    ``doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    ``packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     (moved from ``specify_cli/missions/<mission_type>/command-templates/``
-    by the charter-doctrine-mission-type-configuration mission).
+    by the charter-doctrine-mission-type-configuration mission, and from
+    ``src/charter/offering/missions/mission-steps/`` to ``packs/built-in/missions/mission-steps/``
+    by mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 
     Resolution order (highest priority first):
 
@@ -121,17 +125,21 @@ def _get_runtime_command_templates_dir() -> Path | None:
        ``ensure_runtime()`` calls.
     """
     try:
-        import doctrine  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
 
-        doctrine_steps = (
-            Path(doctrine.__file__).parent
-            / "missions"
+        # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
+        # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
+        doctrine_steps: Path = (
+            MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
         if doctrine_steps.is_dir():
             return doctrine_steps
-    except ImportError:
+    except (ImportError, MissionsRootNotFound):
         pass
 
     # Fallback: legacy command-templates path for older installs without doctrine.
@@ -361,7 +369,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
                     continue
 
                 try:
-                    output_path.write_text(rendered, encoding="utf-8")
+                    write_generated_file(output_path, rendered)
                     changes.append(f"Wrote prompt: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")
@@ -378,7 +386,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
 
                 shim_content = _render_shim(command, agent_key)
                 try:
-                    output_path.write_text(shim_content, encoding="utf-8")
+                    write_generated_file(output_path, shim_content)
                     changes.append(f"Wrote shim: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")

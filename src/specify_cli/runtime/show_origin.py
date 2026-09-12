@@ -71,7 +71,7 @@ def _discover_mission_names() -> list[str]:
         logger.debug("Cannot discover missions from package: %s", exc)
         # Single-source the built-in roster (#2669) instead of a hand-kept
         # partial list (the old literal was missing ``plan``).
-        from doctrine.missions.mission_type_repository import builtin_mission_type_ids  # noqa: PLC0415
+        from charter.missions import builtin_mission_type_ids  # noqa: PLC0415
 
         return sorted(builtin_mission_type_ids())
 

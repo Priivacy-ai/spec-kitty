@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.tool_surface.enums import SurfaceKind
+from specify_cli.tool_surface.enums import ToolSurfaceKind
 from specify_cli.tool_surface.bundles.model import (
     TARGET_CLAUDE_CODE,
     BundleEntry,
@@ -19,14 +19,14 @@ from specify_cli.tool_surface.findings import make_finding
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _entry(kind: SurfaceKind, rel: str) -> BundleEntry:
+def _entry(kind: ToolSurfaceKind, rel: str) -> BundleEntry:
     return BundleEntry(
         surface_kind=kind, source_path=Path("/p") / rel, bundle_relative_path=rel
     )
 
 
 def test_dataclasses_are_frozen() -> None:
-    entry = _entry(SurfaceKind.COMMAND_SKILL, "skills/a/SKILL.md")
+    entry = _entry(ToolSurfaceKind.COMMAND_SKILL, "skills/a/SKILL.md")
     with pytest.raises(FrozenInstanceError):
         entry.bundle_relative_path = "x"  # type: ignore[misc]
 
@@ -35,14 +35,14 @@ def test_plugin_bundle_kinds_collects_distinct_kinds() -> None:
     bundle = PluginBundle(
         distribution_target=TARGET_CLAUDE_CODE,
         entries=(
-            _entry(SurfaceKind.COMMAND_SKILL, "skills/a/SKILL.md"),
-            _entry(SurfaceKind.COMMAND_SKILL, "skills/b/SKILL.md"),
-            _entry(SurfaceKind.AGENT_PROFILE, "agents/x.md"),
+            _entry(ToolSurfaceKind.COMMAND_SKILL, "skills/a/SKILL.md"),
+            _entry(ToolSurfaceKind.COMMAND_SKILL, "skills/b/SKILL.md"),
+            _entry(ToolSurfaceKind.AGENT_PROFILE, "agents/x.md"),
         ),
         manifest_path=Path("/p/.claude-plugin/plugin.json"),
     )
     assert bundle.kinds() == frozenset(
-        {SurfaceKind.COMMAND_SKILL, SurfaceKind.AGENT_PROFILE}
+        {ToolSurfaceKind.COMMAND_SKILL, ToolSurfaceKind.AGENT_PROFILE}
     )
 
 

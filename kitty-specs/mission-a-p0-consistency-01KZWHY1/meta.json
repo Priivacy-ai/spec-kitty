@@ -1,0 +1,32 @@
+{
+  "accept_commit": "61e1c72adbcfc7d35aac9f35899f5e0fccb575b0",
+  "acceptance_history": [
+    {
+      "accept_commit": "61e1c72adbcfc7d35aac9f35899f5e0fccb575b0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-13T05:34:08.448403+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "e6632e8ede172b5bce7b27643d478221fdd0f885"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-13T05:34:08.448403+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "e6632e8ede172b5bce7b27643d478221fdd0f885",
+  "baseline_merge_commit": "72719d344805fd5a511c631c17cddf0406cae9c3",
+  "created_at": "2026-08-13T03:16:28.042989+00:00",
+  "flattened": true,
+  "friendly_name": "Mission A — P0 Read/Write Consistency",
+  "mission_id": "01KZWHY1R99Z8EV2ZATBNSCKWK",
+  "mission_number": null,
+  "mission_slug": "mission-a-p0-consistency-01KZWHY1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Four independent P0 bugs each let a downstream step trust the wrong slice of state: a scaffold placeholder poisons an acceptance verdict, a retrospective reports pre-merge counts, a failed upgrade wedges a project by stripping its schema stamp, and a finalize re-run clobbers planning provenance. Each already has a committed red-first reproduction. This mission remediates all four as independent, surgically-scoped fixes so operators can accept missions, trust retrospectives, recover broken upgrades, and re-finalize plans without silent corruption.",
+  "purpose_tldr": "Fix four accepted P0 defects where a read, compute, or report step acts on a partial, pre-merge, or recompute-from-scratch view of persisted state.",
+  "slug": "mission-a-p0-consistency-01KZWHY1",
+  "status_phase": "1",
+  "target_branch": "fix/mission-a-p0-consistency",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-13T04:08:09.931679+00:00"
+}

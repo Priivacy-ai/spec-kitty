@@ -1,0 +1,27 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: analyze
+batch: 1
+verdicts:
+  - id: ANALYZE-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Live-read confirms every citation: repository.py:396-412 raises MalformedManifestError
+      loudly on YAML-syntax failure (docstring says "Fail-loud... #3412" and the git log shows
+      commit 1763bf2ae already landed that fix on main, contradicting spec.md's "unfixed gap"
+      claim verbatim at spec.md line 219-222 and FR-010 at line 441-444), org_expected_artifacts.py
+      degrades silently instead (real asymmetry, not "exactly the same... at both tiers"), grep
+      of manifest.py shows ManifestSchemaError raised only inside ManifestRegistry.load_manifest
+      (lines 104/304/340), resolver.py:555-576's _load_expected_artifact_manifest calls
+      ExpectedArtifactManifest.model_validate(config.parsed) with zero exception handling so a
+      schema-invalid manifest raises bare pydantic.ValidationError (extra="forbid" confirmed at
+      expected_artifact_manifest.py:102), tasks.md WP02 Implementation Notes (line 380-384) and
+      WP02's own T010 (line 149-154) repeat the false "already implemented"/"still raise
+      ManifestSchemaError" claim without adding any wrapping, plan.md's Seam/module-placement
+      table has no FR-010 row, and runtime_bridge.py's two _check_cli_guards call sites (1607-1610,
+      1642-1643) plus _check_composed_action_guard in runtime_bridge_composition.py catch only
+      UnregisteredMissionFamilyError, with decide_next_via_runtime's phase loop (line 2113-2118)
+      adding no further try/except — so the ValidationError genuinely propagates uncaught, and
+      T010/T012 genuinely add org-tier manifest lookup where resolver.py currently has none,
+      making this a real new org-tier crash-risk surface.

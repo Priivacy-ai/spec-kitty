@@ -1,0 +1,181 @@
+{
+  "rows": {
+    "#1676": {
+      "evidence_ref": "parent epic, advanced not closed; Follow-up: #1676",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#1738": {
+      "evidence_ref": "WP06 single-regex same-repo URL recognition + source_file provenance (SC-008)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#2160": {
+      "evidence_ref": "parent epic, advanced not closed; Follow-up: #2160",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2318": {
+      "evidence_ref": "WP05 negative-invariant register/execute CLI + typed-error --diagnose hardening + prompt rewire (SC-006/007)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#2549": {
+      "evidence_ref": "out of scope C-005; Follow-up: #2549",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2653": {
+      "evidence_ref": "primary/merge disambiguation precedent (merged)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2960": {
+      "evidence_ref": "out of scope C-005; Follow-up: #2960",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2980": {
+      "evidence_ref": "out of scope C-005; Follow-up: #2980",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3029": {
+      "evidence_ref": "out of scope C-005; Follow-up: #3029",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3033": {
+      "evidence_ref": "WP02/03/04: post-consolidation safe-commit + coord writes commit to Primary Branch on E2 (SC-001/002 green); CONSOLIDATED wiring + POST_CONSOLIDATION_WRITE capability",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#3044": {
+      "evidence_ref": "parent epic, advanced not closed; Follow-up: #3044",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3071": {
+      "evidence_ref": "out of scope C-005; owned by #3071",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3073": {
+      "evidence_ref": "WP04 single-locus staging thunk (probe-before-stage); refused write leaves 0 residue (SC-003)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#3076": {
+      "evidence_ref": "merged PR shipped the seam",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3080": {
+      "evidence_ref": "foundation in-mission; full rename remains Follow-up: #3080 (DO-NOT-CLOSE)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#320": {
+      "evidence_ref": "illustrative SC-008 fixture ref, not fixed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

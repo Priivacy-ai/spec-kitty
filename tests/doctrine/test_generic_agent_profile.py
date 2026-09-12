@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
-_SHIPPED_DIR = Path(__file__).parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
+_SHIPPED_DIR = Path(__file__).parents[2] / "packs" / "built-in" / "agent_profiles"
 
 
 def test_generic_agent_exists_in_shipped() -> None:

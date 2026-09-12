@@ -58,6 +58,35 @@ class TestKittySpecsProtection:
         assert result.allowed is True
         assert len(result.violations) == 0
 
+    def test_allows_own_occurrence_map_on_lane_branch(self):
+        """#2980: a bulk-edit mission's own occurrence map is the single permitted
+        kitty-specs/ lane write — even in block mode, and not even a warning."""
+        result = validate_staged_files(
+            staged_files=["kitty-specs/057-feat/occurrence_map.yaml", "src/app.py"],
+            owned_files=["src/**"],
+            branch_name="kitty/mission-057-feat-lane-a",
+            policy=CommitGuardConfig(mode="block"),
+        )
+        assert result.allowed is True
+        assert not any("kitty-specs" in v for v in result.violations)
+        assert not any("kitty-specs" in w for w in result.warnings)
+
+    def test_still_blocks_other_kitty_specs_alongside_occurrence_map(self):
+        """The exception is scoped to occurrence_map.yaml; a sibling spec.md on
+        the lane is still a protected-path violation."""
+        result = validate_staged_files(
+            staged_files=[
+                "kitty-specs/057-feat/occurrence_map.yaml",
+                "kitty-specs/057-feat/spec.md",
+            ],
+            owned_files=["src/**"],
+            branch_name="kitty/mission-057-feat-lane-a",
+            policy=CommitGuardConfig(mode="block"),
+        )
+        assert result.allowed is False
+        assert any("spec.md" in v for v in result.violations)
+        assert not any("occurrence_map.yaml" in v for v in result.violations)
+
 
 class TestOwnershipEnforcement:
     def test_in_scope_files_allowed(self):

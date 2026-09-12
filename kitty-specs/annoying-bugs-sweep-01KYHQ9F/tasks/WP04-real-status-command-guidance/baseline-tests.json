@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-07-27T14:47:49Z",
+  "base_branch": "fix/annoying-bugs-sweep",
+  "base_commit": "fe3a003c506d9d5ca3857f90cb42be0e9426edda",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

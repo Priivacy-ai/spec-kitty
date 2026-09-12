@@ -46,14 +46,19 @@ _PACKAGE_DIR = _SRC / "mission_runtime"
 # expected surface is sorted too.
 _PUBLIC_SURFACE = sorted(
     [
+        # dead-port-disposition-01M1TZVN WP03 (FR-014): this list is now asserted
+        # against ``mission_runtime.__all__`` (it never was before, so it had
+        # drifted by the five live names below). The eleven facade names with no
+        # src/ importer outside the package were demoted off the root surface in
+        # the same change; they stay importable from their defining submodule
+        # (tests/mission_runtime/test_facade_demotions.py).
+        "CheckoutIdentityError",
+        "ReadDegradeStrategy",
+        "ReadDirDecision",
+        "enforce_checkout_identity",
+        "resolve_read_dir_or_degrade",
         "ActionContextError",
-        "ArtifactPlacementFragment",
-        "BranchRefFragment",
         "CommitTarget",
-        "ExecutionMode",
-        "IdentityFragment",
-        "MissionArtifactContext",
-        "MissionArtifactHome",
         "MissionArtifactKind",
         "MissionContext",
         "MissionExecutionContext",
@@ -70,22 +75,70 @@ _PUBLIC_SURFACE = sorted(
         # (this surface list is not a WP01 owned file, but every new
         # mission_runtime public symbol must be pinned here).
         "PlacementSeam",
-        "StatusSurfaceFragment",
-        "WorkspaceFragment",
-        "artifact_home_for",
+        # lifecycle-gate-execution-context-01KY72GQ WP02 (IC-11): the stamped
+        # output + input bundle of the surface→filesystem translation seam — the
+        # true schema root. Package-root public symbols, so pinned here.
+        # WP02: the surface-vocabulary enum (``surface`` Sense 2), now a package-
+        # root public symbol because ``ResolvedSurface.surface_kind`` stamps it and
+        # consumers read the stamp.
+        "TopologySurface",
         "classify_topology",
-        "is_coordination_artifact_residue_path",
+        # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
+        # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
+        # worktree_root consume — a package-root public symbol, so it is pinned here.
+        "coord_read_dir_for",
+        # coord-write-placement-closure-01KYCF83 WP07 (T034 fold): the shared
+        # materialization-BLIND partition+topology predicate both
+        # ``_classify_artifact_surface`` (this package) and
+        # ``specify_cli.acceptance.execution_context.declared_home_surface``
+        # (the #2906 accept-time guard) now consume, instead of each
+        # independently reimplementing it inline — a package-root public
+        # symbol, so it is pinned here.
+        "declared_read_surface",
         "is_primary_artifact_kind",
-        # gate-read-surface-completion WP05 (FR-003): the self-bookkeeping allowlist
-        # predicate is a package-root public symbol consumed by the record-analysis
-        # dirty-tree preflight (DISJOINT from the coord-residue partition, G-5).
-        "is_self_bookkeeping_path",
+        # lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the
+        # self-bookkeeping allowlist predicate ``is_self_bookkeeping_path`` (gate-
+        # read-surface-completion WP05 / FR-003) was retired onto the canonical
+        # churn owner (``specify_cli.coordination.coherence.is_self_bookkeeping_churn``
+        # / ``is_toolchain_generated_churn``, C5/C9) — it no longer lives on this
+        # package-root surface.
         "kind_for_mission_file",
+        # lifecycle-gate-execution-context-01KY72GQ WP12 (IC-07b): the residue
+        # predicate ``is_coordination_artifact_residue_path`` was retired onto the
+        # canonical churn owner's residue leg
+        # (``specify_cli.coordination.coherence.is_coord_residue_churn`` /
+        # ``is_toolchain_generated_churn``, C5/C9) — it no longer lives on this
+        # package-root surface. ``kind_is_coordination_residue`` (the lower-level
+        # kind+topology authority the retired predicate composed) is now exported
+        # instead, since the owner leg is built from it via the package root
+        # (MR-1/MR-2 forbid ``coherence.py`` reaching into the
+        # ``mission_runtime.artifacts`` submodule directly).
+        "kind_is_coordination_residue",
+        # coord-trust-2841 layer-boundary follow-up: the pure mid8 identity
+        # helpers relocated from ``specify_cli.lanes.branch_naming`` so
+        # mission_runtime (the lower layer) owns them outright, closing the
+        # ``lanes`` allow-row in ``_MISSION_RUNTIME_ALLOWED_SPECIFY_CLI``
+        # (tests/architectural/test_layer_rules.py). ``branch_naming``
+        # re-exports both names verbatim.
+        "mid8_from_slug",
         "mission_context_for",
         "placement_seam",
         "resolve_action_context",
+        # WP02: the affirmative, stamped surface→filesystem seam (the true schema
+        # root) + its total member→path translation.
+        "resolve_artifact_surface",
+        # worktree-owned-root-3328 WP02: explicit target carrier for mission
+        # creation's pre-readable-identity window. Kept on the package root so
+        # mission_creation never imports the internal resolution submodule.
+        "resolve_create_time_write_target",
+        "resolve_mid8",
         "resolve_placement_only",
         "resolve_topology",
+        # placement-port-residuals-closure-01KYDEF0 WP04 (FR-005): unified
+        # write-target degrade helper routing three distinct call sites
+        # (decision_log, bookkeeping_commit, status_transition) through a
+        # single kind-parameterized helper with caller-supplied degrade policy.
+        "resolve_write_target_or_degrade",
         "routes_through_coordination",
     ]
 )
@@ -110,11 +163,16 @@ class TestMissionRuntimeSurface:
         )
         assert result.returncode == 0, result.stderr
 
-    def test_public_surface_matches_contract(self) -> None:
-        """The public API stays lean; compatibility attrs are not in __all__."""
+    def test_public_surface_is_exactly_all(self) -> None:
+        """``_PUBLIC_SURFACE`` IS ``mission_runtime.__all__`` -- nothing more, nothing less.
+
+        Until dead-port-disposition-01M1TZVN WP03 this list was declared but
+        never compared, so it could not catch a widened or shrunk root surface.
+        """
         import mission_runtime
 
-        assert mission_runtime.__all__ == _PUBLIC_SURFACE
+        assert list(mission_runtime.__all__) == _PUBLIC_SURFACE
+
 
     def test_no_external_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
         """pytestarch rule: nothing imports mission_runtime internals directly.

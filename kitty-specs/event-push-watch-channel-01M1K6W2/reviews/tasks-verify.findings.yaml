@@ -1,0 +1,165 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-VERIFY-001
+    lens: "mission-derived: bug-preserving-test / ambiguous-mock-target hunt"
+    severity: 4
+    title: >-
+      Fd-sharing invariant tests (WP01 T007, WP02 T013/T014) do not actually catch the
+      exact `path.stat()`-then-separate-`path.open()` TOCTOU pattern they are written to
+      prevent
+    evidence:
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T007, step 1 and step 3"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T013"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T014"
+      - artifact: "plan.md § Architectural Seam: Core vs. Shell, 'Fd-sharing invariant' paragraph and 'Same commitment for validate_resume_cursor()' paragraph (lines ~248-279)"
+    claim: >-
+      The plan's own worked example of the exact bug this test exists to catch is: "a
+      plausible-but-lazy implementation (e.g. `path.stat().st_size` for the cheap size
+      check, then a separate `path.open('rb')` for the hash-check read)". WP01 T007 step 1
+      instructs monkeypatching BOTH `pathlib.Path.stat` AND `pathlib.Path.open` to raise
+      "if called from within poll_once() AFTER ITS INITIAL OPEN" — i.e. the "raise" condition
+      is scoped identically for both patched attributes: tolerate one call, raise on any
+      call *after* it. But in the named lazy pattern, `Path.stat()` fires BEFORE any
+      `Path.open()` call ever happens — there is no "initial open" yet at the moment
+      `Path.stat()` executes, so the "after its initial open" condition never triggers for
+      that `Path.stat()` call, and it silently passes. The lazy pattern also only calls
+      `Path.open()` ONCE TOTAL (one stat + one open, not two opens), so the fallback
+      "assert `Path.open` called exactly once" framing (step 1's "equivalently...") also
+      passes unchanged against it. T007 step 3 explicitly (and incorrectly) claims "the
+      Path.open-call-count assertion is what actually closes that gap (it catches the
+      second open(), which the stat-only guard cannot)" — but there IS no second `open()`
+      call in the exact lazy pattern under discussion; the claim is false for the case it
+      is offered to refute. WP02 T013 and T014 both explicitly instruct "re-run[ning]
+      WP01's single-open assertion pattern" for the hash-check read and for
+      `validate_resume_cursor()` respectively, so the same gap propagates into all three
+      fd-sharing tests across two WPs. As written, an implementer who ships exactly the
+      lazy `path.stat()` + separate `path.open()` pattern the plan calls out by name would
+      pass all three fd-sharing invariant tests, and the narrower-than-between-poll intra-call
+      TOCTOU race (a concurrent writer's rollback-truncate or `os.replace()` landing between
+      the stat and the open) would ship with zero test coverage — WP02's T009/T010
+      truncation tests only manipulate the file BETWEEN two separate `poll_once()`/
+      `validate_resume_cursor()` calls, never WITHIN one, so they cannot catch this either.
+    remediation: >-
+      In T007 (and identically in T013/T014), give `Path.stat` and `Path.open` different
+      tolerance semantics instead of the same "after initial open" condition applied to
+      both: patch `Path.stat` to raise UNCONDITIONALLY on any invocation at all (zero
+      legitimate calls — the design mandates `os.fstat(fh.fileno())` exclusively, so a
+      correct `poll_once()`/`validate_resume_cursor()` never calls `Path.stat()` under any
+      circumstance), and separately spy on `Path.open` to assert it is called exactly ONCE
+      total (one legitimate call, any second call is the defect). E.g.:
+      `with mock.patch.object(Path, "stat", side_effect=AssertionError("poll_once must
+      never call Path.stat() — use os.fstat(fd) on the shared descriptor")): with
+      mock.patch.object(Path, "open", wraps=Path.open) as spy: poll_once(path, cursor);
+      assert spy.call_count == 1`. This actually fails against the named
+      `path.stat()`-then-`path.open()` lazy implementation, closing the gap the WP claims
+      (but does not currently deliver).
+
+  - id: TASKS-VERIFY-002
+    lens: "Per-AC test strategy concrete"
+    severity: 4
+    title: >-
+      No WP tests the SUCCESS path of a `--from-offset`/`--from-invariant` resume (User
+      Story 3 Acceptance Scenario 1 / FR-013's non-refusal branch)
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (lines 212-214): 'Given a tailer that stops after consuming through byte offset O, When it is restarted and given O as its resume point, Then it does not re-emit any event fully contained before offset O, and it does not skip any event that starts at or after offset O.'"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T012 (defines validate_resume_cursor's success-return branches)"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T015, step 1 (lists only the four REFUSAL-shape tests: negative/out_of_range/misaligned/content_mismatch)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md § Subtask T025 (from-offset tests are all ResumeRefused/error-path tests)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md § Subtask T026 (the one happy-path end-to-end test uses --once with a fresh cursor, no --from-offset)"
+    claim: >-
+      `validate_resume_cursor()` has two outcomes: raise `ResumeRefused`, or return a valid
+      `TailCursor` (per T012 steps 3-4: "If only offset was supplied... Return a TailCursor
+      built from the structural result alone" and step 4's general success return). Every
+      test named across WP02 (T015) and WP04 (T025) exercises only the REFUSAL branch —
+      the four `ResumeRefused` reason shapes. Nowhere in WP01-WP05 is there a test that
+      supplies a structurally valid offset (optionally paired with a matching content
+      invariant), confirms `validate_resume_cursor()` accepts it, and then feeds the
+      resulting cursor into a subsequent `poll_once()`/`tail_events()` call to verify the
+      literal US3 AC1 guarantee: no event before O re-emitted, no event at/after O
+      skipped. WP01's T008 offset-resume test is the closest analog but only exercises two
+      sequential `poll_once()` calls both starting from a cursor the reader itself produced
+      (offset 0 on the first call) — it never goes through `validate_resume_cursor()` with
+      an externally-supplied offset, which is the actual mechanism US3/FR-013 describe and
+      the one WP02 builds. This is the mission's headline P2 resumability deliverable
+      ("first-class deliverable per the mission brief, not 'future work'" per spec.md) with
+      its positive/success path entirely untested — only its rejection paths are.
+    remediation: >-
+      Add a dedicated test in WP02 (extending T015) that: writes a log, consumes it once
+      to a known offset O, records the corresponding content invariant, calls
+      `validate_resume_cursor(path, O, invariant)` and asserts it returns successfully
+      (no exception) with the expected `TailCursor`; then appends M more events and feeds
+      the returned cursor into `poll_once()`/`tail_events()`, asserting exactly the M new
+      events are yielded — none of the pre-O events re-emitted, none skipped. Add a
+      parallel CLI-level test in WP04 (extending T025/T026) that invokes `events tail
+      --mission <slug> --json --from-offset <O> --from-invariant <hex> --max-events N`
+      against a real tmp-path log with events appended past O, and asserts the emitted
+      lines are exactly the events at/after O, in order, none duplicated.
+
+  - id: TASKS-VERIFY-003
+    lens: "Per-AC test strategy concrete"
+    severity: 3
+    title: >-
+      No WP tests the recovery half of a live truncation resync (User Story 2 Acceptance
+      Scenario 2 — re-emission of surviving events after `log_truncated` fires), only the
+      detection signal itself
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 2 (lines 174-177): 'Given a truncation signal has been emitted, When the reader re-reads from offset 0, Then every event now present in the file (post-truncation) is (re-)emitted so the consumer can reconcile its own state, and no event that no longer exists in the file is fabricated or replayed from a stale in-memory cache.'"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T009, step 5 (assertion stops at 'log_truncated fires')"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T010, step 4 (assertion stops at 'log_truncated fires via the hash check')"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T015 (no re-emission-after-resync test listed)"
+    claim: >-
+      T009 and T010 both stop their assertions at confirming the `log_truncated` signal
+      fires (via the size check and the hash check respectively). Neither test, nor any
+      other subtask in WP01-WP05, drives a FOLLOW-UP `poll_once()`/`tail_events()` call
+      after the truncation signal to verify AC2's actual recovery contract: that the
+      surviving/regrown events are correctly (re-)emitted from offset 0 and that no
+      already-gone event is fabricated from stale state. NFR-003 explicitly frames "silent
+      success" as the central hazard this mission exists to eliminate — testing only that
+      the WARNING fires, and never that the RECOVERY that follows it is correct, leaves the
+      actual FR-005 resync behavior (as opposed to its detection half) unverified.
+    remediation: >-
+      Extend T009 and/or T010 (or add a dedicated T015 case) with a follow-up
+      `poll_once()` call after the truncation signal, against the post-truncation (or
+      post-regrow) file content, asserting the emitted events exactly match what is
+      currently present in the file starting from offset 0 — and, for the regrow case
+      specifically, that none of the pre-truncation events that no longer exist are
+      replayed.
+
+  - id: TASKS-VERIFY-004
+    lens: "Per-AC test strategy concrete"
+    severity: 3
+    title: >-
+      No single WP concretely tests User Story 1 Acceptance Scenario 2 end-to-end (a
+      writer appending while an unbounded-but-test-bounded `events tail` process is
+      actively running, event surfaced within one poll interval) — coverage is split and
+      partly optional
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2 (lines 140-143): '...a separate writer atomically appends a new valid event to the log, Then the tail process emits that event's JSON line within one poll interval... without re-emitting any already-seen event.'"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T008, item 1 (two sequential poll_once() calls, not through the generator or CLI)"
+      - artifact: "tasks/WP03-bounded-generator-core.md § Subtask T019(b) ('may be zero if every poll produces output; pick a fixture shape that gives a non-zero, assertable expected count' — offered as one option among several, not mandated)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md § Subtask T026, T030 (the one real-fixture end-to-end test is a static pre-populated log with --once; no append-while-running scenario)"
+    claim: >-
+      AC2's actual narrative — an actively-running tail process observes an event
+      appended by a separate writer WHILE it is running, within a bounded poll interval —
+      is never exercised as a single concrete test through the generator/CLI surface that
+      actually implements it. WP01's T008 approximates the underlying `poll_once()`
+      semantics (offset-resume across two calls with an append between them) but never
+      goes through `tail_events()`'s poll loop or the CLI's `--max-events`/unbounded
+      invocation. WP03's T019(b) offers a fixture shape that WOULD cover this ("write N-1
+      events up front... concurrently with a controlled second write") but explicitly
+      allows a degenerate zero-new-poll fixture instead, and is phrased as one example
+      among several rather than a required scenario. WP04 never appends events mid-run at
+      all. The result is that this P1 acceptance scenario — "the entire scope of the
+      mission (Option 1)" per spec.md's own priority rationale — has no single test
+      required to exist that drives it end-to-end through the actual polling machinery.
+    remediation: >-
+      Add a required (not optional) test in WP03 that starts `tail_events()` against a log
+      with fewer than N events, appends the remaining events from the same test process
+      partway through consumption (between polls, using the injected `sleep_fn` as a
+      synchronization point rather than a real sleep), and asserts every appended event is
+      yielded exactly once in order — making this the T019(b) shape mandatory rather than
+      one option among several that may degenerate to zero exercised polls.

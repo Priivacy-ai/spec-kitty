@@ -1,10 +1,12 @@
 ---
 title: Charter as Central Path Resolver — Gap Analysis
 description: Gap analysis of using the charter as the central path resolver, surfaced by WP09 of the mission-template-repository-refactor (058), with recommendations.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-04-07'
 ---
 # Charter as Central Path Resolver — Gap Analysis
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Date**: 2026-03-30
 **Origin**: WP09 (058-mission-template-repository-refactor)

@@ -1,0 +1,223 @@
+{
+  "analyst-annie": {
+    "directives": [
+      "003",
+      "032",
+      "047"
+    ]
+  },
+  "architect-alphonso": {
+    "directives": [
+      "001",
+      "003",
+      "031",
+      "032",
+      "041",
+      "043",
+      "044",
+      "051"
+    ]
+  },
+  "comms-cleo": {
+    "directives": [
+      "003",
+      "047"
+    ]
+  },
+  "curator-carla": {
+    "directives": [
+      "018"
+    ]
+  },
+  "debugger-debbie": {
+    "directives": [
+      "001",
+      "003",
+      "030",
+      "032"
+    ],
+    "tactics": [
+      "five-paradigm-parallel-debugging",
+      "code-review-incremental",
+      "review-intent-and-risk-first"
+    ]
+  },
+  "designer-dagmar": {
+    "directives": [
+      "031"
+    ]
+  },
+  "diagram-daisy": {
+    "directives": [
+      "USE_C4_MODEL_TECHNIQUES"
+    ]
+  },
+  "doctrine-daphne": {
+    "directives": [
+      "003",
+      "018",
+      "032",
+      "043",
+      "044"
+    ]
+  },
+  "frontend-freddy": {
+    "directives": [
+      "010",
+      "024",
+      "025",
+      "030",
+      "034",
+      "051"
+    ]
+  },
+  "generic-agent": {
+    "directives": [
+      "028"
+    ]
+  },
+  "implementer-ivan": {
+    "directives": [
+      "010",
+      "043",
+      "044",
+      "045",
+      "051"
+    ]
+  },
+  "java-jenny": {
+    "directives": [
+      "010",
+      "024",
+      "025",
+      "030",
+      "034",
+      "051"
+    ],
+    "tactics": [
+      "dependency-hygiene"
+    ]
+  },
+  "lexical-larry": {
+    "directives": [
+      "003",
+      "032",
+      "048"
+    ]
+  },
+  "minutes-maker-mahad": {
+    "directives": [
+      "003",
+      "047",
+      "049",
+      "050"
+    ]
+  },
+  "node-norris": {
+    "directives": [
+      "010",
+      "024",
+      "025",
+      "030",
+      "034",
+      "051"
+    ]
+  },
+  "paula-patterns": {
+    "directives": [
+      "001",
+      "003",
+      "030",
+      "032",
+      "041"
+    ],
+    "tactics": [
+      "paula-patterns-architecture-scout-review",
+      "anti-corruption-layer",
+      "domain-event-capture",
+      "review-intent-and-risk-first"
+    ]
+  },
+  "planner-priti": {
+    "directives": [
+      "003"
+    ]
+  },
+  "python-pedro": {
+    "directives": [
+      "010",
+      "024",
+      "025",
+      "030",
+      "041",
+      "043",
+      "044",
+      "045",
+      "051"
+    ],
+    "tactics": [
+      "test-scaffolding-as-design-smell",
+      "dependency-hygiene"
+    ]
+  },
+  "randy-reducer": {
+    "directives": [
+      "001",
+      "024",
+      "030",
+      "034",
+      "025",
+      "041"
+    ],
+    "tactics": [
+      "semantic-compression-behavioral-boundary-mapping",
+      "semantic-compression-redundancy-discovery",
+      "semantic-compression-abstraction-extraction",
+      "semantic-compression-dead-weight-elimination",
+      "semantic-compression-semantic-consolidation",
+      "semantic-compression-equivalence-verification",
+      "test-scaffolding-as-design-smell"
+    ]
+  },
+  "researcher-robbie": {
+    "directives": [
+      "003"
+    ]
+  },
+  "retrospective-facilitator": {
+    "directives": [
+      "003",
+      "010",
+      "018"
+    ]
+  },
+  "reviewer-renata": {
+    "directives": [
+      "001",
+      "024",
+      "030",
+      "032",
+      "041",
+      "051"
+    ],
+    "tactics": [
+      "code-review-incremental",
+      "language-driven-design",
+      "reverse-speccing",
+      "test-scaffolding-as-design-smell",
+      "supply-chain-install-safety"
+    ]
+  },
+  "scribe-sally": {
+    "directives": [
+      "003",
+      "047",
+      "048"
+    ]
+  },
+  "synthesizer-sam": {
+    "directives": [
+      "047"
+    ]
+  }
+}

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +26,7 @@ from typing_extensions import Annotated
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, ResolvedMission, resolve_mission
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.paths import locate_project_root
+from kernel.clock import now_utc_iso
 from specify_cli.doctrine_synthesizer import (
     SynthesisResult,
     apply_proposals,
@@ -36,7 +36,14 @@ from specify_cli.retrospective import (
     RetrospectiveActor,
 )
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
-from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_gen_record, read_record
+from specify_cli.retrospective.reader import (
+    FINDING_CATEGORIES,
+    PROPOSAL_CATEGORIES,
+    SchemaError,
+    YAMLParseError,
+    read_gen_record,
+    read_record,
+)
 from specify_cli.retrospective.schema import (
     ActorRef,
     GenActor,
@@ -55,6 +62,7 @@ from specify_cli.retrospective.writer import (
     write_gen_record,
     write_record,
 )
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
 
@@ -178,7 +186,7 @@ def _build_json_envelope(
     envelope: dict[str, object] = {
         "schema_version": "1",
         "command": "agent.retrospect.synthesize",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now_utc_iso(),
         "dry_run": dry_run,
         "status": status,
         "outcome": outcome,
@@ -224,6 +232,15 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
     return surface.parent
 
 
+def _required_planning_artifact_filenames() -> tuple[str, str, str]:
+    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam."""
+    return (
+        resolve_configured_artifact_name("input.spec.main"),
+        resolve_configured_artifact_name("output.plan.main"),
+        resolve_configured_artifact_name("output.tasks.list"),
+    )
+
+
 def _mission_artifacts_sufficient_for_empty_record(
     feature_dir: Path,
     *,
@@ -237,7 +254,7 @@ def _mission_artifacts_sufficient_for_empty_record(
     status surface (FR-009 / #1735), which diverges from ``feature_dir`` under
     coordination topology.
     """
-    for required in ("spec.md", "plan.md", "tasks.md"):
+    for required in _required_planning_artifact_filenames():
         if not (feature_dir / required).is_file():
             return False
     tasks_dir = feature_dir / "tasks"
@@ -280,7 +297,7 @@ def _create_empty_retrospective_record(
         gen_record directly without re-reading the YAML via the Pydantic reader.
     """
     del feature_dir
-    now = datetime.now(timezone.utc).isoformat()
+    now = now_utc_iso()
     gen_actor = GenActor(kind=actor.kind, id=actor.id)
     record = GenRetrospectiveRecord(
         schema_version=1,
@@ -386,8 +403,8 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "mission_not_found",
-                        "error": "mission_not_found",
+                        "outcome": "MISSION_NOT_FOUND",
+                        "error": "MISSION_NOT_FOUND",
                         "handle": exc.handle,
                         "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
                     }
@@ -408,7 +425,7 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "ambiguous_mission_handle",
+                        "outcome": "MISSION_AMBIGUOUS_SELECTOR",
                     }
                 )
             )
@@ -528,11 +545,13 @@ def synthesize_cmd(
             _err_console.print(f"[red]Error:[/red] {msg}")
             raise typer.Exit(3) from missing_record_exc
     except (YAMLParseError, SchemaError) as exc:
+        gen_exc: Exception | None = None
         try:
             generator_record = read_gen_record(retro_file)
             record = None
-        except (FileNotFoundError, YAMLParseError, SchemaError):
+        except (FileNotFoundError, YAMLParseError, SchemaError) as gen_error:
             generator_record = None
+            gen_exc = gen_error
         else:
             outcome = "retrospective_synthesized"
             if generator_record.proposals:
@@ -542,12 +561,31 @@ def synthesize_cmd(
                     "so synthesize will run as an empty dry-run batch."
                 )
         if generator_record is None:
-            msg = f"Retrospective record malformed: {exc}"
+            # #3533: report the GENERATOR reader's diagnosis, not the Pydantic one.
+            # A record written by `retrospect create` is generator-shaped, so the
+            # nested-schema reader ALWAYS fails on it and its ~100 field errors
+            # describe a schema the file was never meant to satisfy. The generator
+            # reader's message is one line and names the offending field, e.g.
+            # "not_helpful[0].category is invalid" — the only actionable half.
+            # Surfacing the wrong one has twice led readers to conclude the tool
+            # contradicts itself when a single enum value was wrong.
+            detail = str(gen_exc) if gen_exc is not None else str(exc)
+            if gen_exc is not None and "category is invalid" in detail:
+                # Findings and proposals both raise "<label>.category is invalid"
+                # but draw from DIFFERENT allow-lists (#3537 landing). Pick by the
+                # label so a bad proposal category is not handed the finding set.
+                if "proposals[" in detail:
+                    allowed = ", ".join(sorted(PROPOSAL_CATEGORIES))
+                    detail = f"{detail}\nAllowed proposal categories: {allowed}"
+                else:
+                    allowed = ", ".join(sorted(FINDING_CATEGORIES))
+                    detail = f"{detail}\nAllowed finding categories: {allowed}"
+            msg = f"Retrospective record malformed: {detail}"
             if json_only:
-                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
+                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": detail}))
             else:
                 _err_console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(3) from exc
+            raise typer.Exit(3) from (gen_exc if gen_exc is not None else exc)
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:

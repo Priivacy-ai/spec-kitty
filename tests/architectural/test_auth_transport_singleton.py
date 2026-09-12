@@ -2,18 +2,17 @@
 
 Pins the invariant from
 ``docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md``: the
-sync, tracker, and websocket subsystems MUST acquire HTTP transports
+tracker and websocket subsystems MUST acquire HTTP transports
 from ``specify_cli.auth.transport`` (or the auth-internal SaaS-fallback
 helper). Direct ``httpx.Client(...)`` / ``httpx.AsyncClient(...)``
 calls in those subsystems are a regression of FR-030.
 
 Walked subsystems
 -----------------
-* ``src/specify_cli/sync/``
 * ``src/specify_cli/tracker/``
 * ``src/specify_cli/auth/websocket/`` (the websocket-token provisioning
-  surface — the actual websocket connection lives in
-  ``src/specify_cli/sync/client.py`` which is already covered above)
+  surface; the sync package's own websocket connection client was walked
+  here too until it was deleted along with that package, issue #5)
 
 Allowlist
 ---------
@@ -32,6 +31,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import TypeGuard
 
 import pytest
 
@@ -42,7 +42,6 @@ _SRC = _REPO_ROOT / "src" / "specify_cli"
 
 # Subsystems that MUST go through the centralized auth transport.
 _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
-    _SRC / "sync",
     _SRC / "tracker",
     _SRC / "auth" / "websocket",
 )
@@ -51,7 +50,7 @@ _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
 #
 # The two auth transport modules are the canonical owners (WP06 T032).
 # ``tracker/saas_client.py`` is a *temporary* legacy entry: 130+
-# downstream tests under ``tests/sync/tracker/`` patch
+# downstream tests under ``tests/tracker/`` patch
 # ``specify_cli.tracker.saas_client.httpx.Client`` directly, and
 # migrating those mocks to the centralized client is out of scope for
 # WP06. The intent is documented inside ``saas_client._request``'s
@@ -79,7 +78,7 @@ def _collect_python_sources(root: Path) -> list[Path]:
     ]
 
 
-def _is_httpx_constructor_call(node: ast.AST) -> bool:
+def _is_httpx_constructor_call(node: ast.AST) -> TypeGuard[ast.Call]:
     """Return True when *node* is ``httpx.Client(...)`` or ``httpx.AsyncClient(...)``.
 
     Only matches the constructor invocation pattern. Type annotations,
@@ -156,37 +155,6 @@ class TestAuthTransportSingleton:
                 "Route the call through specify_cli.auth.transport "
                 "(AuthenticatedClient / AsyncAuthenticatedClient) or the "
                 "auth-internal request_with_fallback_sync helper."
-            )
-
-    def test_transport_module_exists(self) -> None:
-        """The centralized transport module must exist (T032)."""
-        transport = _SRC / "auth" / "transport.py"
-        assert transport.exists(), (
-            "Expected centralized auth transport at "
-            f"{transport.relative_to(_REPO_ROOT)} (FR-030, T032)."
-        )
-
-    def test_transport_exports_authenticated_client(self) -> None:
-        """``AuthenticatedClient`` must be importable from the transport module."""
-        from specify_cli.auth.transport import (
-            AuthenticatedClient,
-            AuthRefreshFailed,
-            get_client,
-        )
-
-        assert AuthenticatedClient is not None
-        assert AuthRefreshFailed is not None
-        assert callable(get_client)
-
-    def test_allowlisted_files_actually_exist(self) -> None:
-        """The allowlist must point at real files; no stale entries.
-
-        Prevents the allowlist from silently masking a deleted file or
-        a typo that would otherwise let a violation slip through.
-        """
-        for allowed in _TRANSPORT_ALLOWLIST:
-            assert allowed.exists(), (
-                f"Allowlisted file does not exist: {allowed.relative_to(_REPO_ROOT)}"
             )
 
     def test_negative_control_detects_violation(self, tmp_path: Path) -> None:

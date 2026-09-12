@@ -1,7 +1,7 @@
 """T013/T027 (#2524 class) regression: ``charter activate``/``deactivate``
 mutate ONLY ``.kittify/config.yaml`` ``activated_*`` -- never
 ``.kittify/charter/interview/answers.yaml`` -- and the compiled charter
-reference set (:func:`charter.compiler.compile_charter`, the source
+reference set (:func:`charter.activation.compiler.compile_charter`, the source
 ``references.yaml`` is written from) tracks that mutation directly, with no
 dangling reference left behind on deactivate.
 
@@ -19,19 +19,18 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from charter.charter_yaml_io import save_charter_yaml
-from charter.compiler import compile_charter
-from charter.interview import default_interview, read_interview_answers
-from charter.pack_context import PackContext
-from charter.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
-from doctrine.service import DoctrineService
-from doctrine.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
+from charter.activation.charter_yaml_io import save_charter_yaml
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import default_interview, read_interview_answers
+from charter.activation.pack_context import PackContext
+from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
+from charter.offering.service import DoctrineService
+from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BUILT_IN_DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
 ANSWERS_PATH = REPO_ROOT / ".kittify" / "charter" / "interview" / "answers.yaml"
 
 runner = CliRunner()
@@ -73,7 +72,9 @@ def project_root(tmp_path: Path) -> Path:
         "activated_paradigms: []\n"
         "activated_procedures: []\n"
         "activated_agent_profiles: []\n"
-        "activated_mission_step_contracts: []\n",
+        "activated_mission_step_contracts: []\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
     return tmp_path
@@ -81,7 +82,7 @@ def project_root(tmp_path: Path) -> Path:
 
 def _compiled_reference_ids(project_root: Path) -> set[str]:
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+    doctrine_service = DoctrineService()
     compiled = compile_charter(
         mission="software-dev",
         interview=default_interview(mission="software-dev"),
@@ -162,7 +163,7 @@ class TestDeactivateDropsNoAnswersEdit:
         # for a `test_no_new_charter_reference_danglers`-style guard to trip
         # on for THIS artefact).
         pack_context = PackContext.from_config(project_root)
-        doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+        doctrine_service = DoctrineService()
         compiled = compile_charter(
             mission="software-dev",
             interview=default_interview(mission="software-dev"),
@@ -180,8 +181,8 @@ class TestSpddActivationDoesNotFlip:
 
     ``generate.py`` runs ``sync_charter`` right after ``compile_charter``;
     the compiler's ``## Governance Activation`` render feeds
-    ``governance.yaml`` ``doctrine.selected_*``, which
-    :func:`doctrine.spdd_reasons.activation.is_spdd_reasons_active` keys on
+    ``governance.yaml`` ``charter.offering.selected_*``, which
+    :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active` keys on
     (paradigm ``structured-prompt-driven-development``, tactics
     ``reasons-canvas-fill``/``reasons-canvas-review``, or directive
     ``DIRECTIVE_038``).
@@ -201,7 +202,7 @@ class TestSpddActivationDoesNotFlip:
         # deactivation regression on this project's own charter.
         assert "DIRECTIVE_038" in interview.selected_directives
 
-        doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+        doctrine_service = DoctrineService()
         pack_context = PackContext.from_config(REPO_ROOT)
         compiled = compile_charter(
             mission=interview.mission,
@@ -220,11 +221,33 @@ class TestSpddActivationDoesNotFlip:
         # markdown, so the live ``is_spdd_reasons_active`` assertion below
         # keeps covering the same activation path without the retired
         # scraper.
+        # WP04 bucket-3 item 8: is_spdd_reasons_active (WP01) reads
+        # .kittify/config.yaml's activated_* keys, not charter.yaml's
+        # governance: section -- null out the four SPDD-relevant selectors
+        # specifically (this repo's real dogfood interview/compiled data is
+        # very likely SPDD-active today -- that is the exact bug this
+        # mission fixes -- so leaving those ids in the on-disk governance:
+        # write would let the OLD body pass regardless of config.yaml's
+        # content), while leaving any other, unrelated ids untouched.
+        spdd_paradigm = "structured-prompt-driven-development"
+        spdd_tactics = {"reasons-canvas-fill", "reasons-canvas-review"}
+        spdd_directive = "DIRECTIVE_038"
+
+        selected_paradigms_no_spdd = [
+            p for p in interview.selected_paradigms if p != spdd_paradigm
+        ]
+        selected_directives_no_spdd = [
+            d for d in interview.selected_directives if d != spdd_directive
+        ]
+        selected_tactics_no_spdd = [
+            t for t in compiled.selected_tactics if t not in spdd_tactics
+        ]
+
         governance = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
-                selected_paradigms=interview.selected_paradigms,
-                selected_directives=interview.selected_directives,
-                selected_tactics=compiled.selected_tactics,
+            charter=DoctrineSelectionConfig(
+                selected_paradigms=selected_paradigms_no_spdd,
+                selected_directives=selected_directives_no_spdd,
+                selected_tactics=selected_tactics_no_spdd,
                 available_tools=interview.available_tools,
                 template_set=compiled.template_set,
             )
@@ -246,6 +269,37 @@ class TestSpddActivationDoesNotFlip:
                 "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
             },
         )
+
+        # ALSO write tmp_path/.kittify/config.yaml mirroring the SAME
+        # pack_context (already loaded from REPO_ROOT above) that fed the
+        # compile -- the real activated_* source the fixed function reads.
+        # None (three-state "all built-ins available") is preserved as-is
+        # rather than coerced to an empty list, matching PackContext's own
+        # semantics for an unconfigured kind.
+        from ruamel.yaml import YAML
+
+        config_path = tmp_path / ".kittify" / "config.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_document = {
+            "activated_paradigms": (
+                sorted(pack_context.activated_paradigms)
+                if pack_context.activated_paradigms is not None
+                else None
+            ),
+            "activated_directives": (
+                sorted(pack_context.activated_directives)
+                if pack_context.activated_directives is not None
+                else None
+            ),
+            "activated_tactics": (
+                sorted(pack_context.activated_tactics)
+                if pack_context.activated_tactics is not None
+                else None
+            ),
+        }
+        config_yaml = YAML()
+        with config_path.open("w", encoding="utf-8") as fh:
+            config_yaml.dump(config_document, fh)
 
         clear_activation_cache()
         assert is_spdd_reasons_active(tmp_path) is True, (

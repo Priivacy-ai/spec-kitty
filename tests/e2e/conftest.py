@@ -11,16 +11,17 @@ import shutil
 import subprocess
 import tomllib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from textwrap import dedent
 
 import pytest
 import yaml
 
+from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
-from charter.sync import sync as sync_charter
+from charter.activation.sync import sync as sync_charter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"
@@ -60,7 +61,7 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     projects without hosted credentials, so the preflight would otherwise
     fail before the behavior under test runs.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +79,9 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 _WATCHED_ROOTS: tuple[str, ...] = ("kitty-specs", ".kittify", ".worktrees", "docs")
+_SOURCE_POLLUTION_SELF_BOOKKEEPING = frozenset(
+    {".kittify/encoding-provenance/global.jsonl"}
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +106,7 @@ def _walk_inventory(
     root: Path,
     *,
     anchor: Path | None = None,
+    excluded: frozenset[str] = frozenset(),
 ) -> dict[str, tuple[int, int]]:
     """Return a {relative_path: (size, mtime_ns)} map for every file under root.
 
@@ -114,8 +119,11 @@ def _walk_inventory(
     base = anchor if anchor is not None else root
     for path in root.rglob("*"):
         if path.is_file():
+            relative = path.relative_to(base).as_posix()
+            if relative in excluded:
+                continue
             st = path.stat()
-            inv[str(path.relative_to(base))] = (st.st_size, st.st_mtime_ns)
+            inv[relative] = (st.st_size, st.st_mtime_ns)
     return inv
 
 
@@ -137,7 +145,14 @@ def capture_source_pollution_baseline(repo_root: Path) -> SourcePollutionBaselin
     inventory: dict[str, dict[str, tuple[int, int]]] = {}
     for root_name in _WATCHED_ROOTS:
         root = repo_root / root_name
-        inventory[root_name] = _walk_inventory(root) if root.exists() else {}
+        excluded = frozenset(
+            path.removeprefix(f"{root_name}/")
+            for path in _SOURCE_POLLUTION_SELF_BOOKKEEPING
+            if path.startswith(f"{root_name}/")
+        )
+        inventory[root_name] = (
+            _walk_inventory(root, excluded=excluded) if root.exists() else {}
+        )
 
     # Aggregate every `kitty-ops` directory anywhere under repo_root.
     pi_inventory: dict[str, tuple[int, int]] = {}
@@ -155,9 +170,9 @@ def assert_no_source_pollution(baseline: SourcePollutionBaseline, repo_root: Pat
     Two-layer guard:
       * Layer 1 (FR-017): `git status --short` must be byte-identical to the
         baseline.
-      * Layer 2 (FR-018): per-watched-root inventory must be byte-identical;
-        any added / removed / modified file raises AssertionError with a
-        diagnostic listing the diff.
+      * Layer 2 (FR-018): per-watched-root inventory must be byte-identical,
+        excluding the canonical cross-worker self-bookkeeping sink; any other
+        added / removed / modified file raises with a diagnostic diff.
     """
     current = capture_source_pollution_baseline(repo_root)
 
@@ -232,6 +247,7 @@ def e2e_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    scrub_repo_mission_overrides(project)
     charter_path = project / ".kittify" / "charter" / "charter.md"
     if charter_path.exists():
         sync_charter(charter_path, charter_path.parent, force=True)
@@ -263,7 +279,7 @@ def e2e_project(tmp_path: Path) -> Path:
 
         _charter_content = _charter_md.read_text(encoding="utf-8")
         _charter_hash = _hash_content(_charter_content)  # returns "sha256:<hex>"
-        _now_iso = datetime.now(tz=UTC).isoformat()
+        _now_iso = now_utc_iso()
         (_charter_dir / "metadata.yaml").write_text(
             f'charter_hash: {_charter_hash}\nextracted_at: "{_now_iso}"\n',
             encoding="utf-8",
@@ -280,7 +296,7 @@ def e2e_project(tmp_path: Path) -> Path:
         "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
         "project layer and the runtime can advance; it is intentionally empty.\n\n"
         "The runtime falls back to the in-package built-in doctrine\n"
-        "(`src/doctrine/`) for all artifact lookups until the LLM harness writes\n"
+        "(`src/charter/offering/`) for all artifact lookups until the LLM harness writes\n"
         "project-local artifacts under `.kittify/charter/generated/` and you re-run\n"
         "`spec-kitty charter synthesize`.\n",
         encoding="utf-8",

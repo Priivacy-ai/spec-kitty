@@ -1,0 +1,110 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-reference-verification
+    severity: 3
+    title: "WP04 T017(a)'s patch-target guidance contradicts doctrine.py's real import shape"
+    evidence:
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Subtask T017, step 1 (AC-7(a))"
+      - code: "src/specify_cli/cli/commands/doctrine.py:963-966 (org_validate's validate_pack import is function-local, inside the command body — not a module-scope binding)"
+      - code: "src/specify_cli/doctrine/pack_assembler.py:37 (validate_pack IS imported at module scope here — the case T016 correctly targets)"
+    claim: >-
+      T017(a) instructs: "same mocking/patching technique as T016, mirroring its assertion
+      but for the opposite value and the opposite call site... patch where `validate_pack`
+      is bound in `doctrine.py`". But `validate_pack` has no module-scope binding in
+      `doctrine.py` — both `pack_validate` and `org_validate` import it lazily,
+      function-locally (`from specify_cli.doctrine.pack_validator import (... validate_pack)`
+      inside the command body, confirmed at doctrine.py:963-966), exactly analogous to the
+      lazy `AgentProfileRepository` import in pack_validator.py that WP03/T010 step 3 and
+      plan.md's "patch() target validation" section explicitly warn about. T016's technique
+      (patch `specify_cli.doctrine.pack_assembler.validate_pack`) works there specifically
+      because pack_assembler.py imports validate_pack at module scope (verified at line 37) —
+      that technique does NOT transfer to doctrine.py's lazy-import shape. An implementer
+      following T017(a) literally would try to patch a nonexistent module attribute
+      (`specify_cli.cli.commands.doctrine.validate_pack`), which `mock.patch` rejects with
+      an AttributeError and which `scripts/check_patch_targets.py` would also reject per its
+      own documented behavior (module portion must expose the attribute) — the same failure
+      mode WP03's own guidance was added this round specifically to avoid. The correct target
+      mirrors WP03's pattern instead: patch the source location,
+      `specify_cli.doctrine.pack_validator.validate_pack`, which doctrine.py's lazy
+      per-call import will pick up correctly since the import statement re-executes on every
+      invocation of org_validate.
+    remediation: >-
+      Rewrite T017(a)'s guidance to state explicitly that `validate_pack` is NOT bound at
+      module scope in `doctrine.py` (mirroring the lazy-import callout already given to WP03),
+      and that the correct patch target for asserting `org_validate`'s call is the source
+      location `specify_cli.doctrine.pack_validator.validate_pack`, not "wherever validate_pack
+      is bound in doctrine.py" (which does not exist) and not a literal mirror of T016's
+      module-scope-import technique.
+  - id: TASKS-FRESH-002
+    lens: reviewer-procedure-robustness
+    severity: 2
+    title: Fixed worktree path reused across sequential RED checks has no collision-recovery guidance
+    evidence:
+      - artifact: "plan.md, 'Mechanics for the separate-ref check'"
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md, Reviewer Guidance"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Reviewer Guidance ('repeat for each of T014/T015's ids... T016's id... T017(a)/(b)'s ids')"
+    claim: >-
+      All three locations use the identical hardcoded path `git worktree add /tmp/pbb-check
+      main` followed by `git worktree remove /tmp/pbb-check` at the end of each RED check.
+      WP04's own Reviewer Guidance explicitly instructs repeating this add/remove cycle once
+      per test id across three different test files (T014/T015's several ids, T016's id,
+      T017(a)/(b)'s ids) in the same review session. If any single iteration's `git apply` or
+      `pytest` step fails before the closing `git worktree remove` runs (a realistic outcome —
+      the same guidance already anticipates hunks "not applying cleanly"), the worktree/path
+      registration is left behind, and the next `git worktree add /tmp/pbb-check main` in the
+      sequence fails outright ("already exists") with no documented recovery step.
+    remediation: >-
+      Either use a per-test-id-unique path (e.g. `/tmp/pbb-check-<test-id>`) or add an explicit
+      `git worktree remove --force /tmp/pbb-check 2>/dev/null || true` (or equivalent cleanup)
+      immediately before each `git worktree add` in the repeated procedure, so a failed prior
+      iteration cannot block the next one.
+  - id: TASKS-FRESH-003
+    lens: cross-reference-verification
+    severity: 1
+    title: "Chokepoint section's '18 open PRs' count is already stale"
+    evidence:
+      - artifact: "plan.md, 'Chokepoint' § 'Open-PR write-scope check', 'Re-verified directly (2026-08-14): ... returns 18 open PRs'"
+      - code: "gh pr list --state open --json number (live check during this review: 19 open PRs, including #3395, opened 2026-08-13T23:34:24Z, not enumerated in plan.md)"
+    claim: >-
+      Live re-check during this review shows 19 open PRs, not the 18 the fix round's
+      "Re-verified directly (2026-08-14)" line claims. The extra PR (#3395,
+      "fix(requirements): scope spec.md requirement extraction...") does not touch any file
+      this mission owns (confirmed via `gh pr view 3395 --json files`), so none of the fix
+      round's substantive conclusions (chokepoint-file zero-overlap, the #2719/#3166/CHANGELOG
+      enumeration) are actually wrong — only the stated count is stale. This is expected drift
+      for a live PR count re-verified inside a fast-moving repo, not a design defect, but the
+      "Re-verified directly" framing overstates its own currency.
+    remediation: >-
+      Low-cost fix: soften the phrasing from "returns 18 open PRs" to something like "returned
+      18 open PRs at verification time (2026-08-14); PR counts drift continuously and the
+      specific enumerated overlaps below, not the total count, are the load-bearing claims" —
+      or simply drop the specific count and cite only the enumerated overlaps.
+  - id: TASKS-FRESH-004
+    lens: instruction-falsifiability
+    severity: 2
+    title: Complexity re-measurement trigger condition (WP04 T018 step 7) has no numeric threshold
+    evidence:
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md, Subtask T018, step 7"
+      - artifact: "plan.md, 'Complexity Tracking'"
+    claim: >-
+      T018 step 7 gives a concrete, runnable command
+      (`ruff check src/specify_cli/doctrine/pack_validator.py --select C901 --statistics`) but
+      the decision of whether to act on its output is qualitative only: "If validate_pack()
+      has moved materially closer to the complexity-15 ceiling, record that... if it is still
+      comfortably under the ceiling... move on." No numeric threshold (e.g., "within N points
+      of 15," or "reported complexity >= X") is given, so two implementers could reach
+      different conclusions from the identical `ruff --statistics` output. This mirrors
+      plan.md's own pre-existing Complexity Tracking language, so it is not new vagueness
+      invented by this fix round, but the fix round did choose to operationalize that
+      qualitative language into a concrete-sounding step without closing the gap.
+    remediation: >-
+      Add a concrete numeric trigger, e.g. "record in plan.md if validate_pack()'s reported
+      C901 complexity is >= 12 (80% of the ceiling), otherwise no plan.md edit is needed" — or
+      explicitly state that the implementer's own judgment call is acceptable and must be
+      recorded either way with the actual numeric reading (not just a comfortable/uncomfortable
+      label), so a reviewer can independently check the same number.

@@ -12,12 +12,22 @@ re-exports these names back for existing call sites).
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from kernel._safe_re import re
+from kernel.clock import now_utc_stamp
+from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
+
+if TYPE_CHECKING:
+    # Type-only: ``kernel._safe_re``'s ``re`` has no statically-typed
+    # ``Pattern`` attribute mypy can resolve as an annotation target (only
+    # plain stdlib ``re`` supports ``re.Pattern[str]``). RE2-compiled patterns
+    # are structurally identical to stdlib ``Pattern`` objects for the methods
+    # this module calls (``.fullmatch``), so annotating against the stdlib
+    # type is accurate, not a fiction.
+    import re as _typing_re
 
 # WP02 (#2058): the shared result vocabulary, the inline-subtasks regex, and the
 # pipe-table row parsers live in the ``tasks_outline`` seam. Imported here so
@@ -32,9 +42,9 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _parse_pipe_table_header,
 )
 
-# Mirror of the timestamp format defined in ``tasks``. Hoisted as a module-local
-# constant so this seam has no back-import to the god-module.
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): defined once on the door
+# (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 def _persist_review_artifact_override(
@@ -61,13 +71,30 @@ def _persist_review_artifact_override(
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import ReviewOverride, WPInnerStateDelta
 
-    # Resolve the emit target from the caller-resolved artifact path (stored
-    # topology), never ``Path.cwd()`` (C-003 / #2647). Review artifacts live at
-    # ``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md`` so ``parents[2]`` is the
-    # kitty-specs feature_dir and its directory name is the mission slug.
-    feature_dir = artifact_path.parents[2]
-    mission_slug = feature_dir.name
-    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
+    # WP01 (#2959) partition-correct override write: the override annotation MUST
+    # land on the SAME partition the merge review-artifact gate READS, or a
+    # coord-topology mission that took a review rejection can never be merged (the
+    # override is written to a surface the gate never consults — the deadlock).
+    # That gate resolves each WP's lane state from its COORD ``STATUS_STATE`` home
+    # (``post_merge/review_artifact_consistency.py`` → ``resolve_artifact_surface``),
+    # so resolve the emit target through the kind-aware placement seam
+    # (``STATUS_STATE``) — the SAME authority the gate consumes — rather than
+    # deriving it from the PRIMARY artifact path (``artifact_path.parents[2]``,
+    # which is the primary tasks/ tree). Review artifacts live at
+    # ``<feature_dir>/tasks/<wp-slug>/review-cycle-N.md`` so ``parents[2].name`` is
+    # the (partition-invariant) mission slug; the seam then routes the write to
+    # the coord husk for a materialised coord topology and to the primary dir for
+    # every other topology. ``emit_inner_state_changed`` stays partition-agnostic
+    # (other callers depend on it); the reroute is at THIS caller only, mirroring
+    # the proven per-leg pattern in ``tasks_dependency_graph.py:120-135``.
+    # ``placement_seam(...).read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the declared ``Path`` narrows back.
+    mission_slug = artifact_path.parents[2].name
+    feature_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+    timestamp = now_utc_stamp()
     override = ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=reason)
     emit_inner_state_changed(
         feature_dir,
@@ -102,33 +129,90 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     return [p for p in candidates if p.exists()]
 
 
+class WpSlugAmbiguous(ValueError):
+    """Raised when ``tasks/`` carries multiple files matching the same task id
+    to DIFFERENT resolved slugs (T057/US3 AC3): e.g. both ``WP01-foo.md`` and
+    ``WP01_bar.md`` present. Refuse rather than silently pick the first
+    ``iterdir()`` result — the divergence FR-007 exists to close.
+    """
+
+
+#: T057 (US3 AC1): the accepted separator set between a task id and the rest
+#: of a ``tasks/`` filename's stem — hyphen, underscore, dot, or no separator
+#: at all (an exact-stem match). Anchored immediately after the task id so a
+#: task id that is a PREFIX of another (``WP1`` vs ``WP10``) never matches the
+#: longer one's file: the char right after the task id, if any, must itself
+#: be one of these three.
+_WP_SLUG_SEPARATOR_CHARS = "-_."
+
+
+def _wp_slug_pattern(task_id: str) -> _typing_re.Pattern[str]:
+    """Build the T057 separator-anchored matcher for one task id.
+
+    A file stem matches when it equals *task_id* exactly, or starts with
+    *task_id* followed immediately by one of ``-``/``_``/``.``. This is the
+    SINGLE place the accepted-separator rule is expressed — every other
+    resolver in this mission consumes an already-resolved ``wp_slug`` string
+    rather than re-implementing this matching rule locally (T057 step 4).
+    """
+    escaped = re.escape(task_id)
+    separators = re.escape(_WP_SLUG_SEPARATOR_CHARS)
+    # ``re.compile(...)`` (the RE2-backed ``kernel._safe_re`` module) resolves
+    # as ``Any`` to mypy (see the ``TYPE_CHECKING`` import above); bind
+    # explicitly so the declared ``Pattern[str]`` return narrows back from
+    # ``Any`` rather than mypy flagging an implicit ``Any`` return.
+    compiled: _typing_re.Pattern[str] = re.compile(rf"{escaped}(?:[{separators}].*)?")
+    return compiled
+
+
+def _wp_slug_candidates(tasks_dir: Path, task_id: str) -> list[str]:
+    """Return every DISTINCT ``tasks/`` file stem matching *task_id* (T057)."""
+    pattern = _wp_slug_pattern(task_id)
+    return sorted(
+        {
+            str(p.stem)
+            for p in tasks_dir.iterdir()
+            if pattern.fullmatch(str(p.stem))
+        }
+    )
+
+
 def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> str:
     """Resolve the WP slug (e.g. 'WP01-some-title') from a task ID.
 
-    Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
-    Falls back to bare task_id if no matching file is found.
+    Looks for a ``tasks/`` file whose stem equals *task_id* or starts with
+    *task_id* followed by one of the accepted separators -- ``-``, ``_``,
+    ``.``, or no separator at all (spec.md US3 AC1). Falls back to the bare
+    *task_id* when no ``tasks/`` file matches. Raises :class:`WpSlugAmbiguous`
+    (US3 AC3) when more than one ``tasks/`` file matches *task_id* to
+    DIFFERENT slugs -- refusing rather than silently picking an arbitrary
+    ``iterdir()`` order, which is exactly the divergence FR-007 closes.
+
+    Exact-stem and hyphen-prefix matching stay byte-for-byte unchanged from
+    the pre-T057 behaviour: every existing caller that only ever wrote
+    ``WP01-slug.md`` files sees identical output.
     """
     # WP04 / FR-006: ``tasks/WP*.md`` is a WORK_PACKAGE_TASK (primary-partition)
     # artifact — author+read on PRIMARY (INV-5). Route the read through the
     # kind-aware seam so a coord-topology mission's stale ``-coord`` husk cannot
     # shadow the real primary WP files (#2062 read-side close).
-    from mission_runtime import MissionArtifactKind
-
-    tasks_dir = (
-        resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
-        / "tasks"
+    # ``placement_seam(...).read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the join's return narrows back to ``Path``.
+    mission_dir: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
-    if tasks_dir.exists():
-        for p in tasks_dir.iterdir():
-            if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
-                # Narrow ``str()`` coercion: when this seam is type-checked in
-                # isolation, mypy resolves the cross-package ``resolve_planning_read_dir``
-                # result as ``Any`` (follow-imports narrowing), so ``p.stem`` is
-                # inferred ``Any``. The coercion restores ``str`` without a suppression.
-                return str(p.stem)
-    return task_id
+    tasks_dir = mission_dir / "tasks"
+    if not tasks_dir.exists():
+        return task_id
+    candidates = _wp_slug_candidates(tasks_dir, task_id)
+    if len(candidates) > 1:
+        raise WpSlugAmbiguous(
+            f"task id {task_id!r} matches multiple tasks/ files resolving to "
+            f"different slugs: {', '.join(candidates)}. Rename so exactly one "
+            "file matches this task id before retrying."
+        )
+    return candidates[0] if candidates else task_id
 
 
 def _persist_review_feedback(

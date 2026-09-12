@@ -36,8 +36,8 @@ from click.testing import Result
 from typer import Typer
 from typer.testing import CliRunner
 
-from doctrine.model_task_routing import loader as real_loader
-from doctrine.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
+from charter.offering.model_task_routing import loader as real_loader
+from charter.offering.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.dispatch import _render_rich_payload
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
@@ -157,23 +157,24 @@ def _write_catalog(
 
 
 # Captured ONCE at module-import time, before any test patches
-# ``doctrine.model_task_routing.loader.load``. ``_compute_recommendation``
-# imports ``doctrine.model_task_routing.loader`` FUNCTION-LOCALLY (the
-# runtime -> charter -> doctrine boundary forbids a module-level `from
-# doctrine.*` import from specify_cli/, see
-# tests/architectural/test_runtime_charter_doctrine_boundary.py), so each
-# call re-resolves the *same* live module object -- patching
-# ``doctrine.model_task_routing.loader.load`` directly (rather than an
-# attribute on ``specify_cli.invocation.executor``) is what actually takes
-# effect. ``_load_from`` below must call this captured reference rather
-# than ``real_loader.load`` directly, or a patch installed via one of this
-# file's own helpers would recurse into itself instead of reaching the
-# real loader.
+# ``charter.model_routing.load``. Since mission
+# ``doctrine-public-api-surface-01KZPDSR`` WP06, ``_compute_recommendation``
+# imports ``load``/``evaluate`` FUNCTION-LOCALLY *from the charter facade*
+# ``charter.model_routing`` (symbol-level; the runtime -> charter -> doctrine
+# boundary forbids a module-level `from charter.offering.*` import from specify_cli/,
+# see tests/architectural/test_runtime_charter_doctrine_boundary.py). Each call
+# re-resolves ``charter.model_routing.load`` afresh, so patching that attribute
+# is what actually takes effect -- patching the doctrine origin
+# ``charter.offering.model_task_routing.loader.load`` no longer intercepts, because the
+# symbol-level facade holds an independent name binding to the same function
+# object. ``_load_from`` below must call this captured reference rather than
+# ``real_loader.load`` directly, or a patch installed via one of this file's own
+# helpers would recurse into itself instead of reaching the real loader.
 _REAL_LOAD = real_loader.load
 
 
 def _load_from(fixture_path: Path) -> Callable[..., real_loader.CatalogLoadResult | None]:
-    """Build a ``doctrine.model_task_routing.loader.load`` replacement pinned at *fixture_path*.
+    """Build a ``charter.offering.model_task_routing.loader.load`` replacement pinned at *fixture_path*.
 
     Uses the real, injectable ``load(catalog_path=...)`` override (WP01) --
     the point is to exercise the actual loader against a fixture file, not to
@@ -206,7 +207,7 @@ def test_recommendation_varies_with_catalog_scoring_via_invoke(tmp_path: Path) -
         executor = ProfileInvocationExecutor(tmp_path)
 
         with patch(
-            "doctrine.model_task_routing.loader.load",
+            "charter.model_routing.load",
             side_effect=_load_from(catalog_alpha_wins),
         ):
             payload_alpha = executor.invoke(
@@ -214,7 +215,7 @@ def test_recommendation_varies_with_catalog_scoring_via_invoke(tmp_path: Path) -
             )
 
         with patch(
-            "doctrine.model_task_routing.loader.load",
+            "charter.model_routing.load",
             side_effect=_load_from(catalog_beta_wins),
         ):
             payload_beta = executor.invoke(
@@ -241,7 +242,7 @@ def test_recommendation_absent_when_catalog_missing_dispatch_still_succeeds(tmp_
     _setup_project(tmp_path)
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
-        with patch("doctrine.model_task_routing.loader.load", return_value=None):
+        with patch("charter.model_routing.load", return_value=None):
             payload = executor.invoke(
                 "review the diff", profile_hint="reviewer-fixture", action_hint="review"
             )
@@ -265,7 +266,7 @@ def test_recommendation_absent_when_catalog_stale(tmp_path: Path) -> None:
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
         with patch(
-            "doctrine.model_task_routing.loader.load",
+            "charter.model_routing.load",
             side_effect=_load_from(stale_catalog),
         ):
             payload = executor.invoke(
@@ -290,7 +291,7 @@ def test_recommendation_absent_when_task_type_unmatched(tmp_path: Path) -> None:
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
         with patch(
-            "doctrine.model_task_routing.loader.load",
+            "charter.model_routing.load",
             side_effect=_load_from(unmatched_catalog),
         ):
             payload = executor.invoke(
@@ -324,7 +325,7 @@ def test_recommendation_absent_when_action_has_no_task_type_mapping(tmp_path: Pa
 
 def test_invoke_produces_recommendation_from_real_shipped_catalog_default_path(tmp_path: Path) -> None:
     """No fixture override: WP01's default loader path must agree with WP05's
-    shipped ``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml``.
+    shipped ``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml``.
     """
     _setup_project(tmp_path)
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
@@ -458,3 +459,34 @@ def test_render_rich_payload_includes_recommendation_line(capsys: pytest.Capture
     captured = capsys.readouterr()
     assert "model-alpha" in captured.out
     assert "code-review" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# WP1/#3840 — the advisory recommendation still populates under --dry-run.
+# dry_run() mirrors build_charter_context(..., mark_loaded=False) exactly as
+# invoke() does (already read-only), so this is a pin, not new plumbing.
+# ---------------------------------------------------------------------------
+
+
+def test_dry_run_cli_recommendation_present_for_audit_verb_real_catalog(tmp_path: Path) -> None:
+    """CLI-level proof against the REAL shipped catalog: reviewer-fixture's
+    default canonical verb ("audit" -> "quality-audit") is covered by the
+    catalog, and the recommendation surfaces identically whether or not
+    --dry-run is passed."""
+    project = _setup_project(tmp_path)
+    with (
+        patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project),
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+    ):
+        result = runner.invoke(
+            cli_app,
+            ["dispatch", "review the diff", "--profile", "reviewer-fixture", "--dry-run", "--json"],
+        )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+    assert envelope["action"] == "audit"
+    assert envelope["recommendation"] is not None
+    assert envelope["recommendation"]["task_type"] == "quality-audit"
+    assert envelope["recommendation"]["candidates"]

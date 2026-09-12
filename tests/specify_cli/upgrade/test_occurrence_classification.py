@@ -28,8 +28,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # classification content now lives in the doctrine prompt.
 IMPLEMENT_TEMPLATE_PATH = (
     Path(__file__).resolve().parents[3]
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"

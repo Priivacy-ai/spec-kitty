@@ -1,7 +1,7 @@
 """Tests for conflict detection and severity scoring (WP04 T017, T018)."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime
 
 from glossary.models import TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
 from glossary.extraction import ExtractedTerm

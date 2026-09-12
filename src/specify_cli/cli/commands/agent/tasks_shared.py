@@ -34,20 +34,23 @@ from typing import Any
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.agent_tasks_ports import Render
+from specify_cli.coordination.surface_authority import (
+    Refuse,
+    RouteToCoord,
+    resolve_surface_authority,
+)
 from specify_cli.cli.commands.agent.tasks_outline import TaskIdResolutionOutcome, TaskIdResult
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.vcs.git import merge_base_changed_files
+from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
+from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
@@ -249,7 +252,31 @@ def _find_mission_slug(
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = candidate_feature_dir_for_mission(_tasks.get_main_repo_root(repo_root), raw_handle)
+        try:
+            legacy_dir = placement_seam(
+                _tasks.get_main_repo_root(repo_root), raw_handle
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        except MissionSelectorAmbiguous as exc:
+            # This read-path resolver family raises BEFORE resolve_mission_handle
+            # ever runs (#241), so an ambiguous handle must map onto the SAME
+            # shared {"success": False, "error_code": ..., "error": ...,
+            # "handle": ..., "candidates": [...]} envelope resolve_mission_handle
+            # emits below for AmbiguousHandleError/MissionNotFoundError — not the
+            # bare {"error": str(exc)} the generic command-level exception
+            # handler would otherwise produce.
+            envelope = {
+                "success": False,
+                "error_code": exc.error_code,
+                "error": str(exc),
+                "handle": exc.handle,
+                "candidates": exc.candidates,
+            }
+            if json_output:
+                render = render or _tasks.RealRender()
+                print(render.json_envelope(envelope))
+                raise typer.Exit(1) from None
+            _tasks.console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -317,18 +344,42 @@ def _output_error(
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str) -> str | None:
+    """Refuse a planning-kind status commit onto a protected primary (#2300).
+
+    The map-requirements REFUSE arm (and the move-task no-coord-route fallback):
+    the verdict is DERIVED from the single ``resolve_surface_authority`` rule
+    (contract §2 rule 3), not hardcoded here. A planning/primary-kind commit onto
+    a protected primary with no coordination route is a :class:`Refuse` (exit 1);
+    an unprotected primary is committable (``None``). The kind is fixed to a
+    PRIMARY-partition kind because a primary-kind's verdict keys ONLY on
+    ``primary_protected`` (topology is verdict-irrelevant for a primary kind), so
+    the stored topology is not resolved on this refuse-only leg. The operator
+    hatch (``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1``) folds through
+    ``ProtectionPolicy.resolve`` into ``is_protected`` exactly as before.
+
+    The remedy is UNIFIED to the shared ``REMEDY_PROTECTED_PRIMARY`` constant
+    (carried on the verdict's :class:`Refuse`) — no per-command remedy drift.
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch reads happen once; is_protected() is I/O-free.
-    if not _tasks.ProtectionPolicy.resolve(repo_root).is_protected(branch):
+    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(branch)
+    verdict = resolve_surface_authority(
+        topology=MissionTopology.SINGLE_BRANCH,
+        primary_target=branch,
+        primary_protected=primary_protected,
+        current_branch=branch,
+        artifact_kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+    refusal = verdict.non_committable
+    if not isinstance(refusal, Refuse):
         return None
     return (
         f"Refusing to run `{command}` with auto-commit on protected branch "
         f"'{branch}' before mutating status files. Run status commit "
-        "operations from an allowed coordination/lane branch, or rerun with "
-        "--no-auto-commit when you intentionally want to handle the status "
-        "artifact commit manually."
+        f"operations from an allowed coordination/lane branch, or unblock with: "
+        f"{refusal.remedy}."
     )
 
 
@@ -363,16 +414,34 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
     where committing directly to the protected ref is refused and the status
     transition committed to the coordination branch is authoritative. It selects
     no ref; it suppresses a commit that the protection policy would refuse anyway.
+
+    The skip/no-skip verdict is DERIVED from the single ``resolve_surface_authority``
+    rule (#2300 / contract §2 rule 1): a lifecycle/coordination kind under a
+    coordination-routing topology with a protected primary yields
+    :class:`RouteToCoord` (the redundant direct-to-protected-primary commit is
+    suppressed; the coord commit is authoritative) → skip. The coord-worktree
+    probe (``_coord_topology_active``) stands in for the coord-routing topology and
+    is evaluated FIRST so the short-circuit keeps its no-policy-I/O-on-flat-missions
+    contract (the ``ProtectionPolicy`` resolve is skipped entirely when no coord
+    worktree exists).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    # Short-circuit preserved: probe the coord worktree first; only a coord-routing
+    # mission ever reaches the protection resolve (no policy I/O on flat missions).
+    if not _tasks._coord_topology_active(repo_root, mission_slug):
+        return False
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch reads happen once; is_protected() is I/O-free.
-    skip: bool = (
-        _tasks._coord_topology_active(repo_root, mission_slug)
-        and _tasks.ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
+    primary_protected = _tasks.ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
+    verdict = resolve_surface_authority(
+        topology=MissionTopology.COORD,
+        primary_target=target_branch,
+        primary_protected=primary_protected,
+        current_branch=target_branch,
+        artifact_kind=MissionArtifactKind.STATUS_STATE,
     )
-    return skip
+    return isinstance(verdict.non_committable, RouteToCoord)
 
 
 def _mission_identity_payload(feature_dir: Path) -> dict[str, str | int | None]:
@@ -409,7 +478,14 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
-def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
+def _check_unchecked_subtasks(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    _force: bool,
+    *,
+    effective_root: Path | None = None,
+) -> list[str]:
     """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
 
     The subtask **roster** (which task ids belong to ``wp_id``) is the authored
@@ -450,10 +526,10 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    from mission_runtime import MissionArtifactKind
-
-    feature_dir = resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+    feature_dir = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).read_dir(
+        MissionArtifactKind.TASKS_INDEX
     )
     if not (feature_dir / "tasks").is_dir():
         return []
@@ -465,9 +541,14 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    from specify_cli.coordination import resolve_status_surface
+    if effective_root is not None:
+        status_dir = placement_seam(
+            main_repo_root, mission_slug, effective_root=effective_root
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
+    else:
+        from specify_cli.coordination import resolve_status_surface
 
-    status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
+        status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
     return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
 
 
@@ -477,6 +558,11 @@ def _validate_ready_for_review(
     wp_id: str,
     force: bool,
     target_lane: str = "for_review",
+    *,
+    effective_root: Path | None = None,
+    workspace_override: object | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
 ) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -498,6 +584,10 @@ def _validate_ready_for_review(
         wp_id,
         force,
         target_lane=target_lane,
+        effective_root=effective_root,
+        workspace_override=workspace_override,
+        review_base_ref=review_base_ref,
+        check_kitty_specs=check_kitty_specs,
         get_main_repo_root=_tasks.get_main_repo_root,
         get_mission_type=_tasks.get_mission_type,
         get_feature_target_branch=_tasks.get_feature_target_branch,
@@ -571,42 +661,24 @@ def _filter_by_planning_tip_content(
 ) -> list[str]:
     """Drop candidates byte-identical to the planning-branch tip (FR-007 / #2274).
 
-    Runs ``git diff <planning_tip> HEAD -- <path>`` for each candidate.  An
-    empty diff means the file is byte-identical to the planning tip (e.g. after
-    a planning-branch rebase that brought no content change) and must not be
-    flagged as a lane-hygiene violation.  On any git failure the candidate is
-    kept conservatively so the guard never silently loses signal.
+    Compares the candidates against the planning tip through the canonical
+    ``vcs.git`` seam — the same seam pass 1 uses (``merge_base_changed_files``)
+    rather than a hand-rolled ``git diff`` subprocess. A candidate that does not
+    appear in ``git diff <base_branch> HEAD -- kitty-specs/`` is byte-identical
+    to the planning tip (e.g. after a planning-branch rebase that brought no
+    content change) and must not be flagged as a lane-hygiene violation. On any
+    git failure — including an unresolvable ``base_branch`` —
+    ``git_diff_names_checked`` returns ``None`` and every candidate is kept
+    conservatively so the guard never silently loses signal.
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    planning_tip_result = _tasks.subprocess.run(
-        ["git", "rev-parse", base_branch],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+    diverged = git_diff_names_checked(
+        worktree_path, base_branch, "HEAD", pathspec=f"{KITTY_SPECS_DIR}/"
     )
-    if planning_tip_result.returncode != 0 or not planning_tip_result.stdout.strip():
+    if diverged is None:
+        # git failure or unresolvable base ref → keep conservatively.
         return candidates
-
-    planning_tip = planning_tip_result.stdout.strip()
-    files: list[str] = []
-    for path in candidates:
-        content_diff = _tasks.subprocess.run(
-            ["git", "diff", planning_tip, "HEAD", "--", path],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        # Non-empty diff or git error → genuinely diverges from planning tip; keep.
-        if content_diff.returncode != 0 or content_diff.stdout.strip():
-            files.append(path)
-    return files
+    diverged_set = set(diverged)
+    return [path for path in candidates if path in diverged_set]
 
 
 def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
@@ -636,12 +708,41 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
             continue
         if path in seen:
             continue
+        # #2980: a bulk-edit mission's own occurrence map is the single permitted
+        # kitty-specs/ lane write (DIRECTIVE_035). Honor the same exception the
+        # pre-commit guard applies, expressed once in is_occurrence_map_path, so
+        # the two kitty-specs guards agree instead of warn-here / block-there.
+        if is_occurrence_map_path(path):
+            continue
+        # FIX-M2-04: a coord-topology lane branch is PARENTED on the
+        # coordination branch (worktree_allocator.py module docstring, #1348
+        # WP04) and then FR-009-merges the recorded planning commit on top
+        # (PlanningCommitMergeConflictError's docstring, #2993) — so the
+        # lane branch's own history legitimately contains the coordination
+        # branch's COORD-partition commits (status.events.jsonl / status.json
+        # / acceptance-matrix.json / issue-matrix.md / decisions.events.jsonl
+        # / tracer files / review-cycle artifacts). Those files can never be
+        # byte-identical to the planning branch's tip — the coordination
+        # branch writes them from its own independent history, never mirrors
+        # the planning branch — so ``_filter_by_planning_tip_content`` cannot
+        # exempt them and every coord-topology mission tripped this guard
+        # structurally (not from anything an implementer committed). Classify
+        # by declared MissionArtifactKind, the same coord-residue authority
+        # ``implement.py``/``implement_cores.py`` already use to drop these
+        # SAME kinds from the sibling primary-root claim commit, so both
+        # guards agree on what "lane contamination" means.
+        if is_coord_residue_churn(path):
+            continue
         seen.add(path)
         candidates.append(path)
 
     if not candidates:
         return []
 
+    # Pass 2 diffs against the planning *tip* while pass 1 diffs against the
+    # *merge-base* — the asymmetry IS the #2274 content-vs-history fix, not
+    # duplication to simplify away; collapsing both passes onto one base
+    # reintroduces #2274.
     return _tasks._filter_by_planning_tip_content(worktree_path, candidates, base_branch)
 
 

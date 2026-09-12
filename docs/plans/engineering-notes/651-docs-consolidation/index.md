@@ -126,7 +126,7 @@ this); and the existing split-brain is *resolved* rather than perpetuated.
 Both open questions below were resolved before Mission B opens.
 
 1. **Full adoption mechanics** — resolved by the reconciliation ADR (D1–D7) and
-   Mission A WPs. The Common Docs Agent Skills (scaffold / write / find) are
+   Mission A WPs. The Common Docs agent skills (scaffold / write / find) are
    implemented in Mission A as **doctrine tactics** (WP02), not as installed Agent
    Skills (`.agents/skills/`). The three built-in tactics are at
    `src/doctrine/tactics/built-in/common-docs-scaffold.tactic.yaml`,

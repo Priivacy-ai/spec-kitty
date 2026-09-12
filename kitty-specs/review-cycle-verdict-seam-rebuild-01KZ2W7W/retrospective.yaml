@@ -1,0 +1,257 @@
+schema_version: 1
+mission_id: 01KZ2W7W0F81GE153NF6ZWDNTS
+mission_slug: review-cycle-verdict-seam-rebuild-01KZ2W7W
+mission_number:
+friendly_name: Review-Cycle Verdict Seam Rebuild
+mission_type: software-dev
+target_branch: pr/review-verdict-write-integrity-01KZ1CGF
+created_at: '2026-08-05T08:48:36.016788+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-05T08:48:36.016788+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-011
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-012
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-013
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-014
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-015
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-016
+  category: implementation
+  summary: WP16 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-017
+  category: implementation
+  summary: WP17 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-018
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-023
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-027
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP17 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP17 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP12 (3x)
+  evidence_refs:
+  - e-025
+  details: WP WP12 required 3 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+- id: g-002
+  category: process
+  summary: Arbiter override needed for WP14 (3x)
+  evidence_refs:
+  - e-026
+  details: WP WP14 required 3 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP01-verdict-seam-census.md
+- id: e-006
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP02-time-dependent-test-rot.md
+- id: e-007
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP03-board-hygiene.md
+- id: e-008
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP04-review-cycle-kind-and-plumbing.md
+- id: e-009
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP05-ci-shard-independence.md
+- id: e-010
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP06-extract-verdict-seam.md
+- id: e-011
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP07-verdict-authority-and-reader.md
+- id: e-012
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP08-reconcile-stranded-records.md
+- id: e-013
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP09-verdict-numbering.md
+- id: e-014
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP10-atomicity-crash-safety-and-guard-narrowing.md
+- id: e-015
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP11-transition-ordering-and-durability-signal.md
+- id: e-016
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP12-arbiter-override-retirement.md
+- id: e-017
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP13-consumer-unification.md
+- id: e-018
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP14-declared-reader-polarity.md
+- id: e-019
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP15-durability-coverage-matrix.md
+- id: e-020
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP16-truthfulness-sweep-and-census-fold.md
+- id: e-021
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP17-mission-exit-verification.md
+- id: e-022
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP18-review-cycle-merge-driver.md
+- id: e-023
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/status.events.jsonl
+- id: e-024
+  kind: event_range
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/status.events.jsonl
+  range: 01KZ8BRHPPQGRGS9G72HJVVM4T..01KZ8BS34WNXXTAJ0JPKDWWFN0
+- id: e-025
+  kind: event_range
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/status.events.jsonl
+  range: 01KZ6Z5RHE5CBXV4KT6X0M5JA6..01KZ6Z8ZHHC3KZ52WQ79KTC67W
+- id: e-026
+  kind: event_range
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/status.events.jsonl
+  range: 01KZ7DTFD1FRXYGQGBR6M2TM6D..01KZ7DVAJ5805DHKTC2F9QVV9E
+- id: e-027
+  kind: file
+  path: kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

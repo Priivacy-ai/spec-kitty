@@ -1,0 +1,1 @@
+Adversarial defect review of core PR #3293 (b75a2522) and SaaS PR #795 (a725c489): 4 major, 3 minor, 3 observations; key items: bare fcntl import breaks Windows sync import graph; core PR head has no CI runs and parent failed CI Quality; SaaS WS admission bypasses the FR-022 strict rollout barrier; PROJECT_SYNC_ADMISSION_STRICT has no settings/env definition.

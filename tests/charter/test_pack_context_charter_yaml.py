@@ -1,6 +1,6 @@
 """Unit tests for the activation relocation onto ``charter.yaml`` (WP02, T010).
 
-Covers the read seam (``charter.pack_context.PackContext.from_config``)
+Covers the read seam (``charter.activation.pack_context.PackContext.from_config``)
 after the activation state moves from ``.kittify/config.yaml`` into
 ``charter.yaml``, reached via the config's ``charter:`` pointer
 (data-model.md INV-2/INV-4/INV-5/INV-8, contracts/active-doctrine-resolution.md).
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_context import CharterPackConfigError, PackContext
 
 
 pytestmark = [pytest.mark.fast]
@@ -242,15 +242,24 @@ def test_malformed_activation_value_in_charter_yaml_raises(tmp_path: Path) -> No
 # ---------------------------------------------------------------------------
 
 
-def test_no_config_yaml_at_all_still_returns_default_fallback(tmp_path: Path) -> None:
-    """No .kittify/config.yaml whatsoever -> default-pack fallback, exactly
-    as before the relocation (no pointer to resolve, nothing to fail on)."""
-    from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+def test_no_config_yaml_at_all_returns_empty_mission_types(tmp_path: Path) -> None:
+    """No .kittify/config.yaml whatsoever -> ``activated_mission_types`` is an
+    empty frozenset (construction is total; no raise).
 
+    Historically (pre-WP04) this scenario fell back to the built-in default
+    pack for ``activated_mission_types``; an intermediate WP04 iteration made
+    it a construction ``CharterPackConfigError``. The final WP04
+    re-architecture made construction TOTAL: an absent ``mission_type_
+    activations`` reads as ``frozenset()`` (never the all-four backfill,
+    never a raise), because ``PackContext`` sits on dozens of read / compose
+    hot paths that must not crash. The fail-closed for an empty set moved to
+    the mission-create boundary. The identical scenario is pinned by this
+    WP's own ``tests/charter/test_pack_context.py::
+    test_from_config_no_config_yaml_returns_empty_not_raise``.
+    """
     ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_mission_types == builtin_mission_type_id_set()
-    assert ctx.activated_directives is None
+    assert ctx.activated_mission_types == frozenset()
 
 
 def test_config_yaml_present_without_pointer_uses_legacy_read(tmp_path: Path) -> None:
@@ -260,6 +269,8 @@ def test_config_yaml_present_without_pointer_uses_legacy_read(tmp_path: Path) ->
     content = """\
 vcs:
   type: git
+mission_type_activations:
+  - software-dev
 activated_directives:
   - 099-legacy-only-directive
 """
@@ -300,7 +311,7 @@ def test_migrated_project_ignores_stale_activated_keys_left_in_config(
 
 
 def test_resolve_charter_yaml_pointer_absent_returns_none(tmp_path: Path) -> None:
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     assert resolve_charter_yaml_pointer(tmp_path, {}) is None
 
@@ -308,10 +319,52 @@ def test_resolve_charter_yaml_pointer_absent_returns_none(tmp_path: Path) -> Non
 def test_resolve_charter_yaml_pointer_resolves_relative_to_repo_root(
     tmp_path: Path,
 ) -> None:
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     resolved = resolve_charter_yaml_pointer(
         tmp_path, {"charter": ".kittify/charter/charter.yaml"}
     )
 
     assert resolved == tmp_path / ".kittify" / "charter" / "charter.yaml"
+
+
+def test_resolve_charter_yaml_pointer_mapping_value_is_not_a_pointer(
+    tmp_path: Path,
+) -> None:
+    """A mapping-valued ``charter:`` key (the pre-#2773 inline namespace
+    holding e.g. ``synthesis_inputs``) is NOT a charter.yaml pointer: it must
+    resolve to ``None`` (legacy inline read) rather than being stringified into
+    a bogus ``.../{'synthesis_inputs': ...}`` path that then "does not exist".
+    Mirrors ``load_url_list_from_config``'s tolerance for the same shape."""
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
+
+    inline = {"charter": {"synthesis_inputs": {"url_list": ["https://example.com/g"]}}}
+
+    assert resolve_charter_yaml_pointer(tmp_path, inline) is None
+
+
+def test_from_config_with_inline_charter_mapping_uses_legacy_read(
+    tmp_path: Path,
+) -> None:
+    """``charter:`` present as an inline mapping (not a string pointer) must be
+    treated as the legacy/un-migrated state: activation is read from the
+    top-level config.yaml keys, and no CHARTER_PACK_CONFIG_INVALID is raised
+    for the mapping value (regression guard for #2850)."""
+    content = """\
+vcs:
+  type: git
+mission_type_activations:
+  - software-dev
+charter:
+  synthesis_inputs:
+    url_list:
+      - https://example.com/governance
+activated_directives:
+  - 099-legacy-only-directive
+"""
+    _write_config(tmp_path, content)
+    # No charter.yaml file — the mapping value must NOT be read as a pointer.
+
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_directives == frozenset({"099-legacy-only-directive"})

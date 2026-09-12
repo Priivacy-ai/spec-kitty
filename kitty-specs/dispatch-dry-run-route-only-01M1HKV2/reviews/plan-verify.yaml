@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: New "The mechanism, stated explicitly" section (plan.md lines 152-204) states dry_run() never catches RouterAmbiguityError internally and gives a concrete code block where _dispatch_impl's dry-run branch uses its own separate try/except whose except RouterAmbiguityError clause does an explicit `if e.error_code == "ROUTER_AMBIGUOUS":` branch (exit 0, dry_run payload) vs else (exit 1 via shared _emit_routing_error_and_exit helper) — the previous self-contradictory "same exception type gets both special handling and unchanged reuse" framing is explicitly called out and replaced, verified consistent with errors.py's RouterAmbiguityError.error_code attribute.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: WP1's ATDD list now has a 6th test, test_dry_run_does_not_submit_to_saas_propagator (plan.md lines 372-377), concretely specified as a mock/spy InvocationSaaSPropagator patched at dispatch.py's _build_executor call site asserting submit is never called across N dry-run invocations, which would catch the exact propagator-leak regression the finding described.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: The plan now colocates build_ambiguous_dry_run_payload in executor.py beside InvocationPayload.to_dry_run_dict() (Seam table line 101 and "Two JSON shapes" mechanism section lines 197-204), the remediation's option (a), giving the "not a competing shape" claim a physical/structural backstop instead of a prose-only assertion.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: A new "Accepted mid-mission routing-consistency risk" paragraph (plan.md lines 439-448) restates spec.md Clarifications #5 verbatim in the WP3 section, exactly where the risk becomes operationally relevant, so a reader of plan.md alone now learns of the accepted risk without cross-checking spec.md.
+  - id: PLAN-ARCH-003
+    status: resolved
+    reason: New "Downstream/external consumer impact (WP3)" subsection (plan.md lines 533-548) names team-kitty-missions/muster-missions/any consumer repo, explains the behavior change on the auto-route path, and mandates a WP3 CHANGELOG.md entry — matching the remediation's requested acknowledgment.
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: The Summary and tracer-approach.md now cite "executor.py:284-430 — 147 total lines, 103 non-blank/non-comment lines" instead of "57-line method"; measured directly against the checkout invoke() spans lines 284-431 (148 total, off by one from the plan's figure) with exactly 103 non-blank/non-comment lines, so the material correction (2.5-2.8x understatement) is fixed and the residual 1-line discrepancy is immaterial.
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: Silent-success framing's "alternatives empty list vs. None" bullet gained clause (d) (plan.md lines 510-513) stating explicitly that OpStartedEvent/record.py and the persisted kitty-ops/*.jsonl schema are untouched and alternatives is not part of the persisted Op-record schema, closing the documentation gap without requiring inference.
+  - id: PLAN-GOV-003
+    status: resolved
+    reason: Seam table's empty_charter.py citation now reads "L123" (plan.md line 104), matching the "4 call sites" section's L123 and confirmed correct against the actual RouterDecision construction at empty_charter.py:123.

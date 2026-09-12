@@ -19,6 +19,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",
@@ -46,6 +47,16 @@ def test_create_manifest_with_defaults() -> None:
     assert m.updated_at == ""
     assert m.spec_kitty_version == ""
     assert m.entries == []
+
+
+def test_managed_file_entry_normalizes_paths_to_posix() -> None:
+    entry = _make_entry(
+        source_file=r"references\architecture.md",
+        installed_path=r".claude\skills\test-skill\SKILL.md",
+    )
+
+    assert entry.source_file == "references/architecture.md"
+    assert entry.installed_path == ".claude/skills/test-skill/SKILL.md"
 
 
 def test_add_entry() -> None:
@@ -187,3 +198,124 @@ def test_compute_content_hash_deterministic(tmp_path: Path) -> None:
     f2.write_text(content, encoding="utf-8")
 
     assert compute_content_hash(f1) == compute_content_hash(f2)
+
+
+def test_wp05_save_consumes_prepared_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import manifest as owner
+
+    prepared = "2026-09-06T10:00:00+00:00"
+    manifest = ManagedSkillManifest(created_at=prepared, updated_at=prepared)
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-07T10:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    loaded = load_manifest(tmp_path)
+    assert loaded is not None
+    assert loaded.updated_at == prepared
+    assert loaded.created_at == prepared
+
+
+def test_wp05_save_current_manifest_preserves_bytes_and_mtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.skills import manifest as owner
+
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-06T10:00:00+00:00")
+    manifest = ManagedSkillManifest(created_at="2025-01-01T00:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    target = tmp_path / ".kittify" / MANIFEST_FILENAME
+    before = target.read_bytes(), target.stat().st_mtime_ns
+    monkeypatch.setattr(owner, "now_utc_iso", lambda: "2026-09-07T10:00:00+00:00")
+    save_manifest(manifest, tmp_path)
+    assert (target.read_bytes(), target.stat().st_mtime_ns) == before
+
+
+def test_prepared_manifest_is_immutable_and_apply_never_resamples(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from dataclasses import FrozenInstanceError
+    from specify_cli.skills import manifest as owner
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    value = ManagedSkillManifest(entries=[_make_entry()])
+    before = snapshot({"project": tmp_path})
+    prepared = owner.prepare_manifest(value, tmp_path, operation_time="2026-09-06T10:00:00+00:00")
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    value.entries.clear()
+    with pytest.raises(FrozenInstanceError):
+        setattr(prepared, "content", b"changed")  # noqa: B010 -- exercise runtime immutability without a static type error
+
+    def unexpected_clock() -> str:
+        pytest.fail("Prepared save resampled the clock")
+
+    monkeypatch.setattr(owner, "now_utc_iso", unexpected_clock)
+    owner.save_manifest(prepared, tmp_path)
+    assert prepared.target.read_bytes() == prepared.content
+    assert prepared.target.stat().st_mode & 0o777 == prepared.mode
+    loaded = owner.load_manifest(tmp_path, strict=True)
+    assert loaded is not None and len(loaded.entries) == 1  # golden-count: cardinality-is-contract
+    assert loaded.created_at == loaded.updated_at == "2026-09-06T10:00:00+00:00"
+
+
+@pytest.mark.parametrize("change", ["content", "mode", "mtime", "parent"])
+def test_prepared_manifest_refuses_changed_input(tmp_path: Path, change: str) -> None:
+    import os
+    from specify_cli.skills import manifest as owner
+    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    value = ManagedSkillManifest(entries=[_make_entry()])
+    save_manifest(value, project)
+    value.spec_kitty_version = "changed"
+    prepared = owner.prepare_manifest(value, project)
+    target = prepared.target
+    if change == "content":
+        target.write_bytes(target.read_bytes() + b" ")
+    elif change == "mode":
+        target.chmod(0o444)
+    elif change == "mtime":
+        os.utime(target, ns=(target.stat().st_atime_ns, target.stat().st_mtime_ns + 1_000_000_000))
+    else:
+        outside = tmp_path / "outside"
+        (project / ".kittify").rename(outside)
+        (project / ".kittify").symlink_to(outside, target_is_directory=True)
+    before = snapshot({"sandbox": tmp_path})
+    with pytest.raises(ValueError, match="input changed"):
+        save_manifest(prepared, project)
+    assert_unchanged(before, snapshot({"sandbox": tmp_path}))
+
+
+def test_manifest_noop_preserves_original_serialization_and_identity_times(tmp_path: Path) -> None:
+    import json
+    from specify_cli.skills import manifest as owner
+
+    from dataclasses import replace
+    value = ManagedSkillManifest(created_at="historical", updated_at="first", entries=[
+        _make_entry(), replace(_make_entry(), agent_key="another-owner"),
+    ])
+    save_manifest(value, tmp_path)
+    target = tmp_path / ".kittify" / MANIFEST_FILENAME
+    target.write_text(json.dumps(json.loads(target.read_bytes()), separators=(",", ":")))
+    before = target.read_bytes(), target.stat().st_mtime_ns
+    value.created_at = "must not replace historical identity"
+    value.updated_at = "second"
+    value.entries[0].installed_at = "must not replace historical installation"
+    value.entries.reverse()
+    prepared = owner.prepare_manifest(value, tmp_path)
+    assert not prepared.changed
+    save_manifest(prepared, tmp_path)
+    assert (target.read_bytes(), target.stat().st_mtime_ns) == before
+    loaded = load_manifest(tmp_path, strict=True)
+    assert loaded is not None and loaded.created_at == "historical"
+    assert loaded.entries[0].installed_at == "2026-01-01T00:00:00+00:00"
+
+
+@pytest.mark.parametrize("raw", ["{", "[]", "null", '{"entries": {}}', '{"version": true}', '{"created_at": []}', '{"unknown": "preserve"}'])
+def test_strict_manifest_distinguishes_corruption_from_absence(tmp_path: Path, raw: str) -> None:
+    from specify_cli.skills import manifest as owner
+
+    assert load_manifest(tmp_path, strict=True) is None
+    target = tmp_path / ".kittify" / MANIFEST_FILENAME
+    target.parent.mkdir()
+    target.write_text(raw)
+    assert load_manifest(tmp_path) is None
+    with pytest.raises(ValueError):
+        load_manifest(tmp_path, strict=True)
+    with pytest.raises(ValueError):
+        owner.prepare_manifest(ManagedSkillManifest(), tmp_path)
+    assert target.read_text() == raw

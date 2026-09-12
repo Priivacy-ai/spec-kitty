@@ -1,0 +1,139 @@
+{
+  "mission_slug": "worktree-owned-root-3328-01KZRG01",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py on approved lane-b/e; independent Prime WP02 APPROVE; mission-create --owned-checkout real CLI covered by WP05 immutable suite.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:21:36.067426+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_context_validation_unit.py on approved lane-c/e; independent Prime WP03 APPROVE; next --owned-checkout real CLI covered by WP05 immutable suite.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:21:41.840355+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_checkout_ownership.py; approved WP01 commit 549bb2af8; independent real-git primary+linked/subdirectory probes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:21:47.497801+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py and tests/agent/test_context_validation_unit.py legacy no-flag parity; Prime WP02/WP03 approvals.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:21:53.114066+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_checkout_ownership.py nested topology refusals; Prime WP01 adversarial approval.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:21:58.757930+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_checkout_ownership.py foreign/common-dir mismatch refusals; Prime WP01 adversarial approval.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:04.846024+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/e2e/test_worktree_owned_root_concurrency.py immutable installed-wheel runtime-state isolation; final 25P and 20 authoritative repetitions.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:10.540072+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/e2e/test_worktree_owned_root_concurrency.py mission content/ref isolation across primary/A/B; immutable 25P and Prime WP05 approval.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:16.167769+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_feature.py plus mission-create safe_commit root assertions; Prime WP02 approval.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:22.088791+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_production_worktree_guard_bypass.py; WP04/Prime approval; no production allow_worktree_context=True.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:27.766032+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_checkout_ownership.py plus mission-create/next JSON envelope tests; Prime WP04 approval across nested/foreign/broken/no-opt-in codes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:33.414741+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/e2e/test_worktree_owned_root_concurrency.py; immutable wheel SHA256 94965f9c016e8e86544d1e68eb7d4ee6c63263bdffcf1f6dd56d966408497f37; 25P incl 20 forced-overlap iterations; Prime WP05 APPROVE.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:39.460382+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_checkout_ownership.py and tests/e2e/test_worktree_owned_root_concurrency.py adversarial quartet; independent Prime WP01/WP05 approvals.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-12T02:22:45.148372+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

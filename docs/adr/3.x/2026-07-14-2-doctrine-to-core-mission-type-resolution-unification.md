@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Doctrine → Charter → Core Mission-Type Resolution Unification (governance first)'
+description: '`resolve_mission_type_context` becomes the one charter-mediated mission-type resolver; an unknown type hard-errors instead of defaulting or being inferred from `template_set`.'
 status: Accepted
 date: '2026-07-14'
 ---

@@ -1,0 +1,76 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh3
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: TASKS-FRESH3-001
+    lens: debugger-debbie / dual-system-divergence-mapping (does the WP's own Risks section's coverage claim match what the tests actually exercise)
+    severity: 3
+    title: "WP02's Risks section still claims risk (1) (basename-vs-full-token collision) is 'guarded by a mechanism' alongside risk (2), but round 3's TASKS-FRESH-003 fix replaced the only fixture that ever exercised the basename-vs-full-token distinction (the prior round's `docs/contracts` vs `api/contracts` construction) with (d-i)/(d-ii)'s single-segment tokens (`contracts`, `build-secrets`), which share no basename collision at all — leaving risk (1) asserted-but-untested where risk (2) is not"
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Risks — 'Two distinct collision risks, each guarded by a different mechanism (TASKS-FRESH-003): (1) comparing only last-path-segments ... would incorrectly match a hypothetical future `docs/contracts` optional artifact against an unrelated `api/contracts` declared path — full-token (not basename) comparison forecloses this ... (2) a placeholder entry's normalized token spuriously matching an unrelated `artifact_tokens` member ... T009's Test (d), case (d-ii), directly exercises this rather than leaving it correct-by-inspection.'"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009 step 4, (d-i)/(d-ii) — both sub-cases use only single-segment tokens (`\"contracts\"`, `\"build-secrets\"`); neither constructs two distinct full-token paths sharing a final path segment (e.g. `docs/contracts` vs `api/contracts`), and step 4's own text confirms this is a deliberate replacement: 'Together, (d-i) and (d-ii) replace the prior round's single mismatched-string fixture (`docs/contracts` vs `api/contracts`), which — per TASKS-FRESH-003 — could not actually falsify the membership filter's presence under either implementation ... it exercises full-token-vs-basename comparison instead (a real but different guard).'"
+      - code: "src/specify_cli/validators/paths.py:128-130 — `_normalize_path_token(token)` is `str(token).strip().strip(\"/\")`: it strips only leading/trailing slashes, never reduces a multi-segment path to its final component. WP02's pinned dedup snippet (T006) is `{_normalize_path_token(t) for t in path_result.missing_paths_feature_relative if _normalize_path_token(t) in artifact_tokens}` — full-token, not basename, by construction of the pinned code — but nothing in WP01-WP04 asserts this in a test; the property is currently guaranteed only by the implementer copying T006's exact snippet, not verified by any red-first check."
+    claim: >
+      TASKS-FRESH-003's round-3 fix correctly solved the filter-presence-regression gap (TASKS-VERIFY-004)
+      by replacing the old `docs/contracts`/`api/contracts` fixture with (d-i)/(d-ii)'s two-entry,
+      single-call construction. But that old fixture was doing double duty: per this WP file's own
+      admission ("it exercises full-token-vs-basename comparison instead — a real but different guard"),
+      it was also the only test in the whole mission that would catch a future maintainer accidentally
+      normalizing on `Path(t).name` (or any other basename-reduction) instead of the full
+      `feature_dir`-relative token — the exact regression the Context section's "Rather than comparing
+      basenames/last-path-components (which cannot distinguish two future dual-declared tokens sharing a
+      final segment...)" language warns against. Neither (d-i) nor (d-ii) uses a multi-segment token, so
+      neither can detect a basename-collision regression: e.g. an implementation that (wrongly) used
+      `Path(t).name` instead of `_normalize_path_token(t)` would produce byte-identical results to the
+      correct implementation on both (d-i)'s and (d-ii)'s inputs (all tokens are already single-segment,
+      so `.name` and the full string are equal), so this specific bug class would pass Test (d) either way.
+      The Risks section's "each guarded by a different mechanism" phrasing reads as though both risks have
+      equivalent coverage; only risk (2) actually does. This is the same "does the test really falsify what
+      it claims to falsify" scrutiny this mission's own review history (TASKS-VERIFY-004 → TASKS-FRESH-003)
+      has already applied twice to this exact Test (d) — round 3's fix earns that scrutiny again on the
+      side effect it introduced.
+    remediation: >
+      Either (a) add a minimal fifth case to T009's Test (d) using two distinct multi-segment tokens that
+      share a final path segment but differ earlier (e.g. `mission.config.artifacts.optional =
+      ["docs/contracts"]` so `artifact_tokens = {"docs/contracts"}`, and
+      `path_result.missing_paths_feature_relative = ["docs/contracts", "api/contracts"]`, asserting
+      `optional_missing_to_dedup=["docs/contracts", "api/contracts"]` reduces to exactly `["api/contracts"]`
+      — i.e. only the true full-token match is removed, not the basename-sharing but full-token-distinct
+      one) — this recovers the coverage the replaced fixture used to provide, alongside (not instead of)
+      (d-i)/(d-ii)'s filter-presence guard; or (b) if this is judged not worth a dedicated test given T006's
+      code is pinned verbatim, reword the Risks section to match WP01's own honest treatment of its
+      undertested `ValueError`-fallback case ("not required, but flag if skipped") instead of stating risk
+      (1) is "guarded" on equal footing with risk (2), which currently overstates this WP's actual test
+      coverage to a reviewer relying on the Risks section rather than re-deriving it from T009's code.
+
+  - id: TASKS-FRESH3-002
+    lens: debugger-debbie / trace-based-observability (does every declared requirement have a traceable owner in wps.yaml)
+    severity: 2
+    title: "NFR-002 ('pinned regression tests stay green, unmodified') never appears in any WP's `requirement_refs` in `wps.yaml` or any WP frontmatter, even though every one of WP01-WP04's own Definition of Done sections cites '(NFR-002)' as the rationale for re-running the three SC-005 pinned tests"
+    evidence:
+      - artifact: "kitty-specs/accept-path-remediation-honesty-01M0TWZP/wps.yaml — requirement_refs across all four WPs are exactly [FR-001], [FR-002, FR-003], [FR-004, FR-005, FR-006, FR-008, NFR-003], [FR-007, NFR-001]; NFR-002 does not appear in any of the four lists, and no fifth WP or split exists to own it"
+      - artifact: "tasks/WP01-resolved-path-correctness.md § Definition of Done — 'The three SC-005 pinned tests ... remain green, **unmodified** (NFR-002) — run them explicitly as part of this WP's own validation'"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Definition of Done — 'The three SC-005 pinned tests ... remain green, **unmodified** (NFR-002).'"
+      - artifact: "tasks/WP03-honest-remediation-text.md § Definition of Done — 'The three SC-005 pinned tests remain green, **unmodified**, including specifically `test_lenient_path_convention_warning_is_rendered_in_console` as the explicit #2330 guard (NFR-002).'"
+      - artifact: "spec.md line 275 — 'NFR-002 | Pinned regression tests stay green, unmodified | ... | Testing | High | Open' — a formally tracked, High-priority NFR."
+    claim: >
+      NFR-002 is a real, High-priority, formally-numbered requirement in spec.md's Requirements table, and
+      every WP's own Definition of Done explicitly cites it by ID as the reason the SC-005 pinned tests are
+      re-run at that WP's close — so it clearly IS being delivered/verified, contradicting the fact that no
+      WP's `requirement_refs` frontmatter field (the mission's own traceability mechanism, cross-checked
+      earlier and found otherwise fully consistent between `wps.yaml` and each WP file) ever lists it. This
+      is a pure traceability/completeness gap in the machine-readable requirement-to-WP mapping, not a
+      behavioral gap — the prose-level DoD citations mean an implementer or reviewer reading the WP text
+      will not miss NFR-002 in practice. But any tooling or reviewer that trusts `requirement_refs` as the
+      authoritative FR/NFR-to-WP index (as this review itself was asked to do when cross-checking
+      `wps.yaml` against WP frontmatter) would conclude NFR-002 has no owning WP at all.
+    remediation: >
+      Add "NFR-002" to `requirement_refs` in `wps.yaml` and each WP's frontmatter for WP01, WP02, and WP03
+      (the three WPs whose Definition of Done actually re-runs the pinned tests as a gate) — or, if
+      `requirement_refs` is deliberately scoped to "requirements this WP's subtasks implement" rather than
+      "requirements this WP verifies," state that scoping convention once (e.g. in wps.yaml's own header
+      comment or plan.md's WP-shape section) so the asymmetry with NFR-001/NFR-003 (which ARE listed
+      despite being similarly cross-cutting/verification-flavored requirements) reads as a deliberate
+      convention rather than an oversight.

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import UTC, datetime, timedelta
 from specify_cli.status.lifecycle import (
     derive_mission_lifecycle,
     generate_lifecycle_json,

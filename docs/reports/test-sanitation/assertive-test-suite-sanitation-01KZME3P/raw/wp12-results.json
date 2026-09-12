@@ -1,0 +1,148 @@
+{
+  "schema_version": "test-sanitation/v1",
+  "work_package": "WP12",
+  "planning_base": "28ae75ea998c898aba57364db7a06d2088bd2af2",
+  "profile": "implementer-ivan with randy-reducer semantic compression",
+  "tracker": {
+    "issue": "#1931",
+    "verdict": "in-mission",
+    "state_verified": true
+  },
+  "inventory": {
+    "owned_files": 17,
+    "base_source_units": 519,
+    "head_source_units": 450,
+    "deleted_source_units": 79,
+    "replacement_source_units": 10,
+    "net_source_unit_delta": -69,
+    "base_collected_nodes": 541,
+    "head_collected_nodes": 472,
+    "net_collected_node_delta": -69,
+    "percent_node_reduction": 12.75,
+    "line_delta": {
+      "insertions": 147,
+      "deletions": 583,
+      "net": -436
+    }
+  },
+  "timings": {
+    "base": {
+      "result": "541 passed",
+      "pytest_seconds": 117.01,
+      "wall_seconds": 133.60
+    },
+    "head": {
+      "result": "472 passed",
+      "pytest_seconds": 45.35,
+      "wall_seconds": 48.56
+    },
+    "observed_wall_reduction_percent": 63.65
+  },
+  "fingerprints": {
+    "exact_body": {
+      "canonical_groups_touching_wp12": 14,
+      "owned_members": 31,
+      "terminal_groups": 14,
+      "manifest_source": "base-census.json manifests.exact_body_groups"
+    },
+    "structural_shape": {
+      "index_sha256": "f3a52f3009fb3c9c901e8176428401cfba1f7f4e83a4ef15b1baaa9cbde678b9",
+      "collision_groups_touching_wp12": 39,
+      "owned_members": 107,
+      "fully_owned_groups": 28,
+      "cross_owner_groups": 11,
+      "groups_with_deleted_member": 20,
+      "decision": "shape collisions were treated only as candidates; route, input, oracle, platform, and migration-version divergence overrode syntax similarity"
+    }
+  },
+  "exact_group_reconciliation": [
+    {"fingerprint": "5a28b0c8c88ae8418a31098284e84061d7fa319c94a538fb08063d2204cfa146", "owned": 1, "verdict": "CONSOLIDATE", "decision": "cross-owner exact survivor"},
+    {"fingerprint": "293a72517c20bd85078be15d833f9b6ad6a3011a469c9259ca5f8b1d5034232f", "owned": 1, "verdict": "KEEP", "decision": "status JSONL and mission-v1 logs are distinct persistence authorities"},
+    {"fingerprint": "beaf251028ddf42161524abf65c01d33eb64d41a8a8b909bfdcbb223ecc57519", "owned": 2, "verdict": "CONSOLIDATE", "decision": "same no-worktree input and empty oracle"},
+    {"fingerprint": "c284b09c56ef700a86498d84b48e138f03d418b9825500ccecf5a81c92258523", "owned": 2, "verdict": "CONSOLIDATE", "decision": "same empty input and unknown oracle"},
+    {"fingerprint": "0bbf839bd93a72f598c8bfeac544bae532fa8483cb2c480d2d7bbf2550f7dc73", "owned": 2, "verdict": "KEEP", "decision": "disabled gate and enabled internal-error route diverge"},
+    {"fingerprint": "48b77785447988538258a97bee1d55c586745c04406cc565b8ff7a9a4d31734e", "owned": 2, "verdict": "CONSOLIDATE", "decision": "same emitter, queue, input, and size oracle"},
+    {"fingerprint": "b59fe471d5f6d6404af4473ceea860a5384882d127a21dce9c1cb9051303c9db", "owned": 2, "verdict": "CONSOLIDATE", "decision": "preserved missing-git and timeout identities in one result matrix"},
+    {"fingerprint": "b16293833bb451d54d855b301460afad06f0a5adc04f40eb0cb3f59732475686", "owned": 2, "verdict": "KEEP", "decision": "local workspace and SaaS project-slug requirements diverge"},
+    {"fingerprint": "7e98c5c069e2f459e775dd86f3a9207b3be235cfd5518abbe3d4019299fbfa65", "owned": 2, "verdict": "CONSOLIDATE", "decision": "same service/backend/input/oracle"},
+    {"fingerprint": "1ba12215c397534b4e2150ba6d72f062de3ee39d445dc8a4e1f11797971655e2", "owned": 7, "verdict": "SPLIT", "decision": "six supported migration/version boundaries retained; cleanup empty-project copy dominated by stronger same-version legacy-state input"},
+    {"fingerprint": "26500eef9418d7c6cca7bcfdc694e23fade0e9bb7b4af8b60851124c3959ae0e", "owned": 2, "verdict": "DELETE", "decision": "superseded stubs are permanently detect-false, so dry-run apply is runner-unreachable"},
+    {"fingerprint": "9d2b160bc7a0d16a53486c058a53db8b4b1098eb7ea45a3878e33395de8f6b36", "owned": 2, "verdict": "DELETE", "decision": "superseded stubs are permanently detect-false, so apply is runner-unreachable"},
+    {"fingerprint": "3512e39c1801bf347c57358417f26d9e3d66ac6648a8c5c814937136420e5471", "owned": 2, "verdict": "DELETE", "decision": "runner exits on detect-false before can_apply"},
+    {"fingerprint": "14ad8ee706055c76e056f6b4389d5379e056d7a7c8e4cfb9603f287ede1fb0ec", "owned": 2, "verdict": "CONSOLIDATE", "decision": "same missing mission-directory input and detect-true oracle"}
+  ],
+  "preserved_boundaries": [
+    "status JSONL atomicity, corruption, and readback persistence",
+    "sync consent, identity, body queue, local durability, and error propagation",
+    "all valid/invalid event payload values",
+    "SSH, HTTPS, GitLab subgroup, Bitbucket, self-hosted, deep-path, trailing-slash, and local-remote rejection inputs",
+    "FileNotFoundError, TimeoutExpired, PermissionError, generic OSError, nonzero git, and remote-only timeout",
+    "SaaS versus local tracker providers",
+    "every supported migration class, migration_id, target_version, and active input matrix",
+    "teardown and process-global reset coverage in untouched sync tests"
+  ],
+  "causal_receipts": {
+    "changed_survivors": {
+      "canonical_sha256": "1d8a8bcb4caeb7f5da34212c186cbdd49784adf698dd803615da7e9c4247c77e",
+      "receipt": {
+        "baseline_junit_sha256": "805815d88aed0938c25beea51da3d4d3e24936204af8335da6fefab2c1f3e937",
+        "baseline_result": "18 passed",
+        "fault_junit_sha256": "5867e6bee7f318b7dd25673a547d22d40d82b203abd6cf5481ab123fa754365f",
+        "fault_result": "18 failed",
+        "fault_rules": "18 node-specific replacements enumerated in wp12-results.json",
+        "plugin_revision_sha256": "f667a42dd181e68f4b1065a88dc5337f7b04c5132df8e1ceba6ea512ae4633ca"
+      }
+    },
+    "kept_boundaries": {
+      "canonical_sha256": "3316178359c6af7415436e00b7ceb4d14487668e48eedf107ee9ec5aefe0651b",
+      "receipt": {
+        "baseline_junit_sha256": "66e8782a5251605c6211e1b8ef64a88944741a6e9564c9a0eaa0c34695a9ee32",
+        "baseline_result": "15 passed",
+        "fault_junit_sha256": "343a0c4058824accf5e654bbe990c7d94dd75ac7106cb3f1b3072eedc29ce164",
+        "fault_result": "17 failed",
+        "fault_rules": "13 source selectors / 17 expanded nodes enumerated in wp12-results.json",
+        "plugin_revision_sha256": "891865ecd7e5fb0184753406a35749df04057c4b341917ea91d982c445f552e8"
+      }
+    }
+  },
+  "fault_rules": [
+    {"selector": "browser auth command survivor", "fault": "inject forbidden oauth-login command", "result": "failed after Act"},
+    {"selector": "browser auth help survivor", "fault": "inject username/password help", "result": "failed after Act"},
+    {"selector": "legacy auth module survivor", "fault": "publish temporary importable module in sys.modules", "result": "failed after Act"},
+    {"selector": "status and mission-v1 missing-event readers", "fault": "return one phantom event", "result": "both failed after Act"},
+    {"selector": "stale and orphan result-matrix survivors", "fault": "return one phantom finding", "result": "both failed after Act"},
+    {"selector": "category result-matrix survivor", "fault": "map every keyword to unknown", "result": "failed after Act"},
+    {"selector": "disabled and internal-error dossier routes", "fault": "return a non-None sentinel", "result": "both failed after Act"},
+    {"selector": "offline-queue survivor", "fault": "report queue size zero", "result": "failed after Act"},
+    {"selector": "tracker status survivor", "fault": "bypass backend delegation", "result": "failed after Act"},
+    {"selector": "local/SaaS tracker configuration boundaries", "fault": "force is_configured true", "result": "six expanded nodes failed after Act"},
+    {"selector": "six retained migration/version boundaries", "fault": "invert detect-false to true", "result": "six nodes failed after Act"},
+    {"selector": "documentation missing-mission survivor", "fault": "force detect false", "result": "failed after Act"},
+    {"selector": "event identity survivor", "fault": "corrupt node_id", "result": "failed after Act"},
+    {"selector": "event git metadata survivor", "fault": "corrupt repo_slug", "result": "failed after Act"},
+    {"selector": "invalid payload result matrix", "fault": "accept invalid status and wp_id", "result": "failed after Act"},
+    {"selector": "remote parser result matrix", "fault": "return fault/repo for all remotes", "result": "failed after Act"},
+    {"selector": "remote subprocess scheme result matrix", "fault": "return fault/repo", "result": "failed after Act"},
+    {"selector": "slug validation result matrix", "fault": "accept every invalid slug", "result": "failed after Act"},
+    {"selector": "platform failure result matrix", "fault": "return populated metadata and suppress diagnostics", "result": "failed after Act"}
+  ],
+  "commands": {
+    "focused_base": ".venv/bin/pytest -q <17 WP12-owned files>",
+    "focused_head": ".venv/bin/pytest -q <17 WP12-owned files>",
+    "changed_survivor_baseline": ".venv/bin/pytest -q --junitxml=/tmp/wp12-baseline.xml <18 selected survivor nodes>",
+    "changed_survivor_fault": "PYTHONPATH=/tmp .venv/bin/pytest -q -p wp12_fault_plugin --junitxml=/tmp/wp12-fault.xml <18 selected survivor nodes>",
+    "kept_boundary_baseline": ".venv/bin/pytest -q --junitxml=/tmp/wp12-keeps-baseline.xml <13 selected source selectors>",
+    "kept_boundary_fault": "PYTHONPATH=/tmp .venv/bin/pytest -q -p wp12_fault_plugin --junitxml=/tmp/wp12-keeps-fault.xml <13 selected source selectors>",
+    "lint": ".venv/bin/ruff check <11 changed test files>",
+    "diff_check": "git diff --check"
+  },
+  "gates": {
+    "focused": "472 passed in 45.35s",
+    "changed_survivor_baseline": "18 passed in 42.10s",
+    "changed_survivor_fault": "18 failed in 42.93s",
+    "kept_boundary_baseline": "15 passed in 43.37s",
+    "kept_boundary_fault": "17 failed in 42.45s",
+    "ruff": "all checks passed",
+    "diff_check": "passed"
+  }
+}

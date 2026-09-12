@@ -38,10 +38,10 @@ from charter.drg import (
     DRGNode,
     NodeKind,
     Relation,
-    filter_graph_by_activation,
 )
-from charter.pack_context import PackContext
-from doctrine.drg.org_pack_loader import OrgDRGFragment
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 # ---------------------------------------------------------------------------
 # About mission-step URNs in the DRG
@@ -209,7 +209,7 @@ def test_doctrine_api_bypass_returns_non_activated_mission() -> None:
     assets even when the corresponding mission type is not activated in the
     project charter. T069 documents this invariant: the activation filter
     is a charter-mediated-resolution gate, not a hard removal."""
-    from doctrine.missions import MissionTemplateRepository
+    from charter.offering.missions import MissionTemplateRepository
 
     repo = MissionTemplateRepository.default()
 

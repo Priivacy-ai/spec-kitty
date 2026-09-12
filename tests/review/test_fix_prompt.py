@@ -28,7 +28,6 @@ def _make_artifact(**kwargs: object) -> ReviewCycleArtifact:
         "wp_id": "WP01",
         "mission_slug": "066-review-loop-stabilization",
         "reviewer_agent": "claude",
-        "verdict": "rejected",
         "reviewed_at": "2026-04-06T12:00:00Z",
         "affected_files": [
             AffectedFile(

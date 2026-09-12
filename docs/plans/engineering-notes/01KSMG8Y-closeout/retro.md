@@ -27,7 +27,7 @@ updated: '2026-05-30'
 
 ---
 
-## Results by Work Package
+## Results by work package
 
 | WP | Title | Review cycles | Outcome |
 |----|-------|:---:|--------|

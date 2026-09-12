@@ -1,0 +1,12 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    remaining_severity: 1
+    reason: T006 now mandates folding the missing-file check into the single T003 `path.open("rb")` call via try/except FileNotFoundError (explicitly forbidding Path.exists()/is_file()/is_dir()), T007's Steps/Risks/Reviewer Guidance/DoD were updated to reflect and cross-verify this, and the identical constraint was propagated verbatim into WP02's T013 and T014 — a logic walkthrough confirms poll_once() now genuinely has zero Path.stat() call sites (size check uses os.fstat(fh.fileno()) per T003, missing-file check reuses the same single open() call), so T007's unconditional-raise mock has no legitimate call left to spuriously catch.
+  - id: TASKS-FRESH-002
+    status: resolved
+    remaining_severity: 1
+    reason: plan.md's IC-01 and IC-02 "Also required" bullets were rewritten to the corrected asymmetric pattern (Path.stat raises unconditionally on any call, Path.open asserted called exactly once) with the same TOCTOU-ordering "why the old pattern is insufficient" reasoning now mirrored from the task files, and a targeted grep of plan.md for exists/FileNotFoundError/missing found no stale or contradictory T006-equivalent implementation-mechanism language, confirming the fixer's claim that plan.md never separately prescribed a missing-file mechanism holds up.

@@ -70,6 +70,28 @@ _Invocation = _InvocationProtocol
 SafetyPredicate = Callable[[_InvocationProtocol], Safety]
 
 # ---------------------------------------------------------------------------
+# Predicate: the recommended runtime-state diagnostic (FR-003 / #3338)
+# ---------------------------------------------------------------------------
+# The failed ``backfill-runtime-state`` migration aborts recommending
+# ``spec-kitty migrate backfill-runtime-state --mission <slug> --dry-run`` to
+# inspect the cause (upgrade/migrations/m_zz_runtime_state_backfill.py).  That
+# read-only ``--dry-run`` diagnostic must stay reachable on a wedged/LEGACY
+# project, while the mutating form (no ``--dry-run``) stays UNSAFE under schema
+# mismatch.  ``classify()`` already treats any predicate exception as UNSAFE, so
+# this predicate is fail-closed by construction.
+_DRY_RUN_FLAG = "--dry-run"
+
+
+def _dry_run_is_safe(invocation: _InvocationProtocol) -> Safety:
+    """SAFE iff ``--dry-run`` is present in ``raw_args``; UNSAFE otherwise.
+
+    Any failure to read ``raw_args`` propagates as an exception, which
+    ``classify()`` converts to UNSAFE — so the mutating migration path is never
+    opened under a malformed or unexpected invocation (fail-closed).
+    """
+    return Safety.SAFE if _DRY_RUN_FLAG in invocation.raw_args else Safety.UNSAFE
+
+# ---------------------------------------------------------------------------
 # Central registry
 # ---------------------------------------------------------------------------
 # Keys   — command_path tuple matching Invocation.command_path
@@ -84,6 +106,10 @@ SAFETY_REGISTRY: dict[tuple[str, ...], SafetyPredicate | None] = {
     # Remediation path — must always be reachable
     ("upgrade",): None,
     ("migrate",): None,
+    # The recommended runtime-state diagnostic must be reachable on a wedged
+    # project (FR-003 / #3338): SAFE only in its read-only ``--dry-run`` form;
+    # the mutating form stays UNSAFE via the fail-closed predicate below.
+    ("migrate", "backfill-runtime-state"): _dry_run_is_safe,
     # Creates project, no existing metadata to mismatch against
     ("init",): None,
     # Read-only introspection commands

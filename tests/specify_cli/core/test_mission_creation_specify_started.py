@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
@@ -34,8 +34,16 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 def _init_repo(repo: Path) -> None:
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set; software-dev is the only type resolved
+    # for real in this file (the documentation-typed test mocks
+    # resolve_mission_type_context directly).
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
@@ -90,7 +98,6 @@ def test_mission_create_appends_mission_created_and_specify_started(tmp_path: Pa
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -117,7 +124,6 @@ def test_mission_create_specify_started_payload_references_spec_md(tmp_path: Pat
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -141,7 +147,6 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         first = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -187,7 +192,7 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=invalid_context,
         ),
         pytest.raises(TemplateConfigurationError),

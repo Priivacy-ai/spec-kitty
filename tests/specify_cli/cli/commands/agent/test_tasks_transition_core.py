@@ -16,6 +16,12 @@ that no decision branch is extracted unguarded (NFR-002).
 FR-004 / NFR-001: the core REPRODUCES the current behaviour verbatim — including
 the skip-vs-refuse divergence that ``#2300`` defers. Nothing here encodes an
 intended behaviour change.
+
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001):
+``test_rejected_verdict_without_skip_proceeds`` pins an INTENTIONAL, one-off
+behaviour change to ``_guard_rejected_verdict`` — see that function's and the
+module's docstrings in ``tasks_transition_core.py``. Every other branch here
+still reproduces the pre-mission behaviour verbatim.
 """
 
 from __future__ import annotations
@@ -41,6 +47,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     decide_transition,
     override_persist_signal,
 )
+from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -235,8 +242,57 @@ def test_agent_mismatch_refuses_with_console_warning() -> None:
     assert isinstance(outcome, RefuseExit1)
     assert "Agent mismatch" in outcome.error
     assert "testbot" in outcome.error and "other-agent" in outcome.error
+    assert outcome.diagnostic is None
     # The rich ownership warning is carried as data for the shell to print.
     assert outcome.console_warning, "agent-ownership refusal must carry the console warning lines"
+
+
+def test_agent_mismatch_on_rejection_save_has_typed_non_durable_diagnostic() -> None:
+    outcome = decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane="planned",
+            feedback_provided=True,
+            auto_commit=True,
+            agent="reviewer-a",
+            current_agent="reviewer-b",
+            force=False,
+        )
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.diagnostic == {
+        "result": "error",
+        "code": "ownership_refusal",
+        "error": (
+            "Agent mismatch: WP01 is assigned to 'reviewer-b', not "
+            "'reviewer-a'. Use --force to override."
+        ),
+        "current_lane": "planned",
+        "requested_lane": "planned",
+        "assigned_agent": "reviewer-b",
+        "requesting_agent": "reviewer-a",
+        "verdict_durably_persisted": False,
+        "evidence_ref": None,
+        "destination_ref": None,
+    }
+    assert "event_id" not in outcome.diagnostic
+
+
+def test_agent_mismatch_on_local_only_rejection_preserves_legacy_diagnostic() -> None:
+    outcome = decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane="planned",
+            feedback_provided=True,
+            auto_commit=False,
+            agent="reviewer-a",
+            current_agent="reviewer-b",
+            force=False,
+        )
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.diagnostic is None
+    assert "Agent mismatch" in outcome.error
 
 
 def test_agent_mismatch_bypassed_by_force() -> None:
@@ -251,6 +307,43 @@ def test_agent_match_proceeds() -> None:
         _base_request(agent="testbot", current_agent="testbot")
     )
     assert isinstance(outcome, Emit)
+
+
+@pytest.mark.parametrize("generic_current_agent", sorted(GENERIC_IMPLEMENTATION_ACTORS))
+def test_agent_mismatch_generic_placeholder_proceeds_without_force(generic_current_agent: str) -> None:
+    """FIX-M2-03 regression pin.
+
+    ``spec-kitty implement WP01`` (the internal compat surface, invoked
+    without ``--actor`` -- a documented, supported call shape per its own
+    docstring) records the WP's assignee as the generic
+    ``implement-command`` placeholder, not a real agent identity. Before this
+    fix, `agent tasks move-task WP01 --to for_review --agent claude`
+    (the canonical next step of the golden path) then refused with
+    "Agent mismatch: WP01 is assigned to 'implement-command', not 'claude'"
+    for EVERY real ``--agent``, even though no real agent had ever claimed
+    the WP -- forcing every caller through ``--force`` for a conflict that
+    was never real. A generic-placeholder ``current_agent`` must not refuse
+    the move, matching the SAME allowance
+    ``work_package_lifecycle._actors_compatible(..., allow_generic_existing=
+    True)`` already grants the claim/in_progress start path for this exact
+    placeholder set.
+    """
+    outcome = decide_transition(
+        _base_request(agent="claude", current_agent=generic_current_agent, force=False)
+    )
+    assert isinstance(outcome, Emit)
+
+
+def test_agent_mismatch_real_owner_still_refuses_without_force() -> None:
+    """The generic-placeholder allowance above must not widen to real agent
+    identities: a genuine two-real-agent mismatch still refuses (unchanged
+    from ``test_agent_mismatch_refuses_with_console_warning``)."""
+    outcome = decide_transition(
+        _base_request(agent="claude", current_agent="codex", force=False)
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert "Agent mismatch" in outcome.error
+    assert "codex" in outcome.error and "claude" in outcome.error
 
 
 # ---------------------------------------------------------------------------
@@ -277,13 +370,27 @@ def test_unparseable_verdict_refuses() -> None:
     assert "no parseable review verdict" in outcome.error
 
 
-def test_rejected_verdict_without_skip_refuses() -> None:
+def test_rejected_verdict_without_skip_proceeds() -> None:
+    """FR-001 (review-verdict-write-integrity-01KZ1CGF): the ordinary approve
+    path — no ``--skip-review-artifact-check`` — no longer dead-ends here.
+
+    This is an INTENTIONAL behaviour change from this pure core's original
+    pure-parity extraction (see the module docstring's EXCEPTION note and
+    ``_guard_rejected_verdict``'s docstring): before the durable writer
+    existed, refusing was the only way to stop a rejected verdict from being
+    silently approved over. Now ``_mt_finalize_plan`` persists a genuine
+    ``verdict: approved`` review-cycle artifact once the transition proceeds
+    (T005's ``_persist_approved_review_cycle``), so this guard's job shrinks
+    to the unparseable-verdict and skip-without-note arms only.
+    """
     outcome = decide_transition(
         _approve_request(review_verdict="rejected", review_artifact_name="review-cycle-1.md")
     )
-    assert isinstance(outcome, RefuseExit1)
-    assert "rejected review artifact" in outcome.error
-    assert "--skip-review-artifact-check" in outcome.error
+    assert isinstance(outcome, Emit)
+    # This is the ordinary (non-override) approve path -- the arbiter-override
+    # persist must NOT fire; the durable artifact is written by
+    # ``_mt_finalize_plan``'s writer instead.
+    assert outcome.authorize_review_override is False
 
 
 def test_rejected_verdict_skip_without_note_refuses() -> None:
@@ -713,9 +820,13 @@ def test_non_force_backward_without_evidence_stays_forced() -> None:
     assert plan.emit_reason.startswith("backward rewind: approved -> in_progress")
 
 
-def test_in_progress_to_planned_reason_evidence_is_force_free() -> None:
-    """FR-015: ``in_progress -> planned`` is force-free with a ``reason`` (the
-    always-synthesised rewind reason satisfies the FSM's reason-only guard)."""
+def test_in_progress_to_planned_is_force_promoted_for_wire_contract() -> None:
+    """#3307: ``in_progress -> planned`` is a review-rejection family edge that the
+    shared ``spec-kitty-events`` wire contract declares ``force=True``-required
+    regardless of evidence. The CLI-local FSM would accept it force-free on a
+    ``reason``, but ``build_transition_plan`` now gates on BOTH validators, so it
+    emits ``force=True`` with the structured rewind reason (never a contract-invalid
+    ``force=False`` event the SaaS would silently drop)."""
     plan = build_transition_plan(
         old_lane="in_progress",
         target_lane="planned",
@@ -724,14 +835,15 @@ def test_in_progress_to_planned_reason_evidence_is_force_free() -> None:
         arb_review_ref=None,
         note_text=None,
     )
-    assert plan.emit_force is False
+    assert plan.emit_force is True
     assert plan.transition_targets == ["planned"]
     assert plan.emit_reason is not None
     assert plan.emit_reason.startswith("backward rewind: in_progress -> planned")
 
 
-def test_approved_to_planned_review_ref_evidence_is_force_free() -> None:
-    """FR-015: ``approved -> planned`` is force-free with ``review_ref`` evidence
+def test_approved_to_planned_is_force_promoted_and_carries_review_ref() -> None:
+    """#3307: ``approved -> planned`` is force-promoted to conform to the shared
+    wire contract, and still carries the ``review_ref`` rationale on the wire
     (threaded via ``review_feedback_pointer`` on the planned-rollback path)."""
     plan = build_transition_plan(
         old_lane="approved",
@@ -741,7 +853,7 @@ def test_approved_to_planned_review_ref_evidence_is_force_free() -> None:
         arb_review_ref=None,
         note_text=None,
     )
-    assert plan.emit_force is False
+    assert plan.emit_force is True
     assert plan.transition_targets == ["planned"]
     assert plan.emit_review_ref == "feedback://WP01/review-cycle-1.md"
 

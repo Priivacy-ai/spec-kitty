@@ -11,7 +11,7 @@ NFR-003 back-compat: existing profiles without the field must load unchanged.
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -102,15 +102,47 @@ class TestSchemaExposesModelEffort:
     """
 
     def test_schema_source_registers_fields_with_aliases(self):
-        from doctrine.agent_profiles.schema_models import AgentProfileSchema
+        from charter.offering.agent_profiles.schema_models import AgentProfileSchema
 
         assert "preferred_model" in AgentProfileSchema.model_fields
         assert AgentProfileSchema.model_fields["preferred_model"].alias == "model"
         assert "effort" in AgentProfileSchema.model_fields
 
     def test_generated_json_schema_exposes_model_and_effort(self):
-        from doctrine.agent_profiles.schema_models import AgentProfileSchema
+        from charter.offering.agent_profiles.schema_models import AgentProfileSchema
 
         props = AgentProfileSchema.model_json_schema(by_alias=True)["properties"]
         assert "model" in props, "profiles declaring model: would fail schema validation"
         assert "effort" in props
+
+
+class TestDeprecatedScalarRoleStandaloneValid:
+    """Fixture-proof for WP03/FR-002's AC-1 premise (model layer only, no new
+    runtime code here — C-004's own annotation for this file).
+
+    A profile using the deprecated scalar ``role:`` field (instead of the
+    canonical ``roles:`` list) validates successfully *standalone* via
+    ``AgentProfile.model_validate`` — ``_coerce_scalar_role``
+    (``profile.py``) coerces it into ``roles: [<value>]`` and only warns.
+    This is the same shape ``pack_validator.py``'s existing generic per-file
+    schema scan already accepts without a ``schema_invalid`` error. WP03's
+    pack-level ATDD test (``test_pack_validator.py``) documents why a
+    *merge-time* failure of this same-shaped fixture (colliding with a
+    real built-in profile's already-resolved ``roles:``) is a distinct,
+    legitimate ``profile_skipped`` case — this test pins the standalone-valid
+    half of that premise.
+    """
+
+    def test_deprecated_scalar_role_validates_standalone(self):
+        data = {
+            "profile-id": "analyst-annie",
+            "role": "implementer",
+            "name": "Override",
+            "purpose": "test purpose",
+            "specialization": {"primary-focus": "test focus"},
+        }
+
+        with pytest.warns(DeprecationWarning):
+            profile = AgentProfile.model_validate(data)
+
+        assert profile.roles == ["implementer"]

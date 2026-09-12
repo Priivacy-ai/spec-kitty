@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2314": {
+      "evidence_ref": "Follow-up: #2314 epic stays open for remaining Scope B/D docs items; this mission delivers items 1-3 of #3253",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3248": {
+      "evidence_ref": "PR #3248 merged; landed the single-authority published-pages SEO gate; this mission addresses its documented residuals",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3253": {
+      "evidence_ref": "Fixed by WP01 (per-glob non-vacuity, commit 1c7427ade), WP02 (slash-command gate + backfill, af01c2170), WP03 (docs-freshness structure test + CI wiring, 42c4f6ab8) on docs/3253-docs-gaps",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3264": {
+      "evidence_ref": "Fixed by WP01: related_validator.validate_related min_files floor raising RuntimeError (commit 1c7427ade); zero-file negative test in tests/docs/test_related_validator.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3265": {
+      "evidence_ref": "Follow-up: #3265 tracks non-docs CI no-backstop hardening; out of scope per C-005",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

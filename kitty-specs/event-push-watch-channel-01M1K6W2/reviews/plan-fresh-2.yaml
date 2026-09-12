@@ -1,0 +1,100 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-2
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: PLAN-FRESH2-001
+    lens: conceptual-alignment
+    severity: 3
+    title: "Glossary-decision paragraph still cites Boy-Scout/Standing Order #2 as supporting rationale two sentences before retracting Boy-Scout's authority to license the same action"
+    evidence:
+      - artifact: "plan.md § Contracts, Glossary candidates, lines 486-501"
+      - artifact: ".kittify/charter/charter.md lines 106-134 (\"Reconciling change-scope tensions\")"
+    claim: >
+      The Decision paragraph's opening sentence (unchanged by this fix round) still reads:
+      "...and this repo's convention (charter Standing Order #2, campsite/Boy-Scout discipline)
+      favours capturing new terminology at the point of introduction over a deferred cleanup
+      pass." Standing Order #2 in the charter IS DIRECTIVE_025 (Boy-Scout) — confirmed by the
+      charter itself in the "Reconciling change-scope tensions" section ("`DIRECTIVE_025` Boy
+      Scout Rule..."). Three sentences later, in the SAME paragraph, this round's own fix adds:
+      "the Boy-Scout Rule **cannot** license adding it — the charter's own reconciliation order
+      ... step 2 ... is explicit that Boy-Scout governs cleanup strictly *inside* the file set
+      step 1 already chose, 'without adding files to the set chosen in step 1'". This is a direct
+      self-contradiction within one paragraph: the opening sentence invokes Boy-Scout/Standing
+      Order #2 as part of the motivating rationale for registering the terms now, while the
+      corrected clause immediately afterward explicitly disclaims that Boy-Scout can license this
+      exact action. The R5b fix round corrected the *licensing* clause but did not sweep the
+      *motivating* clause that cites the same (wrong) authority for the same decision — this is
+      the "stale reference to the old (wrong) attribution" the fix round was supposed to fully
+      remove.
+    remediation: >
+      Rewrite the opening sentence to drop the Boy-Scout/Standing Order #2 citation and instead
+      motivate "register now" purely on the grounds already used later in the paragraph
+      (Locality-of-Change's extension clause: directly connected to the goal, proportional, one-line
+      rationale) — or, if Standing Order #2's "tidy-first" framing is meant to apply at all, cite it
+      only as color/precedent for terminology-capture conventions in general, not as licensing
+      authority for adding this file to the change set.
+
+  - id: PLAN-FRESH2-002
+    lens: test-effectiveness
+    severity: 3
+    title: "Broadened fd-sharing test guidance offers `Path.open`/`os.open` as interchangeable mock targets, but `Path.open()` never calls Python's `os.open()` — patching `os.open` alone silently fails to catch the exact regression the broadening was added to catch"
+    evidence:
+      - artifact: "plan.md § IC-01 \"Also required\", lines 608-618"
+      - artifact: "plan.md § IC-02 \"Also required\", lines 651-662 (both sub-bullets)"
+      - code: "empirically verified in this checkout with Python 3.14.6: `unittest.mock.patch(\"os.open\", ...)` records ZERO calls when `pathlib.Path(...).open(\"rb\")` is used to open and read a real file — Path.open() routes through the C-level io.FileIO/builtin open(), not through the os module's Python-level os.open() function"
+    claim: >
+      This round's fix (PLAN-FRESH-003) broadened the fd-sharing invariant test from a
+      `Path.stat`-only guard to "monkeypatch **both** `Path.stat` ... **and** a second
+      `Path.open`/`os.open` to each raise if called ... after its initial open" — explicitly to
+      close the gap where "a plausible-but-lazy implementation using `path.stat().st_size` for the
+      size check and a separate `path.open("rb")` for a later read" would pass the old test
+      unchanged. But the fix's own remedy names `Path.open`/`os.open` as if they were two
+      equivalent ways to intercept "the second open call." They are not: patching `os.open` (the
+      `os` module's Python-level function) does not observe calls made via `Path.open()` (verified:
+      0 recorded `os.open` calls while reading a real file opened via `Path("...").open("rb")`,
+      Python 3.14.6). Since the plan's own prose elsewhere describes the read path idiomatically as
+      `path.open("rb")` (Architectural Seam, line ~257), a WP author who reasonably picks the
+      "os.open" half of the "Path.open`/`os.open`" pairing writes a test that never fires on the
+      exact plausible-but-lazy implementation this broadening exists to catch — the test looks like
+      it enforces the fd-sharing invariant but is silently vacuous against that specific
+      regression, for the mission's stated hardest/most safety-critical property (TOCTOU-closing).
+    remediation: >
+      Replace "a second `Path.open`/`os.open`" with an unambiguous single target: monkeypatch
+      `pathlib.Path.open` (matching the plan's own `path.open("rb")` idiom) to raise on a second
+      call, or — if the implementation is left free to choose `os.open`/`io.open`/`Path.open` — spy
+      on all three at once and assert the combined call count is exactly one. State explicitly that
+      patching `os.open` alone does NOT intercept `Path.open()` calls, so the WP author cannot
+      substitute one for the other believing them equivalent.
+
+  - id: PLAN-FRESH2-003
+    lens: caller-blast-radius
+    severity: 3
+    title: "Write-Scope Disjointness section's new `gh pr diff --name-only` verification checked only for `.contextive` overlap and missed that PR #3842 AND PR #3845 both already modify `docs/api/cli-commands.md` — a file this mission's own plan lists as touched"
+    evidence:
+      - artifact: "plan.md § Write-Scope Disjointness, lines 745-764"
+      - artifact: "reproduced live: `gh pr diff 3842 --name-only` includes `docs/api/cli-commands.md`; `gh pr diff 3845 --name-only` includes `docs/api/cli-commands.md`; both PRs confirmed OPEN via `gh pr view 3842/3845 --json state,mergedAt`"
+      - code: "PR #3842's edit lands at docs/api/cli-commands.md:540-548 (inside the `## spec-kitty charter list` section); PR #3845's edit lands at docs/api/cli-commands.md:1111-1113 (inside `## spec-kitty dispatch`) — both confirmed distant from this mission's insertion point at `## spec-kitty doctrine validate` (~line 2138) / `## spec-kitty glossary` (~line 2163)"
+    claim: >
+      This round added "**Checked** (`gh pr diff <N> --name-only`): no `.contextive` path appears
+      in its file list" to both the #3842 and #3845 bullets — a real, correctly-executed check for
+      the one thing PLAN-FRESH-004 was chasing (the generated glossary file). But the same `gh pr
+      diff --name-only` output the round ran also lists `docs/api/cli-commands.md` for BOTH PRs —
+      a file this mission's own plan explicitly puts in its touched-file set two paragraphs above
+      ("`docs/api/cli-commands.md` (new section only)"). The section's header claim is "do **not**
+      overlap," and the per-PR bullets enumerate files with no mention of `docs/api/cli-commands.md`
+      at all for either PR, even though both PRs are already open and already contain diffs against
+      it. Practically the risk is low (both PRs' edits land 1300-1600 lines away from this mission's
+      alphabetical insertion slot near "doctrine validate"/"glossary," so a textual git conflict is
+      unlikely), but the section's own factual claim of disjointness is false for this file, and the
+      section elsewhere (the `cli/commands/__init__.py` paragraph) demonstrates the correct pattern
+      for surfacing exactly this kind of shared-file situation — that treatment was not extended to
+      `docs/api/cli-commands.md` even though the round's own verification command surfaced it.
+    remediation: >
+      Add `docs/api/cli-commands.md` as a second explicitly-called-out shared file (parallel to the
+      `cli/commands/__init__.py` treatment): note that PR #3842 and PR #3845 both already touch it
+      at line ranges far from this mission's insertion point, so no textual conflict is expected, but
+      IC-04's implementer should re-diff the file immediately before generating/hand-scoping its own
+      docs edit (per the existing "monkeypatch cmd_runner, hand-scope the diff" procedure) in case
+      the alphabetical insertion point itself has shifted by the time this mission merges.

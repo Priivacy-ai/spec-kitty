@@ -139,7 +139,7 @@ This document provides a visual overview of the CI Quality workflow structure, s
 ## Related Documentation
 
 - [Linting Cutoff Policy](../../configuration/linting-cutoff-policy.md) - Detailed policy and implementation details
-- [CI Quality Workflow](../../../.github/workflows/ci-quality.yml) - The actual workflow implementation
+- CI Quality Workflow (`.github/workflows/ci-quality.yml`) - deleted per PROGRAM.md §2 / planning#57; this repo runs no GitHub Actions
 
 ## Coverage Collection Strategy
 

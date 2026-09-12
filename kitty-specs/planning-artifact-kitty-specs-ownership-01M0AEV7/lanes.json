@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "planning-artifact-kitty-specs-ownership-01M0AEV7",
+  "mission_id": "01M0AEV7QB3CV8P1XNHF3VJA83",
+  "mission_branch": "kitty/mission-planning-artifact-kitty-specs-ownership-01M0AEV7",
+  "target_branch": "feat/3222-2643-kitty-specs-ownership",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_parsing.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_parsing.py",
+        "tests/tasks/test_finalize_planning_artifact_kitty_specs.py",
+        "tests/tasks/test_finalize_tasks_owned_files_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-18T14:10:47.361366+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b3126a086377708d36b86c6a08e9ea57187e6748"
+}

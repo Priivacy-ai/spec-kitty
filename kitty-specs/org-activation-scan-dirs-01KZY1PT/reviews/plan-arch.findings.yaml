@@ -1,0 +1,59 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: org-activation-scan-dirs-01KZY1PT
+findings:
+  - id: PLAN-ARCH-001
+    lens: contracts / blast-radius
+    severity: 3
+    title: "'The Seam' / 'No Contract Movement' understate resolve_artifact_urn's real consumer set — compiler.py's charter-synthesize path (a hard crash today, not a silent drop) is never named or covered by a regression test"
+    evidence:
+      - artifact: "plan.md § The Seam — \"Its caller (_scan_roots, :142-180) and *its* caller (resolve_artifact_urn, :253+) are unchanged — they already consume whatever _org_scan_dirs returns... so the fix needs no change above or below it in the call chain.\""
+      - artifact: "plan.md § No Contract Movement — \"...because none of them sit on the call path between charter activate arming activated_directives and _org_scan_dirs finding (or failing to find) an org-pack directory — the defect and its fix are fully contained in one resolution helper.\""
+      - artifact: "plan.md § Red-First Discipline / § Test Placement Decision — FR-002's regression test is scoped only to the `filter_graph_by_activation` / drg.py path"
+      - code: "src/charter/kind_vocabulary.py:179 (_scan_roots extends with _org_scan_dirs) — confirmed via grep this is the only call site of _org_scan_dirs, so that narrow claim holds"
+      - code: "src/charter/compiler.py:112-142 (_resolve_config_activated_ids) — the set-comprehension calls resolve_artifact_urn(...) with no try/except; its own docstring states plainly: \"A stem that cannot be resolved to a canonical id ... raises UnknownArtifactIdError ... rather than being silently dropped\""
+      - code: "src/charter/compiler.py:187 (_resolve_config_activated_roots) — `org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None`, threaded into every _resolve_config_activated_ids call for every activated kind (directives, paradigms, tactics, styleguides, toolguides, procedures, agent_profiles)"
+      - code: "src/charter/consistency_check.py:744-748 and :815-817 — two more resolve_artifact_urn call sites inside the config<->graph parity guard, both passed real org_roots (caught narrowly, not swallowed into a false 'nothing wrong' result)"
+    claim: >
+      _org_scan_dirs is indeed called from exactly one place (_scan_roots), so the plan's narrowest
+      layering claim holds. But the broader "fully contained in one resolution helper" /
+      "unchanged...caller" framing is inaccurate: resolve_artifact_urn — the function whose *return
+      value* changes once _org_scan_dirs starts finding flat-layout org artifacts — has production
+      call sites beyond the drg.py `_resolve_activated_urns_for_kind` path the spec and plan build
+      their whole narrative around. Two of those (activate.py's/deactivate.py's/org_charter.py's/
+      m_unify_charter_activation.py's `_source_urn`/normalizer helpers) genuinely don't pass
+      org_roots and are unaffected, so they're correctly out of scope. But `compiler.py`'s
+      `_resolve_config_activated_roots` (the `charter synthesize` / references.yaml compilation path)
+      and `consistency_check.py`'s `_check_reference_id_parity` / per-ID graph-parity check (the
+      config<->graph parity guard, also exercised by the suite-tier
+      `test_this_project_charter_pack_is_coherent` gate) both thread real org_roots into
+      resolve_artifact_urn today. For a downstream project with a flat-layout org pack that has
+      activated one of its own org artifacts by stem, compiler.py's uncaught raise means
+      `charter synthesize` **crashes today** — a second, more severe symptom of the exact same
+      `_org_scan_dirs` root cause the spec frames purely as a "silent drop." The fix, as specified,
+      will also flip that crash to success (a good outcome), and will change what
+      consistency_check.py's parity guard reports for such a project. Neither transition is named
+      in the plan's Seam/Contract-Movement sections, and neither is covered by FR-002's regression
+      test (scoped only to `filter_graph_by_activation`) or by FR-003's unit-level cases (scoped
+      only to `_org_scan_dirs`/`resolve_artifact_urn` directly, not to compiler.py or
+      consistency_check.py as consumers). An implementer following the plan's Test Placement
+      Decision verbatim would ship FR-001 without any test proving the compiler.py crash path is
+      actually fixed, or asserting consistency_check.py's parity guard now agrees with compiler.py
+      instead of independently swallowing the same stem via its own `except UnknownArtifactIdError`.
+    remediation: >
+      Add one sentence to plan.md § The Seam (or a short new subsection) naming compiler.py's
+      `_resolve_config_activated_roots`/`_resolve_config_activated_ids` and consistency_check.py's
+      `_check_reference_id_parity`/per-ID graph-parity check as two additional resolve_artifact_urn
+      consumers that pass real org_roots today and will observe a behavior change once FR-001
+      lands (compiler.py: UnknownArtifactIdError crash → success; consistency_check.py: the stem
+      stops being swallowed as "already reported elsewhere" and starts resolving cleanly). Either
+      (a) extend FR-002's scope, or add one FR-002b case, asserting `charter synthesize`
+      no longer raises UnknownArtifactIdError for a flat-layout org pack that activates its own
+      stem, using the same fixture already being built for FR-002; or (b) explicitly document in
+      the plan why that additional coverage is deliberately deferred (e.g. "compiler.py's crash-to-
+      success flip is a byproduct of the same fix and is exercised incidentally by
+      test_this_project_charter_pack_is_coherent" — but only if that's actually verified true, which
+      it is not for a *flat-layout* org pack since this repo's own .kittify/config.yaml has no org
+      pack configured at all).

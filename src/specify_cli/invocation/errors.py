@@ -69,6 +69,11 @@ class InvalidModeForEvidenceError(InvocationError):
     """--evidence supplied on an invocation whose mode_of_work disallows
     Tier 2 promotion (advisory or query). See FR-009 / ADR-001."""
 
+    #: The recorded mode when it is a recognised one; ``None`` on the
+    #: :class:`UndeterminedModeForEvidenceError` subclass, where the record
+    #: declares a value that maps to no ``ModeOfWork`` at all.
+    mode: "ModeOfWork | None"
+
     def __init__(self, invocation_id: str, mode: "ModeOfWork") -> None:
         self.invocation_id = invocation_id
         self.mode = mode
@@ -76,4 +81,34 @@ class InvalidModeForEvidenceError(InvocationError):
             f"Cannot promote evidence on invocation {invocation_id}: "
             f"mode is {mode.value}; Tier 2 evidence is only allowed on "
             f"task_execution or mission_step invocations."
+        )
+
+
+class UndeterminedModeForEvidenceError(InvalidModeForEvidenceError):
+    """--evidence supplied on an Op whose recorded ``mode_of_work`` is unreadable.
+
+    Distinct from :class:`InvalidModeForEvidenceError`'s base case, which names
+    a mode that is recognised and ineligible. Here the record declares a value
+    that maps to no :class:`~specify_cli.invocation.modes.ModeOfWork`, so the
+    Op's evidence eligibility **cannot be determined** — and inability to
+    determine a permission is never that permission (#3030 FR-003, applied to
+    FR-009's gate). Absence of the field is a different state entirely and
+    keeps its documented legacy default; only malformation lands here.
+
+    Subclasses the base error so the CLI's existing exit-2 handler covers it
+    without a second except clause.
+    """
+
+    def __init__(self, invocation_id: str, raw_mode: object) -> None:
+        self.invocation_id = invocation_id
+        self.mode = None
+        self.raw_mode = raw_mode
+        # Deliberately bypasses InvalidModeForEvidenceError.__init__: that
+        # constructor formats ``mode.value``, which no undetermined value has.
+        InvocationError.__init__(
+            self,
+            f"Cannot promote evidence on invocation {invocation_id}: the record's "
+            f"mode_of_work is {raw_mode!r}, which is not a recognised mode, so the "
+            f"invocation's evidence eligibility cannot be determined. Repair the "
+            f"kitty-ops record (or run 'spec-kitty upgrade') and retry.",
         )

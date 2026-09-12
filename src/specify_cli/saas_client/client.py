@@ -13,22 +13,26 @@ All public methods:
 
 from __future__ import annotations
 
+import json as json_module
 import logging
-from typing import TYPE_CHECKING, Any, cast
+import secrets
+from pathlib import Path
+from typing import Any, cast
+from urllib.parse import urlencode
 
 import httpx
 
+from specify_cli.auth import get_token_manager
+from specify_cli.auth.session import require_private_team_id
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
-from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
+from specify_cli.saas_client.endpoints import AdmissionAnswer, AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
+    SaasConsentError,
     SaasNotFoundError,
     SaasTimeoutError,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,20 @@ logger = logging.getLogger(__name__)
 _TIMEOUT_DEFAULT = 5.0
 _TIMEOUT_PREREQ_PROBE = 0.5
 _TIMEOUT_DISCUSSION = 10.0
+
+
+def _authenticated_authority_for_token(token: str) -> tuple[str, str, str] | None:
+    """Resolve exact account, Private and Collaborative Teamspaces from auth."""
+    session = get_token_manager().get_current_session()
+    if session is None or not secrets.compare_digest(session.access_token, token):
+        return None
+    private_teamspace_id = require_private_team_id(session)
+    if private_teamspace_id is None:
+        return None
+    collaborative_ids = {team.id.strip() for team in session.teams if not team.is_private_teamspace and isinstance(team.id, str) and team.id.strip()}
+    if len(collaborative_ids) != 1:
+        return None
+    return session.user_id, private_teamspace_id, collaborative_ids.pop()
 
 
 def _map_http_error(resp: httpx.Response, context: str) -> SaasClientError:
@@ -64,6 +82,15 @@ class SaasClient:
             override this for their specific use-case.
         _http: Optional pre-constructed ``httpx.Client``.  Pass a mock client
             in tests to intercept HTTP calls without network access.
+        project_root: The checkout that **owns the data this client will send**
+            (#3030 FR-030) — the repository holding the mission or decision
+            record, not the process's current working directory.  Every request
+            is refused unless that project has consented to hosted sync.
+            ``None`` **denies**: a transport that has not been told whose data it
+            carries cannot resolve consent, and inability to determine consent is
+            never consent.  The refusing default is deliberate so that a future
+            construction site which forgets to pass it fails loudly rather than
+            leaking silently.
     """
 
     def __init__(
@@ -73,11 +100,13 @@ class SaasClient:
         team_slug: str | None = None,
         timeout: float = _TIMEOUT_DEFAULT,
         _http: httpx.Client | None = None,
+        project_root: Path | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
         self._team_slug = team_slug
         self._timeout = timeout
+        self._project_root = Path(project_root) if project_root is not None else None
         self._http = _http or httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
@@ -106,7 +135,11 @@ class SaasClient:
 
         Args:
             repo_root: Optional :class:`~pathlib.Path` to the repo root, passed
-                through to :func:`~specify_cli.saas_client.auth.load_auth_context`.
+                through to :func:`~specify_cli.saas_client.auth.load_auth_context`
+                **and** carried on the client as the project whose consent gates
+                every send (#3030 FR-030).  Omitting it yields a client that
+                refuses every request, because there is then no project whose
+                consent could be resolved.
 
         Returns:
             A fully initialised :class:`SaasClient`.
@@ -114,11 +147,14 @@ class SaasClient:
         Raises:
             SaasAuthError: If authentication credentials cannot be resolved.
         """
-        from pathlib import Path
-
         root: Path | None = Path(str(repo_root)) if repo_root is not None else None
         ctx: AuthContext = load_auth_context(repo_root=root)
-        return cls(base_url=ctx.saas_url, token=ctx.token, team_slug=ctx.team_slug)
+        return cls(
+            base_url=ctx.saas_url,
+            token=ctx.token,
+            team_slug=ctx.team_slug,
+            project_root=root,
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -131,17 +167,7 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a GET request, mapping exceptions to ``SaasClientError``."""
-        url = f"{self._base_url}{path}"
-        effective_timeout = timeout if timeout is not None else self._timeout
-        try:
-            resp = self._http.get(url, timeout=effective_timeout)
-        except httpx.TimeoutException as exc:
-            raise SaasTimeoutError(f"GET {url} timed out after {effective_timeout}s") from exc
-        except httpx.RequestError as exc:
-            raise SaasClientError(f"GET {url} failed: {exc}") from exc
-        if not resp.is_success:
-            raise _map_http_error(resp, f"GET {url}")
-        return resp
+        return self._exchange("GET", path, timeout=timeout)
 
     def _post(
         self,
@@ -151,22 +177,91 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a POST request with a JSON body, mapping exceptions to ``SaasClientError``."""
+        return self._exchange("POST", path, json=json, timeout=timeout)
+
+    def _exchange(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: object | None = None,
+        timeout: float | None = None,
+    ) -> httpx.Response:
+        """Run one consent-gated HTTP exchange against the SaaS API.
+
+        The gate runs before the URL is used, then the request goes straight to
+        the transport. Nothing is persisted: an exchange that ends without a
+        response raises here and is simply lost, because every endpoint this
+        client serves is an interactive lookup whose moment has passed by the
+        time an operator could retry it.
+        """
+        if _authenticated_authority_for_token(self._token) is None:
+            raise SaasConsentError("target_authority_mismatch: token-matched account, Private Teamspace, and one Collaborative Teamspace are required")
         url = f"{self._base_url}{path}"
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
-            resp = self._http.post(url, json=json, timeout=effective_timeout)
+            response = self._http.get(url, timeout=effective_timeout) if method == "GET" else self._http.post(url, json=json, timeout=effective_timeout)
         except httpx.TimeoutException as exc:
-            raise SaasTimeoutError(f"POST {url} timed out after {effective_timeout}s") from exc
+            raise SaasTimeoutError(f"{method} {url} timed out after {effective_timeout}s") from exc
         except httpx.RequestError as exc:
-            raise SaasClientError(f"POST {url} failed: {exc}") from exc
-        if not resp.is_success:
-            raise _map_http_error(resp, f"POST {url}")
-        return resp
+            raise SaasClientError(f"{method} {url} failed: {exc}") from exc
+        if not response.is_success:
+            body = self._response_body(response)
+            if body is not None and body.get("error_category") == "project_not_admitted":
+                raise SaasConsentError(self._generic_refusal_message(self._generic_refusal_reference(response)))
+            raise _map_http_error(response, f"{method} {url}")
+        return response
+
+    @staticmethod
+    def _response_body(response: httpx.Response) -> dict[str, object] | None:
+        try:
+            body = response.json()
+        except Exception:
+            return None
+        return body if isinstance(body, dict) else None
+
+    @classmethod
+    def _generic_refusal_reference(cls, response: httpx.Response) -> str:
+        body = cls._response_body(response) or {}
+        envelope = {
+            key: body[key]
+            for key in (
+                "error_category",
+                "idempotency_key",
+                "message",
+                "retryable",
+                "status",
+            )
+            if key in body
+        }
+        return json_module.dumps(
+            {"http_status": response.status_code, "envelope": envelope},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def _generic_refusal_message(reference: str | None) -> str:
+        if reference is None:
+            return "project_not_admitted: hosted target refused this project"
+        try:
+            value = json_module.loads(reference)
+            envelope = value["envelope"]
+            message = envelope.get("message")
+        except (KeyError, TypeError, json_module.JSONDecodeError):
+            return "project_not_admitted: hosted target refused this project"
+        return str(message) if isinstance(message, str) and message else "project_not_admitted: hosted target refused this project"
 
     def _resolve_team_slug(self, team_slug: str | None = None) -> str:
-        slug = (team_slug or self._team_slug or "").strip()
-        if not slug:
-            raise SaasAuthError("SaaS team_slug is required for Teamspace-scoped Decision Moment endpoints")
+        authority = _authenticated_authority_for_token(self._token)
+        if authority is None:
+            raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
+        slug = authority[2]
+        if team_slug is not None and team_slug.strip() != slug:
+            raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
+        if self._team_slug is not None and self._team_slug.strip() != slug:
+            raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         return slug
 
     def _team_path(self, team_slug: str | None, path: str) -> str:
@@ -312,25 +407,19 @@ class SaasClient:
         data: dict[str, Any] = resp.json()
 
         raw_messages = data.get("messages", []) or []
-        messages = cast(
-            list[DiscussionMessage],
-            [
-                {
-                    "author": str(m.get("author") or m.get("author_display_name") or ""),
-                    "text": str(m.get("text", "")),
-                    "timestamp": m.get("timestamp") or m.get("ts") or None,
-                }
-                for m in raw_messages
-                if isinstance(m, dict)
-            ],
-        )
+        messages: list[DiscussionMessage] = [
+            {
+                "author": str(m.get("author") or m.get("author_display_name") or ""),
+                "text": str(m.get("text", "")),
+                "timestamp": m.get("timestamp") or m.get("ts") or None,
+            }
+            for m in raw_messages
+            if isinstance(m, dict)
+        ]
 
         raw_participants = data.get("participants", []) or []
         participants = [
-            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id"))
-            if isinstance(p, dict)
-            else str(p)
-            for p in raw_participants
+            str(p.get("display_name") or p.get("teamspace_user_id") or p.get("slack_user_id")) if isinstance(p, dict) else str(p) for p in raw_participants
         ]
 
         return DiscussionData(
@@ -339,4 +428,55 @@ class SaasClient:
             messages=messages,
             thread_url=data.get("thread_url") or None,
             message_count=int(data.get("message_count", len(messages))),
+        )
+
+    def check_repo_admission(self, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
+        """Check which team (if any) ``repo_slug`` is admitted into.
+
+        ``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``
+        (TEAM-ADMIT-M2-07/08, ADR-TEAM-REPO-ADMISSION-2026-08-24 §4.2/§4.3).
+
+        This is a plain lookup, not team-scoped like the collaboration
+        endpoints above: the whole point of the call is to *discover* which
+        team (if any) admits the repo, so unlike ``_team_path()`` callers
+        there is no team slug to require up front.
+
+        ``host`` is optional but recommended — ``repo_slug`` alone cannot
+        distinguish the same ``owner/repo`` slug hosted on two different git
+        providers (e.g. github.com vs. a self-hosted GitLab); the server uses
+        it to disambiguate by provider when given.
+
+        Args:
+            repo_slug: ``owner/repo``-style slug parsed from the git remote.
+            host: Bare git remote hostname.
+
+        Returns:
+            :class:`~specify_cli.saas_client.endpoints.AdmissionAnswer`.
+            Both response shapes are HTTP 200 — check ``admitted`` to tell
+            them apart; a not-admitted answer is a normal return value, not
+            an exception.
+
+        Raises:
+            SaasClientError: On any HTTP or network failure — distinguishable
+                from a genuine ``admitted: False`` answer, which is returned
+                rather than raised.
+            SaasAuthError: On auth failure (HTTP 401/403).
+            SaasTimeoutError: If the request exceeds the default timeout.
+        """
+        params = {"repo_slug": repo_slug}
+        if host is not None:
+            params["host"] = host
+        path = f"/api/v1/sync/repo-admission/?{urlencode(params)}"
+        resp = self._get(path)
+        data: dict[str, Any] = resp.json()
+        return cast(
+            AdmissionAnswer,
+            {
+                "admitted": bool(data.get("admitted", False)),
+                "team": data.get("team"),
+                "provider": data.get("provider"),
+                "repo_slug": str(data.get("repo_slug", repo_slug)),
+                "checked_at": data.get("checked_at"),
+                "reason": data.get("reason"),
+            },
         )

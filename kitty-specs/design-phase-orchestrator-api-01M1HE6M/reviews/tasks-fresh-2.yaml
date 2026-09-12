@@ -1,0 +1,51 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: design-phase-orchestrator-api-01M1HE6M
+round: 2
+findings:
+  - id: TASKS-FRESH2-001
+    lens: "trace-based observability (Debugger Debbie / verifying a document's internal self-reference against its own layout)"
+    severity: 1
+    title: "Mission-note 3 says the WP dependency graph is \"above\" it, but the WP list is actually below it in tasks.md"
+    evidence:
+      - artifact: "tasks.md § Mission-level notes, note 3 (\"...are mutually independent in the dependency graph above (each depends only on WP01, except WP08 which depends only on WP02)\")"
+      - artifact: "tasks.md layout: the '## ⚠️ Mission-level notes' block occupies lines ~7-82, and the first '## Work Package WP01' heading (the actual per-WP Dependencies: lines that constitute the dependency graph) begins at line ~84 — i.e. below, not above, the note block"
+    claim: >
+      This round's new mission-note block is inserted at the very top of tasks.md, before any
+      '## Work Package WPxx' section. Note 3's parenthetical "(each depends only on WP01, except
+      WP08 which depends only on WP02)" is itself the dependency summary being referenced, but the
+      phrase "the dependency graph above" points a reader to look upward in the document for
+      corroborating detail that isn't there — the actual per-WP Dependencies: fields it is
+      describing are all further down the file. A reviewer skimming top-to-bottom (the normal
+      reading order this same note block prescribes for the PR itself) would scroll up and find
+      nothing, then have to keep reading to find the real dependency listing below. No
+      implementation impact — the dependency values stated inline are themselves correct and
+      verified against wps.yaml/plan.md — this is purely a stale/backwards directional pointer.
+    remediation: >
+      Change "in the dependency graph above" to "in the dependency graph below" (or "in each WP's
+      own Dependencies: field below") in tasks.md's mission-note 3.
+
+  - id: TASKS-FRESH2-002
+    lens: "dual-system divergence mapping (Debugger Debbie / artifact prose vs. live source convention it claims to match)"
+    severity: 1
+    title: "WP07 T033 step 2 prescribes bare `pytestmark = pytest.mark.fast`, but the file it cites as the convention actually uses the list form"
+    evidence:
+      - artifact: "tasks/WP07-contract-version-bump.md § Subtask T033, step 2 (\"mark it `pytestmark = pytest.mark.fast`, matching `test_commands_fail_closed.py`'s convention (`pytest.ini:25`)\")"
+      - code: "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py:39 (`pytestmark = [pytest.mark.fast]`)"
+    claim: >
+      This round's new T033 step 2 (added to justify why the new test file needs an explicit `fast`
+      marker to be collected by any CI shard) cites test_commands_fail_closed.py as the convention
+      to match, and gives the exact syntax to write: bare `pytestmark = pytest.mark.fast`. The cited
+      file actually uses the list form, `pytestmark = [pytest.mark.fast]`. Both forms are accepted
+      by pytest and apply the marker identically (463 files in this repo use the bare form, 167 use
+      the list form), and either would satisfy the WP's actual requirement (get the file collected
+      by fast-tests-core-misc's specify-cli-rest shard) — so this cannot produce a wrong
+      implementation. It is a minor citation mismatch: the prescribed syntax does not literally match
+      the file held up as its precedent.
+    remediation: >
+      Either change the prescribed syntax to `pytestmark = [pytest.mark.fast]` to literally match
+      test_commands_fail_closed.py, or drop the "matching test_commands_fail_closed.py's convention"
+      phrase and just say "add the repo's more common bare form, `pytestmark = pytest.mark.fast`
+      (see pytest.ini:25)."

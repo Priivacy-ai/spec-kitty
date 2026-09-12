@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Contract Pinning to the Resolved Package Version'
+description: 'Contract tests must resolve external package versions from the lockfile at runtime instead of embedding literals, with envelope snapshots keyed by that version.'
 status: Accepted
 date: '2026-04-26'
 ---
@@ -88,7 +89,7 @@ and the WP05 task file).
   2. Run `python scripts/snapshot_events_envelope.py --force` and
      commit the new snapshot.
 - The dev workflow is documented in
-  [`docs/development/contract-pinning.md`](../../../docs/development/contract-pinning.md).
+  [`docs/development/contract-pinning.md`](../../development/how-to/contract-pinning.md).
 
 ## Alternatives considered
 

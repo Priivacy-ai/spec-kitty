@@ -211,6 +211,83 @@ def test_invalid_owned_files_dynamic_alias_is_same_callable() -> None:
     assert alias is seam._invalid_mission_specs_owned_files
 
 
+def test_invalid_mission_specs_owned_files_exempts_confined_planning_wp() -> None:
+    """A ``planning_artifact`` WP confined to planning surfaces is exempt from the
+    kitty-specs ban (#3222 / #2643, FR-001/FR-004)."""
+    by_wp = {
+        "WP01": WPMetadata(
+            work_package_id="WP01",
+            execution_mode="planning_artifact",
+            owned_files=["kitty-specs/foo/disposition-matrix.md", "docs/note.md"],
+        ),
+    }
+    assert seam._invalid_mission_specs_owned_files(by_wp) == []
+
+
+def test_invalid_mission_specs_owned_files_rejects_code_change_kitty_specs() -> None:
+    """A ``code_change`` WP owning a kitty-specs path stays fail-closed (FR-003, INV-1)."""
+    by_wp = {
+        "WP01": WPMetadata(
+            work_package_id="WP01",
+            execution_mode="code_change",
+            owned_files=["kitty-specs/foo/spec.md"],
+        ),
+    }
+    assert seam._invalid_mission_specs_owned_files(by_wp) == [
+        {"wp_id": "WP01", "path": "kitty-specs/foo/spec.md"}
+    ]
+
+
+def test_is_confined_planning_wp_true_for_planning_planning_paths() -> None:
+    meta = WPMetadata(
+        work_package_id="WP01",
+        execution_mode="planning_artifact",
+        owned_files=["kitty-specs/foo/spec.md", "docs/x.md"],
+    )
+    assert seam._is_confined_planning_wp(meta) is True
+
+
+def test_is_confined_planning_wp_false_when_mode_not_planning() -> None:
+    """Mode is compared against the enum ``.value`` — an unset/None mode is never
+    exempt (finding R-3)."""
+    unset = WPMetadata(work_package_id="WP01", owned_files=["kitty-specs/foo/spec.md"])
+    code = WPMetadata(
+        work_package_id="WP01",
+        execution_mode="code_change",
+        owned_files=["kitty-specs/foo/spec.md"],
+    )
+    assert seam._is_confined_planning_wp(unset) is False
+    assert seam._is_confined_planning_wp(code) is False
+
+
+def test_is_confined_planning_wp_false_when_owns_non_planning_path() -> None:
+    """Confinement (INV-4): a planning WP that also owns ``src/``/``scripts/`` is not
+    confined, so its kitty-specs path still trips the ban."""
+    with_src = WPMetadata(
+        work_package_id="WP01",
+        execution_mode="planning_artifact",
+        owned_files=["kitty-specs/foo/spec.md", "src/foo.py"],
+    )
+    with_scripts = WPMetadata(
+        work_package_id="WP01",
+        execution_mode="planning_artifact",
+        owned_files=["kitty-specs/foo/spec.md", "scripts/verify.py"],
+    )
+    assert seam._is_confined_planning_wp(with_src) is False
+    assert seam._is_confined_planning_wp(with_scripts) is False
+
+
+def test_is_confined_planning_wp_normalizes_dot_slash_entry() -> None:
+    """Confinement normalizes each entry before the prefix check, symmetric with
+    the ban predicate (pedro Q5)."""
+    meta = WPMetadata(
+        work_package_id="WP01",
+        execution_mode="planning_artifact",
+        owned_files=["./kitty-specs/foo/spec.md"],
+    )
+    assert seam._is_confined_planning_wp(meta) is True
+
+
 # ---------------------------------------------------------------------------
 # JSON-emit shims
 # ---------------------------------------------------------------------------

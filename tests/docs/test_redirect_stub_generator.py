@@ -122,21 +122,22 @@ def test_committed_redirect_map_is_diff_stable() -> None:
 # exact, diff-stable identity of the full map is pinned separately by
 # ``test_committed_redirect_map_is_diff_stable``.
 _SHADOW_TREE_REDIRECTS = {
-    # docs/1x snapshot -> pre-existing archive/1x twin
-    "1x/artifacts-and-commands.html": "archive/1x/artifacts-and-commands.html",
-    "1x/branches-and-workspaces.html": "archive/1x/branches-and-workspaces.html",
-    "1x/index.html": "archive/1x/index.html",
-    "1x/orchestration-and-api.html": "archive/1x/orchestration-and-api.html",
-    "1x/workflow.html": "archive/1x/workflow.html",
-    # docs/2x snapshot -> pre-existing archive/2x twin
-    "2x/adr-coverage.html": "archive/2x/adr-coverage.html",
-    "2x/doctrine-and-charter.html": "archive/2x/doctrine-and-charter.html",
-    "2x/glossary-system.html": "archive/2x/glossary-system.html",
-    "2x/index.html": "archive/2x/index.html",
-    "2x/model-discipline-routing.html": "archive/2x/model-discipline-routing.html",
-    "2x/model-to-task_type.html": "archive/2x/model-to-task_type.html",
-    "2x/orchestration-and-api.html": "archive/2x/orchestration-and-api.html",
-    "2x/runtime-and-missions.html": "archive/2x/runtime-and-missions.html",
+    # docs/1x snapshot -> archive/1x twin, COMPOSED one hop to changelog/1x by the
+    # convergence mission's docs/archive -> docs/changelog twice-move (WP12).
+    "1x/artifacts-and-commands.html": "changelog/1x/artifacts-and-commands.html",
+    "1x/branches-and-workspaces.html": "changelog/1x/branches-and-workspaces.html",
+    "1x/index.html": "changelog/1x/index.html",
+    "1x/orchestration-and-api.html": "changelog/1x/orchestration-and-api.html",
+    "1x/workflow.html": "changelog/1x/workflow.html",
+    # docs/2x snapshot -> archive/2x twin, COMPOSED one hop to changelog/2x (WP12).
+    "2x/adr-coverage.html": "changelog/2x/adr-coverage.html",
+    "2x/doctrine-and-charter.html": "changelog/2x/doctrine-and-charter.html",
+    "2x/glossary-system.html": "changelog/2x/glossary-system.html",
+    "2x/index.html": "changelog/2x/index.html",
+    "2x/model-discipline-routing.html": "changelog/2x/model-discipline-routing.html",
+    "2x/model-to-task_type.html": "changelog/2x/model-to-task_type.html",
+    "2x/orchestration-and-api.html": "changelog/2x/orchestration-and-api.html",
+    "2x/runtime-and-missions.html": "changelog/2x/runtime-and-missions.html",
     # docs/context live charter content -> distilled into context/
     "3x/charter-overview.html": "context/charter-overview.html",
     "3x/governance-files.html": "context/governance-files.html",
@@ -296,26 +297,16 @@ def test_real_baseline_amendments_are_recorded() -> None:
 def _resolve_occurrence_map() -> Path:
     """Return the current canonical ``moves:`` spine for the committed map.
 
-    The generator's own ``--occurrence-map`` default only ever points at the
-    *first* mission that used this mechanism
-    (``common-docs-structural-move-01KW3SBK``). Every subsequent mission that
-    relocates published pages merges that mission's ``moves:`` forward into
-    its own occurrence map (never replacing it — see the redirect-map-entry
-    contract) and regenerates ``redirect_map.yaml`` from the merged file via
-    an explicit ``--occurrence-map`` override, exactly as
-    ``docs-ia-onboarding-overhaul-01KY02JB``'s WP01 did. This diff-stability
-    test must resolve the same merged spine the committed map was actually
-    regenerated from, or it would wrongly red on every legitimate merge-
-    forward. Prefer the latest mission's merged map when present; fall back
-    to the generator's own default for a checkout where no mission has yet
-    extended it.
+    Each mission that relocates published pages merges the prior mission's
+    ``moves:`` forward into its own occurrence map (never replacing it — see the
+    redirect-map-entry contract) and regenerates ``redirect_map.yaml`` from the
+    merged file. As of ``common-docs-convergence-01KZMTR9`` (WP03 T009) the
+    generator's own ``--occurrence-map`` default (:data:`DEFAULT_OCCURRENCE_MAP`)
+    was repointed AT that mission's collapsed cumulative spine, which carries the
+    structural-move + onboarding-overhaul entries forward and composes the
+    ``docs/archive`` -> ``docs/changelog`` twice-move. That merged spine is the
+    one the committed map is regenerated from, so this diff-stability test
+    resolves it directly.
     """
-    latest = (
-        DEFAULT_OCCURRENCE_MAP.parents[1]
-        / "docs-ia-onboarding-overhaul-01KY02JB"
-        / "occurrence_map.yaml"
-    )
-    if latest.is_file():
-        return latest
     assert DEFAULT_OCCURRENCE_MAP.is_file(), DEFAULT_OCCURRENCE_MAP
     return DEFAULT_OCCURRENCE_MAP

@@ -81,6 +81,7 @@ from ._doctrine_collect import (  # noqa: E402
     _build_selection_block,
     _collect_doctrine_collisions,
     _run_cross_grain_check,
+    _run_operating_procedures_check,
 )
 from ._doctrine_collect import (  # noqa: E402
     _build_pack_entries as _build_pack_entries,
@@ -97,6 +98,14 @@ from ._doctrine_collect import (  # noqa: E402
 from ._identity_audit import (  # noqa: E402
     run_identity_audit,
     run_topology_audit,
+)
+
+# mission-type-guard-registry-01KZY2FG WP02: the mission-type resolution
+# health audit (FR-007/FR-008/FR-009) lives in ``_mission_type_audit``,
+# combining the domain-layer classifier and CLI-glue/report-builder roles
+# into one sibling module (see plan.md's Seam & Module Placement section).
+from ._mission_type_audit import (  # noqa: E402
+    run_mission_type_audit,
 )
 
 # WP05 (#2059): the tool-surface + command-skill + slash-command cluster (A) was
@@ -149,13 +158,68 @@ from ._sparse_checkout_doctor import run_sparse_checkout  # noqa: E402
 # repo_root (patchable seam) and delegates to ``run_workspaces``.
 from ._workspace_husk_doctor import run_workspaces  # noqa: E402
 
-# WP10 (#2059): the daemon cluster (I) — orphan-daemons + restart-daemon — was
-# extracted to a standalone ``_daemon_doctor``. The @app.command shells delegate
-# to the entrypoints; the ``restart-daemon`` name is byte-preserved (I-7: the
-# ``__init__`` argv fast-path keys on it).
-from ._daemon_doctor import run_orphan_daemons, run_restart_daemon  # noqa: E402
+# WP05 (runtime-state-birth-cutover-all-paths-01KYH654, FR-007): the on-demand
+# cut-over audit was extracted to a standalone ``_cutover_doctor`` from the
+# start (a new subcommand, not a de-godding extraction). The ``cutover``
+# @app.command shell delegates to ``run_cutover_audit``; it reuses
+# ``migration.runtime_state_cutover.cutover_repo(dry_run=True)`` rather than
+# reimplementing corpus walking or verification (plan IC-05).
+from ._cutover_doctor import run_cutover_audit  # noqa: E402
+
+# WP08 (review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-008): the review-cycle
+# reconciliation detector was extracted to a standalone
+# ``_review_cycle_reconcile_doctor`` from the start (a new subcommand, not a
+# de-godding extraction, mirroring WP05's ``_cutover_doctor`` precedent). The
+# ``review-cycle-reconcile`` @app.command shell delegates to
+# ``run_review_cycle_reconciliation``; it finds review-cycle / arbiter-override
+# records stranded under a path this mission's census marks retired, ahead of
+# WP13's consumer-unification narrowing the fan-out that used to find them.
+from ._review_cycle_reconcile_doctor import run_review_cycle_reconciliation  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# WP03 (operator-config-ergonomics-01M04YK8, T015): self-registering sibling
+# auto-discovery seam.
+# ---------------------------------------------------------------------------
+#
+# Every subcommand ABOVE this point (WP02-WP10 of the #2059 de-godding effort,
+# plus the two on-demand-audit siblings) was wired by hand: a module-level
+# import of the sibling's logic function, plus a hand-written
+# ``@app.command`` shell in THIS file that calls it. That means every new
+# doctor subcommand touches this one file -- a guaranteed merge collision
+# when multiple missions add doctor subcommands concurrently (the exact
+# three-lane collision WP03/WP04/WP05 hit).
+#
+# This loop is the fix, applied ADDITIVELY (the god-module split of the
+# hand-wired commands above is FR-012, issue #1623, a separate deferred
+# effort -- NOT reproduced or preempted here): it imports every
+# ``cli/commands/_*_doctor.py`` sibling module and calls its ``register(app)``
+# function when the module exposes one, mirroring the migration
+# auto-discovery pattern (``upgrade/migrations/__init__.py:
+# auto_discover_migrations``). A sibling that opts in via ``register(app)``
+# (e.g. ``_provenance_doctor.py``, the first user) needs zero changes to this
+# file to add its subcommand; a legacy sibling that only exposes bare
+# ``run_*`` functions (no ``register``) is imported harmlessly and ignored.
+def _auto_discover_doctor_siblings() -> None:
+    """Import every ``_*_doctor.py`` sibling and call ``register(app)`` if present."""
+    import importlib
+    import pkgutil
+
+    package_dir = Path(__file__).parent
+    package_name = __name__.rsplit(".", 1)[0]
+    for module_info in pkgutil.iter_modules([str(package_dir)]):
+        module_name = module_info.name
+        if not (module_name.startswith("_") and module_name.endswith("_doctor")):
+            continue
+        module = importlib.import_module(f"{package_name}.{module_name}")
+        register = getattr(module, "register", None)
+        if callable(register):
+            register(app)
+
+
+_auto_discover_doctor_siblings()
 
 
 @app.command(name="command-files")
@@ -458,6 +522,57 @@ def topology(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
     run_topology_audit(repo_root, json_output, mission)
+
+
+@app.command(name="mission-type")
+def mission_type(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit structured JSON output (suitable for CI)"),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Scope report to a single mission slug"),
+    ] = None,
+    fail_on: Annotated[
+        str | None,
+        typer.Option(
+            "--fail-on",
+            help=(
+                "Exit non-zero if any mission is in the given state(s). "
+                "Comma-separated list of: resolved, activated-unresolvable, "
+                "unknown, typeless, legacy-key-only, error."
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Report mission-type resolution health across kitty-specs/.
+
+    Classifies every mission into one of six states (FR-008):
+
+    \\b
+    - resolved: mission_type present, activated, and loadable
+    - activated-unresolvable: activated but has no loadable profile on disk
+    - unknown: mission_type present but not activated/registered anywhere
+    - typeless: no mission_type key (or a blank/null/non-string value)
+    - legacy-key-only: only the retired `mission` key is present
+    - error: meta.json unreadable or malformed
+
+    Examples:
+        spec-kitty doctor mission-type
+        spec-kitty doctor mission-type --json
+        spec-kitty doctor mission-type --mission 083-foo
+        spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_mission_type_audit(repo_root, json_output, mission, fail_on)
 
 
 @app.command(name="sparse-checkout")
@@ -811,14 +926,13 @@ def invocation_pairing(
 
 def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
     """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
-    import datetime as _dt
-
+    from kernel.clock import now_utc
     from specify_cli.doctor.ops import close_stale_ops
 
     report = close_stale_ops(
         repo_root,
         threshold_hours=threshold_hours,
-        now=_dt.datetime.now(_dt.UTC),
+        now=now_utc(),
     )
     # Exit 1 on per-op write/IO errors or when open-but-fresh Ops remain after
     # the sweep (consistent with report mode); already_closed is not a failure.
@@ -920,63 +1034,6 @@ def ops(
     )
     console.print()
     raise typer.Exit(1)
-
-
-@app.command(name="orphan-daemons")
-def orphan_daemons(
-    json_output: Annotated[
-        bool,
-        typer.Option("--json", help="Machine-readable JSON output"),
-    ] = False,
-) -> None:
-    """List orphan daemon owner records and emit retirement hints.
-
-    Implements FR-010 of the identity-boundary mission: an orphan
-    daemon owner record is one whose recorded PID is dead OR whose
-    recorded executable path no longer exists on disk. Each orphan
-    is printed with a copy-pasteable retirement command that removes
-    the on-disk ``owner.json`` so the next ``sync status --check``
-    returns clean.
-
-    Exit codes:
-      0  No orphan records.
-      1  At least one orphan record found.
-
-    Examples:
-        spec-kitty doctor orphan-daemons
-        spec-kitty doctor orphan-daemons --json
-    """
-    run_orphan_daemons(json_output)
-
-
-@app.command(name="restart-daemon")
-def restart_daemon_cmd(
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Emit a single JSON object instead of human-readable text.",
-        ),
-    ] = False,
-) -> None:
-    """Stop the registered sync daemon and respawn it at the foreground.
-
-    Composes the existing daemon stop + launch primitives so the operator
-    has a one-shot remedy when the foreground process and the registered
-    daemon disagree on any of the six canonical D-3 fields (version,
-    executable, source, server URL, team/user, or queue DB path).
-
-    Exit codes:
-      0  Daemon restarted (or stale owner record cleaned and respawned).
-      1  No registered daemon — run ``spec-kitty sync now`` to launch one.
-      2  Daemon stop succeeded but respawn failed; system is stopped.
-      3  Daemon stop failed (unresponsive); owner record left intact.
-
-    Examples:
-        spec-kitty doctor restart-daemon
-        spec-kitty doctor restart-daemon --json
-    """
-    run_restart_daemon(json_output)
 
 
 @app.command(name="mission-state")
@@ -1094,7 +1151,7 @@ def doctrine_check(
         spec-kitty doctor doctrine
         spec-kitty doctor doctrine --json
     """
-    from specify_cli.doctrine.config import load_pack_registry
+    from charter.drg import load_pack_registry
 
     try:
         repo_root = locate_project_root()
@@ -1116,9 +1173,14 @@ def doctrine_check(
     # report, before ``exit_code`` is derived — a collision forces RC=1 on
     # every output path (json / no-packs / human) the same way a profile-load
     # crash already does. Extracted to a helper so this shim stays thin
-    # (C-003: the ``__all__`` re-add in ``charter.action_grain`` needs a real
+    # (C-003: the ``__all__`` re-add in ``charter.activation.action_grain`` needs a real
     # ``src`` caller, and this is it).
     _run_cross_grain_check(report)
+
+    # Operating-procedures resolution scan (M3): every built-in
+    # ``operating-procedures`` entry must resolve to a real procedure node.
+    # Folded in before ``exit_code`` is derived, same as the cross-grain scan.
+    _run_operating_procedures_check(report)
 
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.
@@ -1253,6 +1315,27 @@ def coordination_health(
     json_output: Annotated[
         bool, typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
+    check_staleness: Annotated[
+        bool,
+        typer.Option(
+            "--check-staleness",
+            help=(
+                "Also report coord-branch-vs-target-branch staleness (Gap-1, "
+                "FR-008): non-blocking, whether the coord branch is behind or "
+                "has diverged from its mission's target_branch."
+            ),
+        ),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help=(
+                "Scope the checks to a single mission handle (mission_id / mid8 "
+                "/ slug), resolved via the same resolver as `doctor mission-state`."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Run the WP04 #1348 coordination + sparse-checkout health checks.
 
@@ -1266,13 +1349,108 @@ def coordination_health(
     findings exit 0 but are still printed.
 
     With ``--fix``, automatically flattens missions that have a stale
-    ``coordination_branch`` key (branch never created or already deleted)
-    and re-derives topology. Safe to run on 100%-done missions before
-    ``spec-kitty next`` or ``spec-kitty merge``.
+    ``coordination_branch`` key (branch never created or already deleted),
+    re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
+    (FR-009) -- which fails loud with a unified diff and mutates nothing when
+    the coord branch has diverged or its worktree is dirty. Safe to run on
+    100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
+
+    With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
+    staleness (FR-008) — non-blocking either way.
+
+    With ``--mission <handle>``, scopes every per-mission check (and the
+    ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
+    the handle to. An unresolvable / ambiguous handle fails closed with exit 1.
 
     Examples:
         spec-kitty doctor coordination
         spec-kitty doctor coordination --fix
         spec-kitty doctor coordination --json
+        spec-kitty doctor coordination --check-staleness
+        spec-kitty doctor coordination --mission 083-my-mission
     """
-    run_coordination_health(json_output, fix)
+    run_coordination_health(json_output, fix, check_staleness, mission)
+
+
+# ---------------------------------------------------------------------------
+# WP05 (runtime-state-birth-cutover-all-paths-01KYH654, FR-007): on-demand
+# cut-over audit.
+# ---------------------------------------------------------------------------
+
+
+@app.command(name="cutover")
+def cutover(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Audit every mission's cut-over status outside CI (FR-007).
+
+    Backed by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:
+    the same fail-closed seed-then-verify spine the birth-cutover migration
+    uses, read-only and writing nothing. Reports each mission slug, whether
+    it is cut over, and a reason when it is not.
+
+    Informational only: always exits 0 with a summary count.
+
+    Examples:
+        spec-kitty doctor cutover
+        spec-kitty doctor cutover --json
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_cutover_audit(repo_root, json_output=json_output)
+
+
+# ---------------------------------------------------------------------------
+# WP08 (review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-008): review-cycle
+# reconciliation detector.
+# ---------------------------------------------------------------------------
+
+
+@app.command(name="review-cycle-reconcile")
+def review_cycle_reconcile(
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Scope to a single mission (mission_id / mid8 / slug)"),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Find review-cycle / arbiter-override records stranded under a retired
+    resolver path, ahead of WP13's consumer-unification (FR-008).
+
+    Every retired resolver comes from WP08's reviewed retirement set, not a
+    guessed set. Reports two DISTINCT stranded classes per finding: a
+    deleted-coordination-branch mission (absorbed to PRIMARY, the measured
+    45-mission corpus) and a live-coordination-branch mission still carrying a
+    pre-ADR PRIMARY record. Never a bare count — every finding names its
+    mission, WP, retired resolver, and resolved directory.
+
+    Informational only: always exits 0. No ``--fix`` — a stranded record may
+    have a legitimate divergent sibling, and this command does not pick a
+    winner.
+
+    Examples:
+        spec-kitty doctor review-cycle-reconcile
+        spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD
+        spec-kitty doctor review-cycle-reconcile --json
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_review_cycle_reconciliation(repo_root, json_output=json_output, mission=mission)

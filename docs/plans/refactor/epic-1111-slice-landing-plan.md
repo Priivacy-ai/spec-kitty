@@ -1,9 +1,12 @@
 ---
 title: 'Epic #1111 — Slice Gap Analysis & Independent Landing Assessment'
 description: "Architect Alphonso's slice gap analysis and independent-landing assessment for epic #1111: whether each slice can land independently (2026-05-18)."
-doc_status: draft
-updated: '2026-05-19'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Slice-F working note; the Slice-F mission `slice-f-multi-context-extensibility-01KRX5C8` merged (commit `2623a22db`, Epic #1111). Content preserved as an audit-trail record.
+
 # Epic #1111 — Slice Gap Analysis & Independent Landing Assessment
 
 **Author:** Architect Alphonso (ad-hoc profile session)  
@@ -387,7 +390,7 @@ without requiring production readiness.
 | 1. Dashboard glossary fix | #1098 | `glossary/models.py`, `glossary/scope.py`, `dashboard/handlers/glossary.py`, seed YAML | Minimal |
 | 2. CI DRG integrity gate | #1103 | `.github/workflows/ci-*.yml`, `tests/architectural/`, `src/doctrine/graph.yaml` (regen) | Minimal |
 | 3. Git policy + charter source-of-truth docs | #1102, #1007, #1013 | `docs/`, `.gitignore`, legacy test cleanup | Minimal |
-| 4. Charter lint + status + synthesize freshness | #1099, #1101, #1104 | `charter_lint/_drg.py`, `charter_lint/engine.py`, `charter_lint/findings.py`, `charter.py` | Low |
+| 4. charter lint + status + synthesize freshness | #1099, #1101, #1104 | `charter_lint/_drg.py`, `charter_lint/engine.py`, `charter_lint/findings.py`, `charter.py` | Low |
 | 5. ADR-8 (monorepo design) | #522 | `docs/adr/2.x/` | Minimal |
 | 6. Session-start preflight | #1100 | `specify_cli/preflight.py` (new), `specify_cli/next/runtime_bridge.py`, `charter.py` | Medium |
 | 7. Composable workflow sequencing | #682 | New mission, ~6–8 WPs | Medium-High |

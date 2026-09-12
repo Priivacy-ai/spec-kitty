@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: Code at cascade.py:371-379 confirms cascade_activation_targets partitions strictly on scope.selects with no kind-filtered awareness, so FR-004's literal "at least one referenced node but zero land in activated" also matches a pure scope-narrowing source (all-activatable-kind refs, none selected by a narrow --cascade scope), and neither SC-002 nor User Story 1 Scenario 2 (both --cascade all, kind-filtered-only) nor Edge Case 3 (a scope+kind-filter mix, not pure scope-narrowing) covers that variant.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: grep of spec.md confirms zero occurrences of "baseline", "known-red", "known-failing", or an issue-number pointer despite SC-001/SC-004/SC-006 requiring pytest runs, while CLAUDE.md:234-248 documents a mandatory, agent-wide baseline-red classification duty that spec.md never references or points to, unlike the mission's own established practice of citing external artifacts (ADR, ledger, readiness probe) elsewhere in the same document.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: grep of spec.md shows "Fails if"/"FAILS if" appears only in the three User Story blocks (lines 100, 135, 169) and the six SC bullets (lines 274-294), with zero occurrences inside the Non-Functional Requirements table, which states NFR-001..004 as "must" statements only and confirms none of the six SCs is worded to check NFR-001's silent-path bar or NFR-002's no-truncation bar directly.
+  - id: SPEC-VERIFY-006
+    verdict: confirmed
+    reason: Reading activate.py directly shows def _render_no_cascade_warning starts at line 383 and the next def (run_full_synthesize) starts at line 420, so the function's real last line is 417 (console.print of report.recovery_hint) — the spec's cited range 383-416 stops one line short and omits exactly that recovery-hint print, confirming the citation error.
+  - id: SPEC-VERIFY-007
+    verdict: confirmed
+    reason: Reading deactivate.py directly shows def _render_cascade_deactivation starts at line 133 and the next def (deactivate_cmd) starts at line 197, so the function's real last line is 194, with the "for skip in plan.skipped_shared" render loop occupying lines 190-194 — the spec's cited range 133-186 ends before that loop starts, entirely excluding it, confirming the citation error.

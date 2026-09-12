@@ -1,7 +1,7 @@
 """Platform-aware runtime state path resolution for spec-kitty.
 
 This module is a leaf — it must not import from specify_cli.auth,
-specify_cli.tracker, specify_cli.sync, or any kernel subpackage.
+specify_cli.tracker, or any kernel subpackage.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 import platformdirs
+from kernel.paths import to_posix
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,7 @@ def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
     try:
         home = Path.home().resolve(strict=False)
         rel = abs_path.relative_to(home)
-        return "~/" + str(rel).replace("\\", "/")
+        return "~/" + to_posix(rel)
     except ValueError:
         return str(abs_path)
 

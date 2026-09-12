@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-26T06:51:27.732203+00:00",
+  "flattened": false,
   "friendly_name": "Doctrine Enrichment: Frontend, Brownfield, and Tactic Normalization",
   "mission_id": "01KQ48XAGYF876MDHJ62GV0KSM",
   "mission_number": 100,
@@ -10,6 +11,7 @@
   "slug": "doctrine-enrichment-frontend-brownfield-normalization-01KQ48XA",
   "status_phase": "1",
   "target_branch": "feature/doctrine-enrichment-bdd-profiles",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-04-26T11:42:41.567659+00:00"
 }

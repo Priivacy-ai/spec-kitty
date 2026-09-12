@@ -137,3 +137,33 @@ def test_golden_path_null_mode_preserves_unconditional_projection() -> None:
     rule = resolve_projection(None, EventKind.STARTED)
     assert rule.project is True
     assert rule.include_request_text is True
+
+
+# ---------------------------------------------------------------------------
+# #3030 FR-025 census — the lookup's default arm is a guard too
+# ---------------------------------------------------------------------------
+
+
+def test_missing_policy_row_projects_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pair with no row discloses nothing, rather than everything.
+
+    ``test_policy_table_covers_all_16_pairs`` keeps the table exhaustive for today's
+    enums, so this arm is reachable only by adding a member without a row — a change
+    whose author has not decided what may be disclosed for it. The default used to be
+    the most permissive rule in the table (project, with the request body), which is
+    the same shape as the guard FR-025 fixed: an undecided state borrowing a definite,
+    permissive answer.
+
+    The row is removed at runtime rather than by editing the table, so the pin cannot
+    drift from the shipped table.
+    """
+    pair = (ModeOfWork.TASK_EXECUTION, EventKind.STARTED)
+    assert resolve_projection(*pair).project is True, "fixture premise: this row projects"
+
+    monkeypatch.delitem(POLICY_TABLE, pair)
+
+    rule = resolve_projection(*pair)
+
+    assert rule.project is False
+    assert rule.include_request_text is False
+    assert rule.include_evidence_ref is False

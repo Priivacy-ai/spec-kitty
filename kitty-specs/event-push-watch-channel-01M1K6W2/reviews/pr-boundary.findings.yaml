@@ -1,0 +1,79 @@
+phase: pr
+lens: boundary
+findings:
+  - id: PR-BOUNDARY-001
+    severity: 4
+    title: "Pass-through Tail envelopes never carry the tail_offset/tail_invariant sibling keys FR-004 and plan.md require"
+    location: "src/specify_cli/status/tail_reader.py:poll_once (events.append(parsed) in the drain loop, ~line 288-291); src/specify_cli/cli/commands/events.py:tail_command (print(json.dumps(event)) at lines 183 and 190)"
+    claim: >
+      FR-004 (spec.md, High priority) requires the command to "emit, in each envelope, both its
+      current offset AND the FR-005 content-invariant value ... for that offset, so that I can
+      persist both and supply them on restart." plan.md's "Tail Envelope & Cursor Schema" section
+      (lines ~388-393) commits to this concretely: "Pass-through envelope (stdout): the existing
+      StatusEvent JSON dict, unmodified, plus two reader-injected sibling keys — tail_offset: int
+      ... and tail_invariant: str". tasks/WP04-cli-shell-events-tail.md line 84 repeats the same
+      contract verbatim as an acceptance criterion. The shipped code does not implement this for
+      ordinary (non-truncation) events: poll_once()'s drain loop does `events.append(parsed)` with
+      the bare json.loads(chunk) result — no tail_offset/tail_invariant keys are ever merged in —
+      and events.py's tail_command prints that same unmodified dict via `print(json.dumps(event))`
+      on both the --once and streaming paths. Only the log_truncated signal envelope
+      (_truncation_signal()) carries tail_offset/tail_invariant; ordinary pass-through events never
+      do. PollResult.cursor (which does hold the offset/invariant) is computed once per poll batch
+      and is silently discarded by events.py — never printed, never attached per-event. A real
+      external consumer of `spec-kitty events tail --json` therefore has no way to learn the offset
+      or content-invariant needed to drive `--from-offset`/`--from-invariant` on restart through the
+      command's own public stdout interface, which is the entire point of FR-004/FR-013's resume
+      mechanism (User Story 3). No test in the suite catches this: the two tests that need a real
+      (offset, invariant) pair (tests/cli/test_events_tail.py::test_resume_success_path_emits_only_events_at_or_after_offset
+      and its sibling truncation-mismatch test) obtain it by calling `events_cli.poll_once()`
+      directly in the test body rather than parsing it out of the CLI's own stdout — which works
+      around the gap instead of exercising the documented envelope contract. The docs/glossary
+      changes (docs/context/system-events.md "Tail envelope" entry, and the mirrored entry in
+      src/specify_cli/.contextive/system-events.yml) describe the intended-but-unshipped behavior
+      as fact ("Every pass-through envelope also carries the offset and content-invariant value
+      immediately past the emitted event"), so the doc trail itself asserts something the code does
+      not do.
+    evidence: |
+      # 1. Direct call confirms poll_once's returned events are bare, unmodified dicts:
+      .venv/bin/python -c "
+      import json, tempfile
+      from pathlib import Path
+      from specify_cli.status.tail_reader import TailCursor, EMPTY_DIGEST, poll_once
+      with tempfile.TemporaryDirectory() as d:
+          p = Path(d) / 'status.events.jsonl'
+          p.write_text(json.dumps({'event_id':'abc','event_type':'x'}) + '\n')
+          cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
+          result = poll_once(p, cursor)
+          print('events:', result.events)
+          print('cursor:', result.cursor)
+      "
+      # -> events: [{'event_id': 'abc', 'event_type': 'x'}]      (no tail_offset/tail_invariant keys)
+      # -> cursor: TailCursor(offset=39, content_invariant='1c601704ebeb434885e3987ea76dfaa9dffec8f3138cc8264411f552a2f775f7')
+      #    (the cursor exists but is never merged into the event dict, and events.py never prints it)
+
+      # 2. Static confirmation: tail_offset/tail_invariant only appear in the truncation-signal path.
+      grep -rn "tail_offset\|tail_invariant" src/specify_cli/status/tail_reader.py
+      # -> only inside _truncation_signal()'s constructed `event` dict (lines 178-186); the ordinary
+      #    drain loop (poll_once, lines 278-297) never references either name.
+
+      grep -rn "tail_offset\|tail_invariant" tests/ | grep -v log_truncated
+      # -> only tests/status/test_tail_reader_truncation.py:108-109,198-199 (the log_truncated
+      #    envelope's own fixed fields) — zero test asserts these keys on an ordinary event.
+
+      # 3. plan.md's binding contract (quoted verbatim):
+      sed -n '388,393p' kitty-specs/event-push-watch-channel-01M1K6W2/plan.md
+      # -> "Pass-through envelope (stdout): the existing `StatusEvent` JSON dict, unmodified, plus
+      #     two reader-injected sibling keys — `tail_offset: int` ... and `tail_invariant: str` ..."
+    remediation: >
+      Either (a) make poll_once() merge {"tail_offset": <running offset after this line>,
+      "tail_invariant": <invariant at that offset>} into every event dict it appends (tracking the
+      running offset incrementally inside the drain loop, not just the final batch offset), and have
+      events.py print the enriched dict as-is on both the --once and streaming paths; or (b), if the
+      mission intends to descope per-envelope resumability in favor of some other resume-discovery
+      mechanism, correct FR-004, plan.md's Tail Envelope & Cursor Schema section, tasks/WP04, and the
+      docs/context/system-events.md + .contextive/system-events.yml "Tail envelope" entries to say so
+      explicitly, and add a test that parses tail_offset/tail_invariant out of real CLI stdout (not
+      out of a direct poll_once() call) to make the actual contract enforceable. Option (a) matches
+      the plan's own stated design and the FR-004 acceptance criteria that were never marked
+      descoped, so it is the corrective default absent a fresh operator ruling.
+complete: true

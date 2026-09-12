@@ -1,0 +1,15 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      FR-004 now names runtime_bridge_composition.py's _check_composed_action_guard as the
+      destination for the new log line, explicitly disclaims that WARNING matches that
+      module's own logger.exception/ERROR convention for _dispatch_via_composition's
+      executor-exception case (verified live at runtime_bridge_composition.py:567-573), and
+      reframes runtime_bridge.py:348-354 (verified live, unchanged) as the cross-file precedent
+      that motivated the WARNING choice rather than an in-force local convention; no new
+      contradiction was introduced into FR-003, C-001, User Story 3, or SC-002.

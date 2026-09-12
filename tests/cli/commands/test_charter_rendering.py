@@ -4,7 +4,7 @@ These tests assert on stable message substrings in CLI output.  They use
 CliRunner to capture Rich-rendered text and check for substrings that are
 stable across Rich versions and terminal widths.  No full-snapshot assertions.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -55,7 +55,7 @@ def test_sync_renders_error_message_when_sync_reports_error(tmp_path: Path) -> N
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -78,7 +78,7 @@ def test_sync_renders_success_message_when_synced(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -102,7 +102,7 @@ def test_sync_renders_already_in_sync_when_noop(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -232,8 +232,8 @@ def test_context_renders_action_name_in_output(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "review"])
 
@@ -263,12 +263,16 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         org_charter_block: dict[str, object],
         mission_type: str | None = None,
         feature_dir: Path | None = None,
+        include_all: bool = False,
     ) -> dict[str, object]:
         assert repo_root == project
         assert action == "plan"
         assert depth == fake_ctx.depth
         assert org_root is None
         assert org_charter_block == {"present": False, "packs": []}
+        # The CLI's `--include-all` escape hatch defaults to False and was not
+        # requested on this invocation.
+        assert include_all is False
         return {
             "directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
             "all_directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
@@ -292,9 +296,9 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.build_charter_context_json", side_effect=_json_builder),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.build_charter_context_json", side_effect=_json_builder),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
             return_value={"present": False, "packs": []},
@@ -327,8 +331,8 @@ def test_context_renders_error_on_task_cli_error(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", side_effect=TaskCliError("charter context unavailable")),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", side_effect=TaskCliError("charter context unavailable")),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "plan"])
 
@@ -343,9 +347,9 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
         ) as include_builder,
     ):
@@ -366,8 +370,8 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
 ) -> None:
     """Regression for #1464: activation stanzas must not point at a missing option."""
 
-    from charter._activation_render import render_activation_stanza
-    from charter.activations import ActivationEntry
+    from charter.activation._activation_render import render_activation_stanza
+    from charter.activation.activations import ActivationEntry
 
     project = _project(tmp_path)
     stanza = render_activation_stanza(
@@ -388,9 +392,9 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="Styleguide caveman-comments: Caveman",
         ) as include_builder,
     ):
@@ -414,9 +418,9 @@ def test_context_include_json_renders_machine_envelope(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
         ),
     ):
@@ -439,9 +443,9 @@ def test_context_include_renders_value_error(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             side_effect=ValueError("bad selector"),
         ),
     ):
@@ -458,9 +462,64 @@ def test_context_requires_action_without_include(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("specify_cli.doctrine.config.resolve_org_roots", return_value=[]),
+        patch("charter.drg.resolve_org_roots", return_value=[]),
     ):
         result = runner.invoke(app, ["context"])
 
     assert result.exit_code == 1
     assert "--action is required unless --include is provided" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #4123: never-git-init-ed projects — actionable git-init advice
+# ---------------------------------------------------------------------------
+
+def test_context_renders_git_init_advice_on_non_git_project(tmp_path: Path) -> None:
+    """Arrange: build_charter_context raises NotInsideRepositoryError;
+    Act: context --action plan;
+    Assert: exit 1 with the actionable git-init advice, not the generic
+    'Unexpected error' envelope (#4123)."""
+    from charter.resolution import NotInsideRepositoryError
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch(
+            "charter.activation.context.build_charter_context",
+            side_effect=NotInsideRepositoryError(project),
+        ),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+    ):
+        result = runner.invoke(app, ["context", "--action", "plan"])
+
+    assert result.exit_code == 1
+    assert "not inside a git repository" in result.output
+    assert "git init" in result.output
+    assert "Unexpected error" not in result.output
+
+
+def test_context_json_error_envelope_names_git_init_on_non_git_project(tmp_path: Path) -> None:
+    """Arrange: build_charter_context raises NotInsideRepositoryError;
+    Act: context --action plan --json;
+    Assert: one parseable error envelope whose message carries the
+    git-init advice (#4123)."""
+    from charter.resolution import NotInsideRepositoryError
+
+    project = _project(tmp_path)
+
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
+        patch(
+            "charter.activation.context.build_charter_context",
+            side_effect=NotInsideRepositoryError(project),
+        ),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+    ):
+        result = runner.invoke(app, ["context", "--action", "plan", "--json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["result"] == "error"
+    assert payload["success"] is False
+    assert "git init" in payload["error"]

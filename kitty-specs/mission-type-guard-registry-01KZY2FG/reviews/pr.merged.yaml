@@ -1,0 +1,135 @@
+# review-findings/v1 — R2 merge/dedup output (mechanical, no judgment applied).
+# Source files: pr.boundary.findings.yaml (1 finding), pr.contract.findings.yaml
+# (3 findings), pr.tests.findings.yaml (0 findings). Raw total: 4. Merged total: 3
+# (PR-BOUNDARY-001 and PR-CONTRACT-001 dedup'd — same claim: _GUARD_TABLES's
+# 4-entry registered-family set has no structural coupling to the built-in
+# mission-type catalog that drives doctor mission-type's 'resolved' state).
+# Dedup rule applied: same claim + overlapping evidence -> keep higher severity
+# (tie at 3, kept earlier id PR-BOUNDARY-001), union the evidence, note the
+# merged-away id. Original ids preserved, nothing renumbered.
+schema: review-findings/v1
+complete: true
+phase: pr
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PR-BOUNDARY-001
+    lens: cross-lane-coherence / does-the-fix-introduce-the-defect-it-fixes
+    severity: 3
+    title: "_GUARD_TABLES's registered-family set has no structural coupling to the built-in mission-type catalog that drives doctor mission-type's 'resolved' state — the two taxonomies agree today only by coincidence, and a resolved custom mission type can be permanently guard-less while reporting green"
+    merged_from: [PR-BOUNDARY-001, PR-CONTRACT-001]
+    evidence:
+      - artifact: "spec.md § C-001, NFR-002, FR-003/FR-004 (cross-references FR-007)"
+      - artifact: "spec.md § FR-008 ('resolved' state definition)"
+      - artifact: "spec.md § User Story 4 (\"Why this priority\" + body text — doctor mission-type's stated purpose is to surface exactly this class of misconfiguration proactively)"
+      - artifact: "spec.md § Key Entities (_GUARD_TABLES vs doctor mission-type taxonomy described as two distinct entities)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:586 (_GUARD_TABLES literal dict, exactly 4 hardcoded entries: research/documentation/software-dev/plan)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:575 (UnregisteredMissionFamilyError docstring — cross-references only charter.mission_type_profiles.UnknownMissionTypeError, never doctor mission-type or its 'resolved' state)"
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:19-22, 147-220 ('resolved' = present + activated in charter + \"has a loadable definition in the built-in doctrine bundle\", resolved via MissionTypeRepository.default(); _classify_present_key/_classify_absent_key/classify_mission_type never reference _GUARD_TABLES, evaluate_guards, evaluate_guards_strict, or UnregisteredMissionFamilyError anywhere)"
+      - code: "src/charter/mission_type_profiles.py:424-443 (existing_mission_types docstring: \"a project MAY activate a custom (non-built-in) mission type id, and that id is returned as-is\" — confirming resolved custom types outside the built-in 4 are a real, spec-endorsed case)"
+      - code: "packs/built-in/missions/mission_types/ (documentation.yaml, plan.yaml, research.yaml, software-dev.yaml — exactly the 4 files MissionTypeRepository.default() loads, and exactly _GUARD_TABLES's 4 keys, today)"
+    claim: >
+      WP01's `_GUARD_TABLES` (runtime_bridge_cores.py:586) is a hand-maintained literal
+      dict of exactly four mission-family entries. WP02's `resolved` classification
+      (`_mission_type_audit.py`'s `_classify_present_key`, via
+      `MissionTypeRepository.default()`) is computed dynamically from whatever YAML
+      files exist under `packs/built-in/missions/mission_types/` at run time, and (per
+      NFR-002/C-001's own tolerant-path design) an activated custom mission type outside
+      those four can also be classified `resolved`. Today the built-in set and
+      `_GUARD_TABLES`'s membership happen to be identical, so the two subsystems agree
+      by coincidence, not by construction: no test, assertion, or code-level
+      cross-reference ties `_GUARD_TABLES`'s membership to the built-in mission-type
+      catalog (`doctrine.missions.mission_type_repository.builtin_mission_type_ids()`),
+      which the rest of the codebase treats as canonical and enforces with dedicated
+      parity tests elsewhere (e.g. `tests/doctrine/missions/test_builtin_mission_type_ids.py`,
+      `tests/charter/test_action_grain.py:203`,
+      `tests/doctrine/drg/test_cross_grain_integrity.py:106`). The day a fifth built-in
+      mission-type YAML ships, or a project activates a resolved custom mission type,
+      without a matching `_GUARD_TABLES` entry, `spec-kitty doctor mission-type --json`
+      will report that mission type as `resolved` (fully healthy, no `--fail-on` state
+      matches) while its guard evaluation silently neutral-degrades on the composed path
+      (empty guard list, no failures ever surfaced, WARNING-level log only) forever —
+      exactly the "resolved gives false confidence that guards will evaluate correctly"
+      scenario, and exactly the silent-taxonomy-disagreement class issue #3386 itself
+      describes. Neither module's docstrings mention the other subsystem's existence or
+      this coupling risk, so a maintainer adding a built-in mission type, or an operator
+      reading a green `doctor mission-type` report, has no in-code signal that "resolved"
+      does not imply "guard-checked."
+    remediation: >
+      Either (a) derive `_GUARD_TABLES`'s registered-family check from
+      `doctrine.missions.mission_type_repository.builtin_mission_type_ids()` (or have
+      `classify_mission_type`/`_build_mission_type_json` cross-check a `resolved`
+      mission's `resolved_key` against `_GUARD_TABLES` and surface a distinguishing
+      field, e.g. `guard_table_registered`) so the two registries can never drift
+      silently and a resolved-but-guardless type is visibly distinguished; or (b) if a
+      deliberate hand-authored subset is intended, add an explicit architectural test
+      asserting the *relationship* (every id in `builtin_mission_type_ids()` either has
+      a `_GUARD_TABLES` entry or is documented as an intentional composed-path-tolerant
+      exception) plus a code comment on both `_GUARD_TABLES` and
+      `_mission_type_audit.py`'s `resolved` docstring cross-referencing the other
+      subsystem, and correct User Story 4's prose / the command's `--help` text to state
+      plainly that `resolved` certifies charter/doctrine resolution only, NOT
+      guard-table coverage.
+
+  - id: PR-CONTRACT-002
+    lens: silent-success / undocumented parallel degrade path
+    severity: 3
+    title: "evaluate_guards's tolerant public wrapper degrades to [] with zero logging — an unenforced, undocumented second silent-degrade path parallel to FR-004's mandated one"
+    evidence:
+      - artifact: "spec.md § FR-004 (WARNING-or-above log required for the composed-path neutral degrade)"
+      - artifact: "spec.md § FR-003 (\"FR-004's log line is the only differentiator\" for the neutral-degrade result)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:609-624 (evaluate_guards: try/except UnregisteredMissionFamilyError: return [] — no logger call anywhere in the function)"
+      - code: "tests/runtime/test_bridge_cores.py (test_evaluate_guards_tolerant_wrapper_degrades_for_unregistered_mission_family — asserts only the return value == [], never asserts on logging, i.e. pins the silent behavior)"
+    claim: >
+      `runtime_bridge_cores.evaluate_guards` (the module-level, non-underscore-prefixed,
+      `__all__`-unrestricted public function) has its own independent
+      `except UnregisteredMissionFamilyError: return []` branch that emits no log record
+      at any level. This is a second, parallel silent-degrade path to the one FR-004
+      explicitly mandates logging for (`_check_composed_action_guard`'s WARNING). The
+      function's own docstring says it is "Kept tolerant/public only for existing
+      direct test callers ... any new production call site should use
+      evaluate_guards_strict instead" — but nothing enforces that: no `__all__`
+      restriction, no deprecation warning, no lint rule, and no test asserting there are
+      zero non-test production callers. A future contributor importing and calling
+      `evaluate_guards` directly from new production code (an easy mistake given its
+      name is the more "obvious"/undecorated one of the pair) would silently
+      reintroduce the exact class of defect #3386 exists to close, with no
+      discoverability at all — worse than the composed path's neutral degrade, which at
+      least logs.
+    remediation: >
+      Rename the public tolerant wrapper to an underscore-prefixed or otherwise
+      clearly-internal name reserved for the pinned direct test callers, or add it to a
+      `__all__` that excludes it, or — minimally — add the same `logger.warning(...)`
+      call FR-004 requires on the composed path's degrade branch so the two
+      tolerant-degrade call sites are symmetric and neither is silent. At minimum, add a
+      test that asserts `evaluate_guards` has no non-test importers under `src/`, so a
+      future production call site regressing this is caught mechanically rather than
+      relying on a docstring comment.
+
+  - id: PR-CONTRACT-003
+    lens: silent-success / exception-handling scope
+    severity: 2
+    title: "classify_mission_type's try/except covers only the meta.json read, not the classification helpers that run after it — a bug there would crash the whole audit run, not degrade to one mission's error state"
+    evidence:
+      - artifact: "spec.md § Edge Cases (last bullet): \"It must classify that mission into an explicit error state in the report (never silently skip it and never crash the whole audit run)\""
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:194-220 (classify_mission_type: try/except (OSError, MissionMetaReadError) wraps only load_meta_fail_closed; the _classify_present_key/_classify_absent_key calls execute after the try block has already exited, unguarded)"
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:260-267 (audit_mission_types's for-loop calls classify_mission_type with no surrounding try/except, so any exception from the unguarded classification helpers propagates straight out and aborts the whole audit)"
+    claim: >
+      FR-008's Edge Case requires that a per-mission classification failure "never
+      crash the whole audit run." `classify_mission_type` only narrows the blast radius
+      of exceptions from the `meta.json` read itself (`OSError`/`MissionMetaReadError`);
+      the classification logic that runs afterward (`_classify_present_key` /
+      `_classify_absent_key`, which call `canonical_mission_type_key` and
+      `MissionTypeRepository.get`) is not covered by any try/except in this function,
+      and `audit_mission_types`'s calling loop has no try/except around the
+      `classify_mission_type` call either. Today this is not a live bug (both helper
+      functions are simple/pure and unlikely to raise for the inputs the caller passes
+      them), but the isolation contract the spec asks for is only accidentally
+      satisfied by the current implementation's simplicity, not structurally
+      guaranteed. A later change to `canonical_mission_type_key` or
+      `MissionTypeRepository.get` would crash `doctor mission-type` for every mission
+      in the tree, not just the offending one.
+    remediation: >
+      Widen the try/except in `classify_mission_type` to cover the full classification
+      body, catching a broad-but-intentional exception class (or bare `Exception`) and
+      routing it to the `error` state with the exception message, exactly mirroring the
+      isolation `doctor identity`'s `orphan` state already provides.

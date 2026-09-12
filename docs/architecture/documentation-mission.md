@@ -944,14 +944,14 @@ for step ordering and profile assignments.
 
 ## Try It
 
-- [Tutorial: Governed Charter Workflow End-to-End](../guides/charter-governed-workflow.md)
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Tutorial: Governed Charter Workflow End-to-End](../guides/tutorials/charter-governed-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [How to Run a Governed Mission](../guides/run-governed-mission.md)
-- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [How to Run a Governed Mission](../guides/how-to/governance/run-governed-mission.md)
+- [Upgrade to 0.11.0](../guides/how-to/installation/install-and-upgrade.md)
 
 ## Reference
 

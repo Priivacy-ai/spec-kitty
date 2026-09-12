@@ -1,0 +1,108 @@
+schema: review-findings/v1
+phase: plan
+group: verify
+round: fresh-3
+complete: true
+findings:
+  - id: PLAN-FRESH3-001
+    severity: 4
+    lens: lanes
+    location: "plan.md:452-458 (Chokepoint § Sibling-mission write-scope check)"
+    finding: >
+      The plan's Chokepoint section checks write-scope collision against exactly one
+      concurrent artifact — sibling mission #3384 on `src/charter/_drg_helpers.py:87` — and
+      concludes "No write-scope collision." It never checks this mission's touched files
+      (`src/specify_cli/cli/commands/doctrine.py`, `src/specify_cli/doctrine/pack_validator.py`,
+      `src/specify_cli/doctrine/pack_assembler.py`, `docs/changelog/CHANGELOG.md`) against the
+      set of currently-open PRs, as the lanes-topology discipline requires. Two open PRs
+      (#3166, #2719) touch `doctrine.py` — the exact file FR-004 edits at the `org_validate`
+      call site (`:966`). PR #2719 ("doctrine-org-init-from-template") is materially worse than
+      a line-shift risk: it refactors `org_init` (currently `:899-940`) into a dispatcher that
+      calls either `_run_minimal_scaffold` (today's 3-file stub) or a new `_run_template_render`
+      path driven by a new `--template` flag, inserting ~60 new lines directly between
+      `org_init` and the `org_validate` function this mission's IC-04 edits. This invalidates
+      the specific architectural premise FR-004's `check_drg_root=False` carve-out for
+      `org_validate` is built on: spec.md's FR-004 section and this plan's tracer-design-
+      decisions.md item #2 both justify the unconditional carve-out on "`org_init`'s own
+      architecture guarantees the drg/-fragments-only shape" — i.e., that every pack
+      `org_validate` is ever asked to check was produced by the fixed 3-file scaffold. Once
+      `--template` mode ships, an `org_init --template ...`-rendered pack can be an arbitrary
+      tree (potentially with, or without, a pack-root `*.graph.yaml`), so "the call's own
+      architecture guarantees the shape" stops being true for template-rendered packs, and the
+      unconditional `check_drg_root=False` on that call site would silently suppress a
+      genuinely useful diagnostic for exactly the shape this mission exists to catch — a
+      regression into the silent-success class this mission's own domain is meant to close.
+    evidence: >
+      `gh pr list --state open --json number,title,files` returns 18 open PRs (this checkout,
+      2026-08-14); cross-referencing their file lists against this plan's five touched surfaces
+      shows PR #3166 and PR #2719 both list `src/specify_cli/cli/commands/doctrine.py`.
+      `gh pr diff 2719 --patch` (hunk starting "diff --git a/src/specify_cli/cli/commands/
+      doctrine.py") shows `org_init` refactored to dispatch to `_run_minimal_scaffold` (legacy
+      path) or `_run_template_render` (new `--template`/`--org-name`/`--local-path`/`--branch`
+      path), net +99/-6 lines in that file, with the new functions inserted immediately before
+      the "# org validate — validate an org pack against WP06 schema (FR-006 / WP08)" comment
+      block that precedes `def org_validate`. On this checkout, `grep -n "^def org_init\|^def
+      org_validate" src/specify_cli/cli/commands/doctrine.py` gives `899:def org_init(` and
+      `949:def org_validate(`, matching this plan's own `:899-940` / `:966` citations (spec.md's
+      FR-004 section, this plan's IC-04) — confirming the citations are accurate today and would
+      go stale the moment #2719 merges. spec.md's FR-004 text states the carve-out rationale
+      verbatim: "`org_init`'s three-file scaffold ... writes `drg/fragment.yaml` in exactly the
+      shape the guide's own 'DRG extensions' section documents ... never a complete,
+      independently-loadable pack in its own right" — a premise PR #2719's `--template` path
+      does not preserve.
+    fix: >
+      Add an explicit open-PR write-scope check to the Chokepoint section (mirroring the
+      existing sibling-mission check) enumerating current open PRs that touch
+      `src/specify_cli/cli/commands/doctrine.py`, `pack_validator.py`, or `pack_assembler.py`,
+      and name the consequence for FR-004 specifically: if PR #2719 (or an equivalent
+      template-render org_init change) merges before or during this mission, IC-04's
+      `check_drg_root=False` carve-out for `org_validate` needs re-justifying — either scope the
+      carve-out to only the legacy/minimal-scaffold code path, or drop the blanket exemption and
+      let `check_drg_root` default apply to template-rendered packs, and update AC-7's test to
+      exercise a template-rendered pack alongside the minimal-scaffold one.
+
+  - id: PLAN-FRESH3-002
+    severity: 3
+    lens: revert-discipline
+    location: "plan.md:80-109 (Charter Check gate)"
+    finding: >
+      The charter (`.kittify/charter/charter.md:591-604`) carries a separately-headed, binding
+      section — "ATDD-First Discipline (binding per C-011)" — distinct from the nine numbered
+      "Quality & Tech-Debt Standing Orders." It requires: "The WP cannot start coding until at
+      least one failing-first ATDD test exists that pins the user-observable behaviour the WP
+      delivers. The ATDD test is committed as a separate commit ... BEFORE any implementation
+      commits," with the reviewer verifying "the test was RED on the WP's
+      planning_base_branch AND GREEN on the WP's final commit." This plan's Charter Check
+      section (the gate explicitly labelled "Must pass before Phase 0 research... Re-checked
+      after this design") walks through Governing Principles (x2), Standing Order #2
+      (campsite), #3 (tracer files), #4 (test remediation/red-first), Sonar Expectations, and
+      Testing Requirements — but never mentions C-011 or the ATDD-First Discipline section by
+      name, and "The Baseline" section it points to for Standing Order #4 does not satisfy
+      C-011: Baseline's procedure captures pass/fail state of the four existing targeted test
+      files as a whole, before and after each FR lands, to separate pre-existing red from
+      introduced red — it says nothing about a new failing-first test being committed as a
+      distinct commit before the corresponding implementation commit within each of the three
+      Lane B steps (FR-003, FR-002, FR-004), which is what C-011 actually requires and what a
+      reviewer would need to verify red-on-base/green-on-final for.
+    evidence: >
+      `.kittify/charter/charter.md:591-604` — "## ATDD-First Discipline (binding per C-011)"
+      section, verbatim as quoted above. `grep -n -i "ATDD\|C-011\|red-first\|failing-first"
+      kitty-specs/org-pack-authoring-diagnostics-01KZY463/plan.md` returns only the Charter
+      Check's "Standing Order #4 (test remediation, red-first)" line (plan.md:99) and one
+      unrelated hit inside the docs-freshness Relative body-link gate discussion (plan.md:249,
+      "cannot red on a target..." — a different sense of "red," about CI link-checking, not
+      test discipline). No occurrence of "C-011" or "ATDD" anywhere in plan.md. The Baseline
+      section (plan.md:347-385) is scoped explicitly to "tells pre-existing red from introduced
+      red" via before/after runs of the four targeted files at each Lane-B commit boundary — a
+      regression-classification procedure, not a specification that each FR's own new behavior
+      gets a dedicated test committed red-first, separately, before that FR's implementation
+      commit.
+    fix: >
+      Add C-011 / ATDD-First Discipline as its own checked line in the Charter Check gate
+      (alongside the Standing Orders it currently enumerates), and state explicitly, per FR,
+      that the corresponding acceptance-criteria test (e.g. FR-002's AC-1 fixture, FR-004's AC-1
+      fixture) is written and committed first, confirmed RED against Lane B's
+      `planning_base_branch`, before the implementation commit that makes it green — distinct
+      from, and in addition to, the four-file pre/post regression-classification procedure in
+      "The Baseline."
+verdict: fail

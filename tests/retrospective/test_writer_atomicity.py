@@ -271,6 +271,90 @@ def test_atomic_write_yaml_writes_data_to_canonical(tmp_path: Path) -> None:
     assert loaded == data
 
 
+def test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars(tmp_path: Path) -> None:
+    """Wrapped retrospective details must not leave a whitespace-only suffix."""
+    canonical = tmp_path / "retrospective.yaml"
+    details = "An analysis-report.md artifact is present for this mission. Review its findings to understand documented issues and decisions."
+    data = {
+        "not_helpful": [
+            {
+                "id": "n-001",
+                "category": "doc",
+                "summary": "analysis-report.md present with findings",
+                "evidence_refs": ["e-007"],
+                "details": details,
+            }
+        ]
+    }
+
+    # Precondition guard: prove the un-normalized dump genuinely wraps and
+    # leaves a trailing-whitespace line, so this test cannot silently go vacuous
+    # if a future ruamel stops emitting the artifact.
+    import io as _io
+
+    from ruamel.yaml import YAML
+
+    probe = YAML(typ="rt")
+    probe.default_flow_style = False
+    probe.preserve_quotes = True
+    probe.width = 120
+    probe_buf = _io.BytesIO()
+    probe.dump(data, probe_buf)
+    raw = probe_buf.getvalue().decode("utf-8")
+    assert any(line.endswith((" ", "\t")) for line in raw.splitlines()), (
+        "expected the raw dump to contain a trailing-whitespace line; test is vacuous otherwise"
+    )
+
+    _atomic_write_yaml(data, canonical, tmp_path)
+
+    text = canonical.read_text(encoding="utf-8")
+    assert all(not line.endswith((" ", "\t")) for line in text.splitlines())
+
+    assert YAML(typ="safe").load(text) == data
+
+
+def test_atomic_write_yaml_wraps_prose_scalars_at_120_columns(tmp_path: Path) -> None:
+    """Free-text fields wrap at width=120 — the #3059 decision, guarded here.
+
+    ``_atomic_write_yaml`` deliberately passes ``width=120`` to the kernel
+    primitive (whose own default is 4096) so prose fields such as
+    ``GenFinding.details`` stay reviewable in a diff. This test goes RED if that
+    width is raised: at 4096 a 199-char scalar is emitted as one line, which
+    fails both assertions below. The payload is many short words so ruamel's
+    word-boundary wrapping cannot overshoot the column budget.
+    """
+    from ruamel.yaml import YAML
+
+    canonical = tmp_path / "retrospective.yaml"
+    details = " ".join(["word"] * 40)
+    assert len(details) > 120, "payload must exceed the wrap width or the test is vacuous"
+
+    _atomic_write_yaml({"details": details}, canonical, tmp_path)
+
+    text = canonical.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert len(lines) > 1, f"expected the scalar to wrap onto a continuation line; got: {text!r}"
+    assert max(len(line) for line in lines) <= 120, f"a line exceeds the 120-column width:\n{text}"
+    assert YAML(typ="safe").load(text) == {"details": details}
+
+
+@pytest.mark.parametrize("trailing", [" ", "\t"])
+def test_atomic_write_yaml_preserves_literal_scalar_trailing_whitespace(
+    tmp_path: Path, trailing: str
+) -> None:
+    """Literal scalar content may intentionally end a line with whitespace."""
+    from ruamel.yaml import YAML
+    from ruamel.yaml.scalarstring import LiteralScalarString
+
+    canonical = tmp_path / "retrospective.yaml"
+    details = LiteralScalarString(f"first line ends in semantic whitespace{trailing}\nsecond line")
+
+    _atomic_write_yaml({"details": details}, canonical, tmp_path)
+
+    loaded = YAML(typ="safe").load(canonical.read_text(encoding="utf-8"))
+    assert loaded == {"details": str(details)}
+
+
 def test_atomic_write_yaml_uses_temp_then_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Helper must write to a .tmp file FIRST, then rename it to canonical atomically."""
     import os as _os

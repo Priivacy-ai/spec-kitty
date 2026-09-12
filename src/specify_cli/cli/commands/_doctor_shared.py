@@ -23,12 +23,11 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import warnings
 from collections.abc import Generator
 from contextlib import contextmanager
 
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import is_interactive, is_truthy
 
 # The single Console() instance lives in _profile_health_render; re-export it so
 # this module is the one import site for siblings while preserving one instance.
@@ -69,8 +68,13 @@ def _is_interactive_environment() -> bool:
     Matches the FR-023 contract: in CI / non-interactive environments,
     ``doctor sparse-checkout --fix`` must print a remediation pointer and
     exit non-zero rather than prompting.
+
+    The interactivity base routes through the single ``is_interactive``
+    authority (so ``SPEC_KITTY_NON_INTERACTIVE`` / ``SPEC_KITTY_FORCE_INTERACTIVE``
+    are honored here too, #2912); the CI-env-var veto is layered on top so a CI
+    run never prompts even if it happens to hold a TTY.
     """
-    if not sys.stdin.isatty():
+    if not is_interactive():
         return False
     return all(not is_truthy(os.environ.get(var)) for var in _CI_ENV_VARS)
 

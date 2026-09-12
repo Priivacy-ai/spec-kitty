@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from doctrine.toolguides.models import Toolguide
+from charter.offering.toolguides.models import Toolguide
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 

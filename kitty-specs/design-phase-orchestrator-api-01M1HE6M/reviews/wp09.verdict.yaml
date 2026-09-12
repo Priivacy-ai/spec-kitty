@@ -1,0 +1,81 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP09
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  WP09's documentation closes issue #3837's stated gap: an external host reading
+  docs/api/orchestrator-api.md and host-boundary-rules.md alone can now find a
+  compliant orchestrator-api verb for specify/plan/tasks/analyze/decision-resolution,
+  with no surviving prose claiming a required host-CLI crossing. Independent
+  re-derivation confirms the implementer's every checkable claim: 11 new verbs and 24
+  new error codes (27->51) by diffing upstream_contract.json against merge-base
+  7b6c9f4fa; CONTRACT_VERSION "1.4.0" at envelope.py:33; 21 total @app.command
+  entries; the committed "## spec-kitty orchestrator-api*" block in
+  docs/api/cli-commands.md is byte-identical to a live re-run of
+  scripts/docs/build_cli_reference.py (verified via .venv/bin/spec-kitty, never bare
+  `uv run`), and the two named "unrelated pre-existing drift" reversions
+  (merge --keep-branch/--keep-worktree help text; the sync inactive-by-default
+  banner) are real, pre-existing, and correctly left alone; agent-subcommands.md has
+  a genuinely empty diff in this commit. markdownlint (pinned 0.18.1, matching
+  ci-quality.yml) is 0 errors on orchestrator-api.md and host-boundary-rules.md;
+  CHANGELOG.md's 24 MD049 findings are byte-identical to the pre-mission file
+  (git show HEAD~ equivalent), confirming pre-existing drift, not new. Field-level
+  spot checks against commands.py covered all 11 verbs (specify, plan, tasks,
+  check-prerequisites, record-analysis, all four decision-ledger verbs, design-status,
+  answer-decision), not just the requested 3, and every documented flag, response
+  field, and error code matched the real code exactly. check_docs_freshness.py --ci
+  --link-check none passed 0 findings (also confirming the docs-retrieval-index
+  regen was necessary and correct, and giving independent corroboration that
+  cli-commands.md is live-fresh). test_no_legacy_terminology.py: 10 passed, exact
+  match. test_archive_root_byte_identical.py: 2 passed, exact match. The T042
+  doc-presence test is real, narrow, and does not overclaim coverage. One real gap
+  found and not caught by the implementer: five design-phase verb sections
+  (open-decision, resolve-decision, defer-decision, cancel-decision, design-status)
+  describe their response `data` only as "mission identity fields" without listing
+  which fields, while the doc's own "Canonical Mission Identity" section states that
+  phrase's shape includes `mission_id` -- these five verbs' actual payload (built via
+  `_mission_identity_payload()`) never carries `mission_id`, only
+  mission_slug/mission_number/mission_type. This is the same class of gap the
+  implementer correctly self-caught and fixed for answer-decision, just not applied
+  to the other five new sections (moderate, not blocking). The three flagged
+  discrepancies are adjudicated below in the requested detail.
+findings:
+  - id: WP09-001
+    severity: 3
+    title: "\"mission identity fields\" phrasing is ambiguous against the doc's own Canonical Mission Identity section and omits mission_id without saying so"
+    evidence:
+      - code: "docs/api/orchestrator-api.md:91-99"
+      - code: "docs/api/orchestrator-api.md:413"
+      - code: "docs/api/orchestrator-api.md:451"
+      - code: "docs/api/orchestrator-api.md:485"
+      - code: "docs/api/orchestrator-api.md:536"
+      - code: "src/specify_cli/orchestrator_api/commands.py:531-538"
+    claim: >
+      The "Canonical Mission Identity" section (docs/api/orchestrator-api.md:91-99)
+      states plainly: "Success payloads that identify a tracked mission emit:
+      mission_id, mission_slug, mission_number, mission_type." The new open-decision,
+      resolve-decision, defer-decision, cancel-decision, and design-status sections
+      each describe their response data only as "mission identity fields, ..." with
+      no field list -- a reader would reasonably read that phrase against the section
+      immediately above it and expect mission_id to be present. It is not:
+      _mission_identity_payload() (commands.py:531-538), which every one of these
+      five verbs spreads into its response, returns only mission_slug,
+      mission_number, and mission_type -- never mission_id (confirmed by direct read;
+      the same helper backs the pre-existing mission-state/list-ready verbs too, so
+      the gap is repo-wide, but WP09 propagated the same ambiguous phrasing into 5
+      brand-new sections without disambiguating it). This is exactly the class of
+      error the implementer self-caught and fixed for answer-decision (which
+      correctly says "does NOT carry a mission_id field... only normalizes
+      mission_slug / mission_number / mission_type") -- the fix just was not carried
+      to the other five new verb sections. An external host coding against the
+      Canonical Mission Identity section's stated shape could reasonably expect
+      mission_id in these five responses and build brittle handling around its
+      absence.
+    remediation: >
+      In each of the five sections (open-decision, resolve-decision, defer-decision,
+      cancel-decision, design-status), replace "mission identity fields" with the
+      explicit three fields it actually returns (mission_slug, mission_number,
+      mission_type), or add the same one-line disambiguating note answer-decision
+      already carries ("does not carry a mission_id field; mission identity here
+      means only mission_slug/mission_number/mission_type").

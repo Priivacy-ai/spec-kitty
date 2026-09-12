@@ -16,6 +16,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests._factories import provision_test_charter
+from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
@@ -49,6 +51,11 @@ def _scaffold_project(
 
     kittify = repo_root / ".kittify"
     kittify.mkdir()
+    # WP04 fail-closed: mission-type resolution requires a provisioned
+    # charter (activated mission types). Seed the default activation set
+    # via the production provisioner, same shared helper used across the
+    # mission-creation test harness.
+    provision_test_charter(repo_root)
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
@@ -115,8 +122,7 @@ class TestRuntimeTemplateKey:
         project_dir.mkdir(parents=True)
         project_yaml = project_dir / "mission-runtime.yaml"
         project_yaml.write_text(
-            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\n"
-            "steps:\n  - id: x\n    title: x\n",
+            "mission:\n  key: software-dev\n  name: software-dev\n  version: '9.9.9'\nsteps:\n  - id: x\n    title: x\n",
             encoding="utf-8",
         )
 
@@ -237,9 +243,9 @@ class TestWorkflowRuntimeTemplate:
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
+            runtime_bridge,
+            "runtime_emitter_for_mission",
+            lambda **_: runtime_bridge._BufferingRuntimeEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(
@@ -385,8 +391,11 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        assert "042-test-feature" in index
-        assert "run_id" in index["042-test-feature"]
+        # WP05 / FR-016 (C-003): the index is keyed by mission_id; a mission
+        # without one (this scaffold's meta.json) lands under ``legacy-<slug>``
+        # and the bare slug is never a key.
+        assert set(index) == {"legacy-042-test-feature"}
+        assert "run_id" in index["legacy-042-test-feature"]
 
     def test_feature_runs_index_includes_mission_id_and_slug(self, tmp_path: Path) -> None:
         """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
@@ -396,8 +405,8 @@ class TestGetOrStartRun:
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
-        entry = index["042-test-feature"]
-        # mission_slug must always be present and match the key
+        entry = index["legacy-042-test-feature"]
+        # mission_slug is display-only (WP05) but must always be present
         assert entry.get("mission_slug") == "042-test-feature"
         # mission_id may be None when no meta.json exists, but the key must be present
         assert "mission_id" in entry
@@ -601,11 +610,7 @@ class TestAnswerDecisionViaRuntime:
 
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
         monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
-        monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: FakeEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: FakeEmitter())
 
         provided: list[tuple[object, str, str, object, object]] = []
 
@@ -698,12 +703,7 @@ class TestTasksMarkdownParsing:
     def test_parse_wp_sections_preserves_same_line_suffix(self) -> None:
         from runtime.next.runtime_bridge import _parse_wp_sections_from_tasks_md
 
-        tasks_md = (
-            "## Work Package WP01: Build parser\n"
-            "Requirements Refs: FR-001, NFR-002\n"
-            "### WP02\n"
-            "Requirements: FR-003\n"
-        )
+        tasks_md = "## Work Package WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n### WP02\nRequirements: FR-003\n"
 
         sections = _parse_wp_sections_from_tasks_md(tasks_md)
 
@@ -714,47 +714,41 @@ class TestTasksMarkdownParsing:
     def test_parse_wp_sections_accepts_legacy_work_package_spacing(self) -> None:
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
-        tasks_md = (
-            "## Work Package    WP01: Build parser\n"
-            "Requirements Refs: FR-001, NFR-002\n"
-        )
+        tasks_md = "## Work Package    WP01: Build parser\nRequirements Refs: FR-001, NFR-002\n"
 
-        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
-            "WP01": ["FR-001", "NFR-002"]
-        }
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
     def test_parse_requirement_refs_supports_heading_bullet_format(self) -> None:
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
-        tasks_md = (
-            "## Work Package WP01: Build parser\n"
-            "### Requirement Refs\n"
-            "- FR-001, nfr-002\n"
-        )
+        tasks_md = "## Work Package WP01: Build parser\n### Requirement Refs\n- FR-001, nfr-002\n"
 
-        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {
-            "WP01": ["FR-001", "NFR-002"]
-        }
+        assert _parse_requirement_refs_from_tasks_md(tasks_md) == {"WP01": ["FR-001", "NFR-002"]}
 
-    def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+    def test_parse_requirement_refs_on_adversarial_input(self) -> None:
+        """Functional half of the #4015 split: parses correctly under adversarial input."""
         from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
-        tasks_md = (
-            f"{filler}"
-            "## Work Package WP01: Harden parser\n"
-            "Requirements Refs: FR-001, fr-002, C-003\n"
-        )
+        tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
+
+        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+
+        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+
+    @pytest.mark.performance
+    def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
+        """#4015 split: regex/backtracking budget on adversarial tasks.md input."""
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+
+        filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
+        tasks_md = f"{filler}## Work Package WP01: Harden parser\nRequirements Refs: FR-001, fr-002, C-003\n"
 
         start = time.perf_counter()
-        refs = _parse_requirement_refs_from_tasks_md(tasks_md)
+        _parse_requirement_refs_from_tasks_md(tasks_md)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.2, (
-            f"_parse_requirement_refs_from_tasks_md took {elapsed * 1000:.1f} ms on "
-            "adversarial tasks.md input; possible regex/backtracking regression."
-        )
-        assert refs == {"WP01": ["FR-001", "FR-002", "C-003"]}
+        assert_timing_budget(elapsed, 0.2, name="elapsed")
 
 
 # ---------------------------------------------------------------------------
@@ -866,15 +860,7 @@ class TestFullLoop:
         from runtime.next import runtime_bridge
         from runtime.next._internal_runtime.events import NullEmitter
 
-        class LocalOnlyEmitter(NullEmitter):
-            def seed_from_snapshot(self, *_args, **_kwargs) -> None:
-                return None
-
-        monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
-            "for_feature",
-            staticmethod(lambda **_: LocalOnlyEmitter()),
-        )
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
 
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
@@ -896,8 +882,7 @@ class TestFullLoop:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\n"
-            "requirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
+            "---\nwork_package_id: WP01\nlane: done\ndependencies: []\nrequirement_refs: [FR-001]\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
         # Seed event log so runtime bridge reads WP01 as done
@@ -1022,6 +1007,28 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
 
+    def test_unknown_reduced_lane_blocks_instead_of_raising(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        feature_dir = tmp_path / "feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01 task\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next import runtime_bridge
+        from runtime.next import committed_authority
+
+        monkeypatch.setattr(runtime_bridge, "get_all_wp_snapshots", lambda _: {"WP01": {"lane": "unknown"}})
+        monkeypatch.setattr(
+            committed_authority,
+            "wp_ending",
+            lambda *_: SimpleNamespace(lane="unknown", reason_source=None),
+        )
+        assert runtime_bridge._count_wp_endings(feature_dir)[1] == 0
+        assert runtime_bridge._should_advance_wp_step("implement", feature_dir) is False
+
 
 # ---------------------------------------------------------------------------
 # Atomic task step tests
@@ -1089,13 +1096,7 @@ class TestAtomicTaskSteps:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(exist_ok=True)
         (tasks_dir / "WP01.md").write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: WP01\n"
-            "requirement_refs:\n"
-            "  - FR-001\n"
-            "---\n"
-            "# WP01\n",
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - FR-001\n---\n# WP01\n",
             encoding="utf-8",
         )
 
@@ -1138,6 +1139,75 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "Requirement mapping incomplete" in failures[0]
         assert "unmapped FRs: FR-002" in failures[0]
+
+    # -----------------------------------------------------------------
+    # #3396 Story 3 — the bare-prose signal actually reaches spec-kitty
+    # next's advance-vs-stay decision, in BOTH Story 3 configurations
+    # (zero WP files; >=1 WP file, none referencing the bare-prose ids),
+    # driven through the CLI-native and composed integration entry points
+    # (not only the pure evaluate_guards core in isolation — see
+    # tests/runtime/test_bridge_cores.py for the pure-core teeth tests).
+    # -----------------------------------------------------------------
+
+    _BARE_PROSE_REPRO_SPEC = (
+        "# Spec\n\n"
+        "## Functional Requirements\n\n"
+        "FR-001 the loader must reject bad input. FR-002 the error must name "
+        "the offending path.\n\n"
+        "| ID | Requirement | Acceptance Criteria | Status |\n"
+        "| --- | --- | --- | --- |\n"
+        "| NFR-001 | Perf | Some criteria. | proposed |\n"
+    )
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_bare_prose_requirements_zero_wp_files(self, tmp_path: Path) -> None:
+        """Story 3 config (a): zero WP files materialized yet. Before this
+        WP's wiring, `_check_cli_guards("tasks_packages", ...)` returned only
+        the generic 'materialize WP packages first' message regardless of
+        spec.md content -- this is the exact `_zero_declared_requirement_
+        block` (3823f2b00) dead-path shape this mission exists to avoid
+        repeating. The failure detail must be traceable to FR-001/FR-002
+        specifically, not only the generic message that would fire
+        regardless."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+
+        from runtime.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+        assert any("WP*.md" in f for f in failures), failures
+
+    @pytest.mark.git_repo
+    def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(self, tmp_path: Path) -> None:
+        """Story 3 config (b): >=1 WP file exists, referencing only the
+        correctly-declared NFR-001 -- NOT the bare-prose FR-001/FR-002 (those
+        ids were never offered by map-requirements, since they are
+        undeclared). The pre-existing missing/unknown/unmapped
+        requirement-mapping check is clean here by construction
+        (`functional_requirement_ids` is empty since no FR is declared in a
+        recognized shape), proving this is not merely that pre-existing check
+        incidentally catching the same case (spec.md Story 3 AC2)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\nrequirement_refs: [NFR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_composed_action_guard, _check_requirement_mapping_ready
+
+        # Sanity: the pre-existing requirement-mapping check is clean here --
+        # the assertion below is not incidentally passing because of it.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+        failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_finalize")
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
 
     @pytest.mark.git_repo
     def test_tasks_packages_guard_passes_when_functional_requirements_are_mapped(self, tmp_path: Path) -> None:
@@ -1325,9 +1395,7 @@ class TestAtomicTaskSteps:
         assert _check_requirement_mapping_ready(feature_dir) == []
 
     @pytest.mark.git_repo
-    def test_requirement_mapping_preflight_wraps_unexpected_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_requirement_mapping_preflight_wraps_unexpected_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Unexpected exceptions during preflight surface as a guard failure, not a crash."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -1352,6 +1420,226 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "Requirement mapping preflight failed" in failures[0]
         assert "simulated preflight crash" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_advisory_computation_crash_does_not_reach_failures(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """#3394 focused-review F3 (severity 2) fix: a crash in the advisory
+        computation (``find_undeclared_requirement_citations``) must NOT
+        propagate into ``_check_requirement_mapping_ready``'s broad
+        ``except Exception`` -- unlike ``test_requirement_mapping_preflight_
+        wraps_unexpected_errors`` above (which pins that a REAL extraction
+        crash, e.g. in ``parse_requirement_ids_from_spec_md``, correctly
+        fails closed), the advisory is purely diagnostic and must fail OPEN:
+        swallowed and logged, never surfaced as a gate failure, even when its
+        own computation raises. Before the F3 fix this test is RED (the
+        exception reaches the outer handler and becomes a generic
+        "Requirement mapping preflight failed" failure)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated advisory crash")
+
+        from specify_cli import requirement_mapping as rm
+
+        monkeypatch.setattr(rm, "find_undeclared_requirement_citations", _boom)
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        caplog.set_level("DEBUG")
+        failures = _check_requirement_mapping_ready(feature_dir)
+
+        # The real signal: no gate failure at all, and specifically not the
+        # generic fail-closed message the advisory crash would otherwise
+        # produce if it reached the outer except.
+        assert failures == []
+        assert not any("Requirement mapping preflight failed" in f for f in failures)
+        assert not any("simulated advisory crash" in f for f in failures)
+
+        # Swallowed-and-logged, not silently dropped: the crash is still
+        # observable at DEBUG level.
+        crash_records = [r for r in caplog.records if "advisory computation failed" in r.message]
+        assert len(crash_records) == 1
+
+    # -----------------------------------------------------------------
+    # #3394 negative-space regression pins, plus the F1 advisory-logging
+    # coverage, exercised end-to-end through the real spec.md/tasks parse
+    # path (not just RequirementMappingFacts construction — see
+    # tests/runtime/test_bridge_cores.py for the pure-core equivalents).
+    # -----------------------------------------------------------------
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_logs_advisory_while_still_blocking_on_missing_refs(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """spec.md declares NOTHING recognizable (bare, unbulleted, unbolded
+        FR-001/FR-002 sentences) and WP01 has no requirement_refs at all --
+        the pre-existing missing-refs check already blocks this
+        unconditionally (WP01's refs are empty -> "missing"), so the F1
+        advisory logs alongside that block rather than replacing or
+        preventing it. Confirms the advisory fires on the same content that
+        also happens to block via a pre-existing, unrelated path."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        failures = _check_requirement_mapping_ready(feature_dir)
+
+        assert len(failures) == 1
+        assert failures[0].startswith("Requirement mapping incomplete before finalize-tasks: ")
+        assert "missing refs for WPs: WP01" in failures[0]
+
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) == 1
+        assert "spec.md mentions requirement-shaped token(s)" in advisory_records[0].message
+        assert not advisory_records[0].message.startswith("Requirement mapping incomplete")
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block(self, tmp_path: Path) -> None:
+        """The genuinely empty case: a spec with no formal requirements at
+        all (zero declared ids AND zero raw FR-/NFR-/C-NNN tokens anywhere)
+        must NOT block -- there is nothing to be missing."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n## Overview\n\nThis mission has no formal functional requirements; it is a small documentation-only change.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)  # exists, but deliberately no WP*.md files
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_foreign_citation_shape_now_blocks_per_3396(self, tmp_path: Path) -> None:
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. #3394/#3395's repro --
+        spec.md DECLARES three FRs in a table and merely CITES a foreign,
+        already-shipped FR-021 in bare prose in that same section -- was
+        pinned non-blocking under #3395's fix (`find_undeclared_requirement_
+        citations` never fires here, since the section's declared set is
+        non-empty). #3396's new, per-token, document-scoped detector
+        (`find_bare_prose_requirement_ids`) cannot distinguish "this spec's
+        own uncounted requirement" from "a bare-prose citation of a foreign
+        id" -- both are simply a ref-shaped token, in a Requirements
+        section, absent from the document-wide declared set -- and #3396 is
+        chartered to block on that shape rather than stay silent
+        (DIRECTIVE_041: the product decision this test pins changed, so the
+        old non-blocking assertion was stale, not the wiring). The
+        pre-#3396 requirement-mapping decision alone stays clean (every
+        declared FR is still mapped to WP01); only the full guard path,
+        which now also reads the bare-prose fact, blocks."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Covered by WP01. | proposed |\n"
+            "| FR-003 | Third | Covered by WP01. | proposed |\n\n"
+            "This mission is easy to miss without prior art -- see FR-021's "
+            "default-pack materialization for the pattern this follows.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - FR-001\n  - FR-002\n  - FR-003\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # every declared FR is mapped to WP01.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks on the
+        # bare-prose FR-021 citation (#3396 supersedes #3395's advisory-only
+        # treatment of this shape).
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-021" in f for f in failures), failures
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_mixed_declared_and_bare_prose_now_blocks_per_3396(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. The F4 finding's own
+        repro fixture (bare-prose FR-001/FR-002 alongside a properly
+        DECLARED table-row NFR-001, WP01 mapping only NFR-001) IS #3396's own
+        target repro -- the mission's whole reason to exist (Story 1).
+        Under #3395's fix it was pinned non-blocking-but-logged (the F1
+        advisory surfaces the "why" without gating). #3396 deliberately
+        supersedes that advisory-only decision for this shape and blocks
+        instead (DIRECTIVE_041: the product decision this test pins
+        changed, so the old non-blocking assertion was stale, not the
+        wiring). The F1 advisory keeps logging alongside the new blocking
+        failure -- both signals now coexist for this shape."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n\n"
+            "## Non-Functional Requirements\n\n"
+            "| ID | Requirement | Status |\n"
+            "| --- | --- | --- |\n"
+            "| NFR-001 | Latency under 200ms. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs:\n  - NFR-001\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # NFR-001 is mapped, and #3394/#3395's own fix still does not count
+        # bare FR-001/FR-002 as declared requirements.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks (#3396
+        # supersedes #3395's advisory-only treatment of this shape):
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+
+        # The pre-existing F1 advisory still logs alongside the new
+        # blocking failure -- both signals coexist for this shape.
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) >= 1
+        assert "Functional Requirements" in advisory_records[0].message
+        assert "FR-001, FR-002" in advisory_records[0].message
 
     @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
@@ -1469,9 +1757,7 @@ class TestQueryCurrentStateTypedErrorPassthrough:
         # The typed read-path code survives — NOT collapsed to MISSION_NOT_FOUND.
         assert exc_info.value.code == "COORDINATION_BRANCH_DELETED"
 
-    def test_genuinely_missing_mission_collapses_to_mission_not_found(
-        self, monkeypatch, tmp_path: Path
-    ) -> None:
+    def test_genuinely_missing_mission_collapses_to_mission_not_found(self, monkeypatch, tmp_path: Path) -> None:
         import mission_runtime
         from mission_runtime import ActionContextError
         from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
@@ -1483,3 +1769,405 @@ class TestQueryCurrentStateTypedErrorPassthrough:
 
         with pytest.raises(MissionNotFoundError):
             query_current_state(agent="claude", mission_slug="no-such-mission", repo_root=tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Owned-checkout (``--owned-checkout`` / ``effective_root``) threading —
+# checkout-ownership landing branch (#3328). These classes drive the exact
+# branches the landing PR's acceptance proof
+# (tests/e2e/test_worktree_owned_root_concurrency.py) exercises only through
+# the INSTALLED CLI as a subprocess — invisible to pytest-cov, and that e2e
+# module sits outside every coverage-collecting CI job's ``paths`` anyway
+# (it is not under tests/next/ or tests/specify_cli/next/). Driving the same
+# functions in-process here, in a module already wired into
+# integration-tests-next's ``--cov=src/runtime/next`` collection, closes that
+# visibility gap without touching product code.
+# ---------------------------------------------------------------------------
+
+
+class TestOwnedCoordWorkspaceRetry:
+    """``_resolve_owned_coordination_workspace`` / ``_is_transient_git_
+    worktree_contention``: the bounded-retry classifier for concurrent
+    ``git worktree add`` shared-registry contention (two owned missions
+    racing ``CoordinationWorkspace.resolve`` concurrently). Mirrors
+    tests/e2e/test_worktree_owned_root_concurrency.py's in-process retry
+    assertions, but from a module pytest-cov actually attributes to the
+    diff-coverage critical-path gate."""
+
+    def test_happy_path_returns_without_any_retry(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        expected = tmp_path / "coord"
+
+        class _Workspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                return expected
+
+        result = _resolve_owned_coordination_workspace(_Workspace, tmp_path, "happy-path-01KZTEST", "01KZTEST")
+
+        assert result == expected
+        assert _Workspace.calls == 1
+
+    def test_permanent_git_error_reraises_immediately(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """A permanent (non-lock) git failure is re-raised on the first
+        attempt, never retry-masked."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        permanent = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr="fatal: permanent worktree failure")
+
+        class _PermanentlyBrokenWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise permanent
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(_PermanentlyBrokenWorkspace, tmp_path, "permanent-failure-01KZTEST", "01KZTEST")
+        assert raised.value is permanent
+        assert _PermanentlyBrokenWorkspace.calls == 1
+
+    def test_permission_denied_lock_wording_is_never_retried(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Lock wording alone cannot make a permanent permission error
+        retryable — the classifier requires the SPECIFIC known contention
+        diagnostics, not any mention of ``.lock``."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        permission_denied = subprocess.CalledProcessError(
+            128,
+            ["git", "worktree", "add"],
+            stderr="fatal: could not lock config file .git/config: Permission denied",
+        )
+
+        class _PermissionDeniedWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise permission_denied
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(_PermissionDeniedWorkspace, tmp_path, "permission-denied-01KZTEST", "01KZTEST")
+        assert raised.value is permission_denied
+        assert _PermissionDeniedWorkspace.calls == 1
+
+    def test_known_git_lock_contention_recovers_within_bound(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Known ``config.lock`` contention retries and recovers within the
+        fixed 20-attempt bound."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        expected = tmp_path / "coord"
+
+        class _TransientWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                if cls.calls < 3:
+                    raise subprocess.CalledProcessError(
+                        128,
+                        ["git", "worktree", "add"],
+                        stderr="fatal: Unable to create '/repo/.git/config.lock': File exists.",
+                    )
+                return expected
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        result = _resolve_owned_coordination_workspace(_TransientWorkspace, tmp_path, "transient-contention-01KZTEST", "01KZTEST")
+
+        assert result == expected
+        assert _TransientWorkspace.calls == 3
+
+    def test_persistent_contention_reraises_the_exact_error_after_bound(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Persistent recognized contention keeps its terminal exception
+        identity after exhausting all 20 attempts — never silently swallowed."""
+        from runtime.next.runtime_bridge import _resolve_owned_coordination_workspace
+
+        terminal = subprocess.CalledProcessError(
+            128,
+            ["git", "worktree", "add"],
+            stderr="fatal: could not lock config file .git/config: File exists",
+        )
+
+        class _PersistentlyContendedWorkspace:
+            calls = 0
+
+            @classmethod
+            def resolve(cls, _root: Path, _slug: str, _mid8: str) -> Path:
+                cls.calls += 1
+                raise terminal
+
+        monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+        with pytest.raises(subprocess.CalledProcessError) as raised:
+            _resolve_owned_coordination_workspace(
+                _PersistentlyContendedWorkspace,
+                tmp_path,
+                "persistent-contention-01KZTEST",
+                "01KZTEST",
+            )
+        assert raised.value is terminal
+        assert _PersistentlyContendedWorkspace.calls == 20
+
+
+class TestIsTransientGitWorktreeContention:
+    """Direct branch coverage for the lock-diagnostic classifier itself,
+    independent of the retry loop above."""
+
+    def test_non_128_returncode_is_never_transient(self) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(1, ["git", "worktree", "add"], stderr="fatal: unrelated failure")
+        assert _is_transient_git_worktree_contention(exc) is False
+
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "fatal: Unable to create '/repo/.git/config.lock': File exists.",
+            "fatal: could not lock config file .git/config: File exists",
+            "fatal: another git process seems to be running in this repository; lock held",
+        ],
+        ids=[
+            "config-lock-file-exists",
+            "could-not-lock-file-exists",
+            "another-git-process-lock",
+        ],
+    )
+    def test_recognized_lock_wordings_are_transient(self, stderr: str) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr=stderr)
+        assert _is_transient_git_worktree_contention(exc) is True
+
+    def test_returncode_128_with_unrelated_message_is_not_transient(self) -> None:
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr="fatal: not a git repository")
+        assert _is_transient_git_worktree_contention(exc) is False
+
+
+class TestMissionRoutesThroughCoordinationOwnedCheckout:
+    """``_mission_routes_through_coordination``'s ``effective_root`` fork:
+    reads the stored topology off ``mission_context_for(effective_root=...)``
+    instead of the primary-folding ``placement_seam``."""
+
+    def test_owned_checkout_reads_topology_via_mission_context_for(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        import mission_runtime
+        from mission_runtime import MissionArtifactKind
+        from runtime.next.runtime_bridge import _mission_routes_through_coordination
+
+        feature_dir = tmp_path / "owned-feature"
+        feature_dir.mkdir()
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_type": "software-dev",
+                    "topology": "coord",
+                    "coordination_branch": "kitty/mission-owned-x",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        class _FakeArtifact:
+            read_dir = feature_dir
+
+        class _FakeMissionContext:
+            def artifact(self, kind: object) -> _FakeArtifact:
+                assert kind is MissionArtifactKind.PRIMARY_METADATA
+                return _FakeArtifact()
+
+        calls: list[tuple[Path, str, Path | None]] = []
+
+        def _fake_mission_context_for(repo_root, mission_slug, *, effective_root=None):
+            calls.append((repo_root, mission_slug, effective_root))
+            return _FakeMissionContext()
+
+        monkeypatch.setattr(mission_runtime, "mission_context_for", _fake_mission_context_for)
+
+        owned_root = tmp_path / "owned-checkout"
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        result = _mission_routes_through_coordination("owned-mission", decoy_repo_root, effective_root=owned_root)
+
+        assert result is True
+        assert calls == [(decoy_repo_root, "owned-mission", owned_root)]
+
+
+class TestWrapWithDecisionGitLogOwnedCheckout:
+    """Owned-checkout fork of ``_wrap_with_decision_git_log`` (#3328): the
+    coordination-branch/mission-id read forks through
+    ``mission_context_for(effective_root=...)`` instead of the
+    primary-folding helpers, and the coord ``worktree_root`` selection forks
+    between the already-materialized ``.exists()`` fast path and the
+    retry-guarded ``_resolve_owned_coordination_workspace`` composition
+    path."""
+
+    @staticmethod
+    def _install_owned_mission_context(
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        primary_metadata_dir: Path,
+        coordination_branch: str,
+        mission_id: str,
+    ) -> None:
+        import mission_runtime
+        from mission_runtime import MissionArtifactKind
+
+        class _FakeArtifact:
+            def __init__(self, *, read_dir: Path | None = None, commit_target: object = None) -> None:
+                self.read_dir = read_dir
+                self.commit_target = commit_target
+
+        class _FakeMissionContext:
+            def artifact(self, kind: object) -> _FakeArtifact:
+                if kind is MissionArtifactKind.STATUS_STATE:
+                    return _FakeArtifact(commit_target=SimpleNamespace(ref=coordination_branch))
+                assert kind is MissionArtifactKind.PRIMARY_METADATA
+                return _FakeArtifact(read_dir=primary_metadata_dir)
+
+        monkeypatch.setattr(mission_runtime, "mission_context_for", lambda *_a, **_k: _FakeMissionContext())
+        monkeypatch.setattr(
+            "specify_cli.mission_metadata.resolve_mission_identity",
+            lambda _dir: SimpleNamespace(mission_id=mission_id),
+        )
+
+    def test_materialized_worktree_root_is_used_as_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """When the coord worktree candidate already exists on disk, the
+        owned fork trusts it directly and never composes a fresh one."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        primary_metadata_dir = tmp_path / "primary-metadata"
+        primary_metadata_dir.mkdir()
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "owned-materialized-mission"
+        self._install_owned_mission_context(
+            monkeypatch,
+            primary_metadata_dir=primary_metadata_dir,
+            coordination_branch="kitty/mission-owned-materialized",
+            mission_id=mission_id,
+        )
+        worktree_root_candidate = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mission_id[:8])
+        worktree_root_candidate.mkdir(parents=True)
+
+        def _must_not_run(*_a: object, **_k: object) -> Path:
+            raise AssertionError("_resolve_owned_coordination_workspace must not run when the candidate worktree already exists on disk")
+
+        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
+
+        emitter = SimpleNamespace()
+        owned_root = tmp_path / "owned-checkout"
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
+
+        assert wrapped._worktree_root == worktree_root_candidate
+
+    def test_unmaterialized_worktree_root_resolves_via_owned_retry_helper(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """When the coord worktree candidate does NOT yet exist, the owned
+        fork composes it through ``_resolve_owned_coordination_workspace``
+        (the bounded-retry helper) instead of the non-owned
+        ``CoordinationWorkspace.resolve`` call."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        primary_metadata_dir = tmp_path / "primary-metadata"
+        primary_metadata_dir.mkdir()
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "owned-unmaterialized-mission"
+        self._install_owned_mission_context(
+            monkeypatch,
+            primary_metadata_dir=primary_metadata_dir,
+            coordination_branch="kitty/mission-owned-unmaterialized",
+            mission_id=mission_id,
+        )
+        # Deliberately do NOT create the candidate worktree dir: .exists() is
+        # False, so the owned fork must run the retry-guarded composer.
+        resolved_via_retry_helper = tmp_path / "resolved-via-retry-helper"
+
+        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
+            return resolved_via_retry_helper
+
+        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
+
+        emitter = SimpleNamespace()
+        owned_root = tmp_path / "owned-checkout"
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path, effective_root=owned_root)
+
+        assert wrapped._worktree_root == resolved_via_retry_helper
+
+    def test_non_owned_unmaterialized_worktree_root_uses_plain_resolve(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Anti-vacuity / control: WITHOUT ``effective_root`` (the historical,
+        non-owned call shape), an unmaterialized coord candidate still goes
+        through the plain ``CoordinationWorkspace.resolve`` call -- never the
+        owned retry-guarded composer. Proves the two branches genuinely
+        diverge on ``effective_root``, not on ``coord_routing_topology``
+        alone."""
+        from runtime.next import runtime_bridge
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        monkeypatch.setattr(runtime_bridge, "_mission_routes_through_coordination", lambda *_a, **_k: True)
+        mission_id = "01K3PW7QRSTVXYZ23456789ABC"
+        mission_slug = "non-owned-unmaterialized-mission"
+        monkeypatch.setattr(
+            runtime_bridge,
+            "_resolve_coordination_branch",
+            lambda *_a, **_k: "kitty/mission-non-owned-unmaterialized",
+        )
+        monkeypatch.setattr(runtime_bridge, "_resolve_mission_ulid", lambda *_a, **_k: mission_id)
+
+        def _must_not_run(*_a: object, **_k: object) -> Path:
+            raise AssertionError("_resolve_owned_coordination_workspace must not run without effective_root -- that is the owned-checkout-only path")
+
+        monkeypatch.setattr(runtime_bridge, "_resolve_owned_coordination_workspace", _must_not_run)
+        resolved_via_plain_resolve = tmp_path / "resolved-via-plain-resolve"
+
+        def _fake_resolve(_cls: object, _root: Path, _slug: str, _mid8: str) -> Path:
+            return resolved_via_plain_resolve
+
+        monkeypatch.setattr(CoordinationWorkspace, "resolve", classmethod(_fake_resolve))
+
+        emitter = SimpleNamespace()
+        wrapped = runtime_bridge._wrap_with_decision_git_log(emitter, mission_slug, tmp_path)
+
+        assert wrapped._worktree_root == resolved_via_plain_resolve
+
+
+class TestDecideNextViaRuntimeOwnedCheckout:
+    """End-to-end owned-checkout thread through ``decide_next_via_runtime`` ->
+    ``_dn_bootstrap`` -> ``_wrap_with_decision_git_log`` for a real
+    (coord-less) scaffolded mission. Complements the narrower unit tests
+    above by proving the ``effective_root`` fork composes across the whole
+    bootstrap phase without mocking ``mission_context_for``."""
+
+    @pytest.fixture(autouse=True)
+    def _disable_sync_emitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from runtime.next import runtime_bridge
+        from runtime.next._internal_runtime.events import NullEmitter
+
+        monkeypatch.setattr(runtime_bridge, "runtime_emitter_for_mission", lambda **_: NullEmitter())
+
+    def test_owned_checkout_resolves_and_advances_the_mission(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import decide_next_via_runtime
+
+        owned_root = _scaffold_project(tmp_path, mission_slug="042-owned-feature")
+        decoy_repo_root = tmp_path / "decoy-primary-never-read"
+
+        decision = decide_next_via_runtime(
+            "claude",
+            "042-owned-feature",
+            "success",
+            decoy_repo_root,
+            effective_root=owned_root,
+        )
+
+        assert decision.mission_slug == "042-owned-feature"
+        assert decision.kind in ("step", "terminal", "blocked", "decision_required")

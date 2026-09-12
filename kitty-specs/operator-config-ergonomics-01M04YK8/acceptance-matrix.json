@@ -1,0 +1,119 @@
+{
+  "mission_slug": "operator-config-ergonomics-01M04YK8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 token provenance emit (both carriers) \u2014 test_portable_provenance.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:01.006004+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 heal migration idempotent \u2014 test_heal_provenance.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:03.055699+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 provenance leak-check doctor \u2014 test_provenance_doctor.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:05.120944+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 pre-import two-tier .kitty.env loader \u2014 test_env_file_loader.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:07.195253+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 single config.yaml env_file pointer \u2014 round-trip test green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:09.283746+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP01 kernel env-expansion seam \u2014 41 C-EXP tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:11.345444+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 provision migration (never seeds PACKS_ROOT) \u2014 test_provision_kitty_env.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:13.440614+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 fail-closed secret redaction \u2014 test_secret_redaction.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:15.502702+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP05 default-off rc channel + pinned install \u2014 test_prerelease_channel.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:17.554709+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 env-file + WP05 channel doctor facets (auto-registered) \u2014 golden 53 tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:19.613875+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP06 2 ADRs + Team Kitty SaaS section + interaction diagram \u2014 SC-006 verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:34:21.679656+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

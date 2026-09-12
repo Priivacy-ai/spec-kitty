@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "mission_slug": "next-latency-durable-fix-01M14RM3",
+  "mission_id": "01M14RM34C5CYC6Q1GPV59R41W",
+  "mission_branch": "kitty/mission-next-latency-durable-fix-01M14RM3",
+  "target_branch": "perf/next-latency-durable-fix",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/specify_cli/next/test_next_import_footprint.py",
+        "tests/specify_cli/next/test_next_output_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/freshness/**",
+        "tests/charter_runtime/test_freshness_cache.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/performance/baselines/Linux-CPython-3.11-64bit/**",
+        "tests/specify_cli/next/test_next_cold_start_performance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "scripts/check_nfr_003_latency.py",
+        "scripts/ci/flake_report.py",
+        "tests/ci/test_no_blocking_latency_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-28T18:59:37.158597+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "40f7f4953fb9c933e8f275f6528c6d0760fc3758"
+}

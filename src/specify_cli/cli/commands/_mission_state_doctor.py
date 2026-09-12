@@ -210,6 +210,45 @@ def _emit_mission_state(report: object, *, json_output: bool, pretty_renderer: C
         pretty_renderer(report)
 
 
+def _heal_duplicate_key_artifacts(
+    repo_root: Path,
+    fixture_dir: Path | None,
+    allow_dirty: bool,
+    json_output: bool,
+) -> None:
+    """Opt-in FR-008 heal: repair legacy dual-key ``review_feedback`` artifacts.
+
+    Runs as part of ``--fix`` (``doctor`` itself is unconditionally SAFE), before
+    the mission-state canonicalization, so a project is healed *before* an
+    upgrade trips over the invalid YAML. Batch-atomic + non-destructive; an
+    un-repairable artifact aborts with a non-zero exit and leaves the corpus
+    untouched.
+    """
+    from specify_cli.migration.mission_state import (
+        MissionStateRepairError,
+        repair_duplicate_key_artifacts,
+    )
+    from specify_cli.status import DuplicateKeyRepairError
+
+    try:
+        report = repair_duplicate_key_artifacts(
+            repo_root, scan_root=fixture_dir, allow_dirty=allow_dirty
+        )
+    except (DuplicateKeyRepairError, MissionStateRepairError) as exc:
+        if json_output:
+            _emit_json_error("DUPLICATE_KEY_REPAIR_FAILED", message=str(exc))
+        else:
+            typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    healed = sum(len(result.file_changes) for result in report.missions)
+    if healed and not json_output:
+        console.print(
+            f"[green]Healed {healed} duplicate-key artifact(s)[/green] "
+            f"(keep-last-non-empty). Manifest: {report.manifest_path}"
+        )
+
+
 def _run_mission_repair(
     repo_root: Path,
     fixture_dir: Path | None,
@@ -220,6 +259,9 @@ def _run_mission_repair(
 ) -> None:
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
     from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
+
+    # FR-008: heal legacy dual-key artifacts before mission-state canonicalization.
+    _heal_duplicate_key_artifacts(repo_root, fixture_dir, allow_dirty, json_output)
 
     try:
         report = repair_repo(
@@ -348,6 +390,7 @@ def _run_audit_mode(
         scan_root=fixture_dir,
         mission_filter=mission,
         fail_on=fail_on_severity,
+        invoking_cwd=Path.cwd(),
     )
     try:
         report = run_audit(options)
@@ -371,6 +414,71 @@ def _run_audit_mode(
         _print_rich_audit_report(report)
 
     _audit_fail_gate(report, fail_on_severity, fail_on_teamspace_blocker)
+
+
+def _refuse_foreign_lane_fix(resolved_root: Path) -> None:
+    """Fail closed when a foreign-lane ``--fix`` would canonicalize the primary.
+
+    Preserves the deliberate #2320 primary status-home (``resolved_root`` is the
+    already-re-anchored primary) but refuses to write it *silently* from a lane
+    worktree that does not own it. Owner / explicit-root invocations are a no-op
+    (the guard returns no refusal). #3051/#3541.
+    """
+    from specify_cli.migration.mission_state import (
+        MissionStateWriteRefused,
+        enforce_primary_write_ownership,
+    )
+
+    try:
+        enforce_primary_write_ownership(Path.cwd(), resolved_root)
+    except MissionStateWriteRefused as exc:
+        console.print(f"[red]Refusing --fix:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _surface_audit_disagreement(
+    resolved_root: Path, mission: str | None, json_output: bool
+) -> bool:
+    """Report an honest invoking-checkout-vs-primary disagreement for ``--audit``.
+
+    Returns ``True`` when a disagreement was found (the caller then fails closed
+    so the false-green — reading the redirected primary at both ends — cannot be
+    reported as agreement). ``False`` when the invocation owns the primary (the
+    common case) or targets an explicit/fixture root. #3051/#3541.
+    """
+    from specify_cli.migration.mission_state import (
+        CheckoutDisagreement,
+        audit_invocation_disagreement,
+    )
+
+    disagreements: list[CheckoutDisagreement] = audit_invocation_disagreement(
+        Path.cwd(), resolved_root, mission=mission
+    )
+    if not disagreements:
+        return False
+    if json_output:
+        sys.stderr.write(
+            json.dumps(
+                {
+                    "warning": "CHECKOUT_STATE_DISAGREEMENT",
+                    "primary_root": str(resolved_root),
+                    "disagreements": [d.to_dict() for d in disagreements],
+                }
+            )
+            + "\n"
+        )
+        sys.stderr.flush()
+    else:
+        console.print(
+            "[red]Audit disagreement:[/red] this checkout's mission state "
+            "differs from the canonical primary. Reporting the honest mismatch "
+            "(NOT a false-green from reading the primary at both ends):"
+        )
+        for item in disagreements:
+            console.print(
+                f"  - {item.mission_slug}/{item.artifact}: invoking != primary"
+            )
+    return True
 
 
 def run_mission_state(
@@ -413,7 +521,14 @@ def run_mission_state(
 
     resolved_root = _anchor_repair_root(resolved_root, scan_root=resolved_fixture_dir)
 
+    # Checkout-identity reconciliation (WP04, #3051/#3541). The re-anchor above
+    # deliberately keeps the #2320 primary status-home; here we make a foreign
+    # lane invocation of that re-anchor *honest* rather than silent. Skipped in
+    # fixture mode, where the write/read target is the fixture tree, not a
+    # primary this invocation could fail to own.
     if mode == _MissionStateMode.FIX:
+        if resolved_fixture_dir is None:
+            _refuse_foreign_lane_fix(resolved_root)
         _run_mission_repair(
             resolved_root, resolved_fixture_dir, mission, manifest_path, allow_dirty, json_output
         )
@@ -421,6 +536,11 @@ def run_mission_state(
     if mode == _MissionStateMode.TEAMSPACE_DRY_RUN:
         _run_teamspace_dry_run_mode(resolved_root, resolved_fixture_dir, mission, json_output)
         return
+    disagreement = (
+        _surface_audit_disagreement(resolved_root, mission, json_output)
+        if resolved_fixture_dir is None
+        else False
+    )
     _run_audit_mode(
         resolved_root,
         resolved_fixture_dir,
@@ -429,3 +549,5 @@ def run_mission_state(
         fail_on_teamspace_blocker,
         json_output,
     )
+    if disagreement:
+        raise typer.Exit(1)

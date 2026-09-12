@@ -33,7 +33,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 #### planned
 
-**Meaning**: Work package is defined and ready to start.
+**Meaning**: work package is defined and ready to start.
 
 **How it gets here**:
 - `/spec-kitty.tasks` creates WPs in `planned` lane
@@ -104,7 +104,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 #### approved
 
-**Meaning**: Work package has passed review and is merge-pending.
+**Meaning**: work package has passed review and is merge-pending.
 
 **How it gets here**:
 - Reviewer approves: `spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42`
@@ -117,7 +117,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 #### done
 
-**Meaning**: Work package has been merged/integrated into the mission target branch.
+**Meaning**: work package has been merged/integrated into the mission target branch.
 
 **How it gets here**:
 - From `approved` after merge/integration, or via forced override with audit evidence
@@ -133,7 +133,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 #### blocked
 
-**Meaning**: Work package cannot proceed due to an external dependency or issue.
+**Meaning**: work package cannot proceed due to an external dependency or issue.
 
 **How it gets here**:
 - Any non-terminal lane can transition to `blocked` (planned, claimed, in_progress, for_review, in_review, approved)
@@ -145,7 +145,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 #### canceled
 
-**Meaning**: Work package has been abandoned and will not be completed.
+**Meaning**: work package has been abandoned and will not be completed.
 
 **How it gets here**:
 - Any non-done lane can transition to `canceled` (planned, claimed, in_progress, for_review, in_review, approved, blocked)
@@ -299,7 +299,7 @@ Lane transitions are tracked in an append-only event log stored at `kitty-specs/
 |-------|------|-------------|
 | `event_id` | string | ULID (globally unique, time-sortable) |
 | `feature_slug` | string | Feature identifier (e.g., "034-feature-name") |
-| `wp_id` | string | Work package ID (e.g., "WP01") |
+| `wp_id` | string | work package ID (e.g., "WP01") |
 | `from_lane` | string | Lane before transition (canonical name) |
 | `to_lane` | string | Lane after transition (canonical name) |
 | `at` | string | ISO 8601 UTC timestamp |
@@ -552,13 +552,13 @@ Work paused due to external dependency, then resumed.
 
 ## Try It
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
 
 ## How-To Guides
 
-- [Use the Dashboard](../guides/use-dashboard.md)
-- [Sync Workspaces](../guides/sync-workspaces.md)
-- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
+- [Sync Workspaces](../guides/how-to/collaboration/sync-workspaces.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 
 ## Reference
 

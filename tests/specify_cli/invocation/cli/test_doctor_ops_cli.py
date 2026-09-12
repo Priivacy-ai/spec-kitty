@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, UTC
+from kernel.clock import timedelta, now_utc
 from pathlib import Path
 
 import pytest
@@ -42,11 +42,11 @@ def _write_open_op(ops_dir: Path, invocation_id: str, started_at: str) -> Path:
 
 
 def _stale_ts(hours: float = 100.0) -> str:
-    return (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+    return (now_utc() - timedelta(hours=hours)).isoformat()
 
 
 def _fresh_ts() -> str:
-    return (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+    return (now_utc() - timedelta(minutes=5)).isoformat()
 
 
 def test_threshold_without_close_stale_is_usage_error(

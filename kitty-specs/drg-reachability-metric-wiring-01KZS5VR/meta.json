@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-drg-reachability-metric-wiring-01KZS5VR",
+  "created_at": "2026-08-11T19:47:46.719574+00:00",
+  "flattened": false,
+  "friendly_name": "DRG Reachability Metric & Orphan Wiring",
+  "mission_id": "01KZS5VRCYZ04G2K54SSQPY5BA",
+  "mission_number": null,
+  "mission_slug": "drg-reachability-metric-wiring-01KZS5VR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The Doctrine Reference Graph guards orphans by edge-incidence, but an activated directive can carry edges yet be reachable from no workflow action — so activating it changes nothing. This mission adds a reachability companion metric that names any such node, wires the residual orphans that have a genuine doctrinal referent, and honestly records the rest as activation-only, closing the long-standing #3009 and #1923 curation tickets.",
+  "purpose_tldr": "Make 'activated doctrine that reaches nothing' a visible, guarded condition, and wire the residual orphans that have a genuine referent.",
+  "slug": "drg-reachability-metric-wiring-01KZS5VR",
+  "target_branch": "fix/drg-reachability-metric-wiring",
+  "topology": "coord"
+}

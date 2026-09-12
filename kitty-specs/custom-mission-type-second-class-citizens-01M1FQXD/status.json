@@ -1,0 +1,90 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M1H1G5Q03SC9PV9C2VD73D6N",
+  "materialized_at": "2026-09-02T12:29:01.024288+00:00",
+  "mission_number": "",
+  "mission_slug": "custom-mission-type-second-class-citizens-01M1FQXD",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1H1FXJ1Z5HCJB7QXXF1A858",
+      "last_transition_at": "2026-09-02T12:28:52.673744+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Subtasks complete and independently verified by a separate reviewer-renata subagent per WP (WP01/WP02/WP03 all APPROVED). Canonical mark-status path is unusable here: subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks cannot be addressed. Forcing with rationale rather than hand-editing state.",
+        "Consolidated at f5eceaa72 before recording lifecycle (orchestrator sequencing error, recorded in the mission report). Each WP carries an independent reviewer-renata APPROVED verdict.",
+        "Subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks are unreachable through the documented command. Work is complete, independently reviewed APPROVED, and merged at f5eceaa72."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1490016,
+      "shell_pid_created_at": "1788348213.86",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1H1G1KZKJ2WTJ9F993BGZF3",
+      "last_transition_at": "2026-09-02T12:28:56.831465+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Subtasks complete and independently verified by a separate reviewer-renata subagent per WP (WP01/WP02/WP03 all APPROVED). Canonical mark-status path is unusable here: subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks cannot be addressed. Forcing with rationale rather than hand-editing state.",
+        "Consolidated at f5eceaa72 before recording lifecycle (orchestrator sequencing error, recorded in the mission report). Each WP carries an independent reviewer-renata APPROVED verdict.",
+        "Subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks are unreachable through the documented command. Work is complete, independently reviewed APPROVED, and merged at f5eceaa72."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1514143,
+      "shell_pid_created_at": "1788348391.3"
+    },
+    "WP03": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1H1G5Q03SC9PV9C2VD73D6N",
+      "last_transition_at": "2026-09-02T12:29:01.024288+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Subtasks complete and independently verified by a separate reviewer-renata subagent per WP (WP01/WP02/WP03 all APPROVED). Canonical mark-status path is unusable here: subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks cannot be addressed. Forcing with rationale rather than hand-editing state.",
+        "Consolidated at f5eceaa72 before recording lifecycle (orchestrator sequencing error, recorded in the mission report). Each WP carries an independent reviewer-renata APPROVED verdict.",
+        "Subtask ids collide across WPs and mark-status resolves bare ids to the first matching WP only (ledger SK-135), so WP02/WP03 subtasks are unreachable through the documented command. Work is complete, independently reviewed APPROVED, and merged at f5eceaa72."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1498632,
+      "shell_pid_created_at": "1788348294.53"
+    }
+  }
+}

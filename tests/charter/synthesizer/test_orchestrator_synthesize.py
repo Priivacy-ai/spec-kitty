@@ -18,7 +18,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     DuplicateTargetError,
     FixtureAdapter,
     ProjectDRGValidationError,
@@ -26,7 +26,7 @@ from charter.synthesizer import (
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
+from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",
@@ -198,7 +198,7 @@ class TestSynthesizeEntryPoint:
         tmp_path: Path,
     ) -> None:
         """synthesize() returns a SynthesisResult object."""
-        from charter.synthesizer.orchestrator import SynthesisResult
+        from charter.activation.synthesizer.orchestrator import SynthesisResult
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert isinstance(result, SynthesisResult)
 
@@ -230,6 +230,38 @@ class TestSynthesizeEntryPoint:
         """synthesize() without an adapter raises NotImplementedError."""
         with pytest.raises(NotImplementedError):
             synthesize(full_request, adapter=None)
+
+
+# ---------------------------------------------------------------------------
+# Regression: importlib.metadata.PackageNotFoundError must not be mislabeled
+# as "synthesize_pipeline.py is missing" (PackageNotFoundError subclasses
+# ModuleNotFoundError, which subclasses ImportError).
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSurvivesPackageMetadataFailure:
+    """orchestrator.synthesize() must not raise NotImplementedError when
+    package metadata for ``spec-kitty-cli`` is unresolvable (e.g. an
+    editable/src-layout install without discoverable dist-info)."""
+
+    def test_synthesize_does_not_raise_notimplementederror(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A PackageNotFoundError from version lookup must not surface as
+        NotImplementedError; synthesize() must complete normally."""
+        from importlib.metadata import PackageNotFoundError
+
+        def _raise_package_not_found(name: str) -> str:
+            raise PackageNotFoundError(name)
+
+        monkeypatch.setattr("importlib.metadata.version", _raise_package_not_found)
+
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+        assert result.target_kind in {"directive", "tactic", "styleguide"}
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +392,7 @@ class TestNoOpStableSynthesis:
         sidecars and synthesis manifest must remain byte-for-byte unchanged so
         the working tree stays clean (#1912).
         """
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         req_a = self._request_with_run_id(
             "01AAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -415,7 +447,7 @@ class TestDuplicateTargetError:
         # a custom adapter patched to inject a duplicate.
         # Instead, we test via targets.detect_duplicates directly with an
         # explicit duplicate.
-        from charter.synthesizer.targets import detect_duplicates
+        from charter.activation.synthesizer.targets import detect_duplicates
 
         target_a = SynthesisTarget(
             kind="tactic",
@@ -444,7 +476,7 @@ class TestDuplicateTargetError:
         self,
     ) -> None:
         """DuplicateTargetError message contains kind, slug, and occurrence count."""
-        from charter.synthesizer.targets import detect_duplicates
+        from charter.activation.synthesizer.targets import detect_duplicates
 
         target = SynthesisTarget(
             kind="directive",
@@ -602,7 +634,7 @@ class TestSynthesizeWritesToDisk:
         tmp_path: Path,
     ) -> None:
         """synthesize() produces .kittify/charter/synthesis-manifest.yaml on disk."""
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
@@ -612,7 +644,7 @@ class TestSynthesizeWritesToDisk:
             "write_pipeline.promote was not called from synthesize()"
         )
         # The result is still a SynthesisResult
-        from charter.synthesizer.orchestrator import SynthesisResult
+        from charter.activation.synthesizer.orchestrator import SynthesisResult
         assert isinstance(result, SynthesisResult)
 
     def test_synthesize_writes_artifacts_to_doctrine(
@@ -688,16 +720,24 @@ class TestSynthesizeWritesToDisk:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """FR-008: validation runs before promote and preserves diagnostics on failure."""
-        from charter.synthesizer.errors import ProjectDRGValidationError
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.errors import ProjectDRGValidationError
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
-        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+        def fail_validate(
+            _staging_dir: Path, _shipped_drg: object, conflicts: object = (), org_drg: object = None
+        ) -> None:
+            # WP02: validate() now takes an optional `conflicts` kwarg
+            # (orchestrator._validation_callback passes
+            # outcome.delta.conflicts) -- accept and ignore it here so this
+            # forced-failure stub still matches the real call signature.
+            # #4121 (MAJOR 2) added the org-chain `org_drg` kwarg the same way.
+            del conflicts, org_drg
             raise ProjectDRGValidationError(
                 errors=("synthetic validation failure",),
                 merged_graph_summary="forced by test",
             )
 
-        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+        monkeypatch.setattr("charter.activation.synthesizer.validation_gate.validate", fail_validate)
 
         with pytest.raises(ProjectDRGValidationError, match="synthetic validation failure"):
             synthesize(full_request, adapter=adapter, repo_root=tmp_path)
@@ -712,4 +752,30 @@ class TestSynthesizeWritesToDisk:
         assert failed_dirs, "Expected validation failure to preserve a .failed staging directory"
         assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists(), (
             "Expected staged project graph to be preserved for debugging when validation fails"
+        )
+
+    def test_synthesize_surfaces_reference_warnings_on_result(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """#4121 (MAJOR 2): unresolved-reference warnings from the overlay
+        emission ride on ``SynthesisResult.reference_warnings`` so CLI callers
+        can surface them instead of them living only in ``logging`` output."""
+        from charter.activation.synthesizer import project_drg as project_drg_module
+
+        real_emit = project_drg_module.emit_project_layer
+
+        def _emit_with_warning(*args: object, **kwargs: object) -> object:
+            sink = kwargs.get("warnings_out")
+            if isinstance(sink, list):
+                sink.append("agent_profile:ops-responder references unresolved procedure:gone")
+            return real_emit(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(project_drg_module, "emit_project_layer", _emit_with_warning)
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+        assert result.reference_warnings == (
+            "agent_profile:ops-responder references unresolved procedure:gone",
         )

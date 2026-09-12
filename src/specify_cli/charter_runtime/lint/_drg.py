@@ -26,7 +26,7 @@ def _load_graph_file(path: Path) -> Any | None:
     cannot be parsed, or validation against ``DRGGraph`` fails.
     """
     try:
-        from doctrine.drg.models import DRGGraph
+        from charter.drg import DRGGraph
         from ruamel.yaml import YAML
 
         text = path.read_text(encoding="utf-8")
@@ -60,9 +60,9 @@ def _load_project_drg(repo_root: Path) -> Any | None:
 
 
 def _load_built_in_drg() -> Any | None:
-    """Try to load the built-in DRG shipped under ``src/doctrine/``.
+    """Try to load the built-in DRG shipped under ``src/charter/offering/``.
 
-    Routes through the canonical :func:`doctrine.drg.loader.load_built_in_graph`
+    Routes through the canonical :func:`charter.offering.drg.loader.load_built_in_graph`
     seam (WP03, mission #2680) so the built-in graph is read in exactly one
     place and follows the monolith->fragment migration (WP05) transparently.
     The lazy, exception-safe shape is preserved: returns ``None`` when the
@@ -70,9 +70,9 @@ def _load_built_in_drg() -> Any | None:
     caller maps to :class:`GraphState.MISSING`.
     """
     try:
-        from doctrine.drg.loader import DRGLoadError, load_built_in_graph
+        from charter.drg import DRGLoadError, load_built_in_graph
     except Exception:  # noqa: BLE001
-        logger.debug("charter_lint._drg: doctrine.drg.loader not importable", exc_info=True)
+        logger.debug("charter_lint._drg: charter.drg loader not importable", exc_info=True)
         return None
 
     try:
@@ -93,8 +93,8 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
        contract that a synthesized project DRG already incorporates the
        built-in and any org-pack layers; callers do not need to merge
        again.
-    2. Built-in DRG shipped under ``src/doctrine/`` via the canonical
-       :func:`doctrine.drg.loader.load_built_in_graph` seam →
+    2. Built-in DRG shipped under ``src/charter/offering/`` via the canonical
+       :func:`charter.offering.drg.loader.load_built_in_graph` seam →
        ``(graph, GraphState.BUILT_IN_ONLY)``.
     3. Nothing loadable → ``(None, GraphState.MISSING)``.
 

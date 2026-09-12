@@ -1,0 +1,10 @@
+
+WP07 cycle 2 review requests evidence-only corrections. The implementation and all cycle-1 substantive repairs pass review, but two statements in `wp07-results.json` remain factually unsupported.
+
+1. The focused validation receipt lists a four-file pytest command and claims `47 passed in 54.07s`. Running that exact command at `db82a6aef` yields `43 passed in 52.37s`; collection also reports exactly 43 tests. The missing four tests are `tests/architectural/test_ratchet_baselines.py`, which the result prose says the command includes but the command text omits. Either add that path to the recorded command and retain the truthful 47-test receipt, or record the exact four-file 43-test result.
+
+2. `authoritative_frozen_dag.full_frozen_dag_acceptance.reason` correctly reports `MISS_NOT_ESTABLISHED`, but then claims adding the unmeasured retained-route costs “can only reduce” the known-cut saving and cannot produce a 15% pass. That direction is not established: `full-parallel` executes the sanitation tree and the changed #3284 guard, and there are no comparable HEAD repetitions. Keep `MISS_NOT_ESTABLISHED`, but remove the directional claim and state only that the full-DAG percentage cannot be determined from current evidence.
+
+Independently verified as passing: all 12 canonical timing byte streams reproduce their hashes and median/max values; all eight frozen routes are present in the denominator with install and quality-gate controls; known-cut compute and 1.3815% critical-path MISS recompute; full-DAG evidence is explicitly unestablished; owned dead sidecars/helpers have zero live code consumers and were deleted; ratchet YAML has no stale/misnested keys; the exact legacy selector is preserved; the one-live-universe replacement union passes and removal of the real regression route exposes #2782; auditor, Ruff, diff check, and actionlint delta pass. No implementation/code correction is requested.
+
+Anti-patterns: dead code PASS; synthetic-fixture PASS; silent empty return N/A; FR coverage PASS; frozen surface PASS; locked decision PASS; shared-file ownership PASS; production fragility N/A.

@@ -22,16 +22,16 @@ this, exception-capture tests use explicit try/except rather than
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from kernel.clock import datetime, UTC
 from typing import Any
 from collections.abc import Mapping
 
 import pytest
 
-from charter.synthesizer.adapter import AdapterOutput
-from charter.synthesizer.errors import SynthesisSchemaError
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, _assert_schema, run_all
+from charter.activation.synthesizer.adapter import AdapterOutput
+from charter.activation.synthesizer.errors import SynthesisSchemaError
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, _assert_schema, run_all
 
 
 # ---------------------------------------------------------------------------

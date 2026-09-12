@@ -1,10 +1,10 @@
 """WP17 unit tests — ``charter context --include`` selector routing.
 
-Pins the behaviour of :func:`charter.context.build_charter_context_include`
+Pins the behaviour of :func:`charter.activation.context.build_charter_context_include`
 after WP17 routed the selector kind through the canonical
-:meth:`doctrine.artifact_kinds.ArtifactKind.from_operator_token` resolver
+:meth:`charter.offering.artifact_kinds.ArtifactKind.from_operator_token` resolver
 (WP01) and wired ``template:<mission>/<name>`` through WP18's
-:func:`doctrine.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
+:func:`charter.offering.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
 
 Coverage:
 
@@ -28,13 +28,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.pack_context import CharterPackConfigError
-from charter.context import build_charter_context_include
+import charter.activation.context as context_module
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.context import build_charter_context_include
+from charter.activation.context_renderers import template_include as template_include_module
 
 
 pytestmark = pytest.mark.fast
@@ -113,6 +115,23 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> No
     )
 
 
+def _write_minimal_config(repo_root: Path) -> None:
+    """Provision ``mission_type_activations`` on a bare ``tmp_path``.
+
+    The ``agent-profile`` include branch routes through
+    ``_build_activation_aware_doctrine_service``, which always calls
+    ``PackContext.from_config`` (WP04, C-A1: the provisioned charter is the
+    sole activation authority for mission types) -- a genuinely absent key
+    hard-fails even though these tests only exercise selector routing, not
+    mission-type activation.
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
+
 # ---------------------------------------------------------------------------
 # agent-profile selector (FR-022/023) — the original bug
 # ---------------------------------------------------------------------------
@@ -122,6 +141,7 @@ class TestAgentProfileInclude:
     def test_hyphenated_agent_profile_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro",
             purpose="Implement Python work with TDD discipline.",
@@ -139,6 +159,7 @@ class TestAgentProfileInclude:
     def test_underscore_agent_profile_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )
@@ -154,6 +175,7 @@ class TestAgentProfileInclude:
     def test_mixed_case_kind_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )
@@ -169,10 +191,29 @@ class TestAgentProfileInclude:
     def test_unknown_agent_profile_id_fails_closed(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         _patch_service(monkeypatch, _StubService())
 
         with pytest.raises(ValueError, match="No agent_profile found"):
             build_charter_context_include(tmp_path, "agent-profile:nope")
+
+
+class TestDirectiveInclude:
+    def test_active_directive_slug_resolves_to_its_canonical_id(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#3816: active directive slugs must work in the public include selector."""
+        directive = SimpleNamespace(title="Boy Scout Rule", intent="Keep scope tidy.")
+        _patch_service(
+            monkeypatch,
+            _StubService(directives=_StubRepo({"DIRECTIVE_025": directive})),
+        )
+
+        text = build_charter_context_include(
+            tmp_path, "directive:025-boy-scout-rule"
+        )
+
+        assert "Directive DIRECTIVE_025: Boy Scout Rule" in text
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +291,15 @@ class TestTemplateInclude:
         def _raise_pack_config_error(_repo_root: Path) -> Path | None:
             raise CharterPackConfigError("broken pack config")
 
-        monkeypatch.setattr(context_module, "resolve_project_root", _raise_pack_config_error)
+        # WP05 (#2532): ``_render_template_include`` relocated to
+        # ``context_renderers/template_include.py``; it resolves
+        # ``resolve_project_root`` through ITS OWN module globals (a bare
+        # name reference), so the patch target must follow the code, not
+        # stay on ``charter.activation.context`` (which merely re-exports the render
+        # function for FR-009 test-import preservation).
+        monkeypatch.setattr(
+            template_include_module, "resolve_project_root", _raise_pack_config_error
+        )
 
         with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
             build_charter_context_include(
@@ -291,6 +340,7 @@ class TestJsonEntryPoint:
         from specify_cli.cli.commands.charter import charter_app
         import specify_cli.cli.commands.charter as charter_pkg
 
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )
@@ -337,3 +387,47 @@ class TestIncludeHelp:
         normalized = " ".join(result.output.split())
         assert "agent-profile" in normalized
         assert "template" in normalized
+
+
+# ---------------------------------------------------------------------------
+# #3816 — the directive selector resolves the exact slug IDs the ``--json``
+# surface advertises, at parity with tactic/agent-profile. Exercised against
+# the REAL built-in directive corpus (not a stub) so the repository's own
+# id-normalization seam is under test, close-by-construction (directive 043):
+# every advertised built-in directive slug must resolve EXIT 0.
+# ---------------------------------------------------------------------------
+
+
+def _built_in_directive_stems() -> list[str]:
+    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.offering.pack_paths import built_in_dir
+
+    return sorted(
+        p.name.split(".")[0]
+        for p in built_in_dir(ArtifactKind.DIRECTIVE).glob("*.directive.yaml")
+    )
+
+
+class TestDirectiveIncludeSlugParity:
+    def test_every_built_in_directive_slug_resolves(self, tmp_path: Path) -> None:
+        stems = _built_in_directive_stems()
+        # Non-vacuity: the corpus must actually be enumerable, or the loop
+        # below would pass trivially by iterating nothing.
+        assert len(stems) >= 20, "built-in directive corpus unexpectedly small"
+        for stem in stems:
+            text = build_charter_context_include(tmp_path, f"directive:{stem}")
+            assert text.startswith("Directive "), stem
+
+    def test_slug_and_canonical_forms_agree(self, tmp_path: Path) -> None:
+        # The slug the ``--json`` surface advertises and the DIRECTIVE_NNN
+        # canonical form must resolve to the same directive body.
+        by_slug = build_charter_context_include(tmp_path, "directive:025-boy-scout-rule")
+        by_canonical = build_charter_context_include(tmp_path, "directive:DIRECTIVE_025")
+        assert by_slug.startswith("Directive DIRECTIVE_025:")
+        assert by_slug == by_canonical
+
+    def test_unknown_directive_slug_still_fails_closed(self, tmp_path: Path) -> None:
+        # The gate must bite: a bogus slug is a structured miss, not a silent
+        # pass — otherwise the parity test above could never be red.
+        with pytest.raises(ValueError, match="No directive found"):
+            build_charter_context_include(tmp_path, "directive:999-not-a-real-directive")

@@ -107,7 +107,15 @@ def _build_flag_on_mission(
     _git(repo, "config", "user.name", "WP10 Rollback Claim")
     _git(repo, "config", "commit.gpgsign", "false")
     (repo / ".kittify").mkdir()
-    (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the
+    # rejection-write path now threads a REAL ``commit_artifact`` call and
+    # raises on a non-"committed" result. ``ProtectionPolicy.resolve`` treats
+    # "main" as protected by default, so this real-git fixture needs the
+    # override to let the review-cycle artifact's commit genuinely succeed --
+    # mirrors ``tests/review/test_cycle.py``'s ``_unprotect_main`` idiom.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "auto_commit: false\nprotection:\n  protected_branches: []\n", encoding="utf-8"
+    )
 
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     tasks_dir = feature_dir / "tasks"
@@ -214,9 +222,9 @@ def test_rollback_release_is_event_only_wp_file_byte_stable(
     assert len(stream.annotations) > annotations_before, "no release annotation persisted"
     release = [
         a for a in stream.annotations
-        if a.wp_id == "WP01" and (a.delta.agent == "" or a.delta.shell_pid == 0)
+        if a.wp_id == "WP01" and a.delta.release_runtime_claim
     ]
-    assert release, "no InnerStateChanged released the claim (agent=''/shell_pid=0)"
+    assert release, "no InnerStateChanged released the claim (release_runtime_claim marker)"
     # ...and the WP file bytes did not change.
     assert _content_hash(wp_file) == hash_before, "rollback rewrote tasks/WP01.md bytes"
 

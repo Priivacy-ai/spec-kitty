@@ -1,0 +1,7 @@
+generated_by: tests/architectural/test_home_pin_verdict_seam.py
+regeneration_command: python -m tests.architectural.test_home_pin_verdict_seam --freeze-exempt-pin
+note: 'The verdict guard''s EXEMPT module list, pinned OUTSIDE the module that declares
+  it so a self-forgiving edit costs two files. Never hand-edited. Adding an exemption
+  is a review event: regenerate this, and say in the PR why a second copy of the verdict
+  is warranted.'
+exempt_module_set_sha256: d86430d68e73d94a21241b436d1f06311757aa3e99de9279f171d793f80ef835

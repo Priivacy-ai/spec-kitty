@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+  "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+  "mission_branch": "kitty/mission-doctrine-delivery-reachability-01KYMXD6",
+  "target_branch": "feat/doctrine-delivery-reachability",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/drg.py",
+        "src/charter/synthesizer/project_drg.py",
+        "src/doctrine/drg/merge.py",
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/drg/models.py",
+        "src/specify_cli/drg_writers/**",
+        "src/specify_cli/migration/rewrite_opposed_by.py",
+        "tests/charter/synthesizer/test_project_drg.py",
+        "tests/doctrine/drg/test_model_strictness_roundtrip.py",
+        "tests/doctrine/drg/test_org_pack_merge.py",
+        "tests/specify_cli/drg_writers/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/kind_vocabulary.py",
+        "src/charter/pack_manager.py",
+        "src/doctrine/artifact_kinds.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "tests/doctrine/drg/test_kind_mapping_totality.py",
+        "tests/doctrine/test_artifact_kinds.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "src/charter/pack_context.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py",
+        "tests/charter/test_activation_authority.py",
+        "tests/charter/test_activation_identifier_normalization.py",
+        "tests/specify_cli/upgrade/test_normalize_activation_absence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/assets/**",
+        "src/doctrine/service.py",
+        "tests/doctrine/assets/**",
+        "tests/doctrine/test_service.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/reachability.py",
+        "tests/doctrine/drg/reachability_fixtures/**",
+        "tests/doctrine/drg/test_reachability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/_doctrine_asset.py",
+        "tests/docs/test_asset_resolution_wheel.py",
+        "tests/docs/test_docs_structural_lint.py",
+        "tests/specify_cli/cli/commands/test_doctrine_asset.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/plans/doctrine/delivery-reachability-wiring-table.md",
+        "src/doctrine/directives/**",
+        "src/doctrine/drg/migration/hand_authored_overlay.py",
+        "src/doctrine/procedures/**",
+        "src/doctrine/tactics/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/charter/resolver.py",
+        "tests/charter/test_action_bundle_delivery.py",
+        "tests/charter/test_context.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP14"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/doctrine/create-a-doctrine-artifact.md",
+        "docs/doctrine/doctrine-kinds.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d",
+        "lane-h"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-m",
+      "wp_ids": [
+        "WP15"
+      ],
+      "write_scope": [
+        "tests/charter/test_progressive_disclosure.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/charter/compact.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "tests/agent/test_workflow_charter_context.py",
+        "tests/charter/test_every_load_delivery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-m"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/repository.py",
+        "tests/charter/test_profile_channel_delivery.py",
+        "tests/doctrine/agent_profiles/test_profile_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-f",
+        "lane-i"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "tests/charter/test_reference_block.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-i"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-07-28T20:25:45.239345+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/doctrine/drg/test_model_strictness_roundtrip.py' vs 'tests/doctrine/drg/test_model_strictness_roundtrip.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/charter/pack_context.py' vs 'src/charter/pack_context.py'; WP07 depends on WP06"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

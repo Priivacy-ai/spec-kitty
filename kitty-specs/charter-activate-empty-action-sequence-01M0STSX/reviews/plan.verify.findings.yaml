@@ -1,0 +1,46 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: PLAN-VERIFY-001
+    lens: "mission-derived: __all__ placement precision, empirically checked"
+    severity: 3
+    title: "__all__ insertion-point claim is empirically wrong: true alphabetical sort puts the new symbol last, not between UnknownMissionTypeError and existing_mission_types"
+    evidence:
+      - artifact: "plan.md § `__all__` / dead-symbol governance (charter C-007, binding)"
+      - code: "src/charter/mission_type_profiles.py:71-83 (current __all__ list, confirmed as read)"
+    claim: >
+      The plan states: "Lands in `src/charter/mission_type_profiles.py`'s existing
+      `__all__` list (`mission_type_profiles.py:71-83`), inserted alphabetically
+      between `UnknownMissionTypeError` and `existing_mission_types` — i.e.
+      immediately after `"UnknownMissionTypeError",` per the list's existing sort
+      order." This is factually incorrect. The current `__all__` list is genuinely
+      sorted by Python's default (case-sensitive ASCII) `sorted()` order — all
+      capitalized (class) names first (C, G, M, M, R, R, U), then all lowercase
+      (function) names (e, r, r, r) — which is *why* `UnknownMissionTypeError` is
+      immediately followed by `existing_mission_types` today: not because "U" sorts
+      before "e" alphabetically, but because uppercase-initial names as a group
+      precede lowercase-initial names as a group under this sort. `python3 -c
+      "sorted([...current 11 names..., 'validate_activatable_mission_type'])"` was
+      run against the real list and confirms `validate_activatable_mission_type`
+      (lowercase 'v') sorts *after* `resolve_mission_type_key` — i.e. as the new
+      LAST entry in the list — not between `UnknownMissionTypeError` and
+      `existing_mission_types`. If an implementer follows the plan's literal
+      instruction, the resulting `__all__` list will no longer be in the sort order
+      the module itself demonstrably follows today. This is not CI-gated today (RUF022
+      "unsorted-dunder-all" is not in `pyproject.toml`'s `[tool.ruff.lint].select`,
+      and `tests/architectural/test_no_dead_symbols.py`'s dead-symbol gate checks
+      caller-existence, not `__all__` ordering), so it will not fail any enforced
+      gate — but it is a concrete, checkable factual claim in the plan that does not
+      hold, and following it literally produces a list order that contradicts the
+      module's own established convention.
+    remediation: >
+      Correct the plan's `__all__` placement instruction: append
+      `"validate_activatable_mission_type"` as the LAST entry in the list (after
+      `"resolve_mission_type_key"`), not between `"UnknownMissionTypeError"` and
+      `"existing_mission_types"`. Update the "inserted alphabetically between..."
+      sentence in the `__all__` / dead-symbol governance section accordingly, or
+      re-run the actual `sorted()` check the plan claims to have performed before
+      finalizing the WP prompt.

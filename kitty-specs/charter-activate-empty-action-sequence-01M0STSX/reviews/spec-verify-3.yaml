@@ -1,0 +1,21 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      Fix applied remediation option (a): the Edge Cases cascade bullet now adds a
+      new "Is activate_cmd the only code path..." paragraph naming
+      promote_activations() as a second, currently-inert write chokepoint onto
+      mission_type_activations, and the Domain Language "Activation-time (write)
+      path" entry was narrowed from an unqualified "entered through activate_cmd"
+      to explicitly scope that claim to "this mission's fix" while cross-referencing
+      the same promote_activations() caveat; re-verified live against
+      src/charter/activation_engine.py (promote_activations, line 457),
+      _PROMOTABLE_KINDS (m_unify_charter_activation.py:76-85, no MISSION_TYPE
+      entry), REQUIRED_KIND_FIELDS (org_charter.py:85-96, no mission_types field),
+      and interview.py's _promote_interview_selections (hardcoded to
+      directive/tactic/paradigm only) — mission-type is excluded from every
+      current promote_activations() caller, so the spec's narrowed claim and
+      the "currently-inert"/"no live bug" framing both hold today.

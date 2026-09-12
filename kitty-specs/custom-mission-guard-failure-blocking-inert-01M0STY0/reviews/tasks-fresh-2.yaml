@@ -1,0 +1,165 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-2
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: TASKS-FRESH2-001
+    lens: >-
+      Terminology drift / layer conflation in T017b's new "Do NOT use" rationale
+      (dual-system-divergence mapping between the presence-gathering layer and the
+      guard-evaluation layer)
+    severity: 2
+    title: >-
+      T017b's new rationale calls WP01's evaluate_guards_strict branch the "org-tier-consulting
+      branch", which conflates guard EVALUATION (family-gated, added by WP01) with manifest/presence
+      GATHERING (not family-gated, added by WP02) — the branch itself never consults org tier, it
+      only compares an already-populated field
+    evidence:
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b (round-2 text): "...WP01's new
+          org-tier-consulting branch is reached only in the `guard_table_entry is None` arm
+          (`runtime_bridge_cores.py:694`), i.e. only for families outside `_GUARD_TABLES`, which
+          `software-dev` never is."
+      - artifact: >-
+          tasks/WP01-snapshot-field-and-dispatch-branch.md T004: WP01's branch "evaluate[s] by
+          comparing `snapshot.present_artifacts` ... against `snapshot.blocking_artifact_names`" —
+          it reads an already-computed field, it does not itself call any org-tier resolver
+          (the import-boundary gate in the same WP file forbids it from importing anything beyond
+          stdlib/`runtime.next.decision`).
+      - artifact: >-
+          tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md T012/T013: the actual org-tier
+          consult (`resolve_org_expected_artifacts`, which T017b's test patches) happens earlier,
+          inside `gather_artifact_presence`/`_presence_filenames_for`, and runs unconditionally for
+          every mission family including `software-dev` — independent of which
+          `evaluate_guards_strict` branch later executes.
+    claim: >-
+      WP01's `evaluate_guards_strict` branch (the `guard_table_entry is None` arm) does not
+      "consult the org tier" — it only compares an already-populated `blocking_artifact_names`
+      field against `present_artifacts`. The real org-tier consult happens earlier and
+      unconditionally in WP02's `gather_artifact_presence`, which is exactly why T017b's
+      software-dev test can still observe `resolve_org_roots` being called with a real `repo_root`
+      even though `_evaluate_software_dev_guards` never reads the resulting
+      `blocking_artifact_names`. Labeling WP01's guard-evaluation branch the
+      "org-tier-consulting branch" blurs that two-layer distinction; a reader who has not already
+      worked out the layering independently could misread the paragraph as saying
+      `resolve_org_roots` itself never fires for `software-dev`, which would contradict what
+      T017b's own test is written to assert. The paragraph's closing sentence does correctly keep
+      the two concerns separate ("...regardless of whether `repo_root` was genuinely threaded to
+      `resolve_org_roots`"), which limits this to a terminology/clarity gap rather than an
+      instruction an implementer could get wrong — the concrete patch-and-assert instruction stays
+      unambiguous regardless of this label.
+    remediation: >-
+      Rename "WP01's new org-tier-consulting branch" to a layer-accurate label, e.g. "WP01's new
+      blocking_artifact_names-comparison branch", and add one clause noting the org-tier consult
+      itself happens earlier and unconditionally in `gather_artifact_presence` (WP02), regardless
+      of which `evaluate_guards_strict` branch later runs.
+  - id: TASKS-FRESH2-002
+    lens: >-
+      New line-number citations in the round-2 diff, verified against live source
+      (trace-based observability)
+    severity: 2
+    title: >-
+      T017b's two new function-range citations both undershoot the actual function bodies by 1-2
+      lines, and deviate from this file's own citation style (exact `def`-line anchors or
+      `~line`-prefixed approximate ranges) by giving an un-prefixed exact range that turns out wrong
+    evidence:
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b (round-2 text): "`evaluate_guards_strict`
+          (`src/runtime/next/runtime_bridge_cores.py:684-695`) dispatches `software-dev` ... straight
+          to `_evaluate_software_dev_guards` (`runtime_bridge_cores.py:618-628`)"
+      - code: >-
+          src/runtime/next/runtime_bridge_cores.py:684-696 — `evaluate_guards_strict`'s actual body
+          runs through line 696 (`return guard_table_entry(snapshot)`), the exact statement
+          performing the "straight to `_evaluate_software_dev_guards`" dispatch the cited text is
+          describing — one line past the cited "684-695" range.
+      - code: >-
+          src/runtime/next/runtime_bridge_cores.py:618-630 — `_evaluate_software_dev_guards`'s actual
+          body runs through line 630 (`return []`, and includes the `implement`/`review` branch at
+          628-629), two lines past the cited "618-628" range.
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T018/T019/T020 all cite single `def`-line
+          anchors (e.g. `runtime_bridge.py:751`, `:1538`, `runtime_bridge_composition.py:429`) for
+          function identity, and use `~line X-Y` (approximate, tilde-prefixed) only for call-site
+          spans — T017b's two new ranges break both conventions: exact (non-`~`) AND wrong.
+    claim: >-
+      Both new line-range citations added this round are off by 1-2 lines versus live source on
+      this branch. For `evaluate_guards_strict`, the cited "684-695" excludes line 696 — the actual
+      `return guard_table_entry(snapshot)` dispatch statement the sentence is citing evidence for.
+      For `_evaluate_software_dev_guards`, "618-628" excludes the function's `implement`/`review`
+      branch and final fallback (629-630), part of the same "branches purely on step_id ... never
+      reads snapshot.blocking_artifact_names" claim. The underlying technical claims still hold
+      against the full functions, so this does not misdirect implementation, but it is a verifiable
+      citation inaccuracy in newly-added text, and it breaks this file's own established
+      single-anchor/`~`-approximate citation convention.
+    remediation: >-
+      Correct the two ranges to `runtime_bridge_cores.py:684-696` and
+      `runtime_bridge_cores.py:618-630`, or drop the end-line numbers and cite only the start line,
+      consistent with T018/T019/T020's own convention in this same file.
+  - id: TASKS-FRESH2-003
+    lens: >-
+      Broken/inaccurate cross-reference introduced in the round-2 diff, verified against the text
+      it points to
+    severity: 1
+    title: >-
+      T017b's new text attributes the "#3407 M3" software-dev-scoping citation to "T017's own
+      structural note above", but T017's structural note does not actually contain that citation
+    evidence:
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b (round-2 text): "...the ~1643 call
+          site is software-dev-scoped by design (#3407 M3, per T017's own structural note above)..."
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017's own "Structural note (TASKS-VERIFY-001,
+          added this fix round)" (unchanged by round 2): explains the `get_mission_type(feature_dir)
+          == MISSION_TYPE_SOFTWARE_DEV` mechanism but never cites "#3407" or "M3" anywhere in its text.
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T022 and tasks.md's WP03 Implementation Notes
+          both DO cite "(#3407 M3)" for the same fact, so the citation is accurate and present
+          elsewhere in the mission's own documents — just not in the place T017b attributes it to.
+    claim: >-
+      T017b's new "per T017's own structural note above" phrase asserts the "#3407 M3" citation for
+      the ~1643 call site's software-dev-only scoping comes from T017's structural note. It does
+      not — T017's note explains the mechanism without that citation; "#3407 M3" only appears in
+      this same WP file's T022 subtask and in tasks.md's Implementation Notes. A reader chasing the
+      attribution from T017b back to T017 will not find it there.
+    remediation: >-
+      Either add "#3407 M3" to T017's structural note itself (making the cross-reference accurate),
+      or reword T017b's parenthetical to point at the actual source, e.g. "(#3407 M3, per this WP's
+      T022 subtask / tasks.md's Implementation Notes)".
+  - id: TASKS-FRESH2-004
+    lens: >-
+      Consistency between the twice-revised T017b and WP03's own unchanged Gates section
+    severity: 1
+    title: >-
+      WP03's Gates section still names only T016/T017 for `patch()` target-validation scrutiny,
+      even though round 2 made patching `resolve_org_roots`/`resolve_org_expected_artifacts` the
+      SOLE technique for T017b (previously one of two alternatives)
+    evidence:
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md, "## Gates that apply to this WP's files":
+          "`patch()` target validation (T016/T017's new tests, if they patch `resolve_org_roots` or
+          similar, every target must resolve to a real importable path)" — unchanged by the round-2
+          diff, still omits T017b.
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b (round-2 text): now instructs "by
+          patching `resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the real
+          `repo_root` value in the call arguments" as the ONLY sanctioned technique (round-1's
+          presence-flip alternative was explicitly ruled out this round); T016 itself never patches
+          `resolve_org_roots` per its own subtask text (AC-1/AC-2 presence-flip only).
+      - code: >-
+          scripts/check_patch_targets.py — the actual enforced gate ("[ENFORCED] Validate patch()
+          target strings", ci-quality.yml:940-941) regex-scans every `patch()`/`@patch()` call
+          across the whole `tests/` tree; it is not scoped by T-ID, so this is a
+          documentation-completeness gap only, not a coverage hole in the real gate.
+    claim: >-
+      Before this round, T017b offered patch-based verification as only one of two options, so the
+      Gates section's silence on T017b was a smaller gap. After this round's fix, patching
+      `resolve_org_roots`/`resolve_org_expected_artifacts` is T017b's only sanctioned technique —
+      more concretely so than T016, which the Gates parenthetical names instead and which never
+      patches `resolve_org_roots`. The real CI gate scans the whole tree regardless of T-ID, so
+      there is no functional gap, but the illustrative example in the Gates section is now stale
+      relative to T017b's twice-revised content.
+    remediation: >-
+      Add T017b to the Gates section's `patch() target validation` parenthetical, e.g. "(T016/
+      T017/T017b's new tests, if they patch `resolve_org_roots`/`resolve_org_expected_artifacts` or
+      similar, every target must resolve to a real importable path)".

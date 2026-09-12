@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-23T11:08:51.250556Z",
+      "decision_id": "01KY7AKXNJZCB2J2W411YM3B9F",
+      "final_answer": "New acceptance/merge_phase seam. Keeps invariant logic in the acceptance package with a narrow call-in from merge, and guarantees the merge-phase re-verify WP and the merge-exemption-retirement WP have disjoint owned_files.",
+      "input_key": "merge_reverify_hook",
+      "mission_id": "01KY72GQAGEQYNQBKM41X7F6JP",
+      "mission_slug": "lifecycle-gate-execution-context-01KY72GQ",
+      "opened_by": "cli",
+      "options": [
+        "new acceptance/merge_phase seam",
+        "inside merge/executor.py",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where does the merge-phase negative-invariant re-verification hook live?",
+      "rationale": null,
+      "resolved_at": "2026-07-23T11:14:54.208634Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.merge-reverify-hook",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-23T11:08:52.115479Z",
+      "decision_id": "01KY7AKYGKZFK202NQ37094T34",
+      "final_answer": "Fail loud, implemented by making the resolver TOTAL rather than fallback-based. The declared home for a flat/SINGLE_BRANCH/LANES topology is the primary feature_dir returned affirmatively; None then means only 'a coord home was declared but is unresolvable' and raises. Operator directive: 'flattened' is pre-topology residue and must be steadily removed as a load-bearing property, not reinforced -- do not strengthen ducttape. This mission adds no new dependence on 'flattened' and makes every resolver it touches total; full de-ducttaping of the ~66 'flattened' sites is a separate track.",
+      "input_key": "primary_fallback_scope",
+      "mission_id": "01KY72GQAGEQYNQBKM41X7F6JP",
+      "mission_slug": "lifecycle-gate-execution-context-01KY72GQ",
+      "opened_by": "cli",
+      "options": [
+        "keep as flat-topology leg, scope NFR-001 to coord-resolved",
+        "convert to fail-loud",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does the existing acceptance-matrix read fallback to feature_dir become fail-loud, or is it the legitimate flat-topology leg?",
+      "rationale": null,
+      "resolved_at": "2026-07-23T11:14:55.080227Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.primary-fallback-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-23T11:08:52.983868Z",
+      "decision_id": "01KY7AKZBQCM7X4MV2C0101WKZ",
+      "final_answer": "Strangler. One WP builds the tool-artifact owner (non-coord destination + subprocess-byproduct enrollment); each exemption is then retired in its own small, independently revertible WP, with the merge-surface ones sequenced last.",
+      "input_key": "exemption_retirement",
+      "mission_id": "01KY72GQAGEQYNQBKM41X7F6JP",
+      "mission_slug": "lifecycle-gate-execution-context-01KY72GQ",
+      "opened_by": "cli",
+      "options": [
+        "strangler: owner first, then per-exemption WPs",
+        "big-bang: one retirement WP",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Are the eight exemption mechanisms retired big-bang in one work package, or strangled one at a time behind the owner?",
+      "rationale": null,
+      "resolved_at": "2026-07-23T11:14:55.932626Z",
+      "resolved_by": null,
+      "slot_key": "plan.strategy.exemption-retirement",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KY72GQAGEQYNQBKM41X7F6JP",
+  "version": 1
+}

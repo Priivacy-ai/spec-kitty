@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "mission_slug": "design-phase-orchestrator-api-01M1HE6M",
+  "mission_id": "01M1HE6MNSX2ED6MXG05SX3K4G",
+  "mission_branch": "kitty/mission-design-phase-orchestrator-api-01M1HE6M",
+  "target_branch": "feat/design-phase-orchestrator-api-3837",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP08"
+      ],
+      "write_scope": [
+        "src/runtime/next/next_invocation_lifecycle.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py",
+        "tests/specify_cli/orchestrator_api/test_answer_decision.py",
+        "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py",
+        "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py",
+        "tests/specify_cli/orchestrator_api/test_decision_verbs.py",
+        "tests/specify_cli/orchestrator_api/test_design_status.py",
+        "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py",
+        "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-02T18:53:59.659316+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP09"
+  ],
+  "planning_commit_sha": "739bd413784c6ee8c9977f6c8f61b9be670401e1",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/next_cmd.py' vs 'src/specify_cli/cli/commands/next_cmd.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/next/test_next_invocation_lifecycle_seam.py' vs 'tests/specify_cli/next/test_next_invocation_lifecycle_seam.py'; WP08 depends on WP02"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/orchestrator_api/commands.py' vs 'src/specify_cli/orchestrator_api/commands.py', 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py', 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/orchestrator_api/commands.py' vs 'src/specify_cli/orchestrator_api/commands.py', 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py', 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/orchestrator_api/commands.py' vs 'src/specify_cli/orchestrator_api/commands.py', 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py', 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/orchestrator_api/commands.py' vs 'src/specify_cli/orchestrator_api/commands.py', 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_commands_fail_closed.py', 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py' vs 'tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py'"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 4,
+    "by_rule": {
+      "write_scope_overlap": 6
+    }
+  }
+}

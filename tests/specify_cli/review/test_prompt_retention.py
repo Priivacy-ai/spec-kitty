@@ -17,7 +17,7 @@ temp dir is never touched and the ``<repo-id>/<mission>/<wp>`` path scheme
 from __future__ import annotations
 
 import os
-import time
+from kernel.clock import now_epoch
 import uuid
 from pathlib import Path
 
@@ -94,7 +94,7 @@ def test_current_invocation_never_pruned_even_if_oldest(review_prompts_root: Pat
     wp_dir.mkdir(parents=True, exist_ok=True)
     # Stale files dated in the FUTURE so the current invocation is the oldest by
     # mtime — a naive "keep newest N" would delete it. It must survive anyway.
-    future = time.time() + 10_000
+    future = now_epoch() + 10_000
     for i in range(5):
         _make_old_prompt(wp_dir, f"future-{i}", future + i)
 

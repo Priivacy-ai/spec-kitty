@@ -63,7 +63,10 @@ def test_real_glossary_seed_yields_104_unique_anchor_ids() -> None:
     from scripts.docs.generate_kitty_specs_docs import parse_glossary_seed
 
     terms = assign_anchor_ids(parse_glossary_seed(GLOSSARY_SEED))
-    assert len(terms) == 104
+    # Re-pinned 104 -> 103 (2026-08-28, mission charter-authority-flip / #3664):
+    # the governing `doctrine` term was folded into the single canonical `charter`
+    # term, so the seed now carries exactly one fewer unique anchor id.
+    assert len(terms) == 103
     anchor_ids = [t["anchor_id"] for t in terms]
     assert len(set(anchor_ids)) == len(anchor_ids), "real glossary seed must not collide today"
 
@@ -93,7 +96,9 @@ def _term(surface: str, anchor_id: str, definition: str = "def") -> glossary_lin
 
 def test_load_link_terms_from_real_seed() -> None:
     terms = glossary_linker.load_link_terms(GLOSSARY_SEED)
-    assert len(terms) == 104
+    # Re-pinned 104 -> 103 (2026-08-28, mission charter-authority-flip / #3664):
+    # `doctrine` governing term folded into the canonical `charter` term (-1 term).
+    assert len(terms) == 103
     assert all(t.surface and t.anchor_id for t in terms)
 
 
@@ -150,6 +155,26 @@ def test_link_page_html_skips_code_and_pre_blocks() -> None:
 
     assert added == 1
     assert "<pre><code>work package = load()</code></pre>" in result  # untouched inside code/pre
+    assert '<a href="/kitty-specs/glossary.html#term-work-package"' in result  # linked in prose
+
+
+def test_link_page_html_skips_head_and_title() -> None:
+    """Metadata must stay plain: a <title> must not be linked (invalid HTML and
+    it would desync from the og:title the SEO verifier pins to the plain title).
+    """
+    terms = [_term("work package", "work-package", "def")]
+    pattern = glossary_linker.build_pattern(terms)
+    assert pattern is not None
+    term_by_key = {t.surface.lower(): t for t in terms}
+    markup = (
+        "<html><head><title>Work Package Frontmatter</title></head>"
+        "<body><p>See the work package docs.</p></body></html>"
+    )
+
+    result, added = glossary_linker.link_page_html(markup, pattern, term_by_key)
+
+    assert added == 1  # only the prose mention is linked
+    assert "<title>Work Package Frontmatter</title>" in result  # title untouched
     assert '<a href="/kitty-specs/glossary.html#term-work-package"' in result  # linked in prose
 
 

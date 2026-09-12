@@ -1,0 +1,60 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP02
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  WP02 is a genuine, verbatim extraction of the three lifecycle/event-log side-effect
+  functions out of next_cmd.py into src/runtime/next/next_invocation_lifecycle.py, meeting
+  the operator ruling (SPEC-FRESH2-001) bar of a shared seam rather than an inlined or
+  duplicated copy. Diffed the moved function bodies against next_cmd.py's pre-WP02 versions
+  at base commit 7a996ce7b: pair_previous_lifecycle_record and write_issuance_lifecycle_record
+  are byte-identical; emit_mission_next_invoked carries two narrow, well-documented,
+  non-behavioural typing adjustments (object-typed decision param read via getattr/cast
+  instead of dotted access; repo_root coerced to Path before the placement_seam call, a
+  no-op for every real caller since callers already pass Path). The three next_cmd.py
+  private names were kept as genuinely thin one-line delegating wrappers (verified by
+  reading all three in full) to preserve monkeypatch/patch targets used by 5 real external
+  test files (all independently confirmed to reference these exact names). Placement at the
+  top level of src/runtime/next/ (sibling of decision.py/runtime_bridge.py, not
+  _internal_runtime/, not orchestrator_api/) matches the charter's Internal Runtime Boundary
+  and is confirmed by tests/architectural/test_shared_package_boundary.py passing with the
+  new module in place. The SC-008 helper assert_lifecycle_seam_effects asserts purely on
+  mission-events.jsonl and lifecycle-record-store state (three plain asserts on counts/entry
+  presence), with zero caller-identity coupling, satisfying the dual-caller guarantee ahead
+  of WP08. Independently re-derived both red-first claims: disabling the CLI-side
+  _emit_mission_next_invoked wrapper reproduced the exact reported assertion failure
+  ("expected emit_mission_next_invoked to append a MissionNextInvoked entry; new entries:
+  []"), and moving next_invocation_lifecycle.py aside reproduced a genuine ModuleNotFoundError
+  at collection; both were restored and the tree is clean. ruff and mypy --strict are clean
+  on all 4 touched files (verified directly, including next_cmd.py despite it sitting in
+  pyproject.toml's transitional mypy-strict quarantine — the implementer held itself to a
+  stricter bar than CI enforces there). diff-cover --compare-branch=7a996ce7b --include
+  'src/runtime/next/*' --fail-under=90 returned exactly 100% (78/78), matching the claim.
+  The new test file is correctly registered in tests/_next_shard_map.py's
+  _SPECIFY_CLI_NEXT_SHARD_2_FILES and carries pytest.mark.integration + pytest.mark.git_repo;
+  --collect-only under the live CI marker expression confirms it is selected by
+  integration-tests-next's next_shard_2 leg. All 97 tests across the seam file, the 4
+  existing next_cmd tests, the 2 architectural tests, and the 5 external dependent files
+  pass (a headcount discrepancy against the review brief's "99" is not attributable to any
+  implementer claim I could find in commits/tracer and does not affect the verdict). The
+  diff is scope-tight: only an incidental unused-import removal (MissionMetaReadError, now
+  genuinely unused in next_cmd.py) beyond the extraction itself. Tracer entries are honest,
+  detailed, and self-correcting (tracer-design-decisions.md #5 documents and corrects a
+  path discrepancy against the plan's own stated path). No credential-shaped or private
+  content in the diff.
+findings:
+  - id: WP02-001
+    severity: 1
+    title: WP02 task-file Definition of Done checkboxes left unchecked
+    evidence:
+      - code: "kitty-specs/design-phase-orchestrator-api-01M1HE6M/tasks/WP02-fr014-seam-extraction.md:360-377"
+    claim: >
+      Every DoD item (RED-first commit, module creation, thin wrappers, SC-008 helper
+      shape, green tests, mypy/ruff clean, commit sequencing) is independently verified
+      satisfied by this review, but the checklist itself still shows all items as `[ ]`
+      rather than `[x]`. Purely a documentation/bookkeeping gap; no effect on the shipped
+      code.
+    remediation: >
+      Check off the DoD boxes in WP02-fr014-seam-extraction.md to reflect the verified
+      state, for the benefit of a future reader who trusts the checklist at face value.

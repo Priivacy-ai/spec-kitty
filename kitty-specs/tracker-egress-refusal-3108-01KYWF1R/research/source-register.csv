@@ -1,0 +1,39 @@
+id,source,type,location,notes
+S01,tracer-evidence-base.md,dossier,kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-evidence-base.md,Authoritative measured evidence base for this mission; authored 2026-07-31 against bb2020fea
+S02,tracer-squad-findings.md,dossier,kitty-specs/tracker-egress-refusal-3108-01KYWF1R/tracer-squad-findings.md,Post-specify four-lens adversarial squad findings plus operator decisions
+S03,spec.md,dossier,kitty-specs/tracker-egress-refusal-3108-01KYWF1R/spec.md,Mission specification these research findings support
+S04,Priivacy-ai/spec-kitty#3108,issue,GitHub issue #3108,"""tracker connectors have no expressible per-project refusal (E20 / C-006)"" -- the mission's stated input"
+S05,egress-inventory.md,dossier,kitty-specs/journal-project-consent-3030-01KYKWQS/egress-inventory.md:243-272,#3030 dossier entry E20; the claim this mission's premise-correction disproves
+S06,#3030 spec.md,dossier,kitty-specs/journal-project-consent-3030-01KYKWQS/spec.md,Cited for FR-002/FR-003 status and the incident's absence-anchored reasoning
+S07,tracer-design-decisions.md,dossier,journal-project-consent-3030-01KYKWQS/tracer-design-decisions.md,"#3030 dossier; cited for C-003's authorising clause and consent.py:424-425's absence-permits precedent discussion"
+S08,factory.py,code,"src/specify_cli/tracker/factory.py:17;38-39;56",SUPPORTED_PROVIDERS=(beads;fp); build_connector raise; operator-overridable command credential
+S09,config.py,code,"src/specify_cli/tracker/config.py:29-72;107;148-149;171;178-194",TrackerProjectConfig dataclass; _KNOWN_KEYS; load/save/clear_tracker_config
+S10,service.py,code,"src/specify_cli/tracker/service.py:65;77-80;131-166;202-203",_resolve_backend routing; bind() dispatch (SaaS vs local branches); sync_publish delegation
+S11,local_service.py,code,"src/specify_cli/tracker/local_service.py:1-9;47-63;70-74;115-145;192;217;225;236",Header docstring; bind/unbind; sync_pull/push/run; _load_runtime; _build_engine; OwnershipPolicy
+S12,saas_client.py,code,"src/specify_cli/tracker/saas_client.py:34;247;329-331",_base_url resolution; the chokepoint gate before token fetch
+S13,egress_consent.py (tracker),code,"src/specify_cli/tracker/egress_consent.py:60-61;147-227",project_egress_refusal contract; fallback branch naming unknown EgressConsent members
+S14,egress_consent.py (saas_client),code,"src/specify_cli/saas_client/egress_consent.py:33-36;92",Second definition (not a re-export) of the near-duplicated call
+S15,client.py (saas_client),code,src/specify_cli/saas_client/client.py:23,project_egress_refusal bound by value into this consumer
+S16,adapters.py,code,"src/specify_cli/invocation/adapters.py:41-74;81",EgressConsent (4 members); permits_egress; resolver registry Callable[[Path]-bool]
+S17,invocation/__init__.py,code,src/specify_cli/invocation/__init__.py:23,module-level from-import of resolve_egress_consent; does not observe a patch on adapters
+S18,propagator.py,code,src/specify_cli/invocation/propagator.py:38,module-level from-import of resolve_egress_consent; does not observe a patch on adapters
+S19,sync/consent.py,code,"src/specify_cli/sync/consent.py:24-25;52-56;66-108;145;196-241;218-221;295-299;642-659",ConsentLevel enum; PROJECT_CONSENT_PRECEDENCE; _MISSING sentinel; bool-only closed-decoding argument; absence-denies rule
+S20,sync/config.py,code,src/specify_cli/sync/config.py:78-83,CONFIG_FAULT_KINDS (4 kinds)
+S21,sync/routing.py,code,"src/specify_cli/sync/routing.py:178-252;255;283-285;304;320-326;332",_build_checkout_sync_routing / is_sync_enabled_for_checkout (Chain B); enable_checkout_sync; ConsentIdentityUnresolvedError
+S22,sync/batch.py,code,"src/specify_cli/sync/batch.py:334-339;1070",Chain B's live egress gate site (_is_checkout_sync_enabled_for_batch)
+S23,sync/runtime.py,code,src/specify_cli/sync/runtime.py:106,Chain B consumer
+S24,sync/__init__.py,code,src/specify_cli/sync/__init__.py:362-372,consented_project_uuids membership check
+S25,cli/commands/tracker.py,code,"src/specify_cli/cli/commands/tracker.py:280-312;315-324;327;335;346-351;354-366;1022;1074;1163",_is_local_binding; _check_sync_readiness/_check_binding_readiness; _service; _run_or_exit; SPEC_KITTY_ENABLE_SAAS_SYNC arming gate; sync command entries
+S26,cli/commands/sync.py,code,"src/specify_cli/cli/commands/sync.py:1429-1473;1635-1675;1691-1696;1711-1733;1736-1817;1964;2081;5928-5941",_per_project_store_table; _CONSENT_FAULT_ACTIONS; _CONSENT_FAULT_NOT_ABSENCE; _render_consent_fault; _render_consent_readability; routing.effective_sync_enabled reads
+S27,cli/commands/__init__.py,code,"src/specify_cli/cli/commands/__init__.py:238-243;298;300",Conditional registration of the tracker CLI group vs unconditional sync group registration
+S28,core/saas_sync_config.py,code,src/specify_cli/core/saas_sync_config.py:37-44,is_saas_sync_enabled / SPEC_KITTY_ENABLE_SAAS_SYNC
+S29,core/paths.py,code,src/specify_cli/core/paths.py:182,locate_project_root -- only needs .kittify/ or a git root
+S30,spec_kitty_tracker/connectors/cli_runner.py,code,spec_kitty_tracker/connectors/cli_runner.py:22,SubprocessCommandRunner.run -> subprocess.run(list(command))
+S31,spec_kitty_tracker/connectors/beads.py,code,"spec_kitty_tracker/connectors/beads.py:86-88;121-141;163-214",--title-contains filter (unreached on this path); create/list argv construction
+S32,spec_kitty_tracker/sync.py,code,"spec_kitty_tracker/sync.py:53-68;112-115;158-160",SyncEngine.pull/push signatures; push skip under external_authoritative; sync_run = pull-then-push
+S33,spec_kitty_tracker/policy.py,code,spec_kitty_tracker/policy.py:47-49,local_can_write / OwnershipPolicy.external_authoritative gating
+S34,store.py (TrackerSqliteStore),code,src/specify_cli/tracker/store.py:278-281,mkdir plus 3-table SQLite file creation on construction
+S35,tests/architectural/test_egress_consent_boundary.py,test,tests/architectural/test_egress_consent_boundary.py:792-805,test_every_listed_file_still_holds_a_sink -- deletes allowlist entries guarding nothing
+S36,tests/sync/tracker/test_local_service.py,test,"tests/sync/tracker/test_local_service.py:193-195;235;262;287",TestSyncOperations -- patches _build_engine; the seam that would hold the gate
+S37,tests/cli/commands/test_sync_doctor_consent_health_3030.py,test,tests/cli/commands/test_sync_doctor_consent_health_3030.py:366,Exact-count pin on "REPAIR THE FILE'S SYNTAX" over whole rendered output
+S38,tests/sync/test_consent_fault_vocabulary_3030.py,test,tests/sync/test_consent_fault_vocabulary_3030.py:261,CONFIG_FAULT_KINDS pinned by exact equality

@@ -1,0 +1,160 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+dedup_note: No duplicates found across decomp/seq/verify — 4 distinct findings, one per claim, kept as-is
+  with original ids and severities.
+findings:
+- id: TASKS-SEQ-001
+  lens: write scopes
+  severity: 3
+  title: 'Cross-mission open-PR claim (PR #3708 ''unmerged'', ''19 open PRs'') is stale as of review time
+    — PR #3708, this mission''s own stacked parent, merged to main minutes after tasks.md was authored'
+  evidence:
+  - artifact: 'tasks.md § ''Write scopes / lanes / chokepoints'', lines 195-201: "19 open PRs exist on
+      Priivacy-ai/spec-kitty as of 2026-08-24; none touch any of this mission''s 5 blast-radius files
+      ... PR #3708 (fix/org-tier-expected-artifacts-3703, this mission''s own stacked parent) is among
+      those 19, but its files are already in this mission''s base — not a conflict source, an ancestor."'
+  - artifact: 'tasks.md § ''Baseline'', lines 65-66: "...fix/org-tier-expected-artifacts-3703 (PR #3708,
+      green, mergeable, unmerged) — verified live"'
+  - code: 'live: `gh pr view 3708 --repo Priivacy-ai/spec-kitty --json state,mergedAt` → {"state":"MERGED","mergedAt":"2026-08-24T14:01:27Z"}'
+  - code: 'live: `git log -1 --format=%ci` on the tasks.md-finalizing commit (cdec05af6) = 2026-08-24
+      15:58:26 +0200 = 13:58:26Z, i.e. only ~3 minutes before PR #3708 merged'
+  - code: 'live: `git merge-base --is-ancestor ae3e5ad7a origin/main` succeeds; `origin/main` tip (3f8716fac)
+      is literally PR #3708''s merge commit'
+  - code: 'live: `gh pr list --repo Priivacy-ai/spec-kitty --state open --json number` returns 17 open
+      PRs (not 19); #3707 and #3708 both merged at ~14:01Z, after tasks.md''s authoring finished — 17
+      + those 2 = 19, confirming the count was accurate at authoring time and has since gone stale'
+  claim: 'tasks.md''s binding cross-mission-conflict check and its "Baseline" section both assert PR #3708
+    is open/unmerged and count it among 19 currently-open PRs. Live verification (as this review''s own
+    instructions required) shows PR #3708 — this mission''s own stacked parent — was merged into origin/main
+    at 2026-08-24T14:01:27Z, roughly 3 minutes after tasks.md''s authoring session''s final commit, and
+    is no longer part of the open-PR set (17 open PRs remain, not 19). The substantive "no blast-radius
+    conflict" conclusion still holds today (none of the 17 currently-open PRs touch this mission''s 5
+    blast-radius files), but the "unmerged"/"19 open PRs including #3708" framing that tasks.md and the
+    Baseline section state as verified fact is now false, and the WP-implementing agent that inherits
+    this tasks.md has no signal that the stacked-parent branch has since landed on main — it will red-verify
+    against `fix/org-tier-expected-artifacts-3703` (still mechanically valid, since that ref is unaffected
+    and still points to the same commit) without ever being told the mission''s own local `main`/target
+    branch relationship should now be re-examined for a pre-implementation rebase.
+
+    '
+  remediation: 'Before implementation starts: (1) re-run `gh pr list --repo Priivacy-ai/spec-kitty --state
+    open --json number,files` and update tasks.md''s "19 open PRs... PR #3708 is among those 19" sentence
+    and the Baseline section''s "unmerged" claim to reflect that PR #3708 has merged; (2) decide and record
+    whether `fix/custom-mission-guard-3704` should be rebased onto current `origin/main` before WP01 lands
+    its first commit (mechanically a no-op today, since no functional commits exist yet and `ae3e5ad7a`
+    is already an ancestor of `origin/main`), so the eventual PR opened for this mission does not surprise
+    WP04''s close-out with an unexpectedly large diff; (3) the `planning_base_branch = fix/org-tier-expected-artifacts-3703`
+    red-verification instruction in every WP body remains valid and should NOT be changed as a result
+    of this finding — only the stale prose describing PR #3708''s GitHub state needs correcting.
+
+    '
+  _source_group: seq
+- id: TASKS-VERIFY-001
+  lens: Diff-coverage budget concreteness (mission-derived)
+  severity: 4
+  title: WP03's only named AC-8 test cannot reach the software-dev-scoped CLI pre-check call site it is
+    meant to prove
+  evidence:
+  - artifact: 'spec.md AC-8 (lines ~193-200): "Given the CLI/WP-iteration dispatch path (_dn_dependency_gate,
+      runtime_bridge.py, ~line 1538-1643, which already holds repo_root as a local both before and after
+      its _check_cli_guards calls at ~line 1608 and ~line 1643) ... Then resolve_org_roots is invoked
+      with the real, non-None repo_root"'
+  - artifact: 'tasks/WP03-repo-root-call-site-convergence.md T017: "Add an AC-8 test case asserting resolve_org_roots
+      is invoked with the real, non-None repo_root ... when the CLI/WP-iteration dispatch path runs a
+      custom mission family with an org-tier manifest and no built-in manifest."'
+  - artifact: 'tasks/WP03-repo-root-call-site-convergence.md T019 note: "The CLI pre-check at runtime_bridge.py
+      ~line 1642 stays scoped to the software-dev mission family (#3407 M3) -- do not widen that scoping"'
+  - code: src/runtime/next/runtime_bridge.py:1631 -- "if ctx.result == \"success\" and current_step_id
+      and not _is_wp_iteration_step(current_step_id) and get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV:"
+  - code: src/runtime/next/runtime_bridge.py:1643 -- "guard_failures = _check_cli_guards(current_step_id,
+      feature_dir)" (the second of T019's two forwarding sites, to gain repo_root=repo_root)
+  claim: 'AC-8 explicitly names TWO call sites that must be proven to thread a real repo_root through
+    to resolve_org_roots: the WP-iteration pre-check (~line 1608, runs for any mission family) and the
+    CLI pre-check (~line 1643, gated by `get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV` at
+    line 1631). WP03''s prompt names exactly one new test for AC-8 (T017), and that test''s own stated
+    setup -- "a custom mission family with an org-tier manifest and no built-in manifest" -- structurally
+    can never satisfy the software-dev guard at line 1631, so it can only ever exercise the WP-iteration
+    call site (~1608), never the CLI pre-check call site (~1643). No other named test in WP03 (T016, or
+    the regression tests it reruns -- TestAC14SoftwareDevUnchanged calls `_check_cli_guards` directly,
+    bypassing `_dn_dependency_gate` entirely, and `test_non_software_dev_missing_artifact_owned_by_composed_guard`
+    is explicitly the non-software-dev case) asserts that `resolve_org_roots`/`repo_root` actually reaches
+    the ~1643 call site correctly. Pre-existing software-dev fixtures (`dn_specify_guard_fail`/`dn_specify_guard_pass`
+    in tests/runtime/test_bridge_parity.py) will still execute the changed line (satisfying raw statement
+    coverage), but they predate this mission and assert only final Decision shape, not that repo_root
+    was genuinely threaded -- so AC-8''s actual behavioral claim (org manifest reachable from this specific
+    call site) has no named proof for the software-dev half of the call-site pair the AC itself cites.
+
+    '
+  remediation: 'Add a second AC-8 test case to T017 (or a new T017b) scoped to the software-dev family:
+    a software-dev mission at a non-WP-iteration step (e.g. `specify`) with an org-tier expected-artifacts.yaml
+    override and no equivalent built-in requirement, asserting `resolve_org_roots` (or the org-tier manifest
+    it resolves) is consulted with the real, non-None repo_root specifically through the ~1643 call site
+    -- e.g. by flipping the org-declared blocking artifact''s presence and observing the guard_failures
+    change, or by patching `resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the call
+    argument, the same technique T017 already uses for the custom-family case.
+
+    '
+  _source_group: verify
+- id: TASKS-VERIFY-002
+  lens: Per-AC test strategy concrete
+  severity: 3
+  title: WP04's T027 AC-10 evidence accepts a non-automated command transcript in place of a test
+  evidence:
+  - artifact: 'tasks/WP04-regression-sweep-and-nfr002-docs.md T027: "Record this walk (command transcript
+      or an integration test exercising the same path) as this WP''s Independent-Test evidence"'
+  - artifact: 'plan.md''s own stated rule (per WP03''s prompt, quoting it): "''We''ll run the tests''
+      is not a gate statement"'
+  claim: 'AC-10 is framed by the mission itself (spec.md Clarifications) as the operator''s explicit rationale
+    for stacking this whole mission on PR #3708, and WP04''s own Risks section says skipping it "would
+    waste the reason the stacking decision was made" -- yet T027 leaves the verification mechanism as
+    an either/or between a manual "command transcript" (not CI-checkable, not re-runnable, not reviewable
+    as a diff) and "an integration test." A command transcript is not a test strategy a reviewer can mechanically
+    confirm exercises AC-10 on every future change to this code path; it is closer to the "we''ll run
+    the tests" narrative plan.md itself forbids elsewhere in this same mission''s own gate language.
+
+    '
+  remediation: 'Require T027''s Independent-Test evidence to be a committed, automated integration test
+    (added to tests/specify_cli/next/test_runtime_bridge_composition.py or tests/runtime/next/test_cli_guard_family.py)
+    that stands up the org-tier `qa` manifest at the conventional layout and walks a real `next` decision
+    sequence asserting block-then-pass; drop the "command transcript" alternative, or keep it only as
+    a supplementary human-readable artifact alongside the mandatory automated test, never as a substitute
+    for it.
+
+    '
+  _source_group: verify
+- id: TASKS-VERIFY-003
+  lens: Diff-coverage budget concreteness (mission-derived)
+  severity: 2
+  title: WP02 names no test case for the 'repo_root provided, no org pack found, built-in still governs'
+    fallback branch
+  evidence:
+  - artifact: 'tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md T008: "exercise _load_expected_artifact_manifest/required_artifacts_for
+      with repo_root pointing at a directory containing an org pack, asserting the org manifest is the
+      one resolved"'
+  - artifact: 'tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md T009: "org manifest with
+      mixed blocking: true/blocking: false entries across two steps, a built-in manifest for the same
+      family as a control"'
+  - code: src/runtime/next/runtime_bridge_io.py:841-891 (_presence_filenames_for, T012's org-tier consult)
+      and :931 (gather_artifact_presence, T013's real resolution)
+  claim: 'T010-T013 add a genuinely new code path: when `repo_root` is a real, non-None Path but no org-tier
+    expected-artifacts.yaml exists under it, the org-tier consult must cleanly return "nothing found"
+    and fall through to the built-in-tier manifest without raising or silently dropping the built-in result.
+    Every named test case in T008/T009 sets up a scenario where the org pack DOES exist (to prove precedence)
+    or omits repo_root entirely (the pre-mission default path, covered by regression). Neither T008 nor
+    T009 names a case with `repo_root` supplied but pointing at a directory with no org pack -- the specific
+    new branch that proves the fallback inside the new org-tier-aware lookup does not regress built-in-only
+    behavior once a real repo_root is in play (as opposed to repo_root=None never invoking the org-tier
+    check at all).
+
+    '
+  remediation: 'Add one named case to T008 and/or T009: `repo_root` set to a real temp directory with
+    no `missions/<type>/expected-artifacts.yaml` under it, and a built-in manifest present for the family,
+    asserting the built-in manifest''s blocking artifacts are still the ones resolved (unchanged from
+    the repo_root=None case) -- proving the org-tier consult''s "no match" path falls through cleanly
+    rather than masking or erroring past the built-in result.
+
+    '
+  _source_group: verify

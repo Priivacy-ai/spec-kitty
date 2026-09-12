@@ -13,13 +13,15 @@ fan-in WPs become the synchronization point.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from itertools import combinations
+from typing import ClassVar
 
 from specify_cli.core.dependency_graph import topological_sort
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
 
 
@@ -66,6 +68,30 @@ class LaneComputationError(Exception):
     This is a hard failure — no lanes.json is written when this is raised.
     """
 
+
+@dataclass(frozen=True, slots=True)
+class CycleLane:
+    """Immutable work-package membership for one lane in a detected cycle."""
+
+    lane_id: str
+    wp_ids: tuple[str, ...]
+
+
+class LaneDependencyCycleError(LaneComputationError):
+    """Raised when the final execution-lane dependency graph is cyclic."""
+
+    error_code: ClassVar[str] = "LANE_DEPENDENCY_CYCLE"
+
+    def __init__(
+        self,
+        cycle_path: tuple[str, ...],
+        cycle_lanes: tuple[CycleLane, ...],
+    ) -> None:
+        self.cycle_path = cycle_path
+        self.cycle_lanes = cycle_lanes
+        super().__init__("Execution-lane dependency cycle detected: " + " -> ".join(cycle_path))
+
+
 # Surface taxonomy for conflict detection.
 # If two WPs predict the same surface, they are presumed to overlap.
 SURFACE_TAXONOMY: tuple[str, ...] = (
@@ -95,6 +121,7 @@ _SURFACE_KEYWORDS: dict[str, tuple[str, ...]] = {
 # ---------------------------------------------------------------------------
 # Union-Find
 # ---------------------------------------------------------------------------
+
 
 class _UnionFind:
     """Disjoint-set data structure with union-by-rank and path compression."""
@@ -131,6 +158,7 @@ class _UnionFind:
 # ---------------------------------------------------------------------------
 # Surface inference
 # ---------------------------------------------------------------------------
+
 
 def infer_surfaces(wp_body: str) -> list[str]:
     """Infer surface tags from WP body text using keyword matching.
@@ -247,6 +275,7 @@ def _count_independent_collapses(
 # Overlap pair detection
 # ---------------------------------------------------------------------------
 
+
 def find_overlap_pairs(
     manifests: dict[str, OwnershipManifest],
 ) -> list[tuple[str, str]]:
@@ -272,9 +301,64 @@ def find_overlap_pairs(
     return pairs
 
 
+def _find_lane_dependency_cycle(
+    lane_deps: dict[str, set[str]],
+) -> tuple[str, ...] | None:
+    """Return the first deterministic closed directed cycle, if one exists.
+
+    Roots and dependencies are visited lexically. The iterative traversal avoids
+    imposing Python's recursion limit on the number of execution lanes.
+    """
+    nodes = sorted(set(lane_deps).union(*(set(deps) for deps in lane_deps.values())))
+    state: dict[str, int] = dict.fromkeys(nodes, 0)
+
+    for root in nodes:
+        if state[root] != 0:
+            continue
+
+        active_path: list[str] = [root]
+        active_index: dict[str, int] = {root: 0}
+        traversal: list[tuple[str, tuple[str, ...], int]] = [(root, tuple(sorted(lane_deps.get(root, set()))), 0)]
+        state[root] = 1
+
+        while traversal:
+            node, dependencies, next_index = traversal[-1]
+            if next_index >= len(dependencies):
+                traversal.pop()
+                active_path.pop()
+                active_index.pop(node)
+                state[node] = 2
+                continue
+
+            dependency = dependencies[next_index]
+            traversal[-1] = (node, dependencies, next_index + 1)
+            dependency_state = state[dependency]
+            if dependency_state == 0:
+                state[dependency] = 1
+                active_index[dependency] = len(active_path)
+                active_path.append(dependency)
+                traversal.append(
+                    (
+                        dependency,
+                        tuple(sorted(lane_deps.get(dependency, set()))),
+                        0,
+                    )
+                )
+                continue
+            if dependency_state == 1:
+                cycle = active_path[active_index[dependency] :] + [dependency]
+                unique_cycle = cycle[:-1]
+                smallest_index = unique_cycle.index(min(unique_cycle))
+                normalized = unique_cycle[smallest_index:] + unique_cycle[:smallest_index]
+                return tuple(normalized + [normalized[0]])
+
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Main computation
 # ---------------------------------------------------------------------------
+
 
 def compute_lanes(
     dependency_graph: dict[str, list[str]],
@@ -303,12 +387,15 @@ def compute_lanes(
     Args:
         dependency_graph: WP ID → list of dependency WP IDs.
         ownership_manifests: WP ID → OwnershipManifest.
-        mission_slug: Feature identifier.
+        mission_slug: Mission identifier.
         target_branch: Branch the mission merges into.
         wp_bodies: Optional WP ID → body text for surface inference.
 
     Returns:
-        A LanesManifest ready for persistence.
+        An acyclic LanesManifest ready for persistence.
+
+    Raises:
+        LaneDependencyCycleError: If the complete post-collapse lane graph is cyclic.
     """
     resolved_mission_id = mission_id  # WP04/FR-004: None for legacy; never substitute slug
 
@@ -325,7 +412,7 @@ def compute_lanes(
     planning_artifact_wp_ids: list[str] = []
     for wp_id in all_wp_ids:
         manifest = ownership_manifests.get(wp_id)
-        if manifest and manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+        if manifest and manifest.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
             planning_artifact_wp_ids.append(wp_id)
             continue
         if not manifest:
@@ -359,22 +446,20 @@ def compute_lanes(
     collapse_events: list[CollapseEvent] = []
 
     # Rule 1: Overlapping write scopes → same lane.
-    code_manifests = {
-        wp: ownership_manifests[wp]
-        for wp in code_wp_ids
-        if wp in ownership_manifests
-    }
+    code_manifests = {wp: ownership_manifests[wp] for wp in code_wp_ids if wp in ownership_manifests}
     for wp_a, wp_b in find_overlap_pairs(code_manifests):
         if uf.find(wp_a) != uf.find(wp_b):
             overlap = _describe_overlap(code_manifests[wp_a], code_manifests[wp_b])
             dep_evidence = _dependency_relationship_evidence(wp_a, wp_b, dependency_graph)
             evidence = f"{overlap}; {dep_evidence}" if dep_evidence else overlap
-            collapse_events.append(CollapseEvent(
-                wp_a=wp_a,
-                wp_b=wp_b,
-                rule="write_scope_overlap",
-                evidence=evidence,
-            ))
+            collapse_events.append(
+                CollapseEvent(
+                    wp_a=wp_a,
+                    wp_b=wp_b,
+                    rule="write_scope_overlap",
+                    evidence=evidence,
+                )
+            )
         uf.union(wp_a, wp_b)
 
     # Rule 2: Shared predicted surfaces → same lane.
@@ -399,12 +484,14 @@ def compute_lanes(
                     continue  # Disjoint ownership — surface match is not enough
                 shared = sorted(surfaces_a & surfaces_b)
                 if uf.find(wp_a) != uf.find(wp_b):
-                    collapse_events.append(CollapseEvent(
-                        wp_a=wp_a,
-                        wp_b=wp_b,
-                        rule="surface_heuristic",
-                        evidence=f"shared surfaces {shared} with non-disjoint ownership",
-                    ))
+                    collapse_events.append(
+                        CollapseEvent(
+                            wp_a=wp_a,
+                            wp_b=wp_b,
+                            rule="surface_heuristic",
+                            evidence=f"shared surfaces {shared} with non-disjoint ownership",
+                        )
+                    )
                 uf.union(wp_a, wp_b)
 
     # Build lane groups from union-find.
@@ -433,10 +520,7 @@ def compute_lanes(
     # Build a sub-graph for each group to topologically sort within it.
     for group_wps in sorted_groups:
         group_set = set(group_wps)
-        sub_graph = {
-            wp: [d for d in dependency_graph.get(wp, []) if d in group_set]
-            for wp in group_wps
-        }
+        sub_graph = {wp: [d for d in dependency_graph.get(wp, []) if d in group_set] for wp in group_wps}
         ordered_wps = topological_sort(sub_graph)
 
         # Collect write scopes and surfaces for the lane.
@@ -499,6 +583,14 @@ def compute_lanes(
             dep_lane = wp_to_lane.get(dep)
             if dep_lane and dep_lane != my_lane:
                 lane_deps[my_lane].add(dep_lane)
+
+    cycle_path = _find_lane_dependency_cycle(lane_deps)
+    if cycle_path is not None:
+        lane_members: dict[str, list[str]] = {lane_id: [] for lane_id in lane_deps}
+        for wp_id, lane_id in wp_to_lane.items():
+            lane_members[lane_id].append(wp_id)
+        cycle_lanes = tuple(CycleLane(lane_id=lane_id, wp_ids=tuple(sorted(lane_members[lane_id]))) for lane_id in cycle_path[:-1])
+        raise LaneDependencyCycleError(cycle_path, cycle_lanes)
 
     # Assign parallel groups via topological sort of lane DAG.
     # Lanes at the same depth in the DAG can run in parallel.

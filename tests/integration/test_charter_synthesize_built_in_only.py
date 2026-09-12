@@ -9,7 +9,7 @@ After synthesis, exactly one of the two states holds:
 
 The forbidden state (``built_in_only: true`` AND ``graph.yaml`` present)
 must NEVER be reachable from the synthesizer.  Exercises the dedicated
-``apply_post_condition`` helper in ``charter.synthesizer.project_drg``.
+``apply_post_condition`` helper in ``charter.activation.synthesizer.project_drg``.
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.synthesizer.manifest import SynthesisManifest, finalize_manifest
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.manifest import SynthesisManifest, finalize_manifest
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
 pytestmark = [pytest.mark.integration]
 
@@ -128,7 +128,7 @@ def test_post_condition_sets_built_in_only_and_removes_graph(tmp_path: Path) -> 
     1. Delete the live ``graph.yaml`` (if any).
     2. Set ``built_in_only=true`` in the manifest.
     """
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     _seed_manifest(tmp_path, built_in_only=False)
     graph_path = _seed_graph(tmp_path)
@@ -143,8 +143,8 @@ def test_post_condition_sets_built_in_only_and_removes_graph(tmp_path: Path) -> 
 
 def test_post_condition_recomputes_hash_when_built_in_only_changes(tmp_path: Path) -> None:
     """Changing built_in_only must also refresh manifest_hash."""
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     _seed_manifest(tmp_path, built_in_only=False)
     _seed_graph(tmp_path)
@@ -158,8 +158,8 @@ def test_post_condition_recomputes_hash_when_built_in_only_changes(tmp_path: Pat
 def test_post_condition_preserves_graph_and_clears_built_in_only(tmp_path: Path) -> None:
     """When synthesis emitted a project graph, the helper must leave the
     graph in place and ensure ``built_in_only=false`` in the manifest."""
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     _seed_manifest(tmp_path, built_in_only=True)
     graph_path = _seed_graph(tmp_path)
@@ -175,7 +175,7 @@ def test_post_condition_preserves_graph_and_clears_built_in_only(tmp_path: Path)
 
 def test_post_condition_no_op_when_manifest_already_consistent(tmp_path: Path) -> None:
     """Idempotency: invoking twice must not perturb the state."""
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     _seed_manifest(tmp_path, built_in_only=True)
     apply_post_condition(tmp_path, has_project_graph=False)
@@ -197,7 +197,7 @@ def test_post_condition_atomic_on_injected_failure(tmp_path: Path) -> None:
     """
     import os
 
-    from charter.synthesizer import project_drg as _pd
+    from charter.activation.synthesizer import project_drg as _pd
 
     _seed_manifest(tmp_path, built_in_only=False)
     graph_path = _seed_graph(tmp_path)
@@ -235,7 +235,7 @@ def test_post_condition_atomic_on_injected_failure(tmp_path: Path) -> None:
 def test_post_condition_no_op_when_manifest_missing(tmp_path: Path) -> None:
     """Defensive: invoking before promote has written the manifest is a
     silent no-op (no exception, no filesystem mutation)."""
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     apply_post_condition(tmp_path, has_project_graph=False)
 
@@ -264,8 +264,8 @@ def test_post_condition_preserves_bundle_content_hash_through_mutation_branch(
     the real value). Post-fix (``model_copy`` + ``finalize_manifest``), the
     field survives the flip and the self-hash still verifies.
     """
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
-    from charter.synthesizer.project_drg import apply_post_condition
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.project_drg import apply_post_condition
 
     seeded_hash = "sha256:" + "c" * 64
     _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=seeded_hash)

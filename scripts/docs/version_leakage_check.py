@@ -38,7 +38,7 @@ import re
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Final
 
@@ -306,7 +306,7 @@ def _write_report(
 ) -> None:
     """Serialize a FreshnessReport slice to ``report_path`` as JSON."""
     payload = {
-        "started_at": datetime.now(tz=UTC).isoformat(),
+        "started_at": now_utc_iso(),
         "inventory_rows_count": len(inventory),
         "findings": [asdict(f) for f in findings],
         "exit_code": exit_code,

@@ -1,0 +1,228 @@
+work_packages:
+  - id: WP01
+    title: "Campsite-clean + baseline-red snapshot"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/cli/commands/next_cmd.py"
+    requirement_refs:
+      - NFR-003
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP01-campsite-clean-baseline-red.md"
+
+  - id: WP02
+    title: "FR-014 — extract next_invocation_lifecycle seam"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/runtime/next/next_invocation_lifecycle.py"
+      - "src/specify_cli/cli/commands/next_cmd.py"
+      - "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py"
+    requirement_refs:
+      - FR-014
+      - NFR-001
+      - C-005
+    cross_cutting: true
+    subtasks:
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP02-fr014-seam-extraction.md"
+
+  - id: WP03
+    title: "specify/plan/tasks orchestrator-api verbs"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/orchestrator_api/commands.py"
+      - "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py"
+      - "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      - "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - NFR-001
+      - NFR-002
+      - NFR-005
+      - C-001
+    cross_cutting: true
+    subtasks:
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP03-specify-plan-tasks-verbs.md"
+
+  - id: WP04
+    title: "check-prerequisites / record-analysis orchestrator-api verbs"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/orchestrator_api/commands.py"
+      - "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py"
+      - "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      - "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - NFR-001
+      - NFR-002
+      - NFR-004
+      - NFR-005
+      - C-001
+      - C-002
+    cross_cutting: true
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+      - T021
+    prompt_file: "tasks/WP04-check-prerequisites-record-analysis.md"
+
+  - id: WP05
+    title: "OriginFlow decision-ledger verbs (open/resolve/defer/cancel)"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/orchestrator_api/commands.py"
+      - "tests/specify_cli/orchestrator_api/test_decision_verbs.py"
+      - "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      - "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-009
+      - FR-012
+      - NFR-001
+      - NFR-002
+      - NFR-005
+      - C-001
+      - C-003
+    cross_cutting: true
+    subtasks:
+      - T022
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+    prompt_file: "tasks/WP05-decision-ledger-verbs.md"
+
+  - id: WP06
+    title: "design-status read-only query verb"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/orchestrator_api/commands.py"
+      - "tests/specify_cli/orchestrator_api/test_design_status.py"
+      - "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      - "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+    requirement_refs:
+      - FR-010
+      - NFR-001
+      - NFR-002
+      - NFR-005
+    cross_cutting: true
+    subtasks:
+      - T028
+      - T029
+      - T030
+      - T031
+      - T032
+    prompt_file: "tasks/WP06-design-status-verb.md"
+
+  - id: WP07
+    title: "CONTRACT_VERSION bump to 1.4.0"
+    dependencies:
+      - WP03
+      - WP04
+      - WP05
+      - WP06
+      - WP08
+    owned_files:
+      - "src/specify_cli/orchestrator_api/envelope.py"
+      - "tests/specify_cli/orchestrator_api/test_contract_version.py"
+    requirement_refs:
+      - FR-011
+      - NFR-001
+    cross_cutting: true
+    subtasks:
+      - T033
+      - T034
+      - T035
+    prompt_file: "tasks/WP07-contract-version-bump.md"
+
+  - id: WP08
+    title: "answer-decision verb (Mechanism B, full event/lifecycle parity)"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/orchestrator_api/commands.py"
+      - "tests/specify_cli/orchestrator_api/test_answer_decision.py"
+      - "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py"
+      - "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py"
+      - "tests/specify_cli/orchestrator_api/test_typed_error_fail_closed.py"
+    requirement_refs:
+      - FR-013
+      - NFR-001
+      - NFR-002
+      - NFR-005
+      - C-005
+    cross_cutting: true
+    subtasks:
+      - T036
+      - T037
+      - T038
+      - T039
+      - T040
+      - T041
+    prompt_file: "tasks/WP08-answer-decision-verb.md"
+
+  - id: WP09
+    title: "Docs — orchestrator-api.md, host-boundary-rules.md, CHANGELOG.md"
+    dependencies:
+      - WP03
+      - WP04
+      - WP05
+      - WP06
+      - WP07
+      - WP08
+    owned_files:
+      - "docs/api/orchestrator-api.md"
+      - "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md"
+      - "docs/changelog/CHANGELOG.md"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-009
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-014
+    cross_cutting: true
+    subtasks:
+      - T042
+      - T043
+      - T044
+      - T045
+      - T046
+    prompt_file: "tasks/WP09-docs.md"

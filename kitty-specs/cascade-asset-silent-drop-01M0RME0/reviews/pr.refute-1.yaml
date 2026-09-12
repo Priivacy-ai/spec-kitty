@@ -1,0 +1,28 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: pr-boundary-001
+    verdict: refuted
+    reason: >
+      Both the "first case" and "designated seam is _common.py" claims are empirically false —
+      charter/__init__.py:49-55 and charter/pack.py:192-196 already import underscore-prefixed
+      symbols (_build_doctrine_service_with_org_layer, _is_inside_git_worktree, etc.) directly
+      from charter/generate.py, a non-underscore-named sibling command module with no __all__
+      entry for them, the exact same pattern as deactivate.py importing _render_kind_filtered_line
+      from activate.py; the placement in activate.py and the deactivate.py import were also a
+      deliberate, pre-recorded plan decision (plan.md WP-B "FR-009's shared helper — first
+      definition" in activate.py, WP-D "call the shared helper (imported into deactivate.py)"),
+      not an ad hoc escalation.
+  - id: pr-boundary-002
+    verdict: refuted
+    reason: >
+      git diff origin/main...HEAD -- src/specify_cli/cli/commands/charter/deactivate.py shows
+      only the 205-216 plan.not_cascaded_kind_filtered loop is new; the 165-172 plan.deactivate
+      loop is pre-existing and completely untouched by this diff, so the "duplication" is a new
+      block deliberately mirroring (per its own comment) established pre-existing logic rather
+      than two blocks this diff invented together, and full remediation (extracting a shared
+      resolver, possibly unifying with activate.py's own separate copy) would require editing
+      unrelated pre-existing code outside this bug-fix PR's scope, which the repo's standing
+      no-opportunistic-refactor rule treats as a defect in itself.

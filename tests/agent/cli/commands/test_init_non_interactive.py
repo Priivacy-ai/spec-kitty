@@ -50,5 +50,30 @@ def test_non_interactive_non_tty(monkeypatch: pytest.MonkeyPatch):
     assert result is True
 
 
+def test_force_interactive_overrides_non_interactive_env(monkeypatch: pytest.MonkeyPatch):
+    """#2912: SPEC_KITTY_FORCE_INTERACTIVE now reaches init (the old local matrix
+    omitted the escape hatch), overriding NON_INTERACTIVE and a non-TTY stdin."""
+    # Arrange
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
+    monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: False)
+    # Act
+    result = init_module._is_non_interactive_mode(False)
+    # Assert
+    assert result is False
+
+
+def test_explicit_flag_forces_non_interactive_even_with_force_interactive(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The explicit ``--non-interactive`` flag wins over the env escape hatch."""
+    # Arrange
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    # Act
+    result = init_module._is_non_interactive_mode(True)
+    # Assert
+    assert result is True
+
+
 # _resolve_preferred_agents() was removed in feature 076-init-command-overhaul.
 # The preferred-implementer / preferred-reviewer system was deleted entirely.

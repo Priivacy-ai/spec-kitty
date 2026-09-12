@@ -27,7 +27,7 @@ from specify_cli.cli.commands.agent import mission as mission_mod
 
 # #2056 WP04 (Seam A): record-analysis + its dirty-tree preflight relocated to
 # ``mission_record_analysis``. The preflight resolves its mutable dependencies
-# (is_git_repo / _git_dirty_paths / is_coordination_artifact_residue_path /
+# (is_git_repo / _git_dirty_paths / is_coord_residue_churn /
 # resolve_topology) from the seam module's namespace, so the preflight tests
 # patch the seam.
 from specify_cli.cli.commands.agent import mission_record_analysis as record_seam
@@ -55,22 +55,6 @@ def _patch_seam_topology(monkeypatch: pytest.MonkeyPatch, *, coord: bool) -> Non
     monkeypatch.setattr(record_seam, "resolve_topology", lambda _root, _slug: topology)
 
 
-def test_planning_commit_worktree_flattened_keeps_main_checkout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A coord-less (flattened) topology returns the main checkout + paths unchanged."""
-    _patch_topology(monkeypatch, coord=False)
-    artifact = tmp_path / "kitty-specs" / "001-demo" / "spec.md"
-    artifact.parent.mkdir(parents=True)
-    artifact.write_text("# Spec\n", encoding="utf-8")
-
-    worktree, paths = commit_router_mod._planning_commit_worktree(
-        tmp_path, "001-demo", (artifact,)
-    )
-    assert worktree == tmp_path
-    assert paths == (artifact,)
-
-
 def test_planning_commit_worktree_primary_keeps_main_checkout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -93,19 +77,27 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
     """A COORD-partition kind under coord topology routes through the coord-worktree branch.
 
     write-surface-coherence WP03 / T014: the helper is partition-aware. A
-    coordination-partition kind (e.g. ``ANALYSIS_REPORT``) under coord topology
+    coordination-partition kind (e.g. ``ACCEPTANCE_MATRIX``) under coord topology
     falls past the kind short-circuit and reaches the
-    ``routes_through_coordination`` branch. With no resolvable mid8 the helper
-    degrades to the main checkout (C-004 safety), but the coord branch MUST be
-    taken — proven by spying that ``_safe_load_meta`` (only reached past the
-    predicate) is consulted.
+    ``routes_through_coordination`` branch. The coord branch MUST be taken — proven
+    by spying that ``_resolve_mid8`` (only reached past the predicate) is consulted.
+    (Exemplar swapped from ``ANALYSIS_REPORT``, which FR-003 re-homed to PRIMARY, to
+    a still-COORD kind so this coord-routing coverage survives the re-home.)
+
+    coord-commit-surface-authority WP04 (DD-3 / INV-3): the former assertion observed
+    "coord branch taken" via the SILENT mid8-None → main-checkout fallback. That
+    fallback is now a fail-loud :class:`CoordWorktreeResolutionError` (no silent
+    misroute), which STILL proves the coord branch was reached and ``_resolve_mid8``
+    consulted — now via the raise rather than a degraded return.
     """
     from mission_runtime import MissionArtifactKind
 
+    from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
+
     _patch_topology(monkeypatch, coord=True)
-    artifact = tmp_path / "kitty-specs" / "001-demo" / "analysis-report.md"
+    artifact = tmp_path / "kitty-specs" / "001-demo" / "acceptance-matrix.json"
     artifact.parent.mkdir(parents=True)
-    artifact.write_text("# Analysis\n", encoding="utf-8")
+    artifact.write_text("{}\n", encoding="utf-8")
 
     consulted: list[str] = []
 
@@ -115,15 +107,17 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
 
     monkeypatch.setattr(commit_router_mod, "_resolve_mid8", _spy_resolve_mid8)
 
-    worktree, paths = commit_router_mod._planning_commit_worktree(
-        tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ANALYSIS_REPORT
-    )
-    # mid8 unresolvable → degrades to main checkout, but the coord branch WAS taken.
+    # mid8 unresolvable on a coord-routed coord-partition kind → fail loud (INV-3),
+    # never a silent primary fallback. The raise itself proves the coord branch was
+    # taken (the predicate passed and _resolve_mid8 was consulted).
+    with pytest.raises(CoordWorktreeResolutionError):
+        commit_router_mod._planning_commit_worktree(
+            tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ACCEPTANCE_MATRIX
+        )
     assert consulted == ["001-demo"], (
         "the COORDINATION branch of routes_through_coordination was not taken — "
         "_resolve_mid8 (past the predicate) was never consulted"
     )
-    assert worktree == tmp_path  # degraded fallback (no mid8)
 
 
 def test_planning_commit_worktree_primary_kind_short_circuits_under_coord(
@@ -174,7 +168,7 @@ def test_analysis_preflight_coordination_drops_residue(
     )
     # Treat the residue path as coord-owned residue so it is dropped → no dirty set.
     monkeypatch.setattr(
-        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     _patch_seam_topology(monkeypatch, coord=True)
 
@@ -195,7 +189,7 @@ def test_analysis_preflight_primary_keeps_residue_and_gates(
     )
     # Even if the path WOULD qualify as residue, a non-coord placement skips the drop.
     monkeypatch.setattr(
-        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coord_residue_churn", lambda _p, *, mission_slug=None: True
     )
     _patch_seam_topology(monkeypatch, coord=False)
 
@@ -239,7 +233,7 @@ def test_no_direct_kind_is_coordination_decision_reads_remain() -> None:
 # ---------------------------------------------------------------------------
 #
 # WP01 moved SPEC/DATA_MODEL/RESEARCH/CHECKLIST into _PRIMARY_ARTIFACT_KINDS, so
-# ``is_coordination_artifact_residue_path`` now returns False for a primary
+# ``is_coord_residue_churn`` now returns False for a primary
 # ``spec.md`` — those files LIVE on primary, so a stale primary copy is the REAL
 # artifact, not droppable coordination residue. The preflight dirty-filter (which
 # uses the REAL residue predicate, not a stub) must therefore NO LONGER silently
@@ -256,7 +250,7 @@ def test_analysis_preflight_real_residue_filter_keeps_stale_primary_spec(
 ) -> None:
     """The REAL residue filter no longer drops a stale primary ``spec.md`` (T022 ripple).
 
-    Uses the genuine ``is_coordination_artifact_residue_path`` (NOT a stub) under a
+    Uses the genuine ``is_coord_residue_churn`` (NOT a stub) under a
     coord topology. Post-WP01 SPEC is a PRIMARY kind, so the predicate returns False
     for ``kitty-specs/<slug>/spec.md`` and the preflight keeps it in the dirty set →
     the record-analysis preflight gates (raises ``typer.Exit``). This is the
@@ -270,7 +264,7 @@ def test_analysis_preflight_real_residue_filter_keeps_stale_primary_spec(
         "_git_dirty_paths",
         lambda _root: ["kitty-specs/001-demo/spec.md"],
     )
-    # NOTE: deliberately NOT patching ``is_coordination_artifact_residue_path`` —
+    # NOTE: deliberately NOT patching ``is_coord_residue_churn`` —
     # the real predicate (post-WP01) must return False for a primary spec.md.
     _patch_seam_topology(monkeypatch, coord=True)
 

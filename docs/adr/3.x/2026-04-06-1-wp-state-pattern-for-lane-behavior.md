@@ -1,5 +1,6 @@
 ---
 title: WP State Pattern for Lane Behavior
+description: 'Replaces the flat transition matrix and procedural guard dispatcher with nine frozen lane-state classes that own their own targets, guards, and display buckets.'
 status: Accepted
 date: '2026-04-06'
 ---

@@ -151,13 +151,16 @@ def test_map_requirements_json_serializes_real_commit_result(
         # a required ``kind`` keyword; the stub accepts it.
         commit_router_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
     )
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the
+    # ``primary_feature_dir_for_mission`` patch this block used to install is
+    # retired along with the deleted public wrapper -- the real code path
+    # (``FsReader.primary_anchor_dir``) never read that module attribute, so
+    # the patch was already vestigial (see
+    # test_map_requirements_spec_path.py for the full rationale); a real
+    # ``meta.json`` fixture resolves the primary dir correctly on its own.
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         lambda _root, _slug: coord_mission_dir,
-    )
-    monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
-        lambda _root, _slug: primary_mission_dir,
     )
 
     app = typer.Typer()

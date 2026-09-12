@@ -1,0 +1,133 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 4
+    title: "Gate Set omits the enforced `diff-coverage` (critical-path, 90%) gate that directly targets this mission's own touched files"
+    evidence:
+      - artifact: "plan.md § Gate Set (Included / Excluded tables, and the closing '\"The two coverage floors...\"' paragraph)"
+      - code: ".github/workflows/ci-quality.yml:3403-3406 (job header, comment: \"diff-coverage: PR-only diff coverage gate (90% on critical-path changed lines)\")"
+      - code: ".github/workflows/ci-quality.yml:3456-3516 (step \"diff-coverage (critical-path, enforced)\"; critical_paths array includes 'src/doctrine/*' and 'src/charter/*'; `uv run diff-cover ... --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (`quality-gate`'s `needs:` list includes `diff-coverage`, so it is a blocking member of the merge-readiness gate)"
+    claim: >
+      plan.md's Gate Set section never mentions `diff-coverage` anywhere (grep confirms zero
+      hits), neither in the "Included" table nor the "Excluded, and why" table. This is a real
+      gap: `diff-coverage` is an `[ENFORCED]`, PR-scoped job in `quality-gate`'s blocking `needs:`
+      list that runs `diff-cover --fail-under=90` specifically over changed lines under
+      `src/doctrine/*` and `src/charter/*` (verbatim entries in its `critical_paths` array) — the
+      exact two directories this mission's own Technical Context/Project Structure sections name
+      as the primary touch points (`src/doctrine/missions/mission_type_repository.py`,
+      `src/charter/mission_type_profiles.py`, `src/charter/pack_manager.py`,
+      `src/charter/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
+      applicable 90% new-code floor than either of the two 90% floors plan.md does address
+      (kernel-tests, mission-loader-coverage) and it is not among the correctly-verified
+      "does not apply" set — it squarely DOES apply, on the diff, to this mission's own files.
+      The lens instruction is explicit that every enforced gate must be stated as included (with
+      why) or excluded (with a stated reason); this gate is neither.
+    remediation: >
+      Add a row to the "Included, and why" table: `diff-coverage` (critical-path, enforced),
+      citing `ci-quality.yml:3456-3516`, with the reason that `src/doctrine/*` and `src/charter/*`
+      are both in its `critical_paths` list and this mission changes lines in both, so every new
+      branch/line this mission adds in `mission_type_repository.py`, `mission_type_profiles.py`,
+      `pack_manager.py`, `resolver.py`, and `missions.py` must clear 90% diff coverage measured by
+      `diff-cover` against `origin/<base>`, independent of and in addition to the job-local 55%
+      `fast-tests-charter` floor already named.
+
+  - id: PLAN-VERIFY-002
+    lens: Gates
+    severity: 3
+    title: "SonarCloud Quality Gate is listed as an included/enforced PR gate, but the live workflow never runs it on `pull_request` or `push`, and it is not a `quality-gate` dependency"
+    evidence:
+      - artifact: "plan.md § Gate Set, Included table, row \"SonarCloud Quality Gate\", citing `ci-quality.yml:3568-...`"
+      - code: ".github/workflows/ci-quality.yml:3568-3573 (job `sonarcloud`, comment: \"Temporarily limited to schedule/manual runs ... PRs skip Sonar entirely to keep review latency low, and pushes skip it so main can report test/build health.\")"
+      - code: ".github/workflows/ci-quality.yml:3625 (`if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')` — gates the whole job, including its \"[ENFORCED] SonarCloud Quality Gate\" step at line 4011)"
+      - code: ".github/workflows/ci-quality.yml:4338-4394 (`quality-gate`'s `needs:` list does not include `sonarcloud` at all)"
+    claim: >
+      plan.md's cited line (3568) is the `sonarcloud` job header, not the "SonarCloud Quality
+      Gate" step (which is actually at line 4011). More importantly, the job's own `if:` condition
+      restricts it to `schedule` / `workflow_dispatch` events only — it is explicitly disabled for
+      both `pull_request` and `push` per the job's own comment — and `sonarcloud` is absent from
+      `quality-gate`'s blocking `needs:` list. This means the "SonarCloud Quality Gate" step will
+      never execute, and could never block, this mission's actual PR. plan.md's stated
+      justification for including it ("Sonar's project gate is dominated by new-code coverage...
+      this plan's per-IC test surface is written to satisfy that, not merely to 'run the tests'")
+      cites a gate that provides zero real enforcement on this PR — the actual enforced new-code
+      floor for this mission's files is `diff-coverage` (see PLAN-VERIFY-001), which the plan omits
+      entirely while crediting Sonar for the same concern.
+    remediation: >
+      Move "SonarCloud Quality Gate" to the "Excluded, and why" table with the reason "job-level
+      `if:` restricts it to schedule/workflow_dispatch; not a `quality-gate` dependency; provides
+      no enforcement on this mission's PR." Replace it in the "Included" table with the real
+      enforced new-code-coverage mechanism, `diff-coverage` (PLAN-VERIFY-001's remediation), so the
+      "every new branch/helper needs a directly-testing unit test" justification points at a gate
+      that actually runs.
+
+  - id: PLAN-VERIFY-003
+    lens: "Revert discipline / U1-without-U2 silent-wrong red-first test"
+    severity: 3
+    title: "Plan's own Summary narrative of the CL-003 dominant-risk mechanism is internally contradictory and does not match the live code path it cites"
+    evidence:
+      - artifact: "plan.md § Summary, paragraph 1: \"...`_resolve_action_slot`'s `if not is_registered: return []` guard at line 788-789 never even fires for a genuinely-registered-but-unprojected type — the type falls through to `list(mission.action_sequence or [])` at line 807, and `mission` is `None` today because `MissionTypeRepository.default()` never contains it.\""
+      - code: "src/charter/mission_type_profiles.py:793-799 (`repo = MissionTypeRepository.default(); mission = repo.get(mission_type); if mission is None: raise UnknownMissionTypeError(mission_type, registered_ids=registered)`)"
+      - code: "src/charter/mission_type_profiles.py:807 (`return list(mission.action_sequence or [])` — only reachable when `mission is not None`, since line 795's guard already returned/raised otherwise)"
+    claim: >
+      The Summary's own sentence asserts two mutually exclusive things about the same code path:
+      that `mission` is `None` today, AND that execution "falls through to `list(mission.action_sequence
+      or [])` at line 807." Reading the actual function, reaching line 807 requires `mission is not
+      None` — the `if mission is None` branch at line 795 raises `UnknownMissionTypeError` and never
+      reaches 807. So as written, TODAY's code cannot produce the silent-`[]`-degradation the
+      Summary describes for a genuinely non-built-in, unresolvable type — it produces a loud
+      `UnknownMissionTypeError` instead. Spec.md's own CL-003 text is written more carefully (it
+      describes an org-pack YAML that "loads CLEAN" — i.e., a `mission` object that DOES exist,
+      just with no `action_sequence`), which is a scenario that can only actually occur AFTER this
+      mission's own IC-01/IC-02 land the layered lookup that lets a non-built-in `mission` resolve
+      to a real (non-None) object in the first place — not "today," as plan.md's Summary claims.
+      Because this Summary is the document's lead framing of the mission's dominant risk, and the
+      instruction set flags CL-003/NFR-005 as the single highest-stakes requirement to verify, an
+      implementer who takes the Summary's specific mechanism claim literally when writing the
+      IC-05 red-first test's "pre-fix" story risks asserting the wrong pre-fix behavior (expecting
+      today's unpatched code to silently return `[]` for an org type, when it would instead raise
+      `UnknownMissionTypeError` today, before IC-01/IC-02 even exist). IC-05's own "Sequencing/depends-on"
+      note (IC-01, IC-02) is actually correct and resolves the contradiction implicitly, but the
+      Summary itself never states this dependency, leaving the contradiction unresolved for a
+      reader who only reads the Summary.
+    remediation: >
+      Rewrite the Summary's parenthetical to match IC-05's own (correct) sequencing note: state
+      explicitly that the silent-`[]`-degradation is not reachable "today" against unmodified code
+      for a genuinely unresolvable org/project type (that path already raises `UnknownMissionTypeError`
+      loudly) — the silent-wrong scenario CL-003 targets is the one this mission's OWN IC-01/IC-02
+      changes would introduce if IC-05's loud-fail did not land atomically with them (a real,
+      resolved `mission` object with an empty/`None` `action_sequence`). Drop the "`mission` is
+      `None` today" clause or move it to the correct, non-contradictory context.
+
+  - id: PLAN-VERIFY-004
+    lens: Gates
+    severity: 3
+    title: "Project Structure's touched-test-file list names a test file that does not exist, for the FR-006–FR-009/CL-004a test surface"
+    evidence:
+      - artifact: "plan.md § Project Structure (Source Code), tests tree: `tests/specify_cli/cli/commands/test_mission_type.py  # EXTEND: show_mission_type / mission_type_list ...`"
+      - artifact: "plan.md § IC-06 Test surface: \"`tests/specify_cli/cli/commands/test_mission_type.py` gains one assertion that `list_mission_types` ... is the sole `\"list\"` command registered on the app\""
+      - code: "find tests -iname '*mission_type*' — no `tests/specify_cli/cli/commands/test_mission_type.py` exists; the closest existing files in that directory are `test_mission_type_rendering.py`, `test_mission_type_force_delete_branch.py`, `test_mission_type_template_set_cli.py`, and `tests/cli/test_charter_mission_type_commands.py` covers the charter-facing command."
+    claim: >
+      Plan.md's opening note claims "All file:line citations below were re-verified against this
+      checkout's live `src/` and `tests/` trees during planning," and this file is listed with an
+      "EXTEND" verb (implying it already exists) in both the Project Structure tree and IC-06/IC-07's
+      test-surface descriptions — but `tests/specify_cli/cli/commands/test_mission_type.py` is not
+      present in the live tree. An implementer following the plan literally would either create a
+      new file under that unclaimed name (fragmenting coverage away from the three existing,
+      closely-related test files in the same directory) or waste time locating a file that isn't
+      there.
+    remediation: >
+      Either (a) name the actual existing file(s) to extend — most likely
+      `tests/specify_cli/cli/commands/test_mission_type_rendering.py` for `show_mission_type`
+      output-shape assertions, plus `tests/cli/test_charter_mission_type_commands.py` for the
+      `list`-command-uniqueness assertion — or (b) if a new file is genuinely intended, change the
+      verb from "EXTEND" to "NEW" and state that explicitly so the tasks phase does not inherit the
+      same false assumption.
+
+# yaml self-check passed via python3 -c "import yaml,sys;yaml.safe_load(open(sys.argv[1]))"

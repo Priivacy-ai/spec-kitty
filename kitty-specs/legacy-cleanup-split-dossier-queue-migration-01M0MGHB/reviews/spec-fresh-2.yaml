@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: SPEC-FRESH2-001
+    lens: citation-accuracy
+    severity: 1
+    title: "test_preserves_legacy_positional_order line-range citation is off by one line"
+    evidence:
+      - artifact: "spec.md § Clarifications (Session 2026-08-22, last Q) and § FR-010"
+      - code: "tests/dossier/test_events.py:317-342"
+    claim: >
+      Both citations of `test_preserves_legacy_positional_order` give the range
+      "lines 317-341". The function actually spans file lines 317-342 inclusive:
+      `def test_preserves_legacy_positional_order(...)` opens at line 317, and the
+      closing `}` of the `context_diagnostics` dict assertion (the last line of the
+      function body) is at line 342, not 341. Verified directly against
+      `tests/dossier/test_events.py` in this checkout (function body confirmed via
+      `awk 'NR>=317 && NR<=345'`, next symbol `class TestEmitParityDriftDetected:`
+      starts at line 345, with one blank separator line at 343-344). This is the same
+      class of stale-citation drift both prior review rounds fixed elsewhere in this
+      document, just missed here because the citation was never touched in either
+      round's diff.
+    remediation: >
+      Update both occurrences (Clarifications session-2026-08-22 block and FR-010) to
+      "lines 317-342".
+# lens: citation-accuracy — every emitter.py/events.py/dossier_pipeline.py/queue.py/
+# test_*.py file:line citation in the document (16 explicit `file.py:NNN[-MMM]`
+# citations plus ~20 additional prose "lines N-M" citations, i.e. every citation in
+# the document, not a sample) was individually re-verified against live source under
+# src/ and tests/ in this checkout. All of them check out exactly except the one
+# flagged above. Also independently verified and found correct: the "5 verified call
+# sites" enumeration in US3/AC1 (grep-confirmed exhaustive — no 6th call site exists
+# anywhere in src/), the EventEmitter rename (class is genuinely `EventEmitter`, not
+# `SpecKittyEventEmitter`, confirmed at emitter.py:945), the FR-006 lazy-import
+# correction (confirmed `emitter.py` has exactly one module-scope `spec_kitty_events`
+# import, `normalize_event_id` — a function, not a type — at line 63; every
+# spec_kitty_events *type* import, including `Event as EventModel` at line 2477, is a
+# local import inside a method, matching the claimed lazy-import convention), the
+# FR-005 mypy-gate correction (`.github/workflows/ci-quality.yml:902-908` genuinely
+# shows `continue-on-error: true` on an advisory-only mypy step), the byte/line counts
+# for `dossier/events.py` (24,210 bytes / 653 lines, both exact), the
+# `pyproject.toml:80` dependency pin, and every cited GitHub issue/PR number (#1058,
+# #1056, #1047, #3293, #3284, spec-kitty-events#50) against live `gh` data — all
+# accurate, including the "5/5 checks green, reviewDecision empty" detail on the
+# external PR. No contradictions were found between this round's four named fixes
+# (mypy-gate, lazy-import, FR-006/FR-007 reconciliation, EventEmitter rename) and each
+# other or the surrounding unchanged text; no scope creep, no "Feature"/terminology
+# drift, no weakened acceptance criteria versus the prior round, no broken
+# cross-references (Key Entities / RECONCILE_CHANGE_SCOPE_TENSIONS / directive codes
+# all resolve to real charter content).

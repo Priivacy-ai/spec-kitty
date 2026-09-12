@@ -7,11 +7,12 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-import re
 
-from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
-from specify_cli.status import materialize
+from mission_runtime import MissionArtifactKind
+from specify_cli.review.artifacts import TERMINAL_REVIEW_LANES
+from specify_cli.status import materialize_snapshot
 from specify_cli.status import ReviewOverride
+from specify_cli.status import is_changes_requested, review_result_from_state
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (
@@ -21,13 +22,6 @@ REJECTED_REVIEW_ARTIFACT_REMEDIATION = [
     "Run another review cycle that writes an approved review-cycle artifact.",
     "Or move the WP out of approved/done before merge.",
 ]
-REVIEW_ARTIFACT_SCHEMA_INVALID = "REVIEW_ARTIFACT_SCHEMA_INVALID"
-REVIEW_ARTIFACT_SCHEMA_INVARIANT = "review_cycle_frontmatter_must_match_schema"
-REVIEW_ARTIFACT_SCHEMA_REMEDIATION = [
-    "Repair or regenerate the review-cycle artifact frontmatter.",
-    "Ensure affected_files is a list of mappings with path keys.",
-    "Retry merge after the artifact parses cleanly.",
-]
 
 
 @dataclass(frozen=True)
@@ -36,42 +30,77 @@ class RejectedReviewArtifactFinding:
 
     wp_id: str
     lane: str
-    artifact_path: Path
+    artifact_path: Path | None
     cycle_number: int
     verdict: str
 
 
-@dataclass(frozen=True)
-class ReviewArtifactSchemaFinding:
-    """A WP whose latest review artifact cannot be parsed as schema-valid frontmatter."""
-
-    wp_id: str
-    lane: str
-    artifact_path: Path
-    schema_error: str
+# The artifact-frontmatter *schema* leg (``ReviewArtifactSchemaFinding``) is
+# retired per FR-013: this gate no longer parses review-cycle frontmatter, so it
+# can never discover a malformed one. ``RejectedReviewArtifactFinding`` is now the
+# sole finding kind; the alias is retained so downstream signatures stay stable.
+ReviewArtifactFinding = RejectedReviewArtifactFinding
 
 
-ReviewArtifactFinding = RejectedReviewArtifactFinding | ReviewArtifactSchemaFinding
+def _resolve_partition_read_dir(feature_dir: Path, kind: MissionArtifactKind) -> Path:
+    """Resolve the mission dir that OWNS ``kind`` for ``feature_dir``'s mission.
+
+    FR-006 / gate-execution-context C1 (#2885): the review-artifact gate needs two
+    facts that live in two different partitions — a WP's **lane state**
+    (``STATUS_STATE``, coordination-branch-owned for a coord-topology mission) and
+    its **review-cycle artifacts**. Review-cycle artifacts are NOT resolved through
+    this generic helper (see :func:`_artifact_dirs_for_wp`'s own docstring for why
+    and how) — this helper's sole remaining caller is
+    :func:`_resolve_lane_state_read_dir`. Each partition MUST resolve from its own
+    declared home; a single caller-supplied directory is correct for at most one of
+    the two. Routed through the ONE affirmative surface→filesystem seam
+    (lifecycle-gate-execution-context WP02): a PRIMARY-partition kind resolves the
+    primary mission dir for every topology, a COORD-partition kind resolves the
+    coordination husk when its worktree is materialised.
+
+    ``feature_dir.name`` is the mission slug for every caller — the primary
+    ``kitty-specs/<slug>`` and the coord husk ``…-coord/kitty-specs/<slug>`` both
+    end in ``<slug>`` — so the resolved partition is IDENTICAL no matter which
+    surface the caller passed. That is precisely why the dry-run preview (handed a
+    primary dir) and the real consolidation (handed the coord husk) now AGREE
+    (SC-002): each re-resolves both partitions from the mission identity rather than
+    trusting the dir it was handed.
+
+    When no workspace root can be derived (a bare non-git test fixture with no
+    coordination worktree), the mission directory IS its own sole partition and is
+    returned unchanged. This is the flat self-home answer, NOT the coord degradation
+    that produced #2885 — that defect was reading LANE STATE off a caller dir that
+    pointed at the PRIMARY partition (empty status log → every WP stateless → gate
+    passed a rejected review by default); resolving lane state from its own
+    ``STATUS_STATE`` home is what removes it. ``resolve_artifact_surface`` is typed
+    but widened to ``Any`` across the ``follow_imports=skip`` boundary on
+    ``specify_cli.*``; bind the ``.path`` result explicitly so the declared ``Path``
+    narrows back.
+    """
+    from mission_runtime import resolve_artifact_surface
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+
+    try:
+        repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+    resolved: Path = resolve_artifact_surface(repo_root, feature_dir.name, kind).path
+    if not resolved.exists() and feature_dir.exists():
+        # #154: the canonical-root walk found a repository that is not this
+        # mission's own (an ambient ancestor checkout above an ad-hoc mission
+        # dir), so the seam recomposed the partition against a foreign anchor
+        # and handed back a phantom path. Reducing a nonexistent log reads an
+        # empty snapshot -- every WP stateless, gate passes by default, the
+        # exact silent-wrong-answer shape #2885 closed. The handed directory
+        # provably holds this mission (it exists and resolution could not find
+        # its partition anywhere real), so it is its own sole partition here.
+        return feature_dir
+    return resolved
 
 
-def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return []
-
-    exact = tasks_dir / wp_id
-    candidates: list[Path] = []
-    if exact.is_dir():
-        candidates.append(exact)
-
-    candidates.extend(
-        sorted(
-            path
-            for path in tasks_dir.iterdir()
-            if path.is_dir() and path.name.startswith(f"{wp_id}-") and path not in candidates
-        )
-    )
-    return candidates
+def _resolve_lane_state_read_dir(feature_dir: Path) -> Path:
+    """Resolve the ``STATUS_STATE`` home (coord husk for a materialised coord mission)."""
+    return _resolve_partition_read_dir(feature_dir, MissionArtifactKind.STATUS_STATE)
 
 
 def _snapshot_review_override(state: Mapping[str, Any]) -> ReviewOverride | None:
@@ -94,43 +123,135 @@ def _snapshot_review_override(state: Mapping[str, Any]) -> ReviewOverride | None
         return None
 
 
-def _review_cycle_number(path: Path) -> int:
-    match = re.search(r"review-cycle-(\d+)\.md$", path.name)
-    return int(match.group(1)) if match else 0
+def _event_sourced_gate_verdict(state: Mapping[str, Any]) -> str | None:
+    """FR-001 (WP07/T029): the event log's own opinion on this WP's verdict.
+
+    Returns ``"approved"`` / ``"changes_requested"`` when the reduced snapshot's
+    ``review_result`` slot carries a recorded verdict — the event log is
+    authoritative for *which* verdict is current, so either value overrides
+    whatever the frontmatter's latest review-cycle artifact says (T029's two
+    disagreement tests: event-approved-over-frontmatter-rejected, and the
+    reverse).
+
+    Returns ``None`` when the event log has no opinion for gate-clearing
+    purposes — this DELIBERATELY collapses two distinct
+    :class:`~specify_cli.status.reducer.ReviewResultLookup` outcomes that stay
+    distinguishable upstream:
+
+    - the slot is entirely ABSENT (un-migrated mission / WP never exited
+      ``in_review`` — T027's fallback case), and
+    - the slot is present but ``None`` (a ``--force`` exit from ``in_review``
+      that supplied no ``ReviewResult`` — T028's "no verdict was ever
+      recorded" case).
+
+    Both cases mean the same thing for THIS gate specifically:
+    **post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013 pure-event
+    repoint)**, the event log having no opinion means this gate has NO
+    signal at all for the WP — the former frontmatter-only fallback
+    (``latest_review_artifact_verdict`` / the terminal-lane rejection check)
+    is retired, not consulted. ``None`` here therefore means "not blocked",
+    matching G2 (contracts/verdict-authority-read.md: absent/damaged is
+    fail-open-safe for a rejection-detecting gate, never a fabricated
+    block). This collapse is not a re-assertion that the two
+    :class:`~specify_cli.status.reducer.ReviewResultLookup` cases are the
+    same thing (they are not — see that class's own docstring).
+
+    Delegates to :func:`~specify_cli.status.reducer.review_result_from_state`
+    (re-exported on the ``specify_cli.status`` facade per WP01,
+    verdict-seam-boundary-hardening-01KZG179) rather than re-inlining the
+    ``ReviewResult.from_dict`` decode: the three-way
+    :class:`~specify_cli.status.reducer.ReviewResultLookup` outcome collapses
+    to this function's two-way contract by treating ``result is None`` (either
+    ``slot_present=False`` or a present-but-unrecorded/malformed slot) as "no
+    verdict".
+    """
+    lookup = review_result_from_state(state)
+    return str(lookup.result.verdict) if lookup.result is not None else None
 
 
-def _latest_review_artifact_path(artifact_dir: Path) -> Path | None:
-    candidates = list(artifact_dir.glob("review-cycle-*.md"))
-    if not candidates:
+def _terminal_event_conflict(
+    wp_id: str,
+    lane: str,
+    snapshot_override: ReviewOverride | None,
+    event_verdict: str | None,
+) -> RejectedReviewArtifactFinding | None:
+    """FR-013/D-PLAN-8 (WP05, pure-event): a terminal WP whose event-sourced
+    verdict is ``changes_requested`` blocks merge -- the ONLY signal this gate
+    consults post-repoint. No on-disk review-cycle artifact is read or
+    resolved here at all, so ``artifact_path`` is always ``None`` in the
+    reported finding.
+
+    Retired (not repointed, per FR-013's explicit scope): the former
+    artifact-frontmatter leg (``_artifact_dirs_for_wp`` +
+    ``latest_review_artifact_verdict`` + ``_resolve_terminal_verdict_conflict``)
+    that additionally parsed ``review-cycle-N.md`` frontmatter and reconciled
+    it against this same event-sourced verdict. FR-001's "the event wins on
+    disagreement" precedence is now moot for THIS gate -- there is no second,
+    frontmatter-sourced opinion left to disagree with. The malformed-artifact
+    ``ReviewArtifactSchemaFinding`` leg is retired for the identical reason:
+    this gate no longer parses artifact frontmatter, so it can no longer
+    discover a malformed one.
+
+    Order matters:
+
+    1. A non-terminal lane is never blocked (unchanged).
+    2. A complete arbiter override already clears the gate unconditionally
+       (FR-010) — checked BEFORE ``event_verdict``.
+    3. ``event_verdict == "changes_requested"``: blocked.
+    4. Otherwise (``event_verdict`` is ``"approved"`` or ``None`` -- absent or
+       damaged, per :func:`_event_sourced_gate_verdict`'s collapse): not
+       blocked. G2 (contracts/verdict-authority-read.md): a safety-gate
+       consumer treats absent/damaged as "no block", never a crash and never
+       a fabricated rejection.
+    """
+    if lane not in TERMINAL_REVIEW_LANES:
         return None
-    candidates.sort(key=_review_cycle_number)
-    return candidates[-1]
-
-
-def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
-    """Strip machine-local paths from parser errors; path is reported separately."""
-    message = str(exc)
-    prefixes = (
-        f"Missing or invalid field in review artifact {artifact_path}: ",
-        f"Failed to parse YAML frontmatter in {artifact_path}: ",
-        f"Cannot read review artifact file {artifact_path}: ",
-        f"Review artifact file has no YAML frontmatter: {artifact_path}",
-        f"Review artifact file has no closing '---' delimiter: {artifact_path}",
-        f"YAML frontmatter in {artifact_path} is not a mapping",
+    if snapshot_override is not None and snapshot_override.complete:
+        return None
+    if event_verdict is None or not is_changes_requested(event_verdict):
+        return None
+    return RejectedReviewArtifactFinding(
+        wp_id=wp_id,
+        lane=lane,
+        artifact_path=None,
+        cycle_number=0,
+        verdict=event_verdict,
     )
-    for prefix in prefixes:
-        if message.startswith(prefix):
-            stripped = message[len(prefix) :].strip()
-            return stripped or message.replace(str(artifact_path), "").strip(": ")
-    return message.replace(str(artifact_path), "<review artifact>")
 
 
 def find_rejected_review_artifact_conflicts(
     feature_dir: Path,
     wp_ids: list[str] | None = None,
 ) -> list[ReviewArtifactFinding]:
-    """Return review artifact findings that block merge readiness."""
-    snapshot = materialize(feature_dir)
+    """Return review artifact findings that block merge readiness.
+
+    **WP05 (verdict-seam-write-unification-01KZ9Q35, T025/FR-013/D-PLAN-8)
+    pure-event repoint**: this gate now consults ONLY the reduced snapshot's
+    event-sourced ``review_result``/``review`` slots (via
+    :func:`_event_sourced_gate_verdict` / :func:`_snapshot_review_override`)
+    -- it no longer resolves or parses any on-disk ``review-cycle-N.md``
+    artifact at all. See :func:`_terminal_event_conflict` for what was
+    retired and why.
+
+    The lane snapshot resolves from its ``STATUS_STATE`` home (coord husk for
+    a materialised coord-topology mission) — never trusted from the single
+    ``feature_dir`` the caller happened to pass (that trust WAS #2885: the
+    dry-run preview handed a PRIMARY dir, so the reduce read an empty status
+    log and every WP looked stateless, passing a rejected review by default).
+
+    Reduces via the read-only :func:`materialize_snapshot`, NOT :func:`materialize`
+    (#2934): this is a merge-readiness *check*, so it must not mutate the working
+    tree. ``materialize`` writes ``status.json`` as a side effect; on a mission
+    whose event log is empty/absent that write orphans a derived ``status.json``
+    with no backing ``status.events.jsonl`` (the invalid state ``validate`` flags),
+    which the merge then commits alone. A gate reads; it does not persist.
+
+    ``cli/commands/review/_lane_gate.py``'s ``check_wp_lanes`` (Gate 1) calls
+    this same function, so it consults the event-sourced answer too, with no
+    separate call needed there.
+    """
+    lane_state_dir = _resolve_lane_state_read_dir(feature_dir)
+    snapshot = materialize_snapshot(lane_state_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
 
@@ -140,36 +261,10 @@ def find_rejected_review_artifact_conflicts(
             continue
         lane = str(state.get("lane", ""))
         snapshot_override = _snapshot_review_override(state)
-        for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
-            latest_path = _latest_review_artifact_path(artifact_dir)
-            if latest_path is None:
-                continue
-            try:
-                rejected = rejected_review_artifact_for_terminal_lane(
-                    artifact_dir, lane, snapshot_override=snapshot_override
-                )
-            except ValueError as exc:
-                findings.append(
-                    ReviewArtifactSchemaFinding(
-                        wp_id=wp_id,
-                        lane=lane,
-                        artifact_path=latest_path,
-                        schema_error=_schema_error_message(exc, latest_path),
-                    )
-                )
-                break
-            if rejected is None:
-                continue
-            findings.append(
-                RejectedReviewArtifactFinding(
-                    wp_id=wp_id,
-                    lane=lane,
-                    artifact_path=rejected.path,
-                    cycle_number=rejected.cycle_number,
-                    verdict=rejected.verdict,
-                )
-            )
-            break
+        event_verdict = _event_sourced_gate_verdict(state)
+        finding = _terminal_event_conflict(wp_id, lane, snapshot_override, event_verdict)
+        if finding is not None:
+            findings.append(finding)
 
     return findings
 
@@ -181,6 +276,12 @@ def format_review_artifact_conflict(
 ) -> str:
     """Render one finding with a stable path for operator diagnostics."""
     path = finding.artifact_path
+    if path is None:
+        return (
+            f"{finding.wp_id} is lane '{finding.lane}', but the event-sourced "
+            f"review verdict is '{finding.verdict}' and no on-disk review "
+            "artifact exists."
+        )
     if repo_root is not None:
         with suppress(ValueError):
             path = path.relative_to(repo_root)
@@ -196,17 +297,7 @@ def format_review_artifact_finding(
     repo_root: Path | None = None,
 ) -> str:
     """Render one review artifact finding with stable path context."""
-    if isinstance(finding, RejectedReviewArtifactFinding):
-        return format_review_artifact_conflict(finding, repo_root=repo_root)
-
-    path = finding.artifact_path
-    if repo_root is not None:
-        with suppress(ValueError):
-            path = path.relative_to(repo_root)
-    return (
-        f"{finding.wp_id} has malformed latest review artifact {path}: "
-        f"{finding.schema_error}"
-    )
+    return format_review_artifact_conflict(finding, repo_root=repo_root)
 
 
 def review_artifact_conflict_diagnostic(
@@ -215,8 +306,8 @@ def review_artifact_conflict_diagnostic(
     repo_root: Path | None = None,
 ) -> dict[str, object]:
     """Return the stable diagnostic contract payload for one conflict."""
-    path = finding.artifact_path
-    if repo_root is not None:
+    path: Path | None = finding.artifact_path
+    if path is not None and repo_root is not None:
         with suppress(ValueError):
             path = path.relative_to(repo_root)
     return {
@@ -225,30 +316,9 @@ def review_artifact_conflict_diagnostic(
         "violated_invariant": REJECTED_REVIEW_ARTIFACT_INVARIANT,
         "remediation": REJECTED_REVIEW_ARTIFACT_REMEDIATION,
         "lane": finding.lane,
-        "latest_review_cycle_path": str(path),
+        "latest_review_cycle_path": str(path) if path is not None else None,
         "latest_review_cycle_verdict": finding.verdict,
         "review_cycle_number": finding.cycle_number,
-    }
-
-
-def review_artifact_schema_diagnostic(
-    finding: ReviewArtifactSchemaFinding,
-    *,
-    repo_root: Path | None = None,
-) -> dict[str, object]:
-    """Return the stable diagnostic payload for a malformed review artifact."""
-    path = finding.artifact_path
-    if repo_root is not None:
-        with suppress(ValueError):
-            path = path.relative_to(repo_root)
-    return {
-        "diagnostic_code": REVIEW_ARTIFACT_SCHEMA_INVALID,
-        "branch_or_work_package": finding.wp_id,
-        "violated_invariant": REVIEW_ARTIFACT_SCHEMA_INVARIANT,
-        "remediation": REVIEW_ARTIFACT_SCHEMA_REMEDIATION,
-        "lane": finding.lane,
-        "latest_review_cycle_path": str(path),
-        "schema_error": finding.schema_error,
     }
 
 
@@ -258,9 +328,7 @@ def review_artifact_finding_diagnostic(
     repo_root: Path | None = None,
 ) -> dict[str, object]:
     """Return the stable diagnostic payload for any review artifact finding."""
-    if isinstance(finding, RejectedReviewArtifactFinding):
-        return review_artifact_conflict_diagnostic(finding, repo_root=repo_root)
-    return review_artifact_schema_diagnostic(finding, repo_root=repo_root)
+    return review_artifact_conflict_diagnostic(finding, repo_root=repo_root)
 
 
 @dataclass(frozen=True)

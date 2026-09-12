@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      spec.md's Key Entities `AcceptanceSummary` bullet now states the concrete
+      propagation mechanism explicitly ("the only channel through which the filtered
+      result can reach either downstream use is `evaluate_path_conventions` mutating
+      the `optional_missing` list it is passed **in place**... before its existing
+      2-tuple return runs"), names it as a deliberate departure from the module's
+      pure-transform convention, and requires WP2 to name the parameter and document
+      the side effect in the docstring — matching tracer-design-decisions.md's new
+      "Correction (post spec-review, SPEC-FRESH2-001)" section verbatim in substance;
+      independently confirmed against live code in
+      src/specify_cli/acceptance/__init__.py:1049-1115 (`collect_feature_summary`
+      binds `missing_optional` once from `_missing_artifacts`, calls
+      `evaluate_path_conventions` before `build_warnings(missing_optional=...)` and
+      the later `AcceptanceSummary(optional_missing=missing_optional, ...)`, so an
+      in-place mutation performed during that call would be visible to both later
+      reads of the same list object) and against
+      tests/specify_cli/acceptance/test_acceptance_cores.py::TestEvaluatePathConventions
+      (`test_strict_metadata_true_blocks_with_violation` and
+      `test_strict_metadata_false_downgrades_to_warning` call
+      `evaluate_path_conventions` without any `optional_missing` argument and
+      destructure a 2-tuple, which an additive, defaulted, in-place-mutating
+      parameter does not disturb). Full end-to-end re-read of spec.md found it
+      internally consistent, free of placeholder/TODO text, with the SPEC-FRESH-001
+      and SPEC-ARCH-001 corrections both still intact and unregressed in spec.md and
+      tracer-design-decisions.md.

@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.errors import FixtureAdapterMissingError
-from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.request import (
+from charter.activation.synthesizer.errors import FixtureAdapterMissingError
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
     compute_inputs_hash,
@@ -73,7 +73,7 @@ def _make_request(
             "styleguides": {},
         },
         drg_snapshot={
-            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
             "edges": [],
             "schema_version": "1",
         },
@@ -168,7 +168,7 @@ class TestNormalizationInvariance:
             "styleguides": {},
         }
         drg = {
-            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}],
+            "nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}],
             "edges": [],
             "schema_version": "1",
         }

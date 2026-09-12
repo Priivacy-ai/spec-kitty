@@ -30,7 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind, placement_seam
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -154,7 +154,15 @@ def run_custom_mission(
             },
         )
 
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # read-side-placement-seam-migration WP07: names PRIMARY_METADATA through
+    # the seam authority instead of the kind-blind
+    # ``candidate_feature_dir_for_mission`` — this feeds
+    # ``_ensure_feature_metadata``, a ``meta.json``-adjacent read.
+    # PRIMARY_METADATA is PRIMARY-partition, so resolution is behavior-
+    # identical to the prior resolver; no fail-loud arm is reachable here.
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     _ensure_feature_metadata(feature_dir, mission_key)
 
     return RunCustomMissionResult(
@@ -183,13 +191,30 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     construction here so this module does not depend on a private
     surface. Both implementations point ``builtin_roots`` at the
     packaged missions directory so built-in keys resolve identically.
+
+    Also mirrors the runtime bridge's ``org_roots`` population (FR-008,
+    DEC-006 site 3 -- the third, independently-duplicated production
+    wiring site that backs ``mission run <key>``): sourced via the lazy
+    ``charter.drg.resolve_org_roots`` facade, no ``try/except`` around the
+    call (``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` must
+    propagate, DEC-005/NFR-001). ``resolve_org_roots`` returns ``[]`` when
+    no org packs are configured, so this is a no-op for the common case
+    (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution hot
+    path (``mission run <key>``) that may run many times per invocation --
+    an unparseable config.yaml with no readable org intent must not spam a
+    UserWarning per call (see load_pack_registry's docstring). A genuinely
+    declared-but-broken org pack still raises a loud UserWarning regardless.
     """
     package_missions = (
         Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
     )
+
+    from charter.drg import resolve_org_roots  # lazy, mirrors the resolve_org_dirs pattern below
+
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_missions],
+        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
     )
 
 
@@ -217,7 +242,8 @@ def _resolve_contract_refs(
     at runtime too.
     """
     # Local import to avoid load-time coupling on the doctrine package.
-    from doctrine.missions.step_contracts import (
+    from charter.drg import resolve_org_dirs
+    from charter.mission_steps import (
         MissionStepContractRepository,
     )
 
@@ -230,7 +256,8 @@ def _resolve_contract_refs(
                 project_dir=repo_root
                 / ".kittify"
                 / "doctrine"
-                / "mission_step_contracts"
+                / "mission_step_contracts",
+                org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
         if repository.get(step.contract_ref) is None:
             return LoaderError(

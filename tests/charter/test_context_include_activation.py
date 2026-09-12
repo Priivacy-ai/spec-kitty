@@ -22,8 +22,8 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.context import build_charter_context_include
+import charter.activation.context as context_module
+from charter.activation.context import build_charter_context_include
 
 
 pytestmark = pytest.mark.fast
@@ -37,7 +37,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.activation.resolver.DoctrineService`)
     calls ``agent_profiles.list_all()`` to build its filtered dict, so the
     profile repo stub must provide ``list_all`` in addition to the ``get``
     used by the unwrapped render path.
@@ -100,14 +100,22 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> No
 
 
 def _write_activation_config(repo_root: Path, *, activated: list[str]) -> None:
-    """Write ``.kittify/config.yaml`` with an ``activated_agent_profiles`` list."""
+    """Write ``.kittify/config.yaml`` with an ``activated_agent_profiles`` list.
+
+    Also provisions ``mission_type_activations`` (WP04, C-A1: the provisioned
+    charter is the sole activation authority for mission types) so
+    ``PackContext.from_config`` -- which ``_build_activation_aware_doctrine_service``
+    always calls for the agent-profile include branch -- does not hard-fail on
+    a genuinely absent key. These tests are only exercising the
+    ``activated_agent_profiles`` gate, so a generic mission type is fine.
+    """
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    lines = ["activated_agent_profiles:"]
+    lines = ["mission_type_activations:", "  - software-dev", "activated_agent_profiles:"]
     if activated:
         lines.extend(f"  - {profile_id}" for profile_id in activated)
     else:
-        lines = ["activated_agent_profiles: []"]
+        lines[-1] = "activated_agent_profiles: []"
     (kittify / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -173,11 +181,19 @@ class TestAgentProfileActivationGate:
     def test_no_activation_config_renders_unrestricted(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # No config => activated_agent_profiles is None => no restriction =>
-        # the gate is a no-op and the profile renders (pre-#1636 parity). This
-        # is also the path the existing ``test_context_include.py`` stubs hit
-        # (a profile repo without ``list_all``), so the unwrapped fallback must
-        # be byte-identical to the legacy fetch.
+        # No activated_agent_profiles key => it resolves to None => no
+        # restriction => the gate is a no-op and the profile renders
+        # (pre-#1636 parity). This is also the path the existing
+        # ``test_context_include.py`` stubs hit (a profile repo without
+        # ``list_all``), so the unwrapped fallback must be byte-identical to
+        # the legacy fetch. ``mission_type_activations`` is still provisioned
+        # (WP04, C-A1) since ``PackContext.from_config`` always needs it,
+        # even when no agent-profile restriction is configured.
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         profile = _DummyAgentProfile(profile_id="python-pedro", name="Python Pedro")
         _patch_service(
             monkeypatch,
@@ -202,7 +218,7 @@ class TestScopedToAgentProfileOnly:
         # activation-aware wrapper, whether or not a restriction is configured.
         # The unrestricted (``None``) case stays byte-identical in *behaviour*
         # because the wrapper's None branch admits every profile.
-        from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
 
         stub = _StubService(
             agent_profiles=_StubRepo(
@@ -218,7 +234,12 @@ class TestScopedToAgentProfileOnly:
 
         # No restriction -> STILL wrapped, and the None branch admits all so the
         # gated map carries the profile unchanged (single contract, R5).
-        (tmp_path / ".kittify" / "config.yaml").unlink()
+        # ``mission_type_activations`` must stay provisioned even with the
+        # ``activated_agent_profiles`` key gone (WP04, C-A1) -- otherwise
+        # ``PackContext.from_config`` hard-fails on the now-fully-absent key.
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         unrestricted = context_module._build_activation_aware_doctrine_service(tmp_path)
         assert isinstance(unrestricted, ActivationAwareDoctrineService)
         assert object.__getattribute__(unrestricted, "_inner") is stub

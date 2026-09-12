@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-25T10:19:37.137918+00:00",
+  "flattened": false,
   "friendly_name": "shared package boundary cutover",
   "mission_id": "01KQ22DSP6D1F7QCF7N87T8B66",
   "mission_number": 97,
@@ -8,6 +9,7 @@
   "slug": "shared-package-boundary-cutover-01KQ22DS",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-04-25T10:47:38.244638+00:00"
 }

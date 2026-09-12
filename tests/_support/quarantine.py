@@ -3,15 +3,14 @@
 A *quarantined* test is an irreducible **environmental** flake (Tier 3 in the
 flakiness policy) that we cannot fully isolate but refuse to fix by retry. It is
 held out of every normal/blocking run so it can never turn ``main`` red or block
-an unrelated PR — yet it stays *visible* (never silently retried to green): the
-dedicated, non-blocking ``quarantine-visibility`` CI job sets
-``SPEC_KITTY_RUN_QUARANTINE=1`` and runs ``-m quarantine`` for real.
+an unrelated PR. Visibility requires an explicit local opt-in:
+``SPEC_KITTY_RUN_QUARANTINE=1`` with ``-m quarantine``.
 
 The actual deselection happens in ``tests/conftest.py``'s
 ``pytest_collection_modifyitems`` — this module holds the pure, unit-testable
 decision so the policy can be verified without driving a full pytest session.
 
-See ``docs/development/testing-flakiness.md``.
+See ``docs/development/testing/testing-flakiness.md``.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ QUARANTINE_MARKER = "quarantine"
 _SKIP_REASON = (
     "quarantine: environmental flake under tracking — held out of normal runs. "
     f"Set {RUN_QUARANTINE_ENV_VAR}=1 to run it. "
-    "See docs/development/testing-flakiness.md"
+    "See docs/development/testing/testing-flakiness.md"
 )
 
 

@@ -1,0 +1,64 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: SPEC-GOV-001
+    lens: directive
+    severity: 3
+    title: "CL-004's dead-code sweep of mission-type CLI surfaces missed an adjacent duplicate/shadowed command in the exact file FR-006/FR-007/FR-008 touch"
+    evidence:
+      - artifact: "spec.md § CL-004, § FR-010"
+      - code: "src/specify_cli/cli/commands/mission_type.py:150 (@app.command(\"list\") -> list_cmd, uses discover_missions/.kittify/missions/)"
+      - code: "src/specify_cli/cli/commands/mission_type.py:1429 (@app.command(\"list\") -> list_mission_types, the charter-based one)"
+      - code: "src/specify_cli/cli/commands/mission_type.py:38-46,122-127 (discover_missions import, _print_available_missions)"
+    claim: >
+      CL-004 establishes the mission's own precedent for finding and removing dead code via
+      "repo-wide search" before touching an area (resolve_mission_steps). The same file this
+      mission's FR-006/FR-007/FR-008 modify (src/specify_cli/cli/commands/mission_type.py)
+      registers two @app.command("list") handlers on the same Typer app: list_cmd (line 150,
+      built on the legacy specify_cli.mission.discover_missions() scanner over
+      .kittify/missions/) and list_mission_types (line 1429, the charter/doctrine-aware one
+      FR-008 targets). Verified with a runner.invoke() smoke test against the .venv's typer:
+      the second registration silently wins with no error/warning — list_cmd,
+      _print_available_missions, and their only remaining caller of
+      specify_cli.mission.discover_missions() are confirmed unreachable dead code in the exact
+      surface this mission is opening. Left unaddressed, the plan/tasks WP that touches this
+      file inherits ambiguity about which "list" implementation is live, risking wasted
+      analysis or accidental edits to the shadowed path.
+    remediation: >
+      Extend CL-004 (or add a sibling clarification) to cover this duplicate registration:
+      delete list_cmd/_print_available_missions and the now-unused discover_missions import in
+      mission_type.py in the same PR as the FR-006/FR-007/FR-008 work, per the
+      canonical-source-unification standing order (chase unification, not parity with a dead
+      quirk) — the same standard already applied to resolve_mission_steps. If deliberately
+      deferred instead, say so explicitly with a one-line rationale per
+      RECONCILE_CHANGE_SCOPE_TENSIONS rather than leaving it unmentioned.
+
+  - id: SPEC-GOV-002
+    lens: terminology
+    severity: 1
+    title: "Key Entities section header retains template-inherited 'feature' wording"
+    evidence:
+      - artifact: "spec.md line 287 (### Key Entities *(include if feature involves data)*)"
+      - code: "packs/built-in/missions/software-dev/templates/spec-template.md:113"
+      - code: ".kittify/overrides/missions/software-dev/templates/spec-template.md:113"
+    claim: >
+      The spec's Terminology Note (§ end of spec.md) asserts "No feature* aliases are
+      introduced by any requirement in this spec." That claim holds for every requirement
+      (FR/NFR/C are all correctly Mission-scoped, no feature* CLI flags/params introduced).
+      However the literal word "feature" survives once in the artifact, in the inherited
+      "### Key Entities *(include if feature involves data)*" section-header instruction —
+      confirmed present verbatim in both the canonical built-in spec-template.md and the
+      project's own doctrine override, so this is a pre-existing canonical-template defect,
+      not something this spec's author introduced. Nit-level only: it is boilerplate
+      instructional text, not user-facing product language, and has zero effect on
+      implementation.
+    remediation: >
+      Not this mission's fix to make (the defect lives in the canonical template, out of this
+      mission's declared scope). Flag it as a canonical-template terminology-guard gap for a
+      separate small fix (spec-template.md's "Key Entities" header should read "include if the
+      mission involves data" or similar) rather than silently carrying it forward — per the
+      charter's "flag the drift instead of picking silently" instruction in AGENTS.md.

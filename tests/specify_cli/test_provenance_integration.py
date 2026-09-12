@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 
 from specify_cli.charter_runtime.lint import LintEngine
 from specify_cli.charter_runtime.lint.engine import _ALL_CHECKS, _CHECK_MAP
-from specify_cli.doctrine.config import OrgPackConfig, PackRegistry, save_pack_registry
+from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
 pytestmark = [pytest.mark.integration]
@@ -57,14 +57,18 @@ def _directive(directive_id: str, title: str) -> dict:
 class TestProvenanceServiceIntegration:
     """End-to-end provenance via the shared ``DoctrineService`` factory."""
 
-    def test_org_overrides_builtin_provenance_resolves_to_org(self, tmp_path: Path) -> None:
+    def test_org_overrides_builtin_provenance_resolves_to_org(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """An org pack that ships the same directive ID as built-in surfaces ``source=org``."""
-        # Built-in (shipped) layer
-        built_in_root = tmp_path / "built-in"
+        # Built-in (shipped) layer -- an isolated flat packs/built-in/ tree,
+        # injected via SPEC_KITTY_PACKS_ROOT (the built_in_root= param is retired).
+        packs_root = tmp_path / "packs"
         _write_yaml(
-            built_in_root / "directives" / "built-in" / "DIRECTIVE_001.directive.yaml",
+            packs_root / "built-in" / "directives" / "DIRECTIVE_001.directive.yaml",
             _directive("DIRECTIVE_001", "Built-in Title"),
         )
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
         # Org layer overrides DIRECTIVE_001 + adds ORG-001
         org_root = tmp_path / "org"
@@ -77,9 +81,9 @@ class TestProvenanceServiceIntegration:
             _directive("ORG-001", "Org-only Directive"),
         )
 
-        from doctrine.service import DoctrineService
+        from charter.offering.service import DoctrineService
 
-        service = DoctrineService(built_in_root=built_in_root, org_roots=[org_root])
+        service = DoctrineService(org_roots=[org_root])
 
         assert service.directives.get_provenance("DIRECTIVE_001") == "org"
         assert service.directives.get_provenance("ORG-001") == "org"
@@ -194,10 +198,10 @@ class TestLintOrgOverridesAdvisory:
             return None
 
         monkeypatch.setattr(
-            "charter.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
+            "charter.activation.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
         )
         monkeypatch.setattr(
-            "charter._doctrine_paths.resolve_project_root", _fake_resolve_project_root
+            "charter.activation._doctrine_paths.resolve_project_root", _fake_resolve_project_root
         )
 
         checker = org_layer.OrgOverridesBuiltinChecker(repo_root=repo_root)

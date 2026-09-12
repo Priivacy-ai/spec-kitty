@@ -10,7 +10,6 @@ Source-of-truth: kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contra
 
 from __future__ import annotations
 
-import json
 import logging
 from importlib import import_module
 from pathlib import Path
@@ -19,7 +18,7 @@ from typing import Literal, cast
 import ulid as _ulid_mod
 from pydantic import BaseModel, ConfigDict
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.retrospective.schema import ActorRef, Mode
 
 logger = logging.getLogger(__name__)
@@ -209,9 +208,22 @@ def emit_retrospective_event(
     events_path = feature_dir / "status.events.jsonl"
     events_path.parent.mkdir(parents=True, exist_ok=True)
 
-    line = json.dumps(envelope, sort_keys=True)
-    with events_path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+    # fsm-write-path-integrity WP01 (FR-002, writer family 4): the append is
+    # atomic (``append_raw_rows_atomic``) AND serialized under the mission
+    # status lock keyed on ``feature_dir.name`` -- the same lock the transition
+    # shells and ``BookkeepingTransaction`` hold -- so it can never land inside
+    # a rollback-truncate window. The critical section is the append only; the
+    # ``materialize`` below takes its own (re-entrant) lock and stays outside.
+    # No ``nullcontext()`` degrade at this site (conscious choice): the lock
+    # root resolver never fails, so there is no "no root" case to skip for.
+    # This entry point is superseded by ``post_merge.retrospective_terminus``
+    # (``run_terminus``: do not add new callers); it is hardened because a
+    # present-but-superseded raw writer is still an unlocked writer (Q3).
+    from specify_cli.retrospective.lifecycle_events import retro_status_lock
+    from specify_cli.status._unsafe import append_raw_rows_atomic
+
+    with retro_status_lock(feature_dir):
+        append_raw_rows_atomic(events_path, [dict(envelope)])
 
     logger.debug("Appended retrospective event %s (%s) to %s", event_id, event_name, events_path)
     try:

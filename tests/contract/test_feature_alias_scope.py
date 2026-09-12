@@ -9,7 +9,7 @@ These tests prove two complementary invariants:
    the in-scope file list below.
 
 2. **First-party caller check (T015 / FR-003):** No source under
-   ``src/doctrine/`` passes ``--feature`` to any of the 18 in-scope internal
+   ``src/charter/offering/`` passes ``--feature`` to any of the 18 in-scope internal
    command files.  ``next`` and ``merge`` are now in-scope and the stale
    doctrine ``--feature`` references on them have been removed — doctrine no
    longer references ``--feature`` on any command.
@@ -162,9 +162,9 @@ def _read(path: Path) -> str:
 
 
 def test_no_doctrine_source_passes_feature_to_inscope_commands() -> None:
-    """No ``src/doctrine/`` source must pass ``--feature`` to an in-scope command.
+    """No ``src/charter/offering/`` source must pass ``--feature`` to an in-scope command.
 
-    Scans all files under ``src/doctrine/`` for occurrences of ``--feature``
+    Scans all files under ``src/charter/offering/`` for occurrences of ``--feature``
     followed by (or in the context of) a reference to one of the 10 in-scope
     command names.  The 3 known doctrine hits (implement-review SKILL.md,
     runtime-next SKILL.md, occurrence-classification-workflow tactic) all
@@ -172,8 +172,8 @@ def test_no_doctrine_source_passes_feature_to_inscope_commands() -> None:
 
     Authority: spec.md FR-003.  Research note R3.
     """
-    doctrine_root = REPO_ROOT / "src" / "doctrine"
-    assert doctrine_root.exists(), f"src/doctrine/ not found at {doctrine_root}"
+    doctrine_root = REPO_ROOT / "src" / "charter" / "offering"
+    assert doctrine_root.exists(), f"src/charter/offering/ not found at {doctrine_root}"
 
     # Build a pattern that catches lines containing both --feature and an
     # in-scope command name.  We match each in-scope command name individually
@@ -205,14 +205,14 @@ def test_no_doctrine_source_passes_feature_to_inscope_commands() -> None:
                     )
 
     assert not offenders, (
-        "FR-003 regression: src/doctrine/ source passes '--feature' to an in-scope "
+        "FR-003 regression: src/charter/offering/ source passes '--feature' to an in-scope "
         "command.  In-scope commands must be invoked without '--feature'.\n  "
         + "\n  ".join(offenders)
     )
 
 
 def test_doctrine_feature_hits_are_only_outofscope_commands() -> None:
-    """All ``--feature`` occurrences in ``src/doctrine/`` reference out-of-scope commands.
+    """All ``--feature`` occurrences in ``src/charter/offering/`` reference out-of-scope commands.
 
     Positive-form companion to ``test_no_doctrine_source_passes_feature_to_inscope_commands``.
     Verifies that the known doctrine hits (implement-review, runtime-next,
@@ -225,7 +225,7 @@ def test_doctrine_feature_hits_are_only_outofscope_commands() -> None:
 
     Authority: spec.md FR-003.
     """
-    doctrine_root = REPO_ROOT / "src" / "doctrine"
+    doctrine_root = REPO_ROOT / "src" / "charter" / "offering"
     out_of_scope_command_fragments = (
         "next",
         "merge",
@@ -287,7 +287,7 @@ def test_doctrine_feature_hits_are_only_outofscope_commands() -> None:
         )
     ]
     assert not unexpected_without_known_context, (
-        "src/doctrine/ contains '--feature' lines that do not reference a known "
+        "src/charter/offering/ contains '--feature' lines that do not reference a known "
         "out-of-scope command and are not prose deprecation notes.  "
         "Review these lines and either remove '--feature' or add the relevant "
         "out-of-scope command name so the gate recognises them:\n  "

@@ -5,10 +5,12 @@ REAL coordination-topology fixture, across EVERY converged write path. The bifur
 
 * PRIMARY-partition kinds (``SPEC`` / ``DATA_MODEL`` / ``RESEARCH`` / ``CHECKLIST`` /
   ``FINALIZED_EXECUTION_PLAN`` / ``TASKS_INDEX`` / ``WORK_PACKAGE_TASK`` /
-  ``LANE_STATE`` / ``PRIMARY_METADATA``) resolve to the primary ``target_branch``
-  for EVERY topology and NEVER transit coordination.
-* COORD-partition kinds (``STATUS_STATE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX`` /
-  ``ANALYSIS_REPORT``) keep the topology-routed coordination ref under coord topology.
+  ``LANE_STATE`` / ``PRIMARY_METADATA`` / ``RETROSPECTIVE`` / ``ANALYSIS_REPORT``)
+  resolve to the primary ``target_branch`` for EVERY topology and NEVER transit
+  coordination. (``ANALYSIS_REPORT`` was re-homed COORD→PRIMARY by FR-003 /
+  coord-commit-integrity.)
+* COORD-partition kinds (``STATUS_STATE`` / ``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``)
+  keep the topology-routed coordination ref under coord topology.
 
 Non-vacuity (research D-7 / NFR-002):
 
@@ -34,15 +36,15 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
-
 import pytest
 from ulid import ULID
 
 import mission_runtime.artifacts as artifacts_mod
 import mission_runtime.resolution as resolution_mod
 from mission_runtime import (
+    CommitTarget,
     MissionArtifactKind,
+    kind_for_mission_file,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
@@ -87,7 +89,16 @@ def _build_coord_mission(tmp_path: Path) -> _CoordMission:
     (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
 
     mission_id = str(ULID())
-    mid8 = mission_id[:8].lower()
+    # NOT lowercased: mission_runtime.identity.resolve_mid8 returns
+    # ``mission_id[:8]`` VERBATIM (uppercase Crockford, matching
+    # ``mid8_from_slug``'s ``[0-9A-HJKMNP-TV-Z]{8}`` regex) -- a lowercased
+    # embedded tail here would make ``_resolve_mid8`` (used by
+    # ``commit_router.py``'s coord-worktree materialisation) derive an
+    # UPPERCASE mid8 that disagrees with this fixture's own LOWERCASE
+    # branch/worktree naming, so a genuine coord commit (T015's
+    # ``result.status == "committed"`` checks, not merely a resolved-ref
+    # check) fails with a worktree/branch HEAD mismatch.
+    mid8 = mission_id[:8]
     slug = f"write-surface-guard-{mid8}"
     coordination_branch = f"kitty/mission-{slug}"
 
@@ -327,12 +338,21 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.PRIMARY_METADATA,
         MissionArtifactKind.RETROSPECTIVE,
+        # FR-003 (coord-commit-integrity): ANALYSIS_REPORT re-homed COORD→PRIMARY.
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
-        MissionArtifactKind.ANALYSIS_REPORT,
+        # coord-write-placement-closure-01KYCF83 WP02 (FR-003, FR-006): newly
+        # classified COORD-partition kinds.
+        MissionArtifactKind.DECISION_LOG,
+        MissionArtifactKind.TRACER_FILE,
+        # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR
+        # 2026-08-03-1): review-cycle artifacts are per-WP lifecycle
+        # bookkeeping -- COORD-partition.
+        MissionArtifactKind.REVIEW_CYCLE,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)
@@ -418,224 +438,383 @@ def test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red(
         "did not change its resolved ref — the two-ref guard could pass vacuously."
     )
 
-
 # ---------------------------------------------------------------------------
-# FR-006 (#2198): the machine-read partition-stability rationale map.
+# T014 — the filename-anchored REVIEW_CYCLE classifier leg.
 #
-# A per-kind annotation that pins WHY each artifact kind sits on its partition,
-# cross-checked against the LIVE ``_PRIMARY_ARTIFACT_KINDS`` /
-# ``_PLACEMENT_ARTIFACT_KINDS`` frozensets so re-homing a kind is a conscious
-# CI-red decision (SC-003). NET-NEW only (NFR-005): no ``file:line`` line-pins —
-# the map keys on enum MEMBERS (content-anchored, CT7-clean) and reuses the
-# ``resolve_placement_only`` machinery the existing tests already drive.
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023): focused unit tests
+# directly against ``kind_for_mission_file`` / ``_artifact_kind_for_path`` (not
+# only the higher-level guard tests above), per the WP's own explicit
+# requirement. The four required cases (one positive, two negative, plus the
+# ADR's permissive-glob boundary case) and the anchoring edge case.
 # ---------------------------------------------------------------------------
 
-_Partition = Literal["PRIMARY", "COORD"]
-
-# Each entry: kind → (partition, rationale, load_bearing_consumer). ``partition``
-# is the human-facing PRIMARY/COORD label whose membership MUST match the live
-# frozenset split (asserted below); ``rationale`` records why the kind sits there;
-# ``load_bearing_consumer`` names the surface that breaks if it is re-homed.
-PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
-    MissionArtifactKind.SPEC: (
-        "PRIMARY",
-        "Planning SOURCE doc — lives with its mission on target_branch for every "
-        "topology; a stale primary copy is REAL dirt, never coord residue.",
-        "/spec-kitty.specify writer + safe-commit planning seam",
-    ),
-    MissionArtifactKind.DATA_MODEL: (
-        "PRIMARY",
-        "Planning SOURCE doc (/spec-kitty.plan) — primary-home, never transits "
-        "coordination.",
-        "/spec-kitty.plan writer",
-    ),
-    MissionArtifactKind.RESEARCH: (
-        "PRIMARY",
-        "Planning SOURCE doc (research.md) — primary-home for every topology.",
-        "/spec-kitty.research writer",
-    ),
-    MissionArtifactKind.CHECKLIST: (
-        "PRIMARY",
-        "Planning SOURCE doc (checklists/) — primary-home; not coordination-owned.",
-        "/spec-kitty.checklist writer",
-    ),
-    MissionArtifactKind.FINALIZED_EXECUTION_PLAN: (
-        "PRIMARY",
-        "Finalized plan.md travels with its mission on the primary surface.",
-        "finalize-tasks / _planning_commit_worktree",
-    ),
-    MissionArtifactKind.TASKS_INDEX: (
-        "PRIMARY",
-        "tasks.md index is a planning artifact pinned to the primary surface.",
-        "/spec-kitty.tasks writer",
-    ),
-    MissionArtifactKind.WORK_PACKAGE_TASK: (
-        "PRIMARY",
-        "tasks/WP*.md are planning artifacts — primary-home, read by implementers.",
-        "implement/review WP read-side",
-    ),
-    MissionArtifactKind.LANE_STATE: (
-        "PRIMARY",
-        "lanes.json (finalize output) travels with tasks.md → primary-home.",
-        "lane allocator / finalize-tasks",
-    ),
-    MissionArtifactKind.PRIMARY_METADATA: (
-        "PRIMARY",
-        "meta.json mission identity lives ONLY on the primary checkout for every "
-        "topology (the never-committed-through-a-ref metadata home).",
-        "identity resolver (mission_id / mid8 reads)",
-    ),
-    MissionArtifactKind.RETROSPECTIVE: (
-        "PRIMARY",
-        "FR-002 terminal artifact (retrospective.yaml) resolves to the durable "
-        "mission home for every topology; never transits coordination.",
-        "post-merge retrospective writer",
-    ),
-    MissionArtifactKind.ACCEPTANCE_MATRIX: (
-        "COORD",
-        "accept-time verification artifact — coordination-owned; stale primary "
-        "copies are coordination residue under coord topology.",
-        "accept gate (acceptance-matrix.json)",
-    ),
-    MissionArtifactKind.ISSUE_MATRIX: (
-        "COORD",
-        "issue-matrix.md is coordination-owned; routes to the coordination branch "
-        "under coord topology.",
-        "coordination issue-matrix writer",
-    ),
-    MissionArtifactKind.STATUS_STATE: (
-        "COORD",
-        "Append-only status.events.jsonl is the coordination-branch authority; its "
-        "stale primary copy is residue, not real dirt.",
-        "status reducer / dashboard (coord worktree)",
-    ),
-    MissionArtifactKind.ANALYSIS_REPORT: (
-        "COORD",
-        "record-analysis output (analysis-report.md) stays COORD per data-model.md.",
-        "record-analysis writer",
-    ),
-}
+_CLASSIFIER_MISSION_SLUG = "some-mission"
 
 
-def _placement_ref(mission: _CoordMission, kind: MissionArtifactKind) -> str:
-    """Drive the REAL resolver for ``kind`` and return its resolved placement ref.
-
-    The single resolver-driving seam reused by the all-kinds anti-mutant — it does
-    NOT clone ``test_full_partition_resolves_per_membership``'s body; it factors the
-    one ``resolve_placement_only(...).ref`` call that test already makes.
-    """
-    return resolve_placement_only(
-        mission.repo_root, mission.mission_slug, kind=kind
-    ).ref
+def test_review_cycle_pattern_classifies_to_review_cycle_kind() -> None:
+    """Positive case: tasks/WP01/review-cycle-1.md -> REVIEW_CYCLE (T014)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/review-cycle-1.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE
 
 
-def _derived_partition_split() -> tuple[
-    set[MissionArtifactKind], set[MissionArtifactKind]
-]:
-    """Project the (PRIMARY, COORD) kind sets out of :data:`PARTITION_RATIONALE`."""
-    primary = {k for k, (p, _r, _c) in PARTITION_RATIONALE.items() if p == "PRIMARY"}
-    coord = {k for k, (p, _r, _c) in PARTITION_RATIONALE.items() if p == "COORD"}
-    return primary, coord
+def test_baseline_tests_json_under_wp_dir_stays_work_package_task() -> None:
+    """Negative case: tasks/WP01/baseline-tests.json must NOT be reclassified —
+    this is the regression the filename-anchoring constraint exists to prevent
+    (a directory-anchored rule would silently re-partition it)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/baseline-tests.json"
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
 
 
-def test_partition_rationale_is_exhaustive() -> None:
-    """(a) Every ``MissionArtifactKind`` member has a rationale entry (SC-003).
+def test_single_part_wp_task_file_stays_work_package_task() -> None:
+    """Negative case: tasks/WP01-foo.md (single relative part) must keep
+    classifying WORK_PACKAGE_TASK via the basename-lookup branch, not be
+    accidentally caught by the new nested-pattern leg (which only applies to
+    the multi-part / nested case)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01-foo.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
 
-    A newly-added kind without an entry — or a removed kind — fails here, so the
-    map can never silently drift behind the enum.
-    """
-    assert set(PARTITION_RATIONALE) == set(MissionArtifactKind), (
-        "PARTITION_RATIONALE must have exactly one entry per MissionArtifactKind. "
-        f"Missing: {set(MissionArtifactKind) - set(PARTITION_RATIONALE)}; "
-        f"Extra: {set(PARTITION_RATIONALE) - set(MissionArtifactKind)}"
+
+def test_review_cycle_pattern_classifies_non_numeric_suffix() -> None:
+    """Fourth case (the ADR's permissive-glob boundary, T014 step 3's explicit
+    call-out): ``review-cycle-notes.md`` does not match the numeric
+    ``review-cycle-<N>.md`` shape ``review/cycle.py``'s OWN writer validates
+    (``_REVIEW_CYCLE_FILE_RE``), but the ADR's decision text names the glob
+    ``review-cycle-*.md`` verbatim -- a permissive glob, not the writer's
+    stricter numeric one. This test makes that boundary EXPLICIT rather than
+    accidental: the classifier intentionally accepts it."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/review-cycle-notes.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE
+
+
+def test_review_cycle_pattern_anchors_on_final_component_only() -> None:
+    """Edge case: a WP slug that itself contains the substring ``review-cycle``
+    must not trigger the classifier via a whole-path substring test -- only the
+    FINAL path component (the actual filename) may match the glob. A WP-shaped
+    directory segment spelled ``review-cycle-thing`` holding an ordinary WP
+    task file must still classify WORK_PACKAGE_TASK."""
+    path = (
+        f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/review-cycle-thing/"
+        "baseline-tests.json"
     )
-    for kind, (partition, rationale, consumer) in PARTITION_RATIONALE.items():
-        assert partition in ("PRIMARY", "COORD"), (kind, partition)
-        assert rationale.strip(), f"{kind.name} has an empty rationale"
-        assert consumer.strip(), f"{kind.name} has an empty load_bearing_consumer"
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
 
 
-def test_partition_rationale_split_matches_live_frozensets() -> None:
-    """(b) The map's derived split EQUALS the live partition frozensets (SC-003).
+def test_review_cycle_pattern_matches_regardless_of_wp_slug_separator() -> None:
+    """T014 step 2: the classifier keys purely on the FILENAME pattern, never on
+    directory depth or the parent WP-slug spelling — so every accepted WP-slug
+    separator shape (spec.md US3: ``-``, ``_``, ``.``, or none) classifies
+    identically."""
+    for wp_slug in ("WP01", "WP-01", "WP_01", "WP.01", "wp01"):
+        path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/{wp_slug}/review-cycle-2.md"
+        assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE, wp_slug
 
-    Re-homing a kind in ``_PRIMARY_ARTIFACT_KINDS`` / ``_PLACEMENT_ARTIFACT_KINDS``
-    without updating its ``PARTITION_RATIONALE`` partition label makes this go RED —
-    so a partition move is forced to also restate (and re-justify) the rationale.
+
+# ---------------------------------------------------------------------------
+# T015 — the commit router honours REVIEW_CYCLE for review-cycle paths.
+#
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023): traced call chain
+# is ``commit_for_mission`` -> ``_group_files_by_partition`` ->
+# ``is_coord_residue_churn`` -> ``kind_for_mission_file`` (now returns
+# REVIEW_CYCLE post-T014) -> ``kind_is_coordination_residue`` (now True post-
+# T013, since REVIEW_CYCLE is in ``_PLACEMENT_ARTIFACT_KINDS``). This traces
+# and CONFIRMS (see the module-level statement below) that
+# ``commit_router.py`` needed NO production change: ``is_coord_residue_churn``
+# is the sole delegated authority, and T014's classifier fix alone is
+# sufficient. These tests exercise that composed chain end-to-end, driving
+# the REAL ``commit_for_mission`` against the REAL coord/coordless fixtures --
+# no stub, matching this file's existing non-vacuity discipline.
+# ---------------------------------------------------------------------------
+
+_SINGLE_BRANCH_TARGET = "feat/single-branch-guard"
+
+
+def _build_single_branch_mission(tmp_path: Path) -> _CoordMission:
+    """Build a real SINGLE_BRANCH (coordless) mission fixture.
+
+    No ``coordination_branch``, ``topology: single_branch`` -- the REAL
+    resolver classifies this coordless, so EVERY kind (PRIMARY or COORD-
+    partition) resolves to the SAME ``target_branch`` (the coordless-topology
+    collapse ``_group_files_by_partition`` documents).
     """
-    derived_primary, derived_coord = _derived_partition_split()
-    assert derived_primary == set(artifacts_mod._PRIMARY_ARTIFACT_KINDS), (
-        "PARTITION_RATIONALE PRIMARY split diverged from the live "
-        "_PRIMARY_ARTIFACT_KINDS frozenset — a kind was re-homed without updating "
-        "its rationale."
-    )
-    assert derived_coord == set(artifacts_mod._PLACEMENT_ARTIFACT_KINDS), (
-        "PARTITION_RATIONALE COORD split diverged from the live "
-        "_PLACEMENT_ARTIFACT_KINDS frozenset — a kind was re-homed without updating "
-        "its rationale."
-    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", _SINGLE_BRANCH_TARGET)
+    _git(repo, "config", "user.email", "guard@example.com")
+    _git(repo, "config", "user.name", "Guard Suite")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
 
+    mission_id = str(ULID())
+    # NOT lowercased: mission_runtime.identity.resolve_mid8 returns
+    # ``mission_id[:8]`` VERBATIM (uppercase Crockford, matching
+    # ``mid8_from_slug``'s ``[0-9A-HJKMNP-TV-Z]{8}`` regex) -- a lowercased
+    # embedded tail here would make ``_resolve_mid8`` (used by
+    # ``commit_router.py``'s coord-worktree materialisation) derive an
+    # UPPERCASE mid8 that disagrees with this fixture's own LOWERCASE
+    # branch/worktree naming, so a genuine coord commit (T015's
+    # ``result.status == "committed"`` checks, not merely a resolved-ref
+    # check) fails with a worktree/branch HEAD mismatch.
+    mid8 = mission_id[:8]
+    slug = f"write-surface-guard-single-{mid8}"
 
-def _force_kind_into_opposite_partition(
-    monkeypatch: pytest.MonkeyPatch, kind: MissionArtifactKind
-) -> None:
-    """Move ``kind`` to the OPPOSITE partition (PRIMARY↔COORD) on the live sets."""
-    orig_primary = artifacts_mod._PRIMARY_ARTIFACT_KINDS
-    orig_placement = artifacts_mod._PLACEMENT_ARTIFACT_KINDS
-    if kind in orig_primary:
-        _patch_partition(
-            monkeypatch,
-            primary=orig_primary - {kind},
-            placement=orig_placement | {kind},
+    feature_dir = repo / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "mission_slug": slug,
+                "target_branch": _SINGLE_BRANCH_TARGET,
+                "topology": "single_branch",
+            }
         )
-    else:
-        _patch_partition(
-            monkeypatch,
-            primary=orig_primary | {kind},
-            placement=orig_placement - {kind},
-        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed single-branch mission")
+
+    return _CoordMission(
+        repo_root=repo.resolve(),
+        mission_slug=slug,
+        feature_dir=feature_dir,
+        coordination_branch=_SINGLE_BRANCH_TARGET,  # no coord ref; same as target
+        target_branch=_SINGLE_BRANCH_TARGET,
+    )
 
 
-_ALL_KINDS_SORTED = sorted(MissionArtifactKind, key=lambda k: k.name)
+@pytest.fixture
+def single_branch_mission(tmp_path: Path) -> _CoordMission:
+    mission = _build_single_branch_mission(tmp_path)
+    assert not routes_through_coordination(
+        resolve_topology(mission.repo_root, mission.mission_slug)
+    ), "fixture precondition violated: mission must be coordless (SINGLE_BRANCH)"
+    return mission
 
 
-@pytest.mark.parametrize(
-    "kind", _ALL_KINDS_SORTED, ids=[k.name for k in _ALL_KINDS_SORTED]
-)
-def test_rehome_any_load_bearing_kind_flips_resolved_ref(
+def _write_review_cycle_file(mission: _CoordMission, wp_slug: str, cycle: int) -> Path:
+    wp_dir = mission.feature_dir / "tasks" / wp_slug
+    wp_dir.mkdir(parents=True, exist_ok=True)
+    path = wp_dir / f"review-cycle-{cycle}.md"
+    path.write_text(f"# Review cycle {cycle}\n\nverdict: rejected\n", encoding="utf-8")
+    return path
+
+
+def test_review_cycle_write_lands_on_coord_ref_under_coord_topology(
     coord_mission: _CoordMission,
-    monkeypatch: pytest.MonkeyPatch,
-    kind: MissionArtifactKind,
 ) -> None:
-    """(c) All-kinds anti-mutant: re-homing ANY kind flips its resolved ref (SC-003).
+    """T015 (a): a ``kind=REVIEW_CYCLE`` write lands on the coordination ref
+    under coord topology -- no production change in ``commit_router.py``, only
+    this test coverage (the classifier fix, T014, is the entire mechanism)."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
 
-    Broadens the single-SPEC ``test_anti_mutant_pre_fix_partition...`` to EVERY
-    load-bearing kind. For each kind it drives the REAL resolver
-    (``resolve_placement_only`` via ``_placement_ref``) twice — once on the live
-    partition, once with the kind forced into the opposite partition — and asserts
-    the resolved placement ref FLIPS to the opposite surface. A kind whose ref does
-    NOT change on re-home would let the partition guard pass vacuously for it.
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    artifact_path = _write_review_cycle_file(coord_mission, "WP01", 1)
+
+    result = commit_for_mission(
+        coord_mission.repo_root,
+        coord_mission.mission_slug,
+        (artifact_path,),
+        "chore: Record review-cycle-1 (rejected) for WP01",
+        policy,
+        kind=MissionArtifactKind.REVIEW_CYCLE,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    assert result.placement_ref == coord_mission.coordination_branch
+
+
+def test_review_cycle_write_lands_on_target_branch_under_single_branch_topology(
+    single_branch_mission: _CoordMission,
+) -> None:
+    """T015 (b): the same write under SINGLE_BRANCH lands on ``target_branch``
+    (the coordless collapse -- every kind resolves to the same ref there)."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    artifact_path = _write_review_cycle_file(single_branch_mission, "WP01", 1)
+
+    result = commit_for_mission(
+        single_branch_mission.repo_root,
+        single_branch_mission.mission_slug,
+        (artifact_path,),
+        "chore: Record review-cycle-1 (rejected) for WP01",
+        policy,
+        kind=MissionArtifactKind.REVIEW_CYCLE,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    assert result.placement_ref == single_branch_mission.target_branch
+
+
+def test_mixed_review_cycle_and_work_package_task_batch_splits_under_coord(
+    coord_mission: _CoordMission,
+) -> None:
+    """T015 edge case: a batch mixing a REVIEW_CYCLE file with a
+    WORK_PACKAGE_TASK file (e.g. a WP task-file edit landing in the same
+    commit as a new review cycle) under coord topology must split into TWO
+    commits against TWO different refs -- the one case
+    ``_group_files_by_partition``'s genuinely-mixed-AND-refs-diverge branch
+    actually exercises new code paths for."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    review_cycle_path = _write_review_cycle_file(coord_mission, "WP01", 1)
+    wp_task_path = coord_mission.feature_dir / "tasks" / "WP01" / "WP01-foo.md"
+    wp_task_path.write_text("# WP01\n", encoding="utf-8")
+
+    result = commit_for_mission(
+        coord_mission.repo_root,
+        coord_mission.mission_slug,
+        (review_cycle_path, wp_task_path),
+        "chore: mixed batch (review-cycle-1 + WP01 task edit)",
+        policy,
+        # Caller's own kind here is WORK_PACKAGE_TASK -- the per-file residue
+        # classification (not the caller's kind) decides each file's bucket.
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    # #2549 facet B: commit_hashes carries the UNION of every committed
+    # group's hashes -- a genuinely split (mixed-partition) batch reports
+    # BOTH, proving two distinct commits against two distinct refs landed.
+    refs_committed = {ref for ref, _sha in result.commit_hashes}
+    assert refs_committed == {
+        coord_mission.target_branch,
+        coord_mission.coordination_branch,
+    }, (
+        "a mixed REVIEW_CYCLE + WORK_PACKAGE_TASK batch under coord topology "
+        f"must split into two commits against two distinct refs; got {refs_committed!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T016 — REVIEW_CYCLE's E2 (PUBLISHED) eligibility ruling: INCLUDED.
+#
+# Mirrors the fixture shape of ``tests/mission_runtime/test_consolidated_
+# resolution.py``'s ``_build_e2_mission_coord_fully_retired`` (that file is
+# NOT owned by this WP) so the PUBLISHED + fully-retired-coordination-branch
+# case (the ADR's measured "45 of 45" reality) is exercised for REVIEW_CYCLE
+# specifically, inside this WP's own owned test file.
+# ---------------------------------------------------------------------------
+
+
+def _e2_git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _build_e2_review_cycle_mission(tmp_path: Path) -> tuple[Path, str]:
+    """A genuine PUBLISHED (E2) coord-topology mission whose coordination
+    branch has ALSO been retired (0-of-45 shape, ADR 2026-08-03-1) -- returns
+    ``(repo_root, mission_slug)``. ``main`` is the resolved Primary Branch.
     """
-    is_primary = kind in artifacts_mod._PRIMARY_ARTIFACT_KINDS
-    true_ref = _placement_ref(coord_mission, kind)
-    expected_true = (
-        coord_mission.target_branch if is_primary else coord_mission.coordination_branch
-    )
-    assert true_ref == expected_true, (
-        f"precondition: live-partition {kind.name} should resolve to "
-        f"{expected_true!r}, got {true_ref!r}"
-    )
+    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.mission_metadata import load_meta, write_meta
 
-    _force_kind_into_opposite_partition(monkeypatch, kind)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _e2_git(repo, "init", "-q", "-b", "main")
+    _e2_git(repo, "config", "user.email", "guard@example.com")
+    _e2_git(repo, "config", "user.name", "Guard Suite")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
+    (repo / "README.md").write_text("# repo\n", encoding="utf-8")
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", "init")
+    init_sha = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
 
-    mutated_ref = _placement_ref(coord_mission, kind)
-    expected_opposite = (
-        coord_mission.coordination_branch if is_primary else coord_mission.target_branch
+    mission_id = str(ULID())
+    mid8 = mission_id[:8]
+    slug = f"review-cycle-e2-guard-{mid8}"
+    target_branch = f"kitty/mission-{slug}"
+    coordination_branch = f"kitty/mission-{slug}-coord"
+
+    _e2_git(repo, "checkout", "-q", "-b", target_branch)
+    _e2_git(repo, "branch", coordination_branch, target_branch)
+    feature_dir = repo / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "mission_number": None,
+                "mission_type": "software-dev",
+                "target_branch": target_branch,
+                "topology": "coord",
+                "coordination_branch": coordination_branch,
+                "friendly_name": "T016 E2 review-cycle guard fixture",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
     )
-    assert mutated_ref == expected_opposite, (
-        f"re-homing {kind.name} did not route it to the opposite surface "
-        f"{expected_opposite!r}; got {mutated_ref!r}"
+    (feature_dir / "tasks" / "WP01").mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01" / "review-cycle-1.md").write_text(
+        "# Review cycle 1\n\nverdict: rejected\n", encoding="utf-8"
     )
-    assert mutated_ref != true_ref, (
-        f"re-homing {kind.name} left its resolved ref unchanged ({mutated_ref!r}) — "
-        "the partition guard would pass vacuously for this kind."
-    )
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", f"chore({slug}): mission scaffold")
+
+    # E1 consolidation bookkeeping (baseline_merge_commit + mission_number).
+    record_baseline_merge_commit(feature_dir, init_sha, mission_id=mission_id)
+    meta = load_meta(feature_dir)
+    assert meta is not None
+    meta["mission_number"] = 999
+    write_meta(feature_dir, meta, validate=False)
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", f"chore({slug}): record baseline (E1)")
+
+    # Publish (E2): merge to main, delete BOTH the target and coordination
+    # branches -- the 0-of-45 shape.
+    _e2_git(repo, "branch", "-D", coordination_branch)
+    _e2_git(repo, "checkout", "-q", "main")
+    _e2_git(repo, "merge", "-q", "--no-ff", target_branch, "-m", f"Merge {target_branch}")
+    _e2_git(repo, "branch", "-D", target_branch)
+
+    return repo.resolve(), slug
+
+
+def test_review_cycle_e2_published_resolves_consolidated_surface(tmp_path: Path) -> None:
+    """T016 (INCLUDED): a PUBLISHED mission's REVIEW_CYCLE write resolves the
+    CONSOLIDATED target (the resolved Primary Branch NAME) directly -- the
+    unconditional coordination-surface probe (which would raise
+    ``CoordinationBranchDeleted`` for every one of the ADR's measured 45
+    already-retired-coord missions) is BYPASSED for this phase+kind
+    combination, exactly like ISSUE_MATRIX/TRACER_FILE/ACCEPTANCE_MATRIX."""
+    repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
+
+    resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.REVIEW_CYCLE)
+
+    assert resolved == CommitTarget(ref="main")
+
+
+def test_review_cycle_e2_ruling_does_not_affect_status_state_exclusion(
+    tmp_path: Path,
+) -> None:
+    """T016 non-regression: STATUS_STATE / DECISION_LOG's existing exclusion
+    from the E2-eligible set is unaffected by REVIEW_CYCLE's inclusion --
+    STATUS_STATE still probes coordination (and raises) for the SAME
+    fully-retired-coord E2 fixture."""
+    from mission_runtime import ActionContextError
+
+    repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
+
+    with pytest.raises(ActionContextError):
+        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)

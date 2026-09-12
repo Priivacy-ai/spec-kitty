@@ -9,7 +9,7 @@ Test coverage:
 """
 
 import random
-from datetime import UTC, datetime
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
@@ -360,7 +360,9 @@ class TestParityHashAlgorithm:
         hash2 = compute_parity_hash_from_dossier(dossier)
 
         assert hash1 == hash2
-        assert len(hash1) == 64  # SHA256 is 64 hex characters  # golden-count: cardinality-is-contract
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert hash1.startswith("sha256:")
+        assert len(hash1) == len("sha256:") + 64  # golden-count: cardinality-is-contract
 
     def test_parity_hash_order_independence(self) -> None:
         """Same artifacts in different order should produce same parity hash."""
@@ -795,7 +797,7 @@ class TestSnapshotEquality:
 
     def test_snapshot_equality_ignores_timestamp(self) -> None:
         """Equality should ignore timestamp differences."""
-        now = datetime.now(UTC)
+        now = now_utc()
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
@@ -934,7 +936,9 @@ class TestLargeSnapshot:
         assert snapshot.optional_artifacts == 15
         assert snapshot.optional_present == 8
         assert snapshot.completeness_status == "complete"
-        assert len(snapshot.parity_hash_sha256) == 64  # golden-count: cardinality-is-contract
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert snapshot.parity_hash_sha256.startswith("sha256:")
+        assert len(snapshot.parity_hash_sha256) == len("sha256:") + 64  # golden-count: cardinality-is-contract
         assert len(snapshot.artifact_summaries) == 35  # golden-count: cardinality-is-contract
 
 
@@ -999,3 +1003,24 @@ class TestSnapshotTraversalGuard:
         """load_snapshot with a traversal slug must raise ValueError."""
         with pytest.raises(ValueError):
             load_snapshot(tmp_path, bad_slug)
+
+
+class TestPresentProjection:
+    """#2883 item 2: the single present-artifact projection shared by the
+    snapshot-hash producer and the reconciler's source/recorded sides."""
+
+    def test_filters_and_treats_objects_and_dicts_identically(self):
+        from types import SimpleNamespace
+
+        from specify_cli.dossier.snapshot import present_projection
+
+        rows = [
+            {"relative_path": "spec.md", "content_hash_sha256": "aaa", "is_present": True},
+            {"relative_path": "gone.md", "content_hash_sha256": "bbb", "is_present": False},  # absent → dropped
+            {"relative_path": "empty.md", "content_hash_sha256": "", "is_present": True},  # present, no hash → dropped
+        ]
+        objects = [SimpleNamespace(**row) for row in rows]
+
+        expected = [("spec.md", "aaa")]
+        assert present_projection(rows) == expected  # recorded summary dicts
+        assert present_projection(objects) == expected  # ArtifactRef-shaped objects — one definition

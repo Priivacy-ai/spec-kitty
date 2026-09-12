@@ -2,7 +2,7 @@
 
 **Mission:** mission-type-doctrine-authority-01KXH6GE
 **Tracker:** [#883](https://github.com/Priivacy-ai/spec-kitty/issues/883) (slice 1 of the `specify_cli/missions` retirement; epics #461 / #901)
-**Design authority:** [ADR 2026-07-14-2](../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) · [mission brief](../../docs/architecture/883-mission-type-authority-brief.md) · [research dossier](../../docs/architecture/883-research-synthesis.md)
+**Design authority:** [ADR 2026-07-14-2](../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) · [mission brief](../../docs/plans/engineering-notes/883-mission-type-authority-brief.md) · [research dossier](../../docs/plans/engineering-notes/883-research-synthesis.md)
 
 > This spec states **what** must be true and **why**. The **how** is fixed by the
 > ADR above (Accepted); the plan phase turns it into design artifacts. Requirements

@@ -1,0 +1,52 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: cover
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: TASKS-COVER-001
+    lens: FR-004 traceability correctness under the SPLIT verdict
+    severity: 3
+    title: "FR-004 appears in wps.yaml/tasks.md requirement_refs with no machine- or human-visible marker distinguishing 'traceable, descoped, NOT implemented' from the genuinely-implemented FRs it sits beside"
+    evidence:
+      - artifact: "wps.yaml § WP02 requirement_refs"
+      - artifact: "tasks.md § Work Package WP02 (\"**Requirement Refs**: FR-004, FR-005, NFR-002\")"
+      - artifact: "tasks/WP02-loud-fallback.md § T006, § Definition of Done"
+      - artifact: "plan.md § \"#3831 Split Verdict — Consequence for Scope\" (FR-004 descoped)"
+      - code: "src/specify_cli/requirement_mapping.py:485-496 (compute_coverage: 'mapped_functional' is set membership only — a ref counts as 'mapped' the instant any WP lists it in requirement_refs, with no concept of implemented vs. traceability-only)"
+    claim: >
+      WP02's prompt body (tasks/WP02-loud-fallback.md) is internally unambiguous that
+      FR-004 must not be implemented — the descope is stated three times (the "Why this
+      WP exists" section, T006's header and body, and the Definition of Done's "do not
+      add it under the guise of 'while I'm in here'" line). That mitigates in-WP
+      implementer risk. But the two machine-generated/mechanical artifacts a downstream
+      reader is most likely to consult in isolation — wps.yaml's requirement_refs list and
+      tasks.md's rendered "**Requirement Refs**: FR-004, FR-005, NFR-002" line — present
+      FR-004 with the exact same shape as FR-005 (genuinely implemented in the same WP)
+      and every other FR in the mission. Neither the frontmatter list nor the generated
+      table row carries any annotation (comment, suffix, footnote) marking FR-004 as
+      descoped/traceability-only. The mechanical FR-coverage validator itself
+      (compute_coverage in requirement_mapping.py) only computes "mapped" vs "unmapped" by
+      set membership — its own vocabulary does not distinguish "mapped by an implementing
+      WP" from "mapped by a WP that explicitly declines to implement it" — so any future
+      automated coverage report, a post-merge mission-review pass, or a human skimming
+      tasks.md/wps.yaml alone (without opening WP02's full prompt body) has a concrete path
+      to conclude FR-004 shipped in this mission, contradicting plan.md's binding SPLIT
+      verdict. This is exactly the risk the assigned lens asks to verify, and it is real:
+      the WP-body documentation is excellent, but it does not propagate into the two
+      generated/summary artifacts that are supposed to be the fast, trustworthy coverage
+      surface.
+    remediation: |
+      Add a YAML comment directly beside the FR-004 entry in wps.yaml's WP02
+      requirement_refs list (comments are stripped by the YAML parser so this does not
+      change compute_coverage's mechanical behavior), e.g.:
+      `- "FR-004"  # descoped — traceability only, NOT implemented; see plan.md §"#3831 Split Verdict" and WP02 T006`,
+      and mirror the same comment in tasks/WP02-loud-fallback.md's frontmatter
+      requirement_refs list. Since tasks.md is regenerated from wps.yaml by
+      finalize-tasks and this review is instructed not to fault its generated prose, file
+      a follow-up tooling gap (per the charter's "trace the source and file an upstream
+      gap" rule) asking finalize-tasks' tasks.md renderer to carry forward such
+      inline-comment annotations (or a parallel `requirement_status` map) into the
+      generated table row, so the descope survives into the one artifact most likely to be
+      read in isolation.

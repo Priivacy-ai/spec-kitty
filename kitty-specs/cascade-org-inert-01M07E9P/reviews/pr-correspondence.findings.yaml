@@ -1,0 +1,178 @@
+lens: correspondence
+coverage:
+  claims_checked: 37
+  verified: 34
+  unverifiable: 1
+  notes: >
+    Checked every file:line citation, symbol name, and behavioural claim made in the
+    code comments/docstrings this diff adds or changes, across all 6 in-scope src/
+    files and all 3 in-scope test files, against the real current source tree
+    (branch pr/cascade-org-inert-v2, base refs/remotes/origin/main). Also
+    cross-referenced every T-number / FR-number / C-number / AC-number cited in
+    code comments and test docstrings against kitty-specs/cascade-org-inert-01M07E9P/
+    spec.md and tasks/WP01-03-*.md (all matched). Ran the three in-scope test files
+    (.venv/bin/python -m pytest tests/charter/test_context_org_chain.py
+    tests/dossier/test_rebaseline.py tests/specify_cli/cli/commands/charter/
+    test_org_cascade_chain.py -q -> 36 passed) and `uvx ruff check` on all 9
+    in-scope files (clean). Two items are not "verified true": R1-001 (a claim that
+    is factually false — one of the 36) and R1-002 (a claim that is imprecise but
+    substantively correct, counted as verified since its underlying assertion holds).
+    Split of the 36: 12 claims in src/charter/context.py, _layer_roots.py,
+    activate.py, deactivate.py, and the CLI context.py (about _resolve_action_bundle
+    org-root widening semantics, _org_scan_dirs/_layer_scan_dirs single-Path-vs-chain
+    behaviour, the charter.drg re-export boundary, CharterPackManager.activate's
+    layer_roots["org"] single-slot behaviour, and the _activate_cascade_target
+    fallback-call-shape) — all independently re-derived from source, all TRUE. 12
+    claims in the rebaseline.py "Org-awareness" docstring's T001 evidence trail
+    (Indexer.__init__, save_snapshot, sync_feature_dossier, locate_project_root's
+    docstring text, find_repo_root, the TASKS_INDEX/_read_path_resolver.py:1308
+    primary-partition resolution, migrate_cmd.py's rebaseline_dossier_hashes caller,
+    .gitignore lines, KITTY_SPECS_DIR) — 11 TRUE, 1 imprecise-but-substantively-true
+    (R1-002), plus the "six production call sites" enumeration itself is FALSE
+    (R1-001). Remaining 12 claims are the supplementary T-number/FR-number/
+    constraint-ID cross-references and helper-function-existence checks (all TRUE).
+    Not independently re-verified: whether the additional dossier-sync call paths
+    found under R1-001 (particularly status.emit.emit_status_transition's
+    coordination/status_transition.py fan-out) can ever be invoked with a
+    worktree-scoped repo_root in practice — that would require tracing every
+    caller of emit_status_transition across the codebase, which is beyond this
+    diff's own scope; R1-001 is filed as an incomplete-audit finding, not a proven
+    live data-corruption bug.
+    One additional claim (37th) is unverifiable rather than false: the T017/T018
+    commit messages (7f6b66f29, a8d0fd58b) and tests/charter/test_context_org_chain.py's
+    module docstring both cite "the WP report" as holding non-vacuity mutation
+    evidence for the FR-002 fix. No file matching "WP report" (or any report
+    artifact) exists anywhere under kitty-specs/cascade-org-inert-01M07E9P/ in
+    this checkout (recursive search). The substantively equivalent evidence (a
+    mutation matrix: neither fix / CLI-fix-only / wrapper-swap-only / both) does
+    appear in the PR #3534 description body (fetched via `gh pr view 3534`), so
+    the underlying non-vacuity claim is backed — just not at the cited location.
+    Filed as R1-003.
+findings:
+  - id: R1-001
+    severity: 4
+    file: src/specify_cli/dossier/rebaseline.py
+    line: 59
+    claim: >
+      "Every one of that function's six production call sites
+      (cli/commands/agent/tasks_mark_status.py, workflow_executor.py (the
+      implement/claim path), mission_finalize.py, mission_setup_plan.py,
+      mission_record_analysis.py, research.py) resolves its repo_root via
+      locate_project_root() ... Net: every real write path for a recorded
+      snapshot funnels through the PRIMARY/main checkout, never a
+      .worktrees/<slug>-<mid8>-lane-<id>/ path." This claim is presented as the
+      completed T001 investigation (FR-003 AC5: "must investigate and resolve
+      this before implementing FR-003 -- do not assume single-checkout-only
+      without checking") that justifies `_derive_repo_root`'s "no worktree-aware
+      correction needed" design.
+    reality: >
+      `grep -rln "trigger_feature_dossier_sync_if_enabled(" src/` shows at least
+      four more real production reachability paths into the same
+      save_snapshot write site that the docstring never mentions or traces:
+      (1) src/specify_cli/merge/executor.py:1300 calls it directly from
+      `_phase_dossier_and_stale` (the `spec-kitty merge` post-merge phase); (2)
+      src/specify_cli/migration/backfill_identity.py:265-277 defines its own
+      same-named wrapper that calls the real function, invoked from
+      `_rehash_modified_missions` (the `migrate backfill-identity` flow); (3)
+      src/specify_cli/migration/normalize_mission_lifecycle.py:108-111 calls it
+      directly from `_apply_identity_normalization` (the `migrate
+      normalize-mission-lifecycle` flow); and, most importantly, (4) an entirely
+      separate, unexamined INDIRECT pathway: src/specify_cli/sync/__init__.py's
+      `_dossier_sync_handler` (registered at import time via
+      `register_default_handlers()`, sync/__init__.py:455-456, gated only by the
+      test-only SPEC_KITTY_SYNC_MINIMAL_IMPORT env var) forwards straight into
+      `trigger_feature_dossier_sync_if_enabled`, and is invoked via
+      `fire_dossier_sync` from THREE more production call sites:
+      src/specify_cli/status/emit.py:806 and :966 (inside
+      `emit_status_transition` / `emit_status_transition_batch` -- the single
+      canonical entry point for every WP lane transition, per this repo's own
+      CLAUDE.md), src/specify_cli/coordination/status_transition.py:955, and
+      src/specify_cli/core/mission_creation.py:819. `emit_status_transition` is
+      invoked pervasively throughout the implement/review/claim lifecycle,
+      including from status-changing commands that run inside execution
+      worktrees (per CLAUDE.md's own "Execution Workspace Strategy (2.x)"
+      section) -- yet this pathway is not named, traced, or ruled out anywhere
+      in the docstring's evidence trail. Spot-checking the three directly-called
+      sites I found (merge/executor.py's `run.main_repo`, and the two migration
+      scripts' `locate_project_root()`-derived repo_root) shows they do still
+      resolve to the main/primary checkout, consistent with the docstring's
+      conclusion -- but the `emit_status_transition`/`fire_dossier_sync`
+      pathway's repo_root provenance was never checked at all, so the audit's
+      claim to have investigated "every real write path" is not accurate as
+      written, regardless of whether that specific unexamined pathway turns out
+      to be safe.
+    summary: >
+      The T001 worktree-investigation evidence trail claims to exhaustively
+      enumerate "six production call sites" of trigger_feature_dossier_sync_if_enabled,
+      but at least four more real call sites exist (including the canonical
+      emit_status_transition status-fan-out path), none of which are named,
+      traced, or ruled out, undermining the completeness FR-003 AC5 explicitly
+      requires ("must investigate and resolve this ... not deferred silently").
+    recommendation: >
+      Either correct the docstring's enumeration to be genuinely exhaustive and
+      explicitly trace the emit_status_transition/fire_dossier_sync pathway's
+      repo_root provenance (confirming it always resolves to the primary
+      checkout even when a status transition is emitted from inside an
+      execution worktree), or soften the docstring's language so it no longer
+      claims an exhaustive "six call sites" audit it did not actually perform,
+      and file a follow-up tracker issue for the unexamined pathway if it
+      cannot be resolved within this mission's scope.
+  - id: R1-002
+    severity: 1
+    file: src/specify_cli/dossier/rebaseline.py
+    line: 55
+    claim: >
+      "the sole write site for a recorded snapshot is save_snapshot
+      (dossier/snapshot.py:154), called from exactly one production function,
+      sync_feature_dossier (sync/dossier_pipeline.py:140)"
+    reality: >
+      Line 140 of src/specify_cli/sync/dossier_pipeline.py is inside the
+      private helper `_emit_snapshot` (defined at line 117), not inside
+      `sync_feature_dossier` (defined at line 264) directly; `sync_feature_dossier`
+      calls `_emit_snapshot` at line 355, which in turn calls `save_snapshot` at
+      line 140. `_emit_snapshot` has exactly one caller (`sync_feature_dossier`
+      itself), so the substantive claim -- that the write ultimately funnels
+      through exactly one production function -- still holds; the citation
+      just attributes line 140 to the wrong (one level up) function name.
+    summary: >
+      Minor citation imprecision: save_snapshot's call site at
+      dossier_pipeline.py:140 is inside the private helper _emit_snapshot, not
+      literally inside sync_feature_dossier as the comment implies -- the
+      underlying claim is still correct since _emit_snapshot has only that one
+      caller.
+    recommendation: >
+      Either name `_emit_snapshot` explicitly in the citation chain, or drop
+      the line number and just say "reached from sync_feature_dossier via its
+      _emit_snapshot helper" to avoid implying save_snapshot is called directly
+      from sync_feature_dossier's own body.
+  - id: R1-003
+    severity: 1
+    file: tests/charter/test_context_org_chain.py
+    line: 0
+    claim: >
+      "Non-vacuity: mutating either T017 ... or T018 ... back out independently
+      must turn this RED again -- recorded via manual revert-and-rerun in the WP
+      report, per this mission's stricter-than-default FR-002 test strategy."
+      Commit messages 7f6b66f29 and a8d0fd58b make the same citation ("see the
+      WP report's non-vacuity evidence", "SHAs in the WP report").
+    reality: >
+      No file named or shaped like a "WP report" exists anywhere under
+      kitty-specs/cascade-org-inert-01M07E9P/ in this checkout (checked
+      recursively). The WP03 task prompt itself only asks for evidence to live
+      "in commit message or PR notes," not a dedicated report file. The
+      substantively equivalent evidence (a mutation matrix: neither fix / CLI-fix-
+      only / wrapper-swap-only / both, all four outcomes stated) does appear in
+      the PR #3534 description body (`gh pr view 3534`), which backs the
+      underlying non-vacuity claim -- but the specific artifact named ("the WP
+      report") is not present in the repository.
+    summary: >
+      Multiple citations (two commit messages, one test docstring) point to "the
+      WP report" as the location of non-vacuity mutation evidence, but no such
+      file exists in the repo -- the evidence is real but lives only in the PR
+      description, not at the cited location.
+    recommendation: >
+      Either commit the mutation-matrix evidence as a short note under
+      kitty-specs/cascade-org-inert-01M07E9P/ (e.g. alongside
+      tracer-tooling-friction.md) or reword the commit messages and test
+      docstring to point at the PR description instead of an unlocated "WP
+      report."

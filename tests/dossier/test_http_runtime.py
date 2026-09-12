@@ -20,7 +20,7 @@ Test Strategy:
 import json
 import pytest
 import tempfile
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -56,7 +56,7 @@ class TestDossierHTTPRuntime:
                 size_bytes=1024,
                 required_status="required",
                 is_present=True,
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
             ArtifactRef(
                 artifact_key="output.plan.main",
@@ -66,7 +66,7 @@ class TestDossierHTTPRuntime:
                 size_bytes=2048,
                 required_status="required",
                 is_present=True,
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
             ArtifactRef(
                 artifact_key="evidence.research",
@@ -77,7 +77,7 @@ class TestDossierHTTPRuntime:
                 required_status="optional",
                 is_present=False,
                 error_reason="not_found",
-                indexed_at=datetime.now(UTC),
+                indexed_at=now_utc(),
             ),
         ]
 
@@ -104,7 +104,9 @@ class TestDossierHTTPRuntime:
         assert isinstance(response, DossierOverviewResponse)
         assert response.mission_slug == "042-test-feature"
         assert response.completeness_status in ("complete", "incomplete", "unknown")
-        assert len(response.parity_hash_sha256) == 64  # SHA256 hex
+        # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
+        assert response.parity_hash_sha256.startswith("sha256:")
+        assert len(response.parity_hash_sha256) == len("sha256:") + 64
 
     def test_artifacts_endpoint_returns_full_list(self, temp_feature_dir):
         """Verify artifacts endpoint returns all artifacts."""

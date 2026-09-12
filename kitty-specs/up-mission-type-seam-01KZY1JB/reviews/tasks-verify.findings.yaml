@@ -1,0 +1,78 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: TASKS-VERIFY-001
+    lens: "Red-first stated per WP"
+    severity: 3
+    title: "WP04 sequences its behavior-proving test (T010) explicitly AFTER the implementation subtasks (T008/T009), reversing red-first order"
+    evidence:
+      - artifact: "tasks/WP04-pack-context-projection.md § Subtasks & Detailed Guidance, T008/T009/T010"
+      - artifact: "tasks/WP04-pack-context-projection.md § Test Strategy (no red-first/commit-ordering statement present)"
+      - code: "src/charter/mission_type_profiles.py:762 (_resolve_action_slot), :841 (_resolve_template_set_slot) — the two functions T008/T009 edit"
+    claim: >
+      WP04 is an `execution_mode: code_change` / `task_type: implement` WP that changes production
+      behavior: T008 threads a real `PackContext` into `_resolve_template_set_slot` (replacing a
+      hardcoded `pack_context=None`) and T009 adds a `pack_context` parameter to
+      `_resolve_action_slot` and swaps its repository call from `MissionTypeRepository.default()` to
+      WP03's new layered factory. T010, the subtask that adds the tests proving this new behavior
+      (full-replace precedence, org-pack real-projection, golden-parity regression), is explicitly
+      marked "Sequenced after T008/T009 (needs the threading in place to test against)" — i.e. the
+      WP's own subtask ordering has implementation land before any test exists to pin the new
+      behavior. WP04's Test Strategy section states no RED/GREEN commit ordering at all. This directly
+      contradicts the charter's binding ATDD-First Discipline (C-011: "The WP cannot start coding
+      until at least one failing-first ATDD test exists that pins the user-observable behaviour the
+      WP delivers... committed as a separate commit... BEFORE any implementation commits") and is
+      inconsistent with how the same mission's sibling implementation WPs handle this exact
+      requirement: WP03/T005 is explicitly labelled "Red-first" and instructs proving the test fails
+      before the fix; WP05/T012 step 1 instructs "write this test to fail against the current
+      (pre-T011) `_resolve_layer_candidate` body first, then confirm it passes after T011's fix";
+      WP06 has the mission's own hard two-ordered-commits requirement (NFR-005). WP04 is the only
+      behavior-changing implementation WP in this mission with no red-first instruction of any kind,
+      and its explicit ordering statement affirmatively contradicts one.
+    remediation: >
+      Reorder WP04's guidance (or at minimum its Subtasks framing) so the tests in T010 — the
+      org-pack real-projection test, the full-replace precedence test, and the golden-parity
+      extension — are written first and confirmed to fail against the pre-WP04 code (T008/T009 not
+      yet applied), then T008/T009's implementation edits are made and confirmed to turn those tests
+      green. State explicitly in WP04's Test Strategy section which test(s) are RED-first and which
+      commit makes them GREEN, mirroring WP03/WP05/WP06's phrasing, so a reviewer can verify red-first
+      compliance the same way they do for this mission's other implementation WPs.
+
+  - id: TASKS-VERIFY-002
+    lens: "Red-first stated per WP"
+    severity: 3
+    title: "None of WP07's four CLI-surface behavior fixes (T016–T019) states red-first test-before-fix ordering"
+    evidence:
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T016 Steps"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T017 Steps (\"the highest-risk subtask in this WP\")"
+      - artifact: "tasks/WP07-cli-surface-fixes.md § Subtasks & Detailed Guidance, T019 Steps (step 1 = fix, step 2 = \"Add the edge-case test\")"
+    claim: >
+      WP07 (`task_type: implement`) fixes four independent silent-lying CLI behaviors (FR-006
+      through FR-009) — the exact class of "tolerate-and-lie" regression this mission exists to
+      close (CL-003's dominant risk, restated at the WP07 Objectives level as "Stop each of the four
+      consumer surfaces from tolerating-and-lying about a non-built-in mission type"). Yet none of
+      T016, T017, T018, or T019 instructs writing the new/extended test first and confirming it fails
+      against the current (pre-fix) code before making the fix — every subtask's Steps list the code
+      change first (or, for T017, list the three fix-sites in steps 1–3 with test-writing only
+      appearing as step 4, describing a required test *property* rather than a *commit-ordering*
+      instruction) and T019 literally orders "1. Replace the bare `except Exception: current_seq =
+      []`... 2. Add the edge-case test..." — fix, then test. This is the same class of gap as
+      TASKS-VERIFY-001, but here it spans WP07's entire subtask set, including T017, which the WP's
+      own Risks section calls "the highest-risk subtask in this WP" and explicitly ties to
+      PLAN-FRESH2-001, the exact severity-4 finding that HALTed the plan phase once for an
+      incomplete fix. Unlike WP03 (T005, "Red-first"), WP05 (T012 step 1, explicit fail-first
+      instruction), and WP06 (NFR-005's mandatory two-ordered-commits), WP07 gives its implementer no
+      mechanism to demonstrate any of these four fixes were red-first, and its own Review Guidance
+      section never asks a reviewer to check for it either.
+    remediation: >
+      Add an explicit red-first instruction to each of T016–T019 (and ideally T020, the SC-001
+      capstone): write the relevant test extension first, run it against the current code, confirm it
+      fails for the reason the fix is supposed to correct (the `"unknown"` source_layer branch for
+      T016; each of the three `show_mission_type` sites for T017 — the case the plan phase HALTed
+      over once already; the missing org/project rows for T018; the swallowed-exception path for
+      T019), then implement the fix and confirm green. Add a corresponding Review Guidance bullet
+      asking the reviewer to check this, matching the pattern already used in WP03/WP05/WP06.

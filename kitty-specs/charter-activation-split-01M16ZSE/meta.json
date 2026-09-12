@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-29T14:46:43.077048+00:00",
+  "flattened": false,
+  "friendly_name": "Charter Activation Split (retire-doctrine-term M2b)",
+  "mission_id": "01M16ZSE44R13FHYNQ0FHRRJA9",
+  "mission_number": null,
+  "mission_slug": "charter-activation-split-01M16ZSE",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Charter Activation Split (retire-doctrine-term M2b) on feat/charter-activation-split so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Charter Activation Split (retire-doctrine-term M2b)",
+  "slug": "charter-activation-split-01M16ZSE",
+  "target_branch": "feat/charter-activation-split",
+  "topology": "single_branch"
+}

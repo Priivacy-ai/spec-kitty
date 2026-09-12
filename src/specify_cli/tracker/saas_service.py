@@ -15,6 +15,7 @@ from typing import Any
 from specify_cli.tracker.config import (
     TrackerProjectConfig,
     clear_tracker_config,
+    load_tracker_config,
     save_tracker_config,
 )
 from specify_cli.tracker.discovery import (
@@ -102,7 +103,11 @@ class SaaSTrackerService:
     ) -> None:
         self._repo_root = repo_root
         self._config = config
-        self._client = client or SaaSTrackerClient()
+        # #3030 FR-029: every send this service makes carries the repo's mission
+        # and engagement identifiers, so the transport is told which project owns
+        # them. ``repo_root`` here is the checkout the service was built for, not
+        # the process cwd.
+        self._client = client or SaaSTrackerClient(project_root=repo_root)
         # Last binding_ref upgrade *reported* by a read-like op (status/sync_*/
         # map_list).  Read paths never persist; this records what an explicit
         # ``apply_binding_upgrade`` would write.  ``None`` means nothing pending.
@@ -210,8 +215,15 @@ class SaaSTrackerService:
                 else self._config.provider_context
             ),
             workspace=self._config.workspace,
-            doctrine_mode=self._config.doctrine_mode,
-            doctrine_field_owners=self._config.doctrine_field_owners,
+            ownership_mode=self._config.ownership_mode,
+            ownership_field_owners=self._config.ownership_field_owners,
+            # FR-011 site B1: an explicit carry beside (not instead of) the
+            # `_extra` carry below. Before egress was promoted to a known key it
+            # rode along inside `_extra` for free; promoting it (#3108 FR-002)
+            # excludes it from `_extra` (`from_dict`'s `_KNOWN_KEYS` filter), so
+            # without this explicit carry this line would silently start
+            # dropping a committed decision.
+            egress=self._config.egress,
             _extra=self._config._extra,
         )
         save_tracker_config(self._repo_root, updated)
@@ -258,10 +270,17 @@ class SaaSTrackerService:
         Stores provider + project_slug only.  No credentials are accepted
         because SaaS-backed providers authenticate through the Spec Kitty
         SaaS control plane.
+
+        FR-011 site A3: carries the loaded config's ``egress`` (and ``_extra``)
+        forward. Measured: without this carry, a bare
+        ``TrackerProjectConfig(provider=..., project_slug=...)`` here erases a
+        committed Channel-2 decision on every bind/rebind.
         """
         config = TrackerProjectConfig(
             provider=provider,
             project_slug=project_slug,
+            egress=self._config.egress,
+            _extra=dict(self._config._extra),
         )
         save_tracker_config(self._repo_root, config)
         self._config = config
@@ -272,9 +291,18 @@ class SaaSTrackerService:
 
         Does NOT touch ``TrackerCredentialStore`` because SaaS-backed
         providers never store provider-native secrets locally.
+
+        FR-011 site D: resets the in-memory config by re-loading from disk
+        rather than to a bare default, so it matches what site C (
+        ``clear_tracker_config``) just left there -- a recorded ``egress``
+        decision if one existed, nothing otherwise. Library-caller reachable
+        only (the CLI builds a fresh service per invocation), but a subsequent
+        ``_persist_binding`` on this same instance would otherwise write a
+        config with no ``egress``, erasing exactly what site C was just fixed
+        to preserve.
         """
         clear_tracker_config(self._repo_root)
-        self._config = TrackerProjectConfig()
+        self._config = load_tracker_config(self._repo_root)
 
     # ------------------------------------------------------------------
     # Discovery & binding
@@ -293,7 +321,16 @@ class SaaSTrackerService:
         provider_context: dict[str, str] | None,
         project_slug: str | None = None,
     ) -> None:
-        """Write binding config to disk and update in-memory state."""
+        """Write binding config to disk and update in-memory state.
+
+        FR-011 site B2: carries ``egress`` forward explicitly, same reasoning
+        as B1 above (``apply_binding_upgrade``). Unlike ``workspace`` and
+        ``display_label``, the carry is unconditional rather than gated on
+        ``same_provider`` -- a recorded Channel-2 decision is a property of the
+        *project*, not of which provider happens to be bound, and must survive
+        a rebind to a different provider exactly as it must survive a rebind to
+        the same one.
+        """
         same_provider = self._config.provider == provider
         resolved_slug = project_slug or (self._config.project_slug if same_provider else None)
         updated = TrackerProjectConfig(
@@ -307,8 +344,9 @@ class SaaSTrackerService:
             ),
             provider_context=provider_context,
             workspace=self._config.workspace if same_provider else None,
-            doctrine_mode=self._config.doctrine_mode,
-            doctrine_field_owners=dict(self._config.doctrine_field_owners),
+            ownership_mode=self._config.ownership_mode,
+            ownership_field_owners=dict(self._config.ownership_field_owners),
+            egress=self._config.egress,
             _extra=dict(self._config._extra),
         )
         save_tracker_config(self._repo_root, updated)

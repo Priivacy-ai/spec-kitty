@@ -134,9 +134,6 @@ def _no_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None, raising=False)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None, raising=False)
-
-
 # ── 1. Byte-stability (SC-004 / NFR-003) — the headline ─────────────────────
 
 

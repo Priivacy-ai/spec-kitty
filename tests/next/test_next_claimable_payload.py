@@ -20,6 +20,7 @@ from runtime.next.decision import DecisionKind
 from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -36,6 +37,7 @@ def _scaffold(
     wps: dict[str, Lane],
     *,
     dependencies: dict[str, list[str]] | None = None,
+    reason_sources: dict[str, str] | None = None,
 ) -> tuple[Path, str]:
     _init_repo(repo)
     (repo / ".kittify").mkdir()
@@ -64,6 +66,7 @@ def _scaffold(
             f"# {wp_id}\n",
             encoding="utf-8",
         )
+        reason_source = reason_sources.get(wp_id) if reason_sources else None
         append_event(
             feature_dir,
             StatusEvent(
@@ -76,6 +79,8 @@ def _scaffold(
                 actor="fixture",
                 force=True,
                 execution_mode="worktree",
+                reason=("replan" if reason_source else None),
+                reason_source=reason_source,
             ),
         )
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -227,6 +232,53 @@ def test_preview_claimable_wp_allows_dep_after_approved(tmp_path: Path) -> None:
 
     assert preview.wp_id == "WP02"
     assert preview.selection_reason is None
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_allows_dep_after_operator_cancel(tmp_path: Path) -> None:
+    """FR-009: a dependent becomes claimable once its dependency is
+    canceled *with operator provenance*.
+
+    The next-loop preview threads the reduced snapshot's provenance into the
+    readiness authority, so a documented cancellation reads as an acceptable
+    ending — parity with the primary claim gates rather than a strand.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.CANCELED, "WP02": Lane.PLANNED},
+        dependencies={"WP02": ["WP01"]},
+        reason_sources={"WP01": OPERATOR_REASON_SOURCE},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id == "WP02"
+    assert preview.selection_reason is None
+    assert preview.candidates == ("WP01", "WP02")
+
+
+def test_preview_claimable_wp_gates_dep_after_synthetic_cancel(tmp_path: Path) -> None:
+    """FR-009: a synthetic (no-provenance) cancellation stays blocking.
+
+    Without operator provenance the cancellation is not an acceptable ending,
+    so the dependent must remain suppressed with ``dependencies_not_satisfied``
+    — the preview fails closed exactly like the claim gates.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.CANCELED, "WP02": Lane.PLANNED},
+        dependencies={"WP02": ["WP01"]},
+        reason_sources={"WP01": "synthetic"},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id is None
+    assert preview.selection_reason == "dependencies_not_satisfied"
     assert preview.candidates == ("WP01", "WP02")
 
 

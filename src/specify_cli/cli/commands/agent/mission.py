@@ -5,7 +5,7 @@
 extracted every cohesive seam into a dedicated one-way leaf module. What remains
 here is a thin shim that owns ONLY:
 
-* the ``mission`` Typer ``app`` and its 8 ``@app.command`` registrations
+* the ``mission`` Typer ``app`` and its 9 ``@app.command`` registrations
   (each delegating to a seam command function), and
 * a re-export block that keeps every historical ``mission.<name>`` patch
   target + ``from ...mission import <name>`` edge resolving (no business logic).
@@ -24,7 +24,8 @@ never back to ``mission``):
 * setup-plan + plan-commit       → ``mission_setup_plan``         (WP06)
 * accept / merge delegators      → ``mission_accept_merge``       (WP06)
 * finalize-tasks                 → ``mission_finalize``           (WP07)
-* planning-commit primitives     → ``coordination.commit_router`` (WP08)
+* planning-commit primitives     → ``coordination.commit_router`` (WP08 of #2056)
+* repair (Gap-2 cure)            → ``mission_repair`` (WP08 of coord-write-placement-closure-01KYCF83)
 """
 
 from __future__ import annotations
@@ -67,14 +68,10 @@ from specify_cli.core.worktree import (
 # body's direct dependencies. ``finalize_tasks`` now lives in
 # ``mission_finalize`` and imports them straight from their canonical modules,
 # but they remain deliberate ``mission.<name>`` re-exports so historical patch
-# targets (``mission.run_command`` / ``mission.get_emitter`` /
-# ``mission.is_saas_sync_enabled`` / ``mission.emit_wp_created``) and
-# ``from ...mission import <name>`` test/edge imports keep resolving. The ``as``
-# form marks them intentional (WP09 finalizes the comprehensive shim sweep).
+# targets (``mission.run_command``) and ``from ...mission import <name>``
+# test/edge imports keep resolving. The ``as`` form marks them intentional
+# (WP09 finalizes the comprehensive shim sweep).
 from specify_cli.core.git_ops import run_command as run_command
-from specify_cli.sync.events import emit_wp_created as emit_wp_created
-from specify_cli.sync.events import get_emitter as get_emitter
-from specify_cli.sync.feature_flags import is_saas_sync_enabled as is_saas_sync_enabled
 from specify_cli.frontmatter import write_frontmatter as write_frontmatter
 from specify_cli.status import WPMetadata as WPMetadata
 from specify_cli.status import read_wp_frontmatter as read_wp_frontmatter
@@ -175,6 +172,12 @@ from specify_cli.cli.commands.agent.mission_record_analysis import (
     _resolve_record_analysis_placement_ref as _resolve_record_analysis_placement_ref,
 )
 
+# WP04 (write-side-seam-matrix-tracer-01KYP3MH / T015): the acceptance-verdict
+# command is a one-way leaf, same shape as record-analysis above; it is
+# registered on ``app`` below (mirrors the record-analysis registration
+# idiom — the module owns the plain callable, this app registers it).
+from specify_cli.cli.commands.agent.acceptance_verdict import acceptance_verdict
+
 # Seam B / lifecycle families I (#2056 WP05): the branch-context command and the
 # deterministic branch-resolution helpers it shares with setup-plan/finalize-tasks
 # live in a one-way leaf module. Re-imported here so every historical
@@ -273,8 +276,8 @@ from specify_cli.cli.commands.agent.mission_accept_merge import (
 # ``_collect_finalize_artifacts`` / ``_branch_tree_relative_path`` keep resolving;
 # the command is registered on ``app`` below (WP09 finalizes the shim sweep). The
 # finalize seam resolves the cross-cutting patched symbols (``locate_project_root``
-# / ``is_saas_sync_enabled`` / ``_find_feature_directory`` / ``run_command`` /
-# ``get_emitter``) THROUGH this module at call time, so those patch seams keep
+# / ``_find_feature_directory`` / ``run_command``) THROUGH this module at call
+# time, so those patch seams keep
 # working without an import cycle.
 from specify_cli.cli.commands.agent.mission_finalize import (
     finalize_tasks as finalize_tasks,
@@ -296,6 +299,13 @@ from specify_cli.coordination.commit_router import (
     _planning_commit_worktree as _planning_commit_worktree,
     _resolve_planning_placement as _resolve_planning_placement,
     _stage_finalize_artifacts_in_coord_worktree as _stage_finalize_artifacts_in_coord_worktree,
+)
+
+# WP08 (coord-write-placement-closure-01KYCF83, FR-005/NFR-005, Gap-2): the
+# ``agent mission repair`` command lives in its own leaf module (mirrors every
+# other seam above) — no business logic here, just the app registration.
+from specify_cli.cli.commands.agent.mission_repair import (
+    repair as repair_mission,
 )
 
 # Preserve the dynamic ``_invalid_<dir>_owned_files`` alias as a re-export so
@@ -320,6 +330,7 @@ app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents
 # is unchanged (each seam defines the callable; mission.py owns the app — one-way:
 # the seams never import ``app``).
 app.command(name="record-analysis")(record_analysis)
+app.command(name="acceptance-verdict")(acceptance_verdict)
 app.command(name="branch-context")(branch_context)
 app.command(name="create")(create_mission)
 app.command(name="check-prerequisites")(check_prerequisites)
@@ -327,6 +338,7 @@ app.command(name="setup-plan")(setup_plan)
 app.command(name="accept")(accept_feature)
 app.command(name="merge")(merge_feature)
 app.command(name="finalize-tasks")(finalize_tasks)
+app.command(name="repair")(repair_mission)
 
 
 TASKS_MD_FILENAME = "tasks.md"

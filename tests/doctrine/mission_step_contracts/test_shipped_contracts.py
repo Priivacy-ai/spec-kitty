@@ -11,15 +11,15 @@ These tests verify:
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.missions.step_contracts import MissionStepContract
-from doctrine.missions.step_contracts import MissionStepContractRepository
-from doctrine.service import DoctrineService
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.missions.step_contracts import MissionStepContract
+from charter.offering.missions.step_contracts import MissionStepContractRepository
+from charter.offering.service import DoctrineService
 
 
 SOFTWARE_DEV_ACTIONS = ("specify", "plan", "implement", "review")
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 class TestShippedContractsExistAndValidate:
@@ -148,6 +148,47 @@ class TestImplementContractStructure:
         transition = next((s for s in contract.steps if s.id == "status_transition"), None)
         assert transition is not None
         assert transition.command is not None
+
+    def test_supply_chain_security_check_precedes_quality_gate(self, contract: MissionStepContract) -> None:
+        """The supply-chain security check must run before the quality gate.
+
+        Ordering, not mere presence, is the requirement: a step that exists
+        anywhere in the contract but after ``quality_gate`` would satisfy a
+        naive "is it in the file" check while violating the WP prompt's
+        "precedes standard quality gate" mandate and contract Rule 4.
+        """
+        ids = [s.id for s in contract.steps]
+        assert "supply_chain_security_check" in ids
+        assert "quality_gate" in ids
+        assert ids.index("supply_chain_security_check") < ids.index("quality_gate")
+
+
+class TestAdvisoryGateCompatibility:
+    """Regression guard: the security-layer wiring must stay advisory-only.
+
+    Pins the WP's own promised mitigation for "accidental hard-gate
+    behavior" -- the pre-existing ``review`` gate must remain fail-open and
+    unchanged, and ``plan``/``implement`` must not gain a ``gates`` block.
+    """
+
+    @pytest.fixture
+    def repo(self) -> MissionStepContractRepository:
+        return MissionStepContractRepository()
+
+    def test_review_gate_is_unchanged_and_fail_open(self, repo: MissionStepContractRepository) -> None:
+        contract = repo.get_by_action("software-dev", "review")
+        assert contract is not None
+
+        # Exact gate set (not a bare count): fails both if a gate is added/removed
+        # and if the surviving gate's transition or fail-open posture drifts.
+        gate_fail_open_by_transition = {gate.on_transition: gate.fail_open for gate in contract.gates}
+        assert gate_fail_open_by_transition == {"in_progress->for_review": True}
+
+    @pytest.mark.parametrize("action", ["plan", "implement"])
+    def test_no_new_fail_closed_gate_introduced(self, repo: MissionStepContractRepository, action: str) -> None:
+        contract = repo.get_by_action("software-dev", action)
+        assert contract is not None
+        assert contract.gates == []
 
 
 class TestSpecifyContractStructure:

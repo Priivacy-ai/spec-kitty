@@ -2,9 +2,8 @@
 # Verified 2026-04-21: The spec-kitty-saas repo is not co-located with this
 # codebase; the cli-saas-current-api.yaml contract file is not accessible.
 #
-# Verification performed against the *local* SaaS sync client:
-#   src/specify_cli/sync/client.py -> async def send_event(self, event: dict)
-#   src/specify_cli/sync/emitter.py -> _route_event() (lines 981-1016)
+# Verification basis is historical: the former local SaaS client was removed
+# with the retired transport. No runtime client seam is expected in this tree.
 #
 # Client protocol: send_event(event: dict) is ASYNC and takes a single flat
 # dict with an "event_type" discriminator field at the top level.  There is NO
@@ -34,8 +33,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import now_utc_iso
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
-from specify_cli.invocation.adapters import resolve_sync_routing
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -61,6 +60,20 @@ def _get_saas_client(repo_root: Path) -> Any | None:
     Dispatches through the invocation adapter seam so that propagator.py
     has no direct import edge into the sync package (Leak #3 fix).
     Never raises — the seam guarantees safe-degrade on missing registration.
+
+    **In production this returns ``None`` every time, and has always done so**
+    (#3030 FR-032). No package registers a SaaS-client factory. ``sync`` used to
+    register one, but its whole body read ``token_manager._ws_client`` — an attribute
+    ``src/`` has never assigned — so it answered ``None`` on every call; the
+    registration was deleted rather than left as an accident that happens to be safe.
+    Everything below this lookup in :func:`_propagate_one` is therefore inert until
+    someone registers a real factory, and that is a deliberate state, not an oversight.
+
+    Registering a factory here opens an egress path carrying ``request_text`` — the
+    verbatim agent prompt. Wiring it to ``SyncRuntime.ws_client`` was considered
+    during #3030 and explicitly rejected; whoever registers a real transport owns
+    the auth/admission gate that makes that safe. (The former egress-consent gate
+    ahead of this lookup retired with the sync transport, issue #5.)
     """
     return _get_saas_client_from_seam(repo_root)
 
@@ -73,32 +86,25 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
 
     The real SaaS client uses ``async def send_event(self, event: dict)``.
     It is NOT synchronous and does NOT accept an idempotency_key kwarg.
-    Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
+    This call pattern historically mirrored the deleted sync package's
+    ``sync/emitter.py`` (removed along with the sync transport, issue #5).
 
     Check ordering (invariant — do not reorder):
-      1. Sync-gate (routing.effective_sync_enabled=False → early return)
-      2. Auth/client lookup (_get_saas_client returns None → early return)
-      3. Policy lookup (resolve_projection → project=False → early return)
-      4. Envelope build + send
-    """
-    # 1. Sync-gate: LOCAL-FIRST invariant (C-002, FR-012). Must remain first.
-    # resolve_sync_routing returns bool | None via the invocation adapter seam:
-    #   None  → no resolver registered (safe-degrade, proceed)
-    #   True  → sync explicitly enabled (proceed)
-    #   False → sync explicitly disabled (early return, no-op)
-    sync_enabled = resolve_sync_routing(repo_root)
-    if sync_enabled is False:
-        return  # Sync explicitly disabled for this checkout → no-op
+      1. Auth/client lookup (_get_saas_client returns None → early return)
+      2. Policy lookup (resolve_projection → project=False → early return)
+      3. Envelope build + send
 
-    # 2. Auth/client lookup. Must remain second.
+    (The former step-1 egress-consent gate retired with the sync transport,
+    issue #5.)
+    """
     client = _get_saas_client(repo_root)
     if client is None:
         return  # No SaaS token / client not connected → no-op, no log
 
     # 3. Policy lookup (read-only, never raises, never blocks).
-    event_kind = _coerce_event_kind(record.event)
-    mode = _coerce_mode(getattr(record, "mode_of_work", None))
-    rule = resolve_projection(mode, event_kind)
+    rule = _projection_rule_for(record)
+    if rule is None:
+        return  # Record could not be classified → no policy row → no projection.
     if not rule.project:
         return  # Policy says no projection for this (mode, event) pair.
 
@@ -123,25 +129,53 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
     #       ...and consult rule.project before calling client.send_event.
 
 
-def _coerce_event_kind(raw_event: str) -> EventKind:
-    try:
-        return EventKind(raw_event)
-    except ValueError:
-        # Unknown event kind (e.g., future EventKind added before table extended).
-        # Use STARTED as the conservative fallback so resolve_projection returns
-        # _DEFAULT_RULE (project=True), which preserves existing behaviour.
-        return EventKind.STARTED
+def _projection_rule_for(record: OpEvent) -> Any | None:
+    """Resolve the projection rule for *record*, or ``None`` if it cannot be classified.
 
+    ``None`` means "this record's policy row is unknown", and the caller drops the
+    record rather than projecting it. That is a behaviour change from the two
+    coercions this replaced, both of which resolved an *unintelligible* value to the
+    most permissive rule available — an unknown ``event`` became ``STARTED`` and a
+    malformed ``mode_of_work`` became ``None``, and both land on a rule with
+    ``project=True, include_request_text=True``. Same shape as FR-025's guard: a
+    value meaning "unknown" was spelled the same way as a definite answer, and the
+    definite answer it borrowed was the permissive one. Reachable only through a
+    schema change (the models validate both fields against Literals today), which
+    is exactly when nobody is looking.
 
-def _coerce_mode(raw_mode: str | None) -> ModeOfWork | None:
-    if not raw_mode:
-        return None
+    **Absence is not malformation, and the two must not re-collapse.**
+    ``OpCompletedEvent`` carries no ``mode_of_work`` at all, and neither do pre-v2
+    records; those keep the documented legacy default (``None`` → treated as
+    ``TASK_EXECUTION`` by ``resolve_projection``). Refusing on absence instead would
+    silently stop propagating every completed event — a fail-closed answer to a
+    question nobody asked.
+    """
     try:
-        return ModeOfWork(raw_mode)
+        event_kind = EventKind(record.event)
     except ValueError:
-        # Malformed mode_of_work on the record. Treat as None (legacy) rather than
-        # crashing the background propagation thread silently.
+        logger.warning(
+            "Op %s has an unrecognised event kind %r; not projecting it "
+            "(no projection-policy row applies)",
+            record.invocation_id,
+            record.event,
+        )
         return None
+
+    raw_mode = getattr(record, "mode_of_work", None)
+    if raw_mode is None or raw_mode == "":
+        # Absent: legacy records and every OpCompletedEvent. Documented default.
+        return resolve_projection(None, event_kind)
+    try:
+        mode = ModeOfWork(raw_mode)
+    except ValueError:
+        logger.warning(
+            "Op %s declares an unrecognised mode_of_work %r; not projecting it "
+            "(the record's disclosure policy cannot be determined)",
+            record.invocation_id,
+            raw_mode,
+        )
+        return None
+    return resolve_projection(mode, event_kind)
 
 
 def _build_event_dict(
@@ -204,15 +238,13 @@ def _log_propagation_error(
 ) -> None:
     """Append propagation failure to the local error log.  Never raises."""
     try:
-        import datetime  # noqa: PLC0415
-
         error_log = repo_root / PROPAGATION_ERRORS_PATH
         error_log.parent.mkdir(parents=True, exist_ok=True)
         entry = {
             "invocation_id": record.invocation_id,
             "event": record.event,
             "error": error,
-            "at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "at": now_utc_iso(),
         }
         with error_log.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")

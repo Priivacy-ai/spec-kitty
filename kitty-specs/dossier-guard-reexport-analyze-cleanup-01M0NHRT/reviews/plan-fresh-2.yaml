@@ -1,0 +1,98 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-FRESH2-001
+    lens: "Mission-specific: IC-03 concrete-shape option (b) correctness (fresh eyes on the round-2 fix of PLAN-FRESH-001)"
+    severity: 4
+    title: "Option (b) in IC-03's concrete shape (\"call resolve_canonical_repo_root a second time\") drops the NotInsideRepositoryError fallback _charter_path relies on, and would break an existing green test if implemented as literally worded"
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map / IC-03, Risks paragraph, sentence beginning \"or (b) call `resolve_canonical_repo_root(repo_root)` a second time\""
+      - code: "src/specify_cli/analysis_report.py:203-207 (`_charter_path`'s own body: `try: canonical_root = resolve_canonical_repo_root(repo_root) except NotInsideRepositoryError: canonical_root = repo_root`)"
+      - code: "src/charter/resolution.py:75-108 (`resolve_canonical_repo_root` raises `NotInsideRepositoryError` when `path` is not inside a git repo; no try/except wraps it anywhere outside `_charter_path`)"
+      - artifact: "tests/specify_cli/test_analysis_report.py:243-261 (`test_charter_hash_falls_back_to_repo_root_outside_git`, docstring: \"Outside any git repo the resolver cannot run; the charter probe must degrade to the passed repo_root instead of raising.\") — confirmed currently PASSING via `uv run pytest tests/specify_cli/test_analysis_report.py::test_charter_hash_falls_back_to_repo_root_outside_git -q`"
+      - artifact: "spec.md § Grounding Correction 3 (line 41): each of the five affected assertions' \"underlying resolution behavior ... is unaffected and must continue to hold\" — this test is one of the five named sites (line 36)"
+    claim: >
+      IC-03's Risks paragraph offers two equally-endorsed shapes for computing `canonical_root` in
+      `collect_input_artifact_hashes` so the `charter` entry can relativize against it: (a) change
+      `_charter_path` to return `(charter_path, canonical_root)`, or (b) "call
+      `resolve_canonical_repo_root(repo_root)` a second time inside `collect_input_artifact_hashes`
+      ... it is a pure, idempotent resolver call, cheap to recompute, and requires no signature change
+      to `_charter_path` itself." Option (b) is not actually a drop-in "just call it again": the live
+      `_charter_path` wraps its own internal call to `resolve_canonical_repo_root(repo_root)` in
+      `try/except NotInsideRepositoryError: canonical_root = repo_root` specifically so a non-git root
+      degrades gracefully instead of raising (this is the exact fix for the scenario
+      `test_charter_hash_falls_back_to_repo_root_outside_git` exercises, and that test is currently
+      green). A literal reading of option (b) — "call it a second time," framed as trivial and
+      requiring no other change — omits that same try/except. An implementer who takes the "cheap to
+      recompute, no signature change" framing at face value and writes a bare second call would
+      raise `NotInsideRepositoryError` unhandled on exactly the non-git-root path this mission's own
+      spec.md (Grounding Correction 3) requires to keep working unchanged. Option (a) does not have
+      this problem (the fallback logic stays inside `_charter_path`, which already has it), but the
+      plan presents (a) and (b) as interchangeable ("Either (a) or (b) is acceptable") without noting
+      this asymmetry, so a WP choosing (b) for its "no signature change" appeal is steered toward the
+      broken shape.
+    remediation: >
+      Either drop option (b) entirely (option (a) is strictly safer and already handles the fallback),
+      or, if (b) is kept, spell out that the second `resolve_canonical_repo_root(repo_root)` call must
+      be wrapped in the identical `try/except NotInsideRepositoryError: canonical_root = repo_root`
+      fallback `_charter_path` uses internally — otherwise state explicitly that
+      `test_charter_hash_falls_back_to_repo_root_outside_git` must stay green under option (b) and
+      name the required exception handling, so the implementing WP does not have to discover this by
+      breaking a currently-passing test.
+
+  - id: PLAN-FRESH2-002
+    lens: "Mission-specific: IC-03 concrete-shape option (a) completeness (fresh eyes on the round-2 fix of PLAN-FRESH-001)"
+    severity: 3
+    title: "Option (a)'s new `_charter_path` tuple return shape (`(charter_path, canonical_root)`) does not say what the first element is when no charter file exists"
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map / IC-03, Risks paragraph, sentence beginning \"Instead, either (a) change `_charter_path` to return `(charter_path, canonical_root)`\""
+      - code: "src/specify_cli/analysis_report.py:188-214 (`_charter_path` returns `None` when neither `charter.yaml` nor `charter.md` exists under `canonical_root`)"
+      - code: "src/specify_cli/analysis_report.py:224-226 (`collect_input_artifact_hashes`: `charter = _charter_path(repo_root); inputs[\"charter\"] = {\"path\": str(charter) if charter else None, \"sha256\": _sha256_file(charter) if charter else None}` — the `if charter else None` branch is what currently handles \"no charter present\" without raising)"
+    claim: >
+      Today `_charter_path` returns `Path | None`, and the caller's `if charter else None` idiom is
+      what makes "no charter file exists" a non-error, non-relativization case (path/sha256 both
+      recorded as `None`). Option (a) says to change the return type to
+      `(charter_path, canonical_root)` "instead of bare `Path | None`" but does not state what the
+      first tuple element is in the not-found case, nor how the caller's existing `if charter else
+      None` truthiness check (which would now always be `True` for a non-empty 2-tuple) is meant to
+      be rewritten. This is exactly the class of gap the "concrete shape, committed here so the
+      implementing WP does not have to invent it" framing was meant to close, but for the not-found
+      branch it still leaves the shape to invent.
+    remediation: >
+      Extend option (a)'s wording to state the not-found shape explicitly, e.g.: "`_charter_path`
+      returns `(None, canonical_root)` when neither `charter.yaml` nor `charter.md` exists, and
+      `(charter_path, canonical_root)` otherwise; the caller unpacks the tuple and checks the first
+      element (`if charter_path is not None`) in place of the current `if charter else None`
+      idiom, so the no-charter case still records `path`/`sha256` as `None` without attempting
+      relativization."
+
+  - id: PLAN-FRESH2-003
+    lens: "Mission-specific: Reflexivity recovery-path RED-first fit (fresh eyes on the round-2 fix of PLAN-FRESH-002)"
+    severity: 2
+    title: "The Reflexivity recovery path's RED-first instruction names only the FR-007/NFR-002 test as an extension target, but the same paragraph also covers an FR-006/commitlint self-test failure that test has nothing to do with"
+    evidence:
+      - artifact: "plan.md § Reflexivity, \"Recovery path (binding, not left to improvisation)\" paragraph"
+    claim: >
+      The recovery path triggers on two distinct failure modes named in the same sentence: "if this
+      mission's own `record-analysis` commit fails commitlint, OR its `analysis-report.md` still
+      contains an absolute username-bearing path." The newly added RED-first instruction says the
+      fix-forward "starts with a new RED-first fixture (or an extension of the existing
+      FR-007/NFR-002 test) that reproduces the specific self-test failure." The named extension
+      target — "the existing FR-007/NFR-002 test" — is the path-relativization test (per plan.md's
+      own FR-007 traceability row), which fits the absolute-path-leak failure mode but has nothing to
+      do with a commitlint subject-format failure (FR-006). For the commitlint branch of this
+      recovery path, the instruction reduces to "a new RED-first fixture" with no concrete shape
+      given (unlike IC-03's exception-type/raise-site/catch-site triad, which was spelled out
+      precisely to avoid WP-time invention), and commitlint is an external CLI tool rather than a
+      pytest fixture, so what a "RED-first fixture" reproducing a live commitlint failure even looks
+      like is left unstated.
+    remediation: >
+      Split the RED-first instruction by failure mode: for an FR-007 path-leak self-test failure,
+      extend the existing FR-007/NFR-002 test as stated; for an FR-006 commitlint self-test failure,
+      add a RED-first fixture that runs `commitlint` (or reproduces its rule) against the exact
+      failing commit-subject string before amending `mission_record_analysis.py`'s `message=`
+      formatting, analogous to how FR-006's own acceptance method (SC-005) is "actually running
+      commitlint against a real commit," not a pytest assertion.

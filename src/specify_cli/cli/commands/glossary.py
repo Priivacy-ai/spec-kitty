@@ -66,9 +66,8 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
     Returns:
         Populated GlossaryStore reflecting both seed data and event log state
     """
-    from datetime import datetime
-
     from glossary.models import Provenance, SenseStatus
+    from kernel.clock import now_utc_iso, parse_iso
 
     # Create a dummy event log path (store needs it but we read from seeds)
     event_log_path = repo_root / ".kittify" / "events" / "glossary" / "_cli.events.jsonl"
@@ -99,7 +98,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=new_sense_data.get("definition", ""),
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                                timestamp=parse_iso(event.get("timestamp", now_utc_iso())),
                                 source="event_log",
                             ),
                             confidence=new_sense_data.get("confidence", 1.0),
@@ -122,7 +121,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                             definition=selected["definition"],
                             provenance=Provenance(
                                 actor_id=event.get("actor", {}).get("actor_id", "system:event_log"),
-                                timestamp=datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat())),
+                                timestamp=parse_iso(event.get("timestamp", now_utc_iso())),
                                 source="clarification_resolved",
                             ),
                             confidence=selected.get("confidence", 1.0),
@@ -719,34 +718,33 @@ def show(
 
     repo_root = Path.cwd()
 
-    # Normalize: if not already a URN, prepend "glossary:" and try that first
-    if term.startswith("glossary:"):
-        primary_id = term
-        fallback_id: str | None = None
-    else:
-        primary_id = f"glossary:{term}"
-        fallback_id = term
-
+    surface = term.removeprefix("glossary:").strip().lower()
     renderer = GlossaryEntityPageRenderer(repo_root)
+    candidates = [f"glossary:{surface}"]
+    if not term.startswith("glossary:"):
+        candidates.append(surface)
+    for candidate in candidates:
+        try:
+            page_path = renderer.generate_one(candidate)
+        except TermNotFoundError:
+            continue
+        console.print(Markdown(page_path.read_text(encoding="utf-8")))
+        return
 
-    try:
-        page_path = renderer.generate_one(primary_id)
-    except TermNotFoundError:
-        if fallback_id is not None:
-            # Try the bare term as a fallback
-            try:
-                page_path = renderer.generate_one(fallback_id)
-            except TermNotFoundError:
-                console.print(f"[red]Term not found:[/red] {term}")
-                console.print("[dim]Run `spec-kitty glossary list` to see available terms.[/dim]")
-                raise typer.Exit(1) from None
-        else:
-            console.print(f"[red]Term not found:[/red] {term}")
-            console.print("[dim]Run `spec-kitty glossary list` to see available terms.[/dim]")
-            raise typer.Exit(1) from None
+    # Compiled entity pages need not exist for a seed/event-backed term.
+    # Reuse list's replayed store and retain every scoped sense it exposes.
+    store = _load_store_from_seeds(repo_root)
+    senses = store.lookup(surface, tuple(scope.value for scope in GlossaryScope))
+    if senses:
+        for sense in senses:
+            console.print(f"{sense.surface.surface_text} ({sense.scope})", markup=False)
+            console.print(sense.definition, markup=False)
+            console.print(f"Status: {sense.status.value}; confidence: {sense.confidence:.2f}", markup=False)
+        return
 
-    content = page_path.read_text(encoding="utf-8")
-    console.print(Markdown(content))
+    console.print(f"[red]Term not found:[/red] {term}")
+    console.print("[dim]Run `spec-kitty glossary list` to see available terms.[/dim]")
+    raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------

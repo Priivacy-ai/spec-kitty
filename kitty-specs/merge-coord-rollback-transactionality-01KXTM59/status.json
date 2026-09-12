@@ -1,0 +1,71 @@
+{
+  "event_count": 5,
+  "last_event_id": "0VQX083VYTFJABXKJQ5HHXWH76",
+  "materialized_at": "2026-07-18T17:24:25.770000+00:00",
+  "mission_number": "",
+  "mission_slug": "merge-coord-rollback-transactionality-01KXTM59",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 5,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "54HYE5SA539VXFNH3NYQS00FZ0",
+      "last_transition_at": "2026-07-18T15:42:49.260000+00:00",
+      "shell_pid": 615737,
+      "shell_pid_created_at": "1784389369.26"
+    },
+    "WP02": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "5E5J9QBEGWEPXA3DD6E8HFGSM0",
+      "last_transition_at": "2026-07-18T16:04:36.550000+00:00",
+      "shell_pid": 674338,
+      "shell_pid_created_at": "1784390676.55"
+    },
+    "WP03": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "6KSRPPPN7EQNKMRD6Q49X4ZB2Q",
+      "last_transition_at": "2026-07-18T17:00:10.930000+00:00",
+      "shell_pid": 805610,
+      "shell_pid_created_at": "1784394010.93"
+    },
+    "WP04": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "14QKMRDG4RNAYPPDV6X94QJF2E",
+      "last_transition_at": "2026-07-18T16:35:03.550000+00:00",
+      "shell_pid": 749761,
+      "shell_pid_created_at": "1784392503.55"
+    },
+    "WP05": {
+      "actor": "migration:backfill_runtime_state",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "0VQX083VYTFJABXKJQ5HHXWH76",
+      "last_transition_at": "2026-07-18T17:24:25.770000+00:00",
+      "shell_pid": 858430,
+      "shell_pid_created_at": "1784395465.77"
+    }
+  }
+}

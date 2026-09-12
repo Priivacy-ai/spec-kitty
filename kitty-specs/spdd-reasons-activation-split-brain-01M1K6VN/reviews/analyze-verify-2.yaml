@@ -1,0 +1,61 @@
+schema_version: 1
+artifact_type: review-verify
+phase: analyze
+round: 2
+complete: true
+verdicts:
+- finding_id: ANALYZE-FRESH-001
+  status: resolved
+  evidence: >-
+    spec.md:582-593 (read fresh from the current working tree, not the fix round's self-report).
+    The closure sentence now reads "...every reader of `governance.charter.selected_*` found
+    during this spec's own review (Decision Records 2 and 3) is either fixed by this mission,
+    confirmed display-only above, or named as a known-dormant exception below — not a residual,
+    unaudited-and-unacknowledged category." The very next bullet (spec.md:586-593) is the
+    `resolve_governance_for_profile` entry, explicitly introduced with "found by the analyze-phase
+    review squad (ANALYZE-COVER-004, severity 2) as a sixth... reader" and closed with "It is a
+    known-dormant instance of the same defect class, not a live defect this mission fixes — named
+    here explicitly." The closure sentence's third disjunct ("named as a known-dormant exception
+    below") now points forward directly at this bullet by the same vocabulary ("known-dormant"),
+    so a reader scanning both sentences in sequence gets a coherent picture: the sixth reader is
+    accounted for as a deliberately-named, non-fixed exception, not a silently-omitted category.
+    `git diff` confirms this is the only change to this sentence this round (old text: "...is
+    either fixed by this mission or confirmed display-only above — not a residual, unaudited
+    category."). The contradiction is genuinely reconciled, not just reworded around.
+- finding_id: ANALYZE-FRESH-002
+  status: resolved
+  evidence: >-
+    tracer-tooling-friction.md:135 (read fresh) is now a single, complete ATX heading line: "## 4.
+    `wps.yaml`/`tasks/WP0*.md` structured `requirement_refs` frontmatter has no room for a
+    "satisfied by omission" or affirmative-deliverable-without-a-dedicated-line constraint
+    (confirmed during R4 fix round, 2026-09-03, ANALYZE-COVER-003)" — no hard-wrap across lines,
+    no unclosed quote (the "satisfied by omission" phrase is fully quoted with matched open/close
+    marks). `grep -n "^## "` over the whole file confirms exactly one heading line for section 4,
+    matching the single-line format of entries 1 (line 7), 2 (line 41), and 3 (line 65) —
+    same style: `## N. <description> (<parenthetical status/date>)`. The body text that follows
+    (previously the garbled continuation) now reads as ordinary paragraph prose starting on the
+    next blank-line-separated paragraph, not as a heading continuation.
+- finding_id: ANALYZE-FRESH-003
+  status: resolved
+  evidence: >-
+    tasks/WP01-activation-rewrite-parity-test.md:429-432 (read fresh), the "Cache-key omission"
+    Risks bullet now reads: "...would leave one or both of T002's same-process mutation cases
+    (step 4, step 4a) failing silently if that specific assertion is accidentally skipped in a
+    partial test run..." — plural, and explicitly names both steps. This matches the Definition
+    of Done section (line 409): "The cache-key fix is implemented (either option) and BOTH of
+    T002's same-process mutation cases pass — step 4's direct `.kittify/config.yaml` mutation and
+    step 4a's pointer-target `charter.yaml` mutation (analyze-phase Finding ANALYZE-COVER-002)."
+    A repo-wide grep for "same-process mutation case" across tasks/ and spec.md turns up only
+    these two occurrences, both now plural and consistent — no stray singular reference remains
+    anywhere in the mission's task artifacts.
+- finding_id: ANALYZE-VERIFY2-001
+  status: resolved
+  evidence: >-
+    tracer-tooling-friction.md:135 (same heading checked for FRESH-002) now carries an explicit
+    calendar date, "2026-09-03", in its trailing parenthetical: "(confirmed during R4 fix round,
+    2026-09-03, ANALYZE-COVER-003)". This matches entry 3's dating convention at line 65 ("(WP01
+    dispatch, 2026-09-03)") — both now stamp an ISO-format date in the same trailing-parenthetical
+    position, making the friction log chronologically greppable independent of round-number
+    cross-referencing, as the original finding's remediation asked.
+
+new_findings: []

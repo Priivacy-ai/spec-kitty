@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _make_profile(profile_id: str, *, name: str) -> AgentProfile:

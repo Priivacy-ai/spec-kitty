@@ -22,98 +22,200 @@
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KMR7VKAEEXKB2KW8TMASNZ8C",
-      "last_transition_at": "2026-03-27T18:10:44.174077+00:00"
+      "last_transition_at": "2026-03-27T18:10:44.174077+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMR94ADXJT2GZ0TSK0WPJJCB",
-      "last_transition_at": "2026-03-27T18:32:58.557446+00:00"
+      "last_transition_at": "2026-03-27T18:32:58.557446+00:00",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMR87YHTDM8RRHC4KJAWSW0E",
-      "last_transition_at": "2026-03-27T18:17:28.890176+00:00"
+      "last_transition_at": "2026-03-27T18:17:28.890176+00:00",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMR9AEV28S4QNT0DRGQV36CX",
-      "last_transition_at": "2026-03-27T18:36:19.682505+00:00"
+      "last_transition_at": "2026-03-27T18:36:19.682505+00:00",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRD3V8Z90XR0V90SHKB6VAF",
-      "last_transition_at": "2026-03-27T19:42:37.343430+00:00"
+      "last_transition_at": "2026-03-27T19:42:37.343430+00:00",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP06": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRDJZXM66DP1WKPTPRP76BA",
-      "last_transition_at": "2026-03-27T19:50:53.620834+00:00"
+      "last_transition_at": "2026-03-27T19:50:53.620834+00:00",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     },
     "WP07": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRDZ9EHXGA5G1CMYEX70E5Z",
-      "last_transition_at": "2026-03-27T19:57:36.593246+00:00"
+      "last_transition_at": "2026-03-27T19:57:36.593246+00:00",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP08": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMREGSRYKG19HTAMB9FH4WDE",
-      "last_transition_at": "2026-03-27T20:07:10.366895+00:00"
+      "last_transition_at": "2026-03-27T20:07:10.366895+00:00",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
     },
     "WP09": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMR895W7MXEKA8D42KWSCCK0",
-      "last_transition_at": "2026-03-27T18:18:09.159892+00:00"
+      "last_transition_at": "2026-03-27T18:18:09.159892+00:00",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done",
+        "T049": "done"
+      }
     },
     "WP10": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRAPM3TCPZZE8AR6MQ5PRD1",
-      "last_transition_at": "2026-03-27T19:00:26.874368+00:00"
+      "last_transition_at": "2026-03-27T19:00:26.874368+00:00",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done"
+      }
     },
     "WP11": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRDEYW3GP0W1R075KV8A353",
-      "last_transition_at": "2026-03-27T19:48:41.475593+00:00"
+      "last_transition_at": "2026-03-27T19:48:41.475593+00:00",
+      "subtasks": {
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
     },
     "WP12": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMRE2XQWAHH9WK5HXGBE58QV",
-      "last_transition_at": "2026-03-27T19:59:35.676136+00:00"
+      "last_transition_at": "2026-03-27T19:59:35.676136+00:00",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done"
+      }
     },
     "WP13": {
       "actor": "user",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KMREWHETJ8BCFZHNESNQBE39",
-      "last_transition_at": "2026-03-27T20:13:35.066689+00:00"
+      "last_transition_at": "2026-03-27T20:13:35.066689+00:00",
+      "subtasks": {
+        "T065": "done",
+        "T066": "done",
+        "T067": "done",
+        "T068": "done",
+        "T069": "done"
+      }
     },
     "WP14": {
       "actor": "user",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KMRMNY2MRNFV722H4NKAY54C",
-      "last_transition_at": "2026-03-27T21:54:50.068229+00:00"
+      "last_transition_at": "2026-03-27T21:54:50.068229+00:00",
+      "subtasks": {
+        "T070": "done",
+        "T071": "done",
+        "T072": "done",
+        "T073": "done",
+        "T074": "done"
+      }
     }
   }
 }

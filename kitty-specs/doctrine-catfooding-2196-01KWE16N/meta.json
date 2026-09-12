@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "bd2cd8003baa2afc1ffc829a3070dbfef061316b",
-  "coordination_branch": "kitty/mission-doctrine-catfooding-2196-01KWE16N",
   "created_at": "2026-07-01T05:07:36.643254+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Doctrine Catfooding",
   "mission_id": "01KWE16N220EGF1Z5FPZ6V4SC0",
   "mission_number": 156,
@@ -14,7 +13,7 @@
   "slug": "doctrine-catfooding-2196-01KWE16N",
   "status_phase": "1",
   "target_branch": "design/doctrine-catfooding-2196",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-01T10:05:26.392218+00:00"
 }

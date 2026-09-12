@@ -1,0 +1,102 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Ratchet-fixture non-vacuity (FR-005/SC-006, mission-derived lens)
+    severity: 4
+    title: The proposed two-assertion corpus ratchet is vacuous against a fully-collapsed detector
+    evidence:
+      - artifact: "plan.md § 'The False-Positive Fixture (FR-005 / Story 4 AC3, SC-006)', lines 694-725 (the two ratchet assertions, lines 715-718)"
+      - code: "tests/architectural/test_ratchet_baselines.py:244-372 (the cited precedent — confirmed count-based: `current > baseline` fails, `current < baseline` warns; no self-mutation/floor check either, but that precedent gates a fixed allowlist SIZE the code itself declares, not a computed detection result over external corpus inputs, so its shape does not transfer the non-vacuity property plan.md needs)"
+      - artifact: ".kittify/charter/charter.md § 'Quality & Tech-Debt Standing Orders', item 5: 'Architectural gate discipline... a NON-VACUOUS call-site gate (concrete floor + self-mutation test + shrink-only allowlist); a gate-unmask cannot self-validate.' → `architectural-gate-non-vacuity`, `frozen-baseline-shrink-only-ratchet`"
+    claim: >
+      Plan.md's ratchet test asserts (1) every spec NOT in the fixture has an
+      empty live result, and (2) every spec IN the fixture has a live
+      flagged_ids set that is a subset of (or equal to) the fixture's recorded
+      set. A detector that always returns an empty result for every spec —
+      including the 9 fixture specs, e.g. from an accidental early return, a
+      broken import, or an exception silently swallowed upstream of the
+      ratchet — passes BOTH assertions: assertion 1 is trivially true (empty
+      is empty for every non-fixture spec), and assertion 2 is trivially true
+      because the empty set is a subset of any set, including each fixture
+      spec's non-empty recorded flagged_ids. So a totally broken/no-op
+      detector produces a 100%-green ratchet run, giving false confidence
+      that "detector correctly still flags the same 9 specs" when it in fact
+      flags nothing. This is precisely the "counts 0 and calls it clean"
+      silent-success failure class named as this whole mission's
+      raison d'être, now reproduced inside the mission's own regression
+      safety net. It also concretely violates charter Standing Order 5's
+      binding requirement that a non-vacuous gate carry "a concrete floor +
+      self-mutation test", not only a "shrink-only allowlist" — plan.md cites
+      `frozen-baseline-shrink-only-ratchet` as precedent but never cites or
+      applies the companion `architectural-gate-non-vacuity` doctrine artifact
+      the same Standing Order names.
+    remediation: >
+      Add to the ratchet-test design (IC-06's scope) at least one of: (a) a
+      concrete-floor assertion that each of the 9 fixture specs' LIVE
+      flagged_ids is non-empty (not merely a subset of the recorded set), so
+      a fully-collapsed detector fails immediately; and/or (b) a dedicated
+      self-mutation ("teeth") test that monkeypatches/stubs
+      `find_bare_prose_requirement_ids` to always return an empty result and
+      asserts the ratchet test itself then FAILS — proving the ratchet can
+      actually detect a collapsed detector, per the charter's
+      `architectural-gate-non-vacuity` doctrine (cite it alongside
+      `frozen-baseline-shrink-only-ratchet` in the plan).
+
+  - id: PLAN-VERIFY-002
+    lens: Gates
+    severity: 4
+    title: "Gate Set section wrongly lists SonarCloud Quality Gate as 'Triggered / must pass' for this mission's PR"
+    evidence:
+      - artifact: "plan.md § 'Gate Set For This Mission' → 'Triggered / must pass' list: 'SonarCloud Scan + Quality Gate (~line 4022/4034) — always attempted when SONAR_TOKEN is configured; new-code coverage gate applies to every new branch/helper this mission adds...'"
+      - code: ".github/workflows/ci-quality.yml:3648 — `if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')`"
+      - code: ".github/workflows/ci-quality.yml:3585-3589 — job comment: 'Temporarily limited to schedule/manual runs while #825 tracks the existing project-wide Sonar quality gate backlog. PRs skip Sonar entirely to keep review latency low, and pushes skip it so main can report test/build health.'"
+    claim: >
+      The `sonarcloud` job's trigger condition restricts it to `schedule` or
+      `workflow_dispatch` GitHub events only — it never runs on a
+      `pull_request` event, regardless of whether `SONAR_TOKEN` is
+      configured. Plan.md's claim that it is "always attempted when
+      SONAR_TOKEN is configured" and belongs under "Triggered / must pass"
+      is contradicted by the workflow's own trigger condition and by its own
+      comment stating PRs skip Sonar entirely. `grep -n sonarcloud
+      .github/workflows/ci-quality.yml` further confirms the job is absent
+      from the final `quality-gate` aggregator's `needs` list, so it is not
+      even indirectly merge-blocking. This mission's PR will not run
+      SonarCloud at all — the "new-code coverage gate" plan.md claims Sonar
+      will enforce is simply not exercised on this mission's actual review
+      surface, contrary to the plan's stated gate map.
+    remediation: >
+      Move "SonarCloud Scan + Quality Gate" out of "Triggered / must pass"
+      into a "Not triggered at all" (or new "schedule/workflow_dispatch
+      only") category, citing ci-quality.yml:3648 and stating explicitly
+      that NFR-004's per-branch focused-test requirement — not CI's Sonar
+      job — is the sole enforcement mechanism for this mission's new-code
+      coverage on the PR review surface.
+
+  - id: PLAN-VERIFY-003
+    lens: Falsifiability / Baseline honesty
+    severity: 2
+    title: "Baseline Capture section's git-log commit count/HEAD-hash claim is already stale (self-referential: the plan's own commit invalidates it)"
+    evidence:
+      - artifact: "plan.md § 'Baseline Capture on ab15225ea': 'HEAD (this mission's spec-authoring tip, 2e088fbe0) sits 7 commits above ab15225ea — all 7 are spec-authoring commits (git log --oneline ab15225ea..HEAD shows only spec(...)/fix(spec: ...)/reviews(spec: ...)/meta-add commits, zero implementation commits)'"
+      - code: "live `git log --oneline ab15225ea..HEAD` run for this review shows 8 commits, not 7; `git rev-parse HEAD` = 38a216f92695967db63aec64cea957f4bfa3b184, not 2e088fbe0. The newest commit is `38a216f92 plan(bare-prose-requirements-uncounted): architecture for the new per-token bare-prose blocking predicate, guard-ordering fix, and frozen corpus fixture` — a `plan(...)`-prefixed commit, not covered by the four prefixes plan.md enumerates (`spec(...)`/`fix(spec: ...)`/`reviews(spec: ...)`/meta-add)."
+    claim: >
+      The claim was accurate at plan-authoring time but is self-referentially
+      stale the moment plan.md's own commit lands: that commit becomes the
+      new HEAD and is neither the hash plan.md names nor one of the four
+      commit-type prefixes it enumerates. The substantive conclusion (zero
+      implementation commits above ab15225ea; ab15225ea remains the correct
+      pre-implementation baseline) still holds — the plan(...) commit carries
+      only planning/tracer-file content — but the literal count (7) and HEAD
+      hash (2e088fbe0) are now falsifiably wrong if checked as written.
+    remediation: >
+      State the git-history claim relative to a fixed, non-moving ref (e.g.
+      "as of the pre-plan-commit tip 2e088fbe0, verified via `git log
+      --oneline ab15225ea..2e088fbe0`") instead of the self-moving `HEAD`, or
+      add a one-line note telling whoever executes the baseline capture to
+      expect one additional `plan(...)` commit beyond the seven enumerated
+      here (still zero implementation commits) when they re-run the check
+      themselves.

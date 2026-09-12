@@ -30,7 +30,7 @@ from __future__ import annotations
 import contextlib
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -142,7 +142,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
                 parallel_group=0,
             )
         ],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
     write_lanes_json(feature_dir, manifest)
@@ -168,7 +168,7 @@ def _bootstrap_coord_mission(
     # the in-branch status path resolves and post-merge validation can read it.
     done_event = {
         "actor": "merge",
-        "at": datetime.now(UTC).isoformat(),
+        "at": now_utc_iso(),
         "event_id": "01HXYZDONE0000000000000001",
         "execution_mode": "worktree",
         "feature_slug": MISSION_SLUG,
@@ -244,9 +244,6 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
         ("specify_cli.merge.executor._record_baseline_merge_commit", {"return_value": None}),
         ("specify_cli.merge.executor._assert_baseline_merge_commit_on_target", {}),
         ("specify_cli.merge.executor.commit_merge_bookkeeping", {}),
-        ("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled", {}),
-        ("specify_cli.merge.executor.emit_mission_closed", {}),
-        ("specify_cli.merge.executor._emit_merge_diff_summary", {}),
         ("specify_cli.merge.executor.run_check", {}),
         ("specify_cli.merge.executor.require_no_sparse_checkout", {}),
         ("specify_cli.cli.commands.merge._enforce_git_preflight", {}),

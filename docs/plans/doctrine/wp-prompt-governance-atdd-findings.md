@@ -1,12 +1,14 @@
 ---
 title: WP-Prompt Governance Contract — ATDD Findings
 description: "Python Pedro's ATDD findings (2026-05-16) for the WP-prompt governance contract: the acceptance tests and what they revealed about the contract."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-19'
 related:
 - docs/plans/doctrine/org-doctrine-layer-architecture-review.md
 ---
 # WP-Prompt Governance Contract — ATDD Findings
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Author:** Python Pedro
 **Date:** 2026-05-16

@@ -1,0 +1,162 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: SPEC-FRESH2-001
+    lens: fresh-sweep-round-2
+    severity: 4
+    title: "Post-plan R1-R6 exception approval has no defined trigger relative to when the ceiling breach is actually known"
+    evidence:
+      - artifact: "spec.md FR-006, C-006, Story 4 AC3, SC-006"
+      - artifact: "spec.md Story 4 Independent Test / AC1-AC2 (§100-114)"
+    claim: >
+      Round 2 correctly disambiguates WHO approves a higher-than-2% ceiling exception
+      ("the mission's own post-plan R1-R6 adversarial review squad" - a later, distinct
+      pass from this spec-phase squad), closing the naive circularity risk. But it leaves
+      open WHEN that approval can happen relative to WHEN the actual ceiling breach is
+      known. Story 4's own Independent Test and AC2 state the false-positive/ambiguous-block
+      rates are measured "when the implementing work package lands" - i.e. during
+      implementation, which is chronologically AFTER the post-plan review squad has already
+      concluded (plan phase precedes tasks/implementation). If the corpus-validation script
+      first reveals a >2% rate only once it actually runs against the (grown, re-counted)
+      corpus at implementation time, there is no squad named in this spec available to
+      review and accept an exception at that point - the only approver named (post-plan
+      squad) has already finished its pass. The spec never states that the plan phase must
+      pre-run the corpus-validation procedure itself (or otherwise obtain real evidence)
+      before the post-plan squad convenes, so "the plan phase may accept a higher bar...
+      reviewed by the post-plan squad" describes an approval mechanism that may have no
+      valid time slot to fire in practice.
+    remediation: >
+      Add an explicit sequencing rule: either (a) require the plan phase to run (or
+      re-run) the corpus-validation procedure against the current corpus BEFORE its own
+      post-plan review convenes, so any ceiling-exception justification the post-plan
+      squad reviews is evidence-backed at review time, not speculative; or (b) name a
+      fallback reviewer/mechanism (e.g. a dedicated re-review pass) for the case where the
+      implementation-time re-measurement first reveals a breach the post-plan squad never
+      saw.
+
+  - id: SPEC-FRESH2-002
+    lens: fresh-sweep-round-2
+    severity: 4
+    title: "CI-enforced corpus-validation gate doesn't say whether it re-runs live against the growing kitty-specs/ tree or checks a frozen figure, and doesn't exclude this mission's own kitty-specs/ directory"
+    evidence:
+      - artifact: "spec.md FR-005 (§169)"
+      - artifact: "spec.md Story 4 Independent Test (§106): \"an assertion that fails when the currently-measured (or last-recorded) false-positive rate ... exceeds its accepted ceiling\""
+      - artifact: "spec.md SC-008 (§219) - the only self-reference carve-out that exists, and it's scoped to the runtime blocking gate, not to the CI corpus test"
+    claim: >
+      FR-005/C-006/SC-005/SC-006 all require the corpus-validation ceiling to be
+      "CI-enforced" as a "pass/fail assertion," but the spec never resolves which of two
+      very different CI designs is meant: (a) the CI test literally re-runs the detector
+      against the live `kitty-specs/*/spec.md` tree on every run - which grows with every
+      new mission (this mission's own spec.md becomes part of that tree once merged), so
+      the test's pass/fail outcome would depend on the content of unrelated missions'
+      spec.md files added after this one merges, making the gate a source of flaky,
+      self-referential drift unrelated to any code change under review; or (b) the CI test
+      only asserts a "last-recorded" (docstring-pinned) number stays under the ceiling,
+      which is a static, effectively vacuous check that doesn't actually re-validate
+      anything about the current corpus and defeats the stated purpose ("not merely a
+      number recorded in a docstring for a human to notice later"). The "(or last-recorded)"
+      phrasing in the Independent Test text names both options without choosing between
+      them. Unlike SC-008, which explicitly carves out this mission's own spec.md from the
+      *blocking* gate's self-reference risk ("verified clean by construction"), no
+      equivalent carve-out exists for the *CI corpus-validation test's* growing-corpus
+      self-reference risk.
+    remediation: >
+      State explicitly whether the CI assertion re-executes the corpus-validation
+      procedure against the live `kitty-specs/` tree on every CI run or compares against a
+      pinned/snapshotted figure recomputed only on a cadence (e.g. nightly, or on
+      detector-code changes only). If it is live, explicitly exclude this mission's own
+      `kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/` directory from the count
+      (mirroring SC-008's self-reference treatment) and state a policy for what happens
+      when an unrelated, later-merged mission's spec.md pushes the rate over ceiling on a
+      PR that touched no detector code.
+
+  - id: SPEC-FRESH2-003
+    lens: fresh-sweep-round-2
+    severity: 4
+    title: "Ceiling-gating the ambiguous-block rate at <=2% conflicts with Story 5 AC2's own framing of the ambiguous bucket as \"likely highest true-positive\""
+    evidence:
+      - artifact: "spec.md Story 5 AC2 (§129): \"...the hardest-to-classify (and, empirically, likely highest true-positive) bucket: fail loud by blocking, rather than silently downgrading an unresolved case to advisory.\""
+      - artifact: "spec.md FR-006/C-006/Story 4 AC3 (§112, 170, 196): \"...the mission narrows the detector further (e.g. tighter section-title matching, additional shape exclusions, or tightening the ambiguous-boundary rules per Story 5 AC2) and re-measures\" when the ambiguous-block rate exceeds 2%"
+    claim: >
+      Round 2 newly wires the ambiguous-block rate into the same <=2%-ceiling,
+      narrow-and-re-measure mechanism used for false positives (FR-006/C-006/Story 4 AC3).
+      That treats a high ambiguous-block rate as unwanted noise to be engineered away,
+      exactly like a false positive. But Story 5 AC2 - unchanged by this round, and
+      explicitly cross-referenced by the new ambiguous-block bin's own definition -
+      states the ambiguous bucket is "empirically, likely highest true-positive": i.e. most
+      ambiguous cases are probably genuine bare-prose requirements the detector merely
+      couldn't confidently auto-classify, and Story 5's entire thesis is that this bucket
+      must fail loud (block) rather than be downgraded. Instructing implementers to
+      "tighten the ambiguous-boundary rules" whenever the ambiguous-block rate exceeds 2%
+      creates a direct incentive to reclassify likely-genuine bare-prose findings out of
+      the ambiguous bucket (into a non-blocking "deliberate non-match") purely to satisfy
+      an arbitrary corpus-noise ceiling - the opposite of what Story 5 exists to prevent,
+      and a second-order recreation of the silent-success failure class this whole mission
+      was chartered to close.
+    remediation: >
+      Either exempt the ambiguous-block rate from the "narrow the detector" remediation
+      path entirely (a high ambiguous-block rate should trigger investigation of whether
+      those cases are true positives needing a declared-shape fix upstream, not detector
+      narrowing), or add an explicit guardrail: narrowing the ambiguous-boundary rules to
+      hit the ceiling is only acceptable when the narrowed-out cases are demonstrated,
+      case-by-case, to be genuine non-matches per Story 5 AC2's boundary definition - never
+      as a blanket response to the aggregate rate.
+
+  - id: SPEC-FRESH2-004
+    lens: fresh-sweep-round-2
+    severity: 3
+    title: "Three-bin corpus classification is scoped per-spec, but the detector's findings are scoped per-occurrence - no tiebreak rule for a spec with mixed TP/FP/ambiguous signals"
+    evidence:
+      - artifact: "spec.md FR-005 (§169): \"classify each new-would-block spec into exactly three bins\""
+      - artifact: "spec.md Story 4 AC1 (§110): \"the count of specs it would newly flag is recorded, split into three counts\""
+    claim: >
+      The new three-bin model classifies each corpus SPEC into exactly one of
+      true-positive / false-positive / ambiguous-block. But the underlying detector
+      operates per requirement-heading section / per token (per FR-001's section-scoped
+      detection), and a single spec.md can plausibly contain more than one flaggable
+      instance - e.g. one genuine bare-prose FR (true positive) in its "Functional
+      Requirements" section and, separately, a malformed/unterminated heading elsewhere
+      that trips Story 5 AC2's ambiguous path. The spec never states how to bin such a
+      spec: count it once toward each of the two bins it actually exhibits (double-counting
+      against the "recorded separately... never silently folded into either" mandate,
+      since the totals would then no longer sum to the flagged-spec count), or force a
+      single dominant classification (undefined precedence order, and a lossy one - the
+      classification an implementer picks could shift a rate on either side of the 2%
+      ceiling).
+    remediation: >
+      State the classification unit explicitly: either move to per-occurrence
+      classification and rates (each bare-prose candidate location gets its own bin,
+      summed across the corpus) rather than per-spec, or state an explicit precedence rule
+      for specs exhibiting more than one bin's characteristics (e.g. "a spec containing any
+      ambiguous-block instance is classified ambiguous-block regardless of other findings
+      in the same file") so the three counts are guaranteed to partition the flagged-spec
+      set without gaps or double-counts.
+
+  - id: SPEC-FRESH2-005
+    lens: fresh-sweep-round-2
+    severity: 2
+    title: "Story 4's corpus-validation scope has grown across two revision rounds to a size disproportionate to a bug-fix mission - worth right-sizing at plan phase"
+    evidence:
+      - artifact: "spec.md Story 4 (§100-114), FR-005/FR-006 (§169-170), C-006 (§196), SC-005/SC-006 (§216-217)"
+    claim: >
+      Across round 1 (false-negative sampling added alongside false positives) and round 2
+      (a third ambiguous-block bin, dual CI-enforced pass/fail ceilings, and a named
+      post-plan-squad exception-approval path), Story 4 has accumulated: three-way corpus
+      classification, two independently-gated ceilings, a CI wiring requirement, a
+      docstring-recording requirement, a false-negative sample requirement targeting a
+      specific edge case (C-XXX/Constraints), and a cross-mission-phase review-approval
+      dependency. None of this is individually wrong, but the aggregate is now a
+      substantial measurement-and-governance subsystem bolted onto what the issue frames as
+      a bare-prose-detection bug fix. This is not a defect in the spec's correctness, but a
+      scope-creep signal worth flagging so the plan phase can consciously decide whether
+      all of this ships in this mission's single implementing work package or whether part
+      of it (e.g. the CI-wiring and dual-ceiling machinery) is right-sized into its own
+      follow-up.
+    remediation: >
+      At plan phase, explicitly size Story 4's corpus-validation work as its own work
+      package (not folded into the detector-implementation WP) and consider whether the
+      CI-enforcement requirement can ship as a fast-follow if it threatens the mission's
+      timeline, with that deferral stated and justified rather than silently narrowed.

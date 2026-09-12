@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.adapters import (
     register_pending_origin_consumer,
     reset_origin_consumer,
@@ -34,8 +34,19 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 
 def _init_git_repo(repo: Path) -> None:
     """Initialise a minimal git repo with .kittify and kitty-specs."""
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set, and mission types used in this file with
+    # REAL (unmocked) resolve_mission_type_context resolution -- software-dev
+    # (default) and documentation (test_documentation_mission_resolves_
+    # authored_spec_template) -- must each be activated for their real
+    # resolution to succeed.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n  - documentation\n",
+        encoding="utf-8",
+    )
     subprocess.run(
         ["git", "init"],
         cwd=repo,
@@ -110,10 +121,9 @@ def test_create_uses_configured_non_conventional_spec_override(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "mapped-spec", **_mission_summary("mapped-spec"))
@@ -139,7 +149,7 @@ def test_create_uses_configured_package_default_spec(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
         patch(
@@ -150,7 +160,6 @@ def test_create_uses_configured_package_default_spec(tmp_path: Path) -> None:
             "specify_cli.runtime.resolver.get_package_asset_root",
             return_value=package_root,
         ),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "package-spec", **_mission_summary("package-spec"))
@@ -176,7 +185,7 @@ def test_create_fails_before_scaffolding_for_invalid_spec_mapping(
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context(
                 template_set,
                 mission_type="documentation",
@@ -207,7 +216,7 @@ def test_create_fails_before_scaffolding_for_unresolved_mapped_spec(tmp_path: Pa
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
         patch(
@@ -238,7 +247,6 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
@@ -290,7 +298,6 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
@@ -388,7 +395,6 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
             patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
             patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
             patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-            patch("specify_cli.status.fire_dossier_sync"),
             patch(f"{_CORE_MODULE}._commit_feature_file"),
             patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin,
         ):
@@ -443,7 +449,6 @@ def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None
             patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
             patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
             patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-            patch("specify_cli.status.fire_dossier_sync"),
             patch(f"{_CORE_MODULE}._commit_feature_file"),
             patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
         ):
@@ -548,7 +553,6 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(
@@ -579,7 +583,6 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
@@ -615,7 +618,6 @@ def test_documentation_mission_resolves_authored_spec_template(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(
@@ -638,12 +640,90 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "basic-feature", **_mission_summary("basic-feature"))
 
     assert result.meta["mission_type"] == "software-dev"
+
+
+# ---------------------------------------------------------------------------
+# FR-001: meta.json commit fails loudly (mission_creation.py:767, :792)
+# ---------------------------------------------------------------------------
+
+
+def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
+    """FR-001 Acceptance Scenario 3: the legitimate "nothing to commit" no-op
+    case is unaffected by removing the ``contextlib.suppress(Exception)``
+    wrapper. ``_commit_feature_file``'s own docstring documents it "silently
+    succeeds when there is nothing to commit" -- that no-op behavior lives
+    inside ``_commit_feature_file``/``safe_commit`` itself and is untouched by
+    this WP's fix, which only removes the code that discarded a *raised*
+    exception. This test proves the fix distinguishes "nothing to commit"
+    (still silent, unchanged) from "hard failure" (now raises, see the
+    sibling hard-failure tests in ``test_mission_create_checkout_restore.py``).
+
+    Not red-first by design (T003): a non-raising ``_commit_feature_file``
+    call is unaffected whether or not ``contextlib.suppress`` wraps it, so
+    this test passes identically before and after the fix -- it is a
+    regression guard against the fix ever broadening to reject the no-op
+    case, not a reproduction of the defect.
+    """
+    _init_git_repo(tmp_path)
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        # A plain no-op mock (no side_effect, returns None) stands in for the
+        # real no-op path (nothing new to commit), which never raises.
+        patch(f"{_CORE_MODULE}._commit_feature_file", return_value=None) as commit_mock,
+    ):
+        result = create_mission_core(tmp_path, "meta-noop-commit", **_mission_summary("meta-noop-commit"))
+
+    assert isinstance(result, MissionCreationResult)
+    assert commit_mock.called
+    meta_file = result.feature_dir / "meta.json"
+    assert meta_file.exists()
+
+
+def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
+    tmp_path: Path,
+) -> None:
+    """FR-001 Acceptance Scenario 4: the hard-failure guard is not partial to
+    the primary mission-type branch -- a ``documentation`` mission-type creation
+    must raise identically on a hard git failure at the scaffold commit.
+
+    #2693 collapsed the create commit legs into ONE transactional scaffold
+    commit (``meta.json`` + ``status.events.jsonl`` + ``tasks/README.md`` +
+    ``tasks/.gitkeep``) that runs after the ``documentation``-only
+    ``set_documentation_state`` write, so ``meta.json`` carries the doc state.
+    There is now a single ``_commit_feature_file`` call site, so a single
+    always-raising mock exercises it directly.
+
+    Revert sensitivity: re-wrapping the scaffold ``_commit_feature_file`` call in
+    ``contextlib.suppress(Exception)`` swallows the ``RuntimeError`` silently,
+    ``create_mission_core`` returns normally, and ``pytest.raises`` below fails
+    with "DID NOT RAISE".
+    """
+    _init_git_repo(tmp_path)
+    boom = RuntimeError("documentation state commit rejected")
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=boom),
+        pytest.raises(RuntimeError, match="documentation state commit rejected"),
+    ):
+        create_mission_core(
+            tmp_path,
+            "docs-meta-commit-hard-failure",
+            mission="documentation",
+            **_mission_summary("docs-meta-commit-hard-failure"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -665,7 +745,6 @@ def test_slug_uses_mid8_suffix_not_numeric_prefix(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "padded-test", **_mission_summary("padded-test"))

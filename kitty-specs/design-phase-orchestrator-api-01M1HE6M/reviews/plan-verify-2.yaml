@@ -1,0 +1,65 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: design-phase-orchestrator-api-01M1HE6M
+verdicts:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reasoning: >
+      Commit ac28c39f9 adds the missing marker instruction consistently at
+      every location plan.md discusses the relocated SC-008 test: Gate Set
+      item 3 (line ~404-425), Gate Set item 4 (line ~455-475), the WP02 and
+      WP08 rows of the Work Package Breakdown table (lines 797, 803), the
+      Project Structure tree comment (lines 856-865), and the Integration
+      tests narrative (lines 920-925). All five now say the module must
+      carry `pytestmark = pytest.mark.integration` (adding `pytest.mark.
+      git_repo` if the fixture-mission setup does a real `git init`).
+      Independently re-verified against the live repo: `.github/workflows/
+      ci-quality.yml:1430-1431` — `fast-tests-next` runs `pytest tests/
+      next/ tests/specify_cli/next/ tests/runtime/ -m "fast and not
+      windows_ci"`; `ci-quality.yml:2794-2795` (job body at 2757-2799) —
+      `integration-tests-next` runs the same three paths with `-m
+      '${{ matrix.shard }} and not windows_ci and (git_repo or
+      integration)'`. `tests/conftest.py:298-315` confirms
+      `_apply_shard_markers` auto-applies only the `next_shard_N` half of
+      that expression (via `tests/_next_shard_map.py`'s registered `next`
+      group) — `git_repo`/`integration` is never auto-applied, exactly as
+      the plan now states. `pytest.ini:25` still defines `fast` as
+      "no subprocess/git overhead (sub-second per test)", supporting the
+      plan's judgment that this real-file-I/O test needs `integration`
+      rather than `fast`. Sibling-file precedent re-checked directly:
+      `tests/specify_cli/next/test_runtime_bridge.py:19` —
+      `pytestmark = pytest.mark.fast`; `test_runtime_bridge_dispatch.py:29`
+      — `pytestmark = [pytest.mark.unit, pytest.mark.fast]` (both cited
+      correctly as the "directory alone isn't enough" counter-examples).
+      The fix round's newly-cited further precedent also checks out:
+      `test_runtime_bridge_composition.py:49` and
+      `test_next_output_preservation.py:29` both carry
+      `pytestmark = [pytest.mark.integration, pytest.mark.git_repo]` — the
+      exact marker combination the plan now prescribes for WP02, for the
+      same real-file-I/O/fixture-mission test shape. Since
+      `integration-tests-next`'s filter is `(git_repo or integration)`
+      (an OR), `pytest.mark.integration` alone is sufficient to be
+      collected there, and the plan's phrasing ("carry integration; add
+      git_repo too if...") correctly reflects that. This is a substantive
+      fix, not restated wording: WP02's task file now has an unambiguous,
+      cross-referenced, verified-correct marker instruction at every site
+      that previously only said "right directory."
+  - id: PLAN-FRESH-002
+    status: resolved
+    reasoning: >
+      Commit ac28c39f9 tightens plan.md § (a)'s FR-014 precedent paragraph
+      (now at lines ~217-220) from "commands.py:32-66's import block
+      contains no `runtime.next` or `runtime` reference" to "...contains no
+      `runtime.next` (or bare `src/runtime/`) reference." Independently
+      re-verified: `src/specify_cli/orchestrator_api/commands.py:47` reads
+      `from mission_runtime import CommitTarget`, and `src/` contains two
+      distinct top-level packages — `runtime` and `mission_runtime` — so
+      `mission_runtime` is genuinely unrelated to `src/runtime/next`. A
+      repo-wide grep of the file for `runtime.next`, `from runtime`, and
+      `import runtime` returns zero matches (only three more
+      `mission_runtime` references at lines 420/423/431/1564, none of them
+      `src/runtime/*`). The revised wording no longer reads as a claim
+      about the substring "runtime" generally (which `mission_runtime`
+      would have contradicted) and is now literally accurate as well as
+      substantively correct — a genuine wording fix, not a no-op restatement.

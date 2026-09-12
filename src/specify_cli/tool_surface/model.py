@@ -9,12 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .operations import Diagnostic
+
 from .enums import (
     ActivationMode,
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 
 
@@ -27,7 +29,7 @@ class SurfaceDefinition:
     how to expand, probe, and repair it.
     """
 
-    kind: SurfaceKind
+    kind: ToolSurfaceKind
     source_kind: SourceKind
     install_scope: InstallScope
     path_pattern: str
@@ -35,6 +37,14 @@ class SurfaceDefinition:
     activation_mode: ActivationMode
     provider_key: str
     repair_hint: str
+
+
+@dataclass(frozen=True)
+class SurfaceSelection:
+    """Canonical tool/definition selection, even when expansion has no instances."""
+
+    tool_key: str
+    definition: SurfaceDefinition
 
 
 @dataclass(frozen=True)
@@ -56,6 +66,8 @@ class SurfacePlan:
     tool_key: str
     instances: tuple[SurfaceInstance, ...]
     computed_at: str
+    definitions: tuple[SurfaceDefinition, ...] = ()
+    diagnostics: tuple[Diagnostic, ...] = ()
 
 
 @dataclass(frozen=True)

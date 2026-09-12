@@ -1,0 +1,32 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PLAN-FRESH2-001
+    lens: fresh-eyes / debugger-debbie (cross-reference verification)
+    severity: 2
+    title: "plan.md's '## ATDD-First (C-011)' heading collides with this mission's own C-XXX constraint-id namespace but names a different, external id (the charter's own C-011), with nothing in the section body to disambiguate"
+    evidence:
+      - artifact: "plan.md § ATDD-First (C-011) (heading, ~line 667)"
+      - artifact: "spec.md § Constraints table (lines 189-197): rows run C-001..C-009, no C-010 or C-011 defined at the mission level"
+      - artifact: "spec.md § Constraints, row C-002 (line 190): '...before any implementation commit (charter C-011)...' — the only place in spec.md that spells out which C-011 is meant"
+    claim: >
+      Every other parenthetical-id section heading in plan.md — "C-008 decision" (line
+      201), "C-006 in the algorithm" (line 277), "C-007 — fact-port shape" (line 433),
+      "Composed-Guard Vocabulary Scope (C-009)" (line 492) — points at one of this
+      mission's own spec.md Constraints rows (C-001..C-009), and a reader has just spent
+      the whole document learning that convention. "## ATDD-First (C-011)" breaks that
+      pattern silently: spec.md's own Constraints table stops at C-009, so a reader who
+      goes looking for "C-011" there (the natural next step, given the established
+      pattern) finds nothing. The referent is only recoverable by noticing spec.md's C-002
+      row parenthetically writes "(charter C-011)" — i.e. this is the *charter's* binding
+      C-011 (a doctrine-level id in a different, unstated namespace), not a mission-level
+      constraint. Plan.md's own heading never says "charter" and never cross-links to
+      where "C-011" is actually defined, so the section reads as though this mission's
+      spec had a C-010/C-011 it doesn't.
+    remediation: >
+      Rename the heading to something unambiguous, e.g. "## ATDD-First (charter C-011 /
+      spec C-002)" or "## ATDD-First (C-002 — charter's ATDD red-first rule)", matching
+      the disambiguation spec.md's own C-002 row already performs.

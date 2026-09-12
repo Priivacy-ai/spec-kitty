@@ -15,7 +15,7 @@ Covers (WP01 T007):
 * facade-dict resolution, BOTH shapes (sync 2-tuple + runtime 1-value).
 * the live collision classifier: a synthetic reproduction of the real
   ``ArtifactKind`` trio shape (three modules each doing
-  ``from doctrine.artifact_kinds import ArtifactKind``) -> module_path
+  ``from charter.offering.artifact_kinds import ArtifactKind``) -> module_path
   escalation or fail-closed.
 * ``None``-key fail-closed (never silently exempted) + ``unresolved_reason``.
 * a perf-budget assertion on ``classify_collisions``.
@@ -24,6 +24,7 @@ Covers (WP01 T007):
 from __future__ import annotations
 
 import ast
+import dataclasses
 
 import pytest
 
@@ -235,9 +236,9 @@ def test_single_alias_hash_differs_for_different_bound_names() -> None:
 def test_resolve_symbol_key_bare_import_from_single_name() -> None:
     """The real ArtifactKind-trio shape: a bare ``from M import Name`` (no
     asname) must resolve via the single-alias path, not fall through to None."""
-    src = "from doctrine.artifact_kinds import ArtifactKind\n"
+    src = "from charter.offering.artifact_kinds import ArtifactKind\n"
     module = _module(src)
-    key = resolve_symbol_key("ArtifactKind", "doctrine.directives", module)
+    key = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module)
     assert key is not None
     assert key.bare_name == "ArtifactKind"
 
@@ -374,11 +375,11 @@ def test_non_facade_module_has_no_facade_entry_for_unrelated_name() -> None:
 # each doing a bare `from <origin> import Name` re-export of the SAME name.
 # Under alias_body_hash this text is byte-identical ("ArtifactKind") across
 # all three sites, so the live index correctly detects the collision --
-# exactly mirroring src/doctrine/{directives,procedures,tactics}/__init__.py.
+# exactly mirroring src/charter/offering/{directives,procedures,tactics}/__init__.py.
 _TRIO_MODULES = {
-    "doctrine.directives": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
-    "doctrine.procedures": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
-    "doctrine.tactics": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.directives": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.procedures": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.tactics": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
 }
 
 
@@ -401,21 +402,21 @@ def test_classify_collisions_rederives_artifact_kind_trio() -> None:
 def test_key_tier_escalates_collision_to_module_path_when_disambiguating() -> None:
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
-    escalated = key_tier(candidate, "doctrine.directives", index)
+    escalated = key_tier(candidate, "charter.offering.directives", index)
     assert escalated is not None
-    assert escalated.module_path == "doctrine.directives"
-    assert escalated.as_tuple() == ("ArtifactKind", "doctrine.directives", escalated.body_hash)
+    assert escalated.module_path == "charter.offering.directives"
+    assert escalated.as_tuple() == ("ArtifactKind", "charter.offering.directives", escalated.body_hash)
 
 
 def test_key_tier_fails_closed_without_a_module_path_to_disambiguate() -> None:
     """D-3: a collision with no module_path supplied cannot be escalated -- fail-closed."""
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
     assert key_tier(candidate, None, index) is None
 
@@ -425,8 +426,8 @@ def test_key_tier_fails_closed_when_module_path_does_not_participate() -> None:
     disambiguate -- fail-closed rather than silently accepted."""
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
     assert key_tier(candidate, "some.unrelated.module", index) is None
 
@@ -626,3 +627,119 @@ def test_location_is_a_plain_frozen_record() -> None:
     assert loc.module_path == "pkg.mod"
     assert loc.bare_name == "Foo"
     assert loc.body_hash == "deadbeef"
+
+
+# ---------------------------------------------------------------------------
+# G1-G6 -- source_module non-goal guards (#3552 WP01).
+# Pins the field's provenance-only, non-hashing contract so a later edit
+# cannot silently violate it. See contracts/non-goal-invariants.md.
+# ---------------------------------------------------------------------------
+
+
+def test_source_module_is_non_comparing() -> None:
+    """G6 (keystone): the field is declared compare=False. Fails the instant
+    someone flips it to comparing -- closing critical risk R1, under which a
+    provenance-bearing allowlist entry would stop matching its resolver-minted
+    key (final_key in allowlist would false-red for every such entry)."""
+    fields_by_name = {f.name: f for f in dataclasses.fields(SymbolKey)}
+    assert fields_by_name["source_module"].compare is False
+
+
+def test_source_module_ignored_by_equality_content_tier() -> None:
+    """G1: two content-tier keys equal in (bare_name, body_hash) but differing
+    in source_module (None vs set) compare equal."""
+    resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
+    allowlist_key = SymbolKey(
+        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
+    )
+    assert resolver_key == allowlist_key
+
+
+def test_source_module_ignored_by_equality_collision_tier() -> None:
+    """G1, escalated tier: an equal (bare_name, module_path, body_hash) triple
+    still compares equal regardless of source_module."""
+    resolver_key = SymbolKey(
+        bare_name="ArtifactKind", body_hash="deadbeef", module_path="charter.offering.directives"
+    )
+    allowlist_key = SymbolKey(
+        bare_name="ArtifactKind",
+        body_hash="deadbeef",
+        module_path="charter.offering.directives",
+        source_module="charter.offering.artifact_kinds",
+    )
+    assert resolver_key == allowlist_key
+
+
+def test_source_module_ignored_by_hash_and_frozenset_membership() -> None:
+    """G2: the same two keys hash-equal and are mutual frozenset members --
+    this is exactly the `final_key in allowlist` exemption shape (R1): a
+    resolver-minted key carrying NO provenance must still be found `in` an
+    allowlist frozenset whose entry carries a non-None source_module."""
+    resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
+    allowlist_entry = SymbolKey(
+        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
+    )
+    assert hash(resolver_key) == hash(allowlist_entry)
+    allowlist = frozenset({allowlist_entry})
+    assert resolver_key in allowlist
+    assert allowlist_entry in frozenset({resolver_key})
+
+
+def test_source_module_does_not_escalate_content_tier() -> None:
+    """G3: a content-tier key with source_module set is still is_content_tier;
+    key_tier(...) returns it unescalated -- no module_path minted from
+    provenance (D-1 relocation-tolerance preserved). Realistic corpus input:
+    a single non-colliding __all__ entry, resolved the same way the live
+    classifier resolves any real symbol."""
+    src = "class Solo:\n    x: int\n__all__ = ['Solo']\n"
+    module = _module(src, containing_pkg="pkg.solo")
+    corpus = {"pkg.solo": module}
+    index = classify_collisions(corpus)
+    resolved = resolve_symbol_key("Solo", "pkg.solo", module, corpus=corpus)
+    assert resolved is not None
+
+    key = SymbolKey(
+        bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.solo"
+    )
+    assert key.is_content_tier
+
+    tiered = key_tier(key, "pkg.solo", index)
+    assert tiered is not None
+    assert tiered.is_content_tier
+    assert tiered.module_path is None
+
+
+def test_source_module_excluded_from_as_tuple_content_and_collision_tier() -> None:
+    """G4: as_tuple() excludes source_module in both the content-tier 2-tuple
+    and the escalated collision-tier 3-tuple -- provenance never enters the
+    allow-list-serializable identity shape."""
+    content = SymbolKey(bare_name="Foo", body_hash="h", source_module="pkg.mod")
+    assert content.as_tuple() == ("Foo", "h")
+
+    collision = SymbolKey(bare_name="Foo", body_hash="h", module_path="m", source_module="pkg.mod")
+    assert collision.as_tuple() == ("Foo", "m", "h")
+
+
+def test_source_module_does_not_affect_body_hash_and_resolver_key_has_none() -> None:
+    """G5: body_hash is identical with/without source_module; a resolver-
+    minted key for a still-dead symbol has source_module is None. Adding a
+    provenance peer for one bare_name must not change any other key's
+    body_hash."""
+    src = "class Widget:\n    size: int\n"
+    module = _module(src, containing_pkg="pkg.widgets")
+    resolved = resolve_symbol_key("Widget", "pkg.widgets", module)
+    assert resolved is not None
+    assert resolved.source_module is None  # resolver never mints provenance
+
+    with_provenance = SymbolKey(
+        bare_name=resolved.bare_name, body_hash=resolved.body_hash, source_module="pkg.widgets"
+    )
+    assert with_provenance.body_hash == resolved.body_hash
+
+    # A sibling key (different bare_name) is unaffected by this one gaining provenance.
+    other_src = "class Gadget:\n    weight: int\n"
+    other_module = _module(other_src, containing_pkg="pkg.widgets")
+    other_resolved = resolve_symbol_key("Gadget", "pkg.widgets", other_module)
+    assert other_resolved is not None
+    assert other_resolved.body_hash != with_provenance.body_hash
+    assert other_resolved.source_module is None

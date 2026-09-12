@@ -9,10 +9,11 @@ These types are backend-agnostic and used by GitVCS.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
+
+from kernel.clock import datetime
 
 
 # =============================================================================
@@ -24,15 +25,6 @@ class VCSBackend(StrEnum):
     """Supported VCS backends."""
 
     GIT = "git"
-
-
-class SyncStatus(StrEnum):
-    """Result status of a sync operation."""
-
-    UP_TO_DATE = "up_to_date"
-    SYNCED = "synced"
-    CONFLICTS = "conflicts"
-    FAILED = "failed"
 
 
 class ConflictType(StrEnum):
@@ -111,27 +103,6 @@ class ConflictInfo:
     our_content: str | None  # "Ours" side content (abbreviated)
     their_content: str | None  # "Theirs" side content (abbreviated)
     base_content: str | None  # Common ancestor content (if available)
-
-
-@dataclass
-class SyncResult:
-    """
-    Result of synchronizing a workspace with upstream changes.
-
-    The status field indicates the outcome:
-    - UP_TO_DATE: No sync needed
-    - SYNCED: Successfully updated, no conflicts
-    - CONFLICTS: Updated but has conflicts to resolve
-    - FAILED: Sync failed (network, permissions, etc.)
-    """
-
-    status: SyncStatus
-    conflicts: list[ConflictInfo]
-    files_updated: int  # Number of files changed
-    files_added: int  # Number of new files
-    files_deleted: int  # Number of removed files
-    changes_integrated: list[ChangeInfo]  # Commits pulled in during sync
-    message: str  # Human-readable summary message
 
 
 @dataclass

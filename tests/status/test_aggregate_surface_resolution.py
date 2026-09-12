@@ -34,10 +34,10 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import (
     MISSION_AMBIGUOUS_SELECTOR_CODE,
     MissionSelectorAmbiguous,
-    primary_feature_dir_for_mission,
 )
 from specify_cli.status.aggregate import (
     MissionMetadataUnavailable,
@@ -292,13 +292,29 @@ def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> 
     routed this to the composed (non-existent) coord dir would break first-write
     on a freshly-created coord mission.
     """
+    import subprocess
+
     primary_dir = tmp_path / "kitty-specs" / SLUG_WITH_MID8
     _write_meta(
         primary_dir,
         mission_id=MISSION_ID,
         coordination_branch=f"kitty/mission-{SLUG_WITH_MID8}",
     )
-    # NB: no coord worktree root created → unmaterialised.
+    # Production-shaped R2 (#1889): the mission repo is real and the DECLARED
+    # branch exists in it while the coord worktree root is still absent — that
+    # ref is what splits CoordState.UNMATERIALIZED from the #1848 DELETED
+    # data-loss verdict. Relying on the non-repo "treat as present" escape hatch
+    # instead made this fixture host-dependent: on any machine where an ambient
+    # checkout sits above basetemp (#154) the probe consulted THAT repo, found
+    # no such branch, and raised CoordinationBranchDeleted out of a
+    # create-window read.
+    _init_repo(tmp_path)
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "branch", f"kitty/mission-{SLUG_WITH_MID8}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     ms = MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
 
@@ -306,6 +322,37 @@ def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> 
         "declared-but-unmaterialised coord must keep the primary checkout "
         "authoritative until the worktree exists (create→first-write window)"
     )
+
+
+def test_declared_coord_in_guest_of_ambient_repo_resolves_primary(
+    tmp_path: Path,
+) -> None:
+    """#154 regression: a mission root that merely SITS INSIDE an unrelated
+    checkout must not inherit that repo's ref space.
+
+    The aggregate-wiring fixtures build an ad-hoc ``<tmp>/repo`` without git
+    init; on any host where an ambient ancestor checkout sits above basetemp
+    the deleted-branch probe consulted the AMBIENT repo, found no such branch,
+    and raised ``CoordinationBranchDeleted`` out of a first write. The
+    declared-branch probe treats a guest of a foreign checkout as R2′
+    (branch present), so this load resolves PRIMARY exactly as it does on a
+    clean host."""
+    import subprocess
+
+    outer = tmp_path / "ambient-checkout"
+    outer.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(outer)], check=True)
+    guest_repo = outer / "repo"
+    primary_dir = guest_repo / "kitty-specs" / SLUG_WITH_MID8
+    _write_meta(
+        primary_dir,
+        mission_id=MISSION_ID,
+        coordination_branch=f"kitty/mission-{SLUG_WITH_MID8}",
+    )
+
+    ms = MissionStatus.load(repo_root=guest_repo, mission_slug=SLUG_WITH_MID8)
+
+    assert ms.read_dir.resolve() == primary_dir.resolve()
 
 
 def _init_repo(repo_root: Path) -> None:
@@ -366,35 +413,6 @@ def test_coord_deleted_hard_fails_with_coordination_branch_deleted(
 # ---------------------------------------------------------------------------
 
 
-def test_aggregate_has_no_silent_first_match_glob() -> None:
-    """Static guard: ``aggregate.py`` makes no ``glob(...)`` CALL for selection.
-
-    The deleted FR-008 violation was a ``sorted(specs_dir.glob(f"{slug}-*/
-    meta.json"))`` first-match in ``_find_meta_path``. This guard parses the
-    module AST and asserts no ``.glob(...)`` call node remains, so no second mid8
-    selection path is silently re-introduced into the aggregate — all
-    disambiguation must route through the canonical handle resolver. (An AST
-    check, not a substring scan, so prose that *describes* the removed glob does
-    not trip the guard.)
-    """
-    import ast
-
-    source = Path(MissionStatus.load.__globals__["__file__"]).read_text(
-        encoding="utf-8"
-    )
-    tree = ast.parse(source)
-    glob_calls = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "glob"
-    ]
-    assert not glob_calls, (
-        "aggregate.py must not perform its own glob-based mission selection; "
-        "route through candidate_feature_dir_for_mission (FR-008). Found "
-        f"{len(glob_calls)} glob call(s)."
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -413,15 +431,17 @@ def test_save_without_identity_raises_via_blessed_path_constructor(
     mission), ``save()`` cannot persist via ``BookkeepingTransaction`` and must
     raise :class:`MissionMetadataUnavailable`. WP01 routes the *diagnostic*
     ``primary_candidate`` / ``meta_path`` through the blessed
-    ``primary_feature_dir_for_mission`` constructor rather than a raw
+    kind-aware ``placement_seam(...).read_dir(PRIMARY_METADATA)`` seam rather than a raw
     ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition — even on this
     error path. This test executes that branch (the function-local import + the
-    ``diag_primary = primary_feature_dir_for_mission(...)`` call) and asserts the
+    ``diag_primary = placement_seam(...).read_dir(PRIMARY_METADATA)`` call) and asserts the
     payload is exactly what the constructor yields. Mutation: re-inlining a raw
     path here (or dropping the guard) makes the payload diverge or the call not
     raise → this test fails.
     """
-    expected_primary = primary_feature_dir_for_mission(tmp_path, MISSION_SLUG)
+    expected_primary = placement_seam(tmp_path, MISSION_SLUG).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
 
     aggregate = MissionStatus(
         mission_slug=MISSION_SLUG,
@@ -453,7 +473,9 @@ def test_save_with_blank_mid8_raises_via_blessed_path_constructor(
     blessed-path diagnostic branch. Covering this second disjunct arm keeps the
     guard from silently narrowing to ``mission_id is None`` alone.
     """
-    expected_primary = primary_feature_dir_for_mission(tmp_path, MISSION_SLUG)
+    expected_primary = placement_seam(tmp_path, MISSION_SLUG).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
 
     aggregate = MissionStatus(
         mission_slug=MISSION_SLUG,

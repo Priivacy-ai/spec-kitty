@@ -1,0 +1,109 @@
+{
+  "mission_slug": "supply-chain-security-checks-layer-01KZBFBS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:06.106441+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:17.843617+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:25.093638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:33.177155+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:39.924078+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:47.326498+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:52.459965+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:52:57.373571+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:53:02.454354+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01-WP05 review verdicts (approved); see kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks/*/review-cycle-*.md",
+      "pass_fail": "pass",
+      "verified_by": "cursor:composer:reviewer-renata:reviewer",
+      "verified_at": "2026-08-07T06:53:06.415488+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -124,7 +124,9 @@ KITTIFY_DIR = ".kittify"
 #     generate text or call models.
 #   - C-003 / FR-007: any lane-state writes inside composed steps go through
 #     ``emit_status_transition`` -- this bridge writes no raw lane strings.
-#   - C-008: dispatch is hard-guarded on ``mission == "software-dev"``.
+#   - C-008: dispatch is gated on ``action_sequence`` membership for the
+#     resolved mission type -- any mission type, not just ``software-dev``
+#     -- via ``_should_dispatch_via_composition``.
 
 # Legacy run snapshots and project-local templates may still contain the old
 # tasks substep IDs. Normalize them into the single public ``tasks`` action so
@@ -179,7 +181,7 @@ def _should_dispatch_via_composition(
     # without it skip directly to the custom widening path.
     if repo_root is not None:
         try:
-            from charter.mission_type_profiles import (  # noqa: PLC0415
+            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
                 resolve_mission_type_context,
             )
 
@@ -263,7 +265,8 @@ def _resolve_runtime_contract_for_step(
     only handoff for synthesized contracts.
     """
     try:
-        from doctrine.missions.step_contracts import (
+        from charter.drg import resolve_org_dirs
+        from charter.offering.missions.step_contracts import (
             MissionStepContractRepository,
         )
         from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
@@ -285,7 +288,8 @@ def _resolve_runtime_contract_for_step(
                 project_dir=repo_root
                 / KITTIFY_DIR
                 / "doctrine"
-                / "mission_step_contracts"
+                / "mission_step_contracts",
+                org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
             return lookup_contract(contract_ref, repository)
         profile = step.agent_profile.strip() if step.agent_profile else None
@@ -308,28 +312,82 @@ def _composition_dispatch_inputs(
 ) -> tuple[str | None, Any | None]:
     """Return ``(profile_hint, contract)`` for a composition dispatch.
 
+    Resolves via ``_resolve_step_agent_profile`` / ``PromptStep.
+    agent_profile`` — the FR-008-mandated canonical resolution path
+    (``mission_step_contracts/executor.py:68-71``) — including when
+    ``action`` is a member of the mission type's own ``action_sequence``,
+    which is the common case for every canonical step of every mission
+    type. A ``resolve_mission_type_context`` probe still runs first so a
+    genuine resolution failure (e.g. a malformed org pack) is logged rather
+    than silently swallowed (FR-002); its result is otherwise unused here —
+    it no longer gates whether profile/contract resolution runs (FR-001/
+    FR-003).
+
+    **Built-ins-only exception (PR #797, FR-003, #3830 regression fix):**
+    when ``(mission, action)`` has an entry in ``StepContractExecutor``'s
+    ``_ACTION_PROFILE_DEFAULTS`` table — i.e. this is a canonical
+    ``software-dev`` / ``research`` / ``documentation`` action — the
+    template-side ``agent_profile`` is NOT consulted and ``profile_hint``
+    resolves to ``None`` unconditionally, so the executor's own
+    ``_resolve_profile_hint`` falls back to that built-ins-only table
+    exactly as it did before this mission (NFR-001). This preserves PR
+    #797's fast path: a frozen template that happens to carry a stray
+    ``agent_profile`` value on a built-in step (e.g. through gate-widening
+    test scaffolding, or an operator hand-edit) must never override the
+    documented built-in resolution. Custom mission types are never members
+    of that table, so this exception never narrows FR-001's guarantee that
+    a custom type's own action reaches ``PromptStep.agent_profile``.
+
     Not part of the WP02 compat guard's tracked symbol inventory (nothing
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
+
     """
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+            UnknownMissionTypeError,
             resolve_mission_type_context,
         )
 
-        action_sequence = resolve_mission_type_context(
-            repo_root, mission_type=mission
-        ).action_sequence
-        if action in action_sequence:
-            return None, None
+        resolve_mission_type_context(repo_root, mission_type=mission)
+    except UnknownMissionTypeError:
+        # Expected on the happy path: any non-charter-activated custom
+        # mission type raises this (the normal #3830 frozen-template path),
+        # so it is not a genuine resolution failure and must not be logged
+        # at ERROR (that would fire on every dispatch for a custom type).
+        # Debug-only so it is still diagnosable on demand.
+        logger.debug(
+            "mission type %r is not charter-activated; profile_hint "
+            "resolves via the frozen-template path",
+            mission,
+        )
     except Exception:
-        pass
+        # Genuine resolution failure (e.g. a malformed org pack) — logged so
+        # it is diagnosable, distinguished from the ordinary success case
+        # (which logs nothing, NFR-001) by log presence, not conflated with
+        # it. Resolution below still proceeds via the frozen-template
+        # fallback path; a mission-type-context failure here is not fatal to
+        # dispatch.
+        logger.exception(
+            "resolve_mission_type_context failed for mission=%r action=%r; "
+            "profile_hint resolution continues via the frozen-template path",
+            mission,
+            action,
+        )
 
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+    from specify_cli.mission_step_contracts.executor import (  # noqa: PLC0415
+        _ACTION_PROFILE_DEFAULTS,
+    )
 
+    profile_hint = (
+        None
+        if (mission, action) in _ACTION_PROFILE_DEFAULTS
+        else _rb._resolve_step_agent_profile(run_dir, step_id)
+    )
     return (
-        _rb._resolve_step_agent_profile(run_dir, step_id),
+        profile_hint,
         _rb._resolve_runtime_contract_for_step(
             repo_root=repo_root,
             run_dir=run_dir,
@@ -430,12 +488,17 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
-    Forwards to :func:`runtime_bridge_cores.evaluate_guards` over a
+    Forwards to :func:`runtime_bridge_cores.evaluate_guards_strict` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
-    T022; relocated here #2531 WP08).
+    T022; relocated here #2531 WP08). On this tolerant composed extension path
+    an :class:`~runtime_bridge_cores.UnregisteredMissionFamilyError` is caught,
+    logged at WARNING, and degraded to an explicit neutral (empty) result —
+    matching the legacy CLI path (``_check_cli_guards``), which also catches
+    and logs it at WARNING before degrading to an empty result.
 
     Mirrors ``_check_cli_guards`` semantics for the composed actions.
 
@@ -468,11 +531,21 @@ def _check_composed_action_guard(
       whole composed action; the guard demands the **union** of all three
       legacy substep checks (no weakening).
 
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns a list of failure descriptions; an empty list means all guards
     pass.
     """
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family=mission, step_id=action, legacy_step_id=legacy_step_id
+        feature_dir,
+        mission_family=mission,
+        step_id=action,
+        legacy_step_id=legacy_step_id,
+        repo_root=repo_root,
     )
     if mission == "software-dev" and action in ("implement", "review"):
         # _should_advance_wp_step stays defined in the residual (untouched by
@@ -480,10 +553,30 @@ def _check_composed_action_guard(
         # runtime_bridge._should_advance_wp_step is still observed from here.
         from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
+        # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
+        # though repo_root is in scope above for gather_artifact_presence: this
+        # composed-guard path (_dn_composition_dispatch, phase 3 of
+        # decide_next_via_runtime) runs only when _dn_dependency_gate (phase 2)
+        # returned None -- i.e. only AFTER that phase's own anchored
+        # _should_advance_wp_step call (repo_root=repo_root, mission_slug=
+        # mission_slug) already ran for the identical (action, feature_dir) and did
+        # not block (#3884 INT-001). Do not "fix" this by anchoring it here; a
+        # future reorder of decide_next_via_runtime's phase tuple that lets this be
+        # reached with WPs still pending would need a repo_root=/mission_slug=
+        # forward of its own, mirroring _dn_dependency_gate's call.
         snapshot = dataclasses.replace(
             snapshot, wp_advance_ready=_rb._should_advance_wp_step(action, feature_dir)
         )
-    return _cores.evaluate_guards(snapshot)
+    try:
+        return _cores.evaluate_guards_strict(snapshot)
+    # #3412 (FR-009/FR-010): NEVER widen this to also catch MalformedManifestError -- that would re-launder a malformed manifest into a tolerant empty result.
+    except _cores.UnregisteredMissionFamilyError:
+        logger.warning(
+            "Unregistered mission_family %r reached the composed guard path; "
+            "returning a neutral (empty) guard result.",
+            mission,
+        )
+        return []
 
 
 def _dispatch_via_composition(
@@ -539,15 +632,24 @@ def _dispatch_via_composition(
         request_text=request_text,
         mode_of_work=mode_of_work,
     )
-    # For custom missions, prefer the durable contract resolved from the
-    # frozen template during ``next``. Fall back to the process-local registry
-    # for in-process tests and callers, and then to the executor's repository
-    # lookup for built-in software-dev dispatch.
+    # The in-process ``RuntimeContractRegistry`` is the canonical runtime
+    # source for custom step contracts (explicitly registered by ``mission
+    # run`` / test setup), so a hit there takes priority over ``contract``
+    # — a contract this bridge may have locally re-synthesized from the
+    # frozen template via ``_resolve_runtime_contract_for_step`` (#3830
+    # regression: that local synthesis produces its own object, distinct
+    # from the one an operator/test explicitly registered under the same
+    # id, and must never shadow it). The locally-resolved ``contract`` is
+    # still the fallback for the cross-process case (``mission run`` and
+    # ``next`` execute in separate CLI processes, so the registry is empty
+    # in the ``next`` process even though the frozen template carries the
+    # binding), and the executor's own repository lookup is the final
+    # fallback for built-in software-dev dispatch.
     from specify_cli.mission_loader.registry import get_runtime_contract_registry
 
-    selected_contract = contract or get_runtime_contract_registry().lookup(
+    selected_contract = get_runtime_contract_registry().lookup(
         f"custom:{mission}:{action}"
-    )
+    ) or contract
     try:
         result = StepContractExecutor(repo_root=repo_root).execute(
             context, contract=selected_contract
@@ -590,10 +692,28 @@ def _dispatch_via_composition(
         invocation_ids,
     )
 
+    # FR-007: surface delegation candidates that were cited (``delegates_to``)
+    # but did not resolve against the merged/activated DRG -- previously
+    # computed by the executor and read by nothing. Non-blocking (WARNING,
+    # never ERROR, D-005): a correctly-cited-but-activation-filtered candidate
+    # is a valid, if inert, state, not necessarily an authoring mistake.
+    # Defensive ``getattr`` for the same reason as ``invocation_ids`` above --
+    # test mocks (MagicMock) and real ``StepContractExecutionResult``
+    # instances both flow through cleanly.
+    for step in getattr(result, "steps", ()) or ():
+        unresolved = getattr(step, "unresolved_candidates", ())
+        if unresolved:
+            logger.warning(
+                "step %s (contract %s) has unresolved delegation candidate(s): %s",
+                getattr(step, "step_id", "<unknown>"),
+                getattr(result, "contract_id", "<unknown>"),
+                ", ".join(unresolved),
+            )
+
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     failures = _rb._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
     )
     if failures:
         return failures

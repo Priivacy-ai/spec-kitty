@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZRJ688JXXAZMH1JWVZ8SX9X",
+  "completed_at": "2026-08-11T14:34:21.721544+00:00",
+  "outcome": "failed",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp01-opencode-takeover.jsonl"
+}

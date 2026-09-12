@@ -1,0 +1,496 @@
+{
+  "mission_slug": "journal-project-consent-3030-01KYKWQS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "RETIRED 2026-07-30. Originally: consent-availability gate in the delivery context. Retired on three grounds (see spec.md FR-001). NOTE: the retirement has a recorded SCOPE ERROR -- import-history shares the GateContext but not the dispatcher, so it inherited the retirement without the replacement (FR-028).",
+      "proof_type": "not_applicable",
+      "evidence": null,
+      "pass_fail": "retired",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T004 (retired). Scope error tracked as FR-028."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A project with NO consent record is denied for delivery, overriding the default-allow fall-through at routing.py:87.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP05/T015"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "is_sync_enabled_for_checkout denies when routing is unresolvable (routing.py:114-116); no network request is made.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T005"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A selected batch spanning >1 project is refused before any POST, names the projects, exits non-zero, and does not mutate retry counts.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T002"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Empty selection short-circuits before payload build and reports the real cause, not the no-Private-Teamspace message.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T005"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "project_uuid/project_slug exist as additive indexed journal columns; a PRE-MIGRATION journal file still opens and reads.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T010,T012"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "_select_undelivered's universe comes from the project-filtered read; the stored column is the sole selection authority.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T018"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The filtered read returns an identity projection (no payload BLOB) and its SQL carries no LIMIT.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T017"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Backfill run twice over a 10k-row multi-project journal yields byte-identical column values and unchanged row count.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T012"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Identity-less capture is stamped into a named non-deliverable state; NO event is dropped at write time.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T006"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Unresolved-identity events are counted (fixture: >=1 nil-sentinel + >=1 NULL) and those rows are absent from the delivered set.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T013 + WP07/T021"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "No code path constructs the queue-backed drain; the legacy queue is asserted empty and the removal fails loudly rather than discarding.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP02/T007,T008"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Consent index is uuid-keyed; two checkouts of one project with opposite overrides resolve to DENY; unresolvable paths keep an 'unresolved' marker the predicate ignores.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP05/T014,T016"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "A stable server refusal reason maps to TERMINAL_FAILED in receivers.py and is counted in terminal-failure totals.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T009"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "sync doctor/status/migrate report per-project depth, oldest age and consent state, reconciled against the journal retained count (NOT OfflineQueue stats).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP07/T021"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "sync purge --project removes 100% of the target project's rows across journal AND ledger and 0% of any other project's.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "sync purge --all empties the store behind explicit confirmation and reports the total removed.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Sync docs state the machine-global scope of SPEC_KITTY_ENABLE_SAAS_SYNC and SPEC_KITTY_SAAS_URL; a CI anchor test fails if the statement is removed.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP09/T023"
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "delivered_project_uuids is a SUBSET of consented_project_uuids AND None is not in delivered. Subset/membership, never cardinality -- identity-less events collapse to {None} and would fake cardinality==1.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T018"
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "2,000 non-consented events older than 10 consented: ONE drain delivers all 10. Predicate applied before the row limit.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T019"
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "100k rows / 20 projects: selecting one project performs no full-table payload decode.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T017"
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Backfill is idempotent and lossless; no row deleted or mutated outside the two new columns.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T012"
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Capture-first preserved: no event dropped at write time. A missing_auth-stamped row DOES deliver once the gate clears.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T003,T006"
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "After purging project X, differential row count over all other projects across journal and ledger is zero.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "NFR-007",
+      "description": "The drain's real batch window (_EVENT_SYNC_DISPATCH_BATCH_LIMIT, cli/commands/sync.py:807-820, halved on 413) is exercised. NOT batch.py's max_events_per_batch, which is dead after WP02.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP07/T020"
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "Incident reproduction: 6 projects, 1 consented, 5 with NO consent record -> only the consented project's events are delivered. FAILS on origin/main at mission start.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T001 + WP06/T018"
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "Liveness proof, written red-first at the selection seam.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T019"
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Each fail-closed path denies with NO network request: unresolvable routing, absent consent record, unresolvable identity, multi-project batch, empty selection.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T001-T005"
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "Zero hand-written SQLite queries needed to answer 'whose data is in here?'.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP07/T021"
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "No code path constructs the queue-backed drain.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP02/T008"
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Purge exactness measured by differential row counts across journal and ledger.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Backfill twice -> byte-identical values, unchanged count.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T012"
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "LIVE drain against spec-kitty-dev at the incident's shape (>=6 projects: 1 consented, >=3 no record, >=1 opt-out, >=1 identity-less). Artefact carries before/after counts per project_slug, the drain's own delivered count, and the CLI commit SHA. NEVER production.",
+      "proof_type": "manual_evidence",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP10/T024"
+    },
+    {
+      "criterion_id": "SC-009",
+      "description": "CROSS-INVOCATION: a second sync now selects strictly fewer events than the first. A single-run assertion is already green on origin/main via the dispatcher's exclude set.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T009"
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "RECORDED, NOT DISCHARGED: after this mission the machine still accumulates every project's payloads in one producer-scoped store. Egress is secured; collection is not. Operator decision.",
+      "proof_type": "manual_evidence",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP09/T023"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Unreadable machine-global consent state must not read as absent.",
+      "proof_type": "automated_test",
+      "evidence": "commit c633c548b0",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. ConsentLevel.UNDETERMINED + fault-preserving read(); consent_index_health() exposes it. Doctor-surface wiring still owed."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "An unreadable project-local file must not defer to a stale machine-index grant.",
+      "proof_type": "automated_test",
+      "evidence": "commit c633c548b0",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Fails OPEN before the fix (a leak), unlike FR-020 which failed closed. Measurement trap recorded: _reconcile_index side effect makes a shared-home probe read as a denial."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "An unreadable project config must not defer to a checkout-level grant.",
+      "proof_type": "automated_test",
+      "evidence": "commit 5928ef189b",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Fence placed BEFORE the identity read, so it closes a leak and a crash together. Proven non-redundant twice by runtime blinding with the bind counted."
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "A structurally invalid config.yaml must not crash load_identity.",
+      "proof_type": "automated_test",
+      "evidence": "commit a1ae36b13a",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as one crash; was FIVE, including one on the write path. Mid-write truncation hypothesis disproved by counting mkstemp calls."
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "A valid mapping with an unusable uuid value must not crash the policy read.",
+      "proof_type": "automated_test",
+      "evidence": "commit 136019c3f8",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as three shapes; was ELEVEN in three exception flavours, plus an unreported second class in repo_slug where routing died in code entitled to assume a string. Also 11b58403bb, 7ff1ca7dcf (self-caught weak assertions)."
+    },
+    {
+      "criterion_id": "FR-025",
+      "description": "The invocation propagator must not read undetermined consent as consent.",
+      "proof_type": "automated_test",
+      "evidence": "commit 08e3a675fa",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. SEVERITY CORRECTED: the sender is dead in production (FR-032), so the pre-fix 'measured leaking' result had an injected client. Fix lands as defence-in-depth. Three further permissive-default siblings on the same payload fixed in the same commit."
+    },
+    {
+      "criterion_id": "FR-026",
+      "description": "runtime.publish_event must gate on the event's own project_uuid.",
+      "proof_type": "automated_test",
+      "evidence": "commit 1cd50f3f41",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Twelve production callers, not the one reported: EventEmitter._emit returns the envelope regardless of consent, so the same module POSTed what _route_event had withheld -- M1-1's gate was being routed around by its own module's wrappers."
+    },
+    {
+      "criterion_id": "FR-027",
+      "description": "A field-level shape fault in the consent key must not void a committed refusal.",
+      "proof_type": "automated_test",
+      "evidence": "commit 34e4e16496",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as four shapes; was NINETEEN. enabled: no is a string under ruamel's YAML 1.2. Honest negative recorded: makes the unattributable-fault denial path more reachable."
+    },
+    {
+      "criterion_id": "FR-028",
+      "description": "import-history is an ungated egress path (sixth).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E1. Holds the project_uuid and never asks it. This is where FR-001's retirement scope error landed."
+    },
+    {
+      "criterion_id": "FR-029",
+      "description": "The tracker SaaS client is an ungated egress path (seventh).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E2. Reachable NON-INTERACTIVELY during mission creation, so no operator action is required."
+    },
+    {
+      "criterion_id": "FR-030",
+      "description": "The generic SaaS client is an ungated egress path (eighth).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E3. Four GETs carry mission_id, documented 'ULID or slug', in URL paths."
+    },
+    {
+      "criterion_id": "FR-031",
+      "description": "The body-upload enqueue gate must not fail open or consult the routing chain.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E4. The only fail-open gate found on a live-sender path; two defects in one line."
+    },
+    {
+      "criterion_id": "FR-032",
+      "description": "The phantom _ws_client attribute must be resolved deliberately.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Disables three senders. Assigning it -- a plausible one-line fix -- makes all three live at once. Invisible to the AST dead-symbol gate because a string-literal getattr is not a reference."
+    }
+  ],
+  "negative_invariants": [
+    "No event belonging to a project without a consent record is ever POSTed.",
+    "No event is dropped at write time (capture-first durability).",
+    "No transient drain-blocked reason (missing_auth/missing_team/saas_disabled) permanently excludes an event.",
+    "No test asserts delivered-project CARDINALITY in place of subset membership.",
+    "No mission activity authenticates against or mutates production."
+  ],
+  "notes_traceability": "FR-020..FR-032 were discovered and (mostly) fixed mid-mission and are owned by no work package -- the WP structure did not anticipate them. They are recorded here rather than retrofitted into ill-fitting WPs, which would be false attribution. FR-019 is defined as a prose subsection in spec.md rather than a table row, so table-parsing extraction misses it."
+}

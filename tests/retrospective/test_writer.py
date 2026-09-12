@@ -701,3 +701,35 @@ class TestGenRecordSerialisation:
         assert len(merged.helped) == 2  # h-001 + h-002 (h-001x deduped)
         assert len(merged.evidence_refs) == 2  # e-001 + e-002 (e-001x deduped)
         assert merged.findings_status == "has_findings"
+
+
+class TestAbandonedProvenanceRoundTrip:
+    """#3716: the ``runtime_abandoned`` provenance kind round-trips schema→disk→reader.
+
+    ``mission close --discard`` stamps a captured retrospective with
+    ``runtime_abandoned`` so an abandoned mission is not tagged with completion
+    provenance. The value must be a valid ``ProvenanceKind`` (schema Literal) AND
+    survive the reader's ``_PROVENANCE_KINDS`` validation, or the persisted record
+    fails to read back.
+    """
+
+    def test_runtime_abandoned_writes_and_reads_back(self, tmp_path: Path) -> None:
+        from specify_cli.retrospective.reader import read_gen_record
+
+        record = make_record(
+            provenance=GenProvenance(
+                kind="runtime_abandoned",
+                invoked_at="2026-09-03T00:00:00+00:00",
+            ),
+        )
+        canonical = write_gen_record(record, mode="error", repo_root=tmp_path)
+
+        restored = read_gen_record(canonical)
+        assert restored.provenance.kind == "runtime_abandoned"
+
+    def test_runtime_abandoned_is_accepted_by_reader_validator(self) -> None:
+        # Guards the reader-side allowlist directly: the new member must be in
+        # the frozenset the validator checks, else a discard record is unreadable.
+        from specify_cli.retrospective.reader import _PROVENANCE_KINDS
+
+        assert "runtime_abandoned" in _PROVENANCE_KINDS

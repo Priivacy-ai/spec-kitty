@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from unittest.mock import patch
 
@@ -125,12 +125,12 @@ class TestRunnerIntegration:
 
         metadata = ProjectMetadata(
             version="2.1.0",
-            initialized_at=datetime.now(),
-            last_upgraded_at=datetime.now(),
+            initialized_at=now_utc(),
+            last_upgraded_at=now_utc(),
             applied_migrations=[
                 MigrationRecord(
                     id="2.0.11_install_skills",
-                    applied_at=datetime.now(),
+                    applied_at=now_utc(),
                     result="success",
                     notes="No skills found to install",
                 )

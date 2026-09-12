@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-26T11:12:47.736508+00:00",
+  "flattened": false,
   "friendly_name": "Research Mission Composition Rewrite v2",
   "mission_id": "01KQ4QVVZ4DC6CXA1XCZZAQ8AG",
   "mission_number": 100,
@@ -11,5 +12,6 @@
   "source_description": "Reroll of Phase 6 issue #504 (parent epic #468, umbrella #461). Baseline: origin/main commit e056f39. Prior attempt evidence: git tag attempt/research-composition-mission-100-broken at d10af600.",
   "status_phase": "1",
   "target_branch": "main",
+  "topology": "lanes",
   "vcs": "git"
 }

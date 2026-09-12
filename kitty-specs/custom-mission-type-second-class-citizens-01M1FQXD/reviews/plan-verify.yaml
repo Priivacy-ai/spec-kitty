@@ -1,0 +1,31 @@
+schema: review-verify/v1
+phase: plan
+results:                    # one entry for EVERY finding in the findings file
+  - id: PLAN-FIT-001
+    status: resolved
+    reason: Decision 1 now adds an explicit reconciliation note (plan.md lines 162-185) stating research's checked set is two fields (Research Question primary, Data Sources peer) because `## Methodology` (verified at research-plan-template.md:22) carries no bold-field content of its own, mirrors the ruling #1 correction pattern, and is echoed consistently in the Blast Radius research row and Architectural Gate Non-Vacuity research row.
+  - id: PLAN-FIT-002
+    status: resolved
+    reason: Decision 3(c) now splits the nested-heading detector into two named sub-shapes — (c-i) repeatable instance for plan's Decisions and (c-ii) specifically-named sibling for research's Data Sources, located by matching label under the shared `## Methodology` container — and Decision 1's declaration records which sub-shape each field uses, closing the always-fail/wrong-scope ambiguity the finding identified; verified consistent with Decision 1's reconciliation note.
+  - id: PLAN-FIT-003
+    status: resolved
+    reason: 'The Architecture — Seam Mapping FR-005 elaboration (plan.md lines 81-110) now names a concrete existing mechanism instead of "e.g." — reusing mission_type.py''s existing `console.print(f"[red]Error:[/red] {exc}")`-style pattern at its one CLI call site (verified live at mission_type.py:190-197, and mission.py verified to have zero rich/console/typer imports and its `warnings.warn` at line 802) — and explicitly scopes the two non-CLI call sites (acceptance/__init__.py:1206, core/worktree.py:664) as out of scope, leaving only an implementation-level (not plan-level) choice, consistent with ruling #2.'
+  - id: PLAN-FIT-004
+    status: resolved
+    reason: research.md §R3's follow-up-issue scope paragraph now states the bridge "MUST reuse `resolve_existing_org_roots`/the existing org-roots precedence convention... not invent a third org-tier-walking mechanism" per C-002, verified live against `resolve_existing_org_roots` in src/charter/offering/drg/org_pack_config.py and its real callers in mission_type_profiles.py and dossier/manifest.py, so the constraint now travels with the tracked issue.
+  - id: PLAN-SEQ-001
+    status: resolved
+    reason: '`runtime_bridge.py` (verified live to contain the stale C-008 docstring on `_dn_composition_dispatch` at lines 1775-1777) is now added to §Project Structure''s file list, and §Blast Radius/§Campsite-Clean Scope both explicitly state the campsite-clean commit touches two files (not "no file-set growth"), justified by Boy Scout Rule + Locality of Change.'
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: The Architectural Gate Non-Vacuity qa row's negative fixture now matches the other four rows' shape (unfilled/placeholder-only scaffold of test-plan-template.md, proving the detector returns False through its normal per-type declaration + shape-detector + combination path), which now agrees with §ATDD-First's FR-006/FR-008 row ("fails when scaffold-only"); the malformed/missing/unresolvable-template fail-closed case is kept as a clearly separate edge case, not a substitute.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: '§ATDD-First now has its own FR-002 row with a concrete acceptance contract and RED-FIRST reproduction (a genuinely-raising `resolve_mission_type_context` call, e.g. malformed org pack) plus a concrete distinguishing mechanism — log via the module''s existing logger (verified live at runtime_bridge_composition.py:101, `logging.getLogger("runtime.next.runtime_bridge")`) on genuine failure while the ordinary success path stays silent — which is echoed consistently in §Architecture — Seam Mapping''s #3830 row and is a design decision, not literal regex/pseudo-code.'
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: research.md §R5 now quotes the dashboard entries verbatim (`src/specify_cli/dashboard/handlers/*`, `src/specify_cli/dashboard/scanner.py`) and lists `src/charter/offering/*` as its own entry alongside `src/charter/*`, which I re-verified myself against the live `critical_paths` array at .github/workflows/ci-quality.yml:3370-3396 and found to match exactly, including the tasks_move_task.py/tasks_verdict_persistence.py entries not being under review/.
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: '§Baseline Discipline item 2 now restates the charter''s exact required issue content (command run, failure summary, pre-existing rationale), which I re-verified word-for-word against the live charter text at .kittify/charter/charter.md:488 (Pre-existing Failure Reporting Rule), making the plan self-sufficient for a WP implementer.'
+complete: true

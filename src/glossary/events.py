@@ -28,7 +28,6 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterator
@@ -39,6 +38,7 @@ from glossary.semantic_events import (
     EVT_GLOSSARY_SENSE_UPDATED,
     EVT_SEMANTIC_CHECK_EVALUATED,
 )
+from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -212,11 +212,6 @@ def read_events(
 # ---------------------------------------------------------------------------
 
 
-def _now_iso() -> str:
-    """Return current UTC timestamp as ISO string."""
-    return datetime.now(UTC).isoformat()
-
-
 def build_glossary_scope_activated(
     scope_id: str,
     glossary_version_id: str,
@@ -243,7 +238,7 @@ def build_glossary_scope_activated(
         "glossary_version_id": glossary_version_id,
         "mission_id": mission_id,
         "run_id": run_id,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -285,7 +280,7 @@ def build_term_candidate_observed(
         "context": context,
         "mission_id": mission_id,
         "run_id": run_id,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -330,7 +325,7 @@ def build_semantic_check_evaluated(
         "effective_strictness": effective_strictness,
         "recommended_action": recommended_action,
         "blocked": blocked,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -366,7 +361,7 @@ def build_generation_blocked(
         "conflicts": conflicts,
         "strictness_mode": strictness_mode,
         "effective_strictness": effective_strictness,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -408,7 +403,7 @@ def build_clarification_requested(
         "run_id": run_id,
         "step_id": step_id,
         "conflict_id": conflict_id or str(uuid.uuid4()),
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -444,7 +439,7 @@ def build_clarification_resolved(
         "actor": actor,
         "resolution_mode": resolution_mode,
         "provenance": provenance,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -480,7 +475,7 @@ def build_sense_updated(
         "actor": actor,
         "update_type": update_type,
         "provenance": provenance,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -522,7 +517,7 @@ def build_step_checkpointed(
         "input_hash": input_hash,
         "cursor": cursor,
         "retry_token": retry_token,
-        "timestamp": timestamp or _now_iso(),
+        "timestamp": timestamp or now_utc_iso(),
     }
 
 
@@ -944,7 +939,7 @@ def emit_clarification_resolved(
     mission_id = getattr(context, "mission_id", "unknown")
     actor_id = getattr(context, "actor_id", "unknown")
 
-    ts = _now_iso()
+    ts = now_utc_iso()
 
     event = build_clarification_resolved(
         conflict_id=conflict_id,
@@ -1009,7 +1004,7 @@ def emit_sense_updated(
     mission_id = getattr(context, "mission_id", "unknown")
     actor_id = getattr(context, "actor_id", "unknown")
 
-    ts = _now_iso()
+    ts = now_utc_iso()
 
     event = build_sense_updated(
         term_surface=conflict.term.surface_text,

@@ -1,0 +1,141 @@
+# review-findings/v1 — merged, deduplicated (R2, mechanical, orchestrator, no session).
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+merged_from:
+  - tasks-decomp.findings.yaml
+  - tasks-seq.findings.yaml
+  - tasks-verify.findings.yaml
+dedup_note: >
+  All 5 findings across the 3 lens groups address distinct concerns (WP01
+  reviewability-claim gap, an external open-PR file collision, a subtask-ID
+  naming convention risk, a missing pre-change baseline capture subtask, and
+  a missing FR-002 discriminating test) — no two findings cite the same
+  artifact section/file:line making substantially the same claim. Nothing
+  dropped; kept all 5 with original ids and severities.
+findings:
+  - id: TASKS-DECOMP-001
+    lens: single-PR reviewable-diff (decomp)
+    severity: 2
+    title: WP01 never re-asserts plan.md's "reviewable-in-one-sitting" claim at the post-fold granularity
+    evidence:
+      - artifact: "plan.md § Phasing — ONE PR (spec-kitty default) (~line 1177-1186)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Context and § Risks"
+      - artifact: "tasks.md, wps.yaml — no mention of PR-diff readability anywhere"
+    claim: >
+      plan.md justifies shipping this Mission as ONE PR by arguing the diff
+      "qualifies as reviewable-in-one-sitting" specifically because it is
+      "two well-isolated, independently-testable function fixes ... A
+      reviewer can read the FR-001/006 diff and the FR-004/005 diff as two
+      independent, small hunks even inside one PR." The tasks phase's
+      mandatory owned_files fold merges both hunks into ONE work package
+      (WP01) that receives ONE WP-level review pass, not two. WP01's own
+      Context/Risks sections justify the SIZE via the file-ownership
+      constraint but never re-assert plan.md's specific human-readability
+      claim at this new, larger review granularity.
+    remediation: >
+      Add one sentence to WP01's Context or Risks section (or to tasks.md)
+      explicitly re-affirming plan.md's reviewable-in-one-sitting claim at
+      the merged-WP granularity, noting the diff still separates into the
+      same two logical hunks plan.md described.
+  - id: TASKS-SEQ-001
+    lens: write-scopes
+    severity: 4
+    title: "WP01's gather_artifact_presence anchoring fix (T008/T009) collides with an already-open PR editing the same function"
+    evidence:
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T008 and § Subtask T009"
+      - code: "src/runtime/next/runtime_bridge_io.py:998 (gather_artifact_presence, current unmodified signature)"
+      - code: "PR #3923 (DRAFT, base=main) diff to src/runtime/next/runtime_bridge_io.py: adds _artifact_presence_read_dir(...) using placement_seam/kind_for_mission_file/MissionArtifactKind, rewriting the same named-artifact loop, tasks_dir computation, and three status_facts helper calls T009/T010 target."
+    claim: >
+      wps.yaml's owned_files are pairwise-disjoint across this mission's own
+      three WPs, but the tasks phase never checked owned_files against files
+      an already-open PR is touching. PR #3923 is currently rewriting
+      gather_artifact_presence's body to anchor the same reads via a
+      different, competing design (_artifact_presence_read_dir, gated on
+      kind_for_mission_file) than T008/T009 specify
+      (resolve_primary_anchor_dir, gated on repo_root, raising a new
+      PrimaryPlacementResolutionError). If PR #3923 lands on main before this
+      mission's WP01 merges, WP01's line citations go stale and the mission
+      risks two independently-invented "resolve the primary placement
+      directory" mechanisms in the same function — a direct hit on the
+      charter's "single canonical authority" principle T008's own docstring
+      invokes (DIRECTIVE_044).
+    remediation: >
+      Before WP01 begins implementation, check whether PR #3923 has merged to
+      main; if so, re-verify T009's line citations and reconcile the two
+      anchoring designs into one canonical helper before writing the fix, and
+      record the reconciliation decision in tracer-design-decisions.md. If
+      PR #3923 has not merged, add a one-line flag to WP01's Risks section
+      noting this open, actively-changing external PR as a landing-order risk.
+  - id: TASKS-SEQ-002
+    lens: global-subtask-id-sequence-integrity
+    severity: 2
+    title: "WP01 body contains a 'Subtask T014a' heading with no corresponding ID in WP01's frontmatter subtasks list"
+    evidence:
+      - artifact: "tasks/WP01-merged-production-fix.md § heading '## Subtask T014a (folded into T014's scope)'"
+      - artifact: "tasks/WP01-merged-production-fix.md frontmatter subtasks: list — T008 through T019 inclusive, no T014a entry"
+    claim: >
+      The body contains an additional, differently-formatted heading using
+      the Txxx naming convention that mark-status keys off of everywhere
+      else, but T014a is not a registered subtask ID. The heading's own text
+      disclaims it ("not a separate numbered subtask") so nothing is lost,
+      but it risks an implementer attempting
+      `mark-status T014a --status done` (which will fail) or a reviewer
+      concluding a subtask went missing.
+    remediation: >
+      Rename the heading to drop the Txxx-shaped id entirely (e.g. "## The
+      three ORIGINAL FR-006 catch sites (part of T014's scope)") so it cannot
+      be mistaken for a fourteenth registered subtask ID.
+  - id: TASKS-VERIFY-001
+    lens: Baseline captured before the first change
+    severity: 2
+    title: "NFR-001's exact pre-change baseline invocations are never assigned as a WP subtask — only re-verified post-fix in WP03"
+    evidence:
+      - artifact: "plan.md § Baseline (NFR-001) (line 1122-1146)"
+      - artifact: "tasks/WP02-coord-topology-fixture-repro1.md (no NFR-001/baseline-invocation subtask anywhere)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T019 step 4"
+      - artifact: "tasks/WP03-regression-sweep-baseline-reverify.md § Subtask T021"
+    claim: >
+      plan.md's Baseline section instructs running the three exact
+      invocations FIRST, before any production-code change, and recording
+      the counts. Neither WP02 nor WP01 contains a subtask instructing this;
+      only WP03 runs the exact invocations, and only AFTER WP01's fix has
+      landed, so there is no live "before" data point from this mission's own
+      execution to diff WP03's "after" numbers against. WP03's own bisect-
+      against-main fallback is an adequate substitute mechanism, capping
+      severity at minor.
+    remediation: >
+      Add an explicit subtask to WP02 (or the start of WP01, before its first
+      production commit) instructing the implementer to run and record, in
+      tracer-design-decisions.md, the three NFR-001-exact invocations BEFORE
+      any production-code change lands, mirroring plan.md's own "run FIRST"
+      instruction verbatim.
+  - id: TASKS-VERIFY-002
+    lens: "Test-strategy fidelity for the FR-006 catch-site sequence (extended: FR-002 coverage check)"
+    severity: 3
+    title: "FR-002 / US1 Acceptance Scenario 2 (WP-lane-state read must stay on feature_dir, not primary) has no dedicated discriminating test in WP01's task list"
+    evidence:
+      - artifact: "spec.md § Requirements, FR-002 row"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T009 step 4 (design instruction only, not a test)"
+      - artifact: "tasks/WP01-merged-production-fix.md § Subtask T018 (no item names get_wp_lane/wp_lane_raw)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1070 (get_wp_lane(feature_dir, wp_id), left on feature_dir per T009 step 4)"
+      - code: "src/runtime/next/committed_authority.py:117-133 (wp_ending raises CanonicalStatusNotFoundError when feature_dir carries no event log)"
+    claim: >
+      FR-002/AC-Scenario-2 requires the WP-lane-state read to keep resolving
+      against the coord worktree's feature_dir after FR-001's fix lands. WP01
+      only encodes this as an implementer instruction ("leave UNCHANGED") —
+      no subtask names a dedicated assertion that would fail if an
+      implementer accidentally redirected the WP-lane read to anchor_dir
+      instead. The only incidental protection is a fixture side effect (no
+      status.events.jsonl on primary_dir), not a deliberate, documented
+      assertion of FR-002's contract, and WP01's Reviewer Guidance has no
+      checklist item for it.
+    remediation: >
+      Add one explicit, discriminating test to T015 or T018: build a
+      coord-topology fixture where primary_dir's OWN status.events.jsonl
+      marks the WP differently than the coord feature_dir's, then assert
+      _should_advance_wp_step returns the coord-anchored answer, not the
+      primary-anchored one — making FR-002/AC-Scenario-2 an explicit positive
+      assertion instead of an incidental fixture side effect.

@@ -7,15 +7,23 @@ Search precedence
 -----------------
 1. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.workflow.yaml``
 2. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.yaml``
-3. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
-4. ``src/doctrine/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
+3. ``src/charter/offering/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
+4. ``src/charter/offering/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
 
 Layer rule (C-001 / NFR-003)
 -----------------------------
 This module lives inside the runtime package
-(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``,
-``doctrine`` (Python modules), or ``kernel``.  Doctrine YAML files are loaded
+(``runtime.next._internal_runtime``).  It MUST NOT import from ``charter``
+or ``doctrine`` (Python modules).  Doctrine YAML files are loaded
 as raw data from disk; they are not imported as Python modules.
+
+``kernel.clock`` is the one sanctioned exception (mission
+``kernel-clock-single-door``, D-1): this invariant is about runtime
+re-extractability -- not depending on doctrine-family internals -- not
+about general purity. ``kernel`` is the stdlib-only layer floor every
+package may import and carries no doctrine-family coupling, so a
+``kernel.clock`` import does not violate the re-extractability rationale
+this rule protects.
 
 FR-015 — no silent fallback
 ----------------------------
@@ -79,11 +87,13 @@ _WORKFLOW_ID_PATTERN: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
 #   2: runtime/
 #   3: src/
 #   4: <repo root>
-# So parents[3] / "src" / "doctrine" / "workflows" is the canonical root.
+# So parents[3] / "charter" / "offering" / "workflows" is the canonical root
+# (mission charter-code-topology-01M152G1 relocated src/charter/offering/ to
+# src/charter/offering/).
 # ---------------------------------------------------------------------------
 _RUNTIME_FILE = Path(__file__).resolve()
 _SRC_ROOT = _RUNTIME_FILE.parents[3]  # …/src/
-_WORKFLOWS_ROOT = _SRC_ROOT / "doctrine" / "workflows"
+_WORKFLOWS_ROOT = _SRC_ROOT / "charter" / "offering" / "workflows"
 
 _SEARCH_ROOTS: tuple[Path, ...] = (
     _WORKFLOWS_ROOT,

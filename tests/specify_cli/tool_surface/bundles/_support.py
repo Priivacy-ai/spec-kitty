@@ -13,7 +13,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import (
     SurfaceDefinition,
@@ -22,7 +22,7 @@ from specify_cli.tool_surface.model import (
 )
 
 
-def _definition(kind: SurfaceKind) -> SurfaceDefinition:
+def _definition(kind: ToolSurfaceKind) -> SurfaceDefinition:
     return SurfaceDefinition(
         kind=kind,
         source_kind=SourceKind.GENERATED,
@@ -41,7 +41,7 @@ def _write(path: Path, body: str) -> Path:
     return path
 
 
-def _instance(kind: SurfaceKind, path: Path, owner: str) -> SurfaceInstance:
+def _instance(kind: ToolSurfaceKind, path: Path, owner: str) -> SurfaceInstance:
     return SurfaceInstance(
         definition=_definition(kind),
         path=path,
@@ -63,11 +63,11 @@ def full_plans(project_root: Path) -> list[SurfacePlan]:
     hook = _write(project_root / ".kittify/hooks/hooks.json", "{}\n")
     mcp = _write(project_root / ".mcp.json", "{}\n")
     instances = (
-        _instance(SurfaceKind.COMMAND_SKILL, skill, "codex"),
-        _instance(SurfaceKind.DOCTRINE_SKILL, doctrine, "codex"),
-        _instance(SurfaceKind.AGENT_PROFILE, agent, "claude"),
-        _instance(SurfaceKind.HOOK, hook, "vibe"),
-        _instance(SurfaceKind.NATIVE_CONFIG, mcp, "vibe"),
+        _instance(ToolSurfaceKind.COMMAND_SKILL, skill, "codex"),
+        _instance(ToolSurfaceKind.DOCTRINE_SKILL, doctrine, "codex"),
+        _instance(ToolSurfaceKind.AGENT_PROFILE, agent, "claude"),
+        _instance(ToolSurfaceKind.HOOK, hook, "vibe"),
+        _instance(ToolSurfaceKind.NATIVE_CONFIG, mcp, "vibe"),
     )
     return [SurfacePlan(tool_key="all", instances=instances, computed_at="t")]
 
@@ -77,5 +77,5 @@ def skills_only_plans(project_root: Path) -> list[SurfacePlan]:
     skill = _write(
         project_root / ".agents/skills/spec-kitty.plan/SKILL.md", "# plan skill\n"
     )
-    instances = (_instance(SurfaceKind.COMMAND_SKILL, skill, "codex"),)
+    instances = (_instance(ToolSurfaceKind.COMMAND_SKILL, skill, "codex"),)
     return [SurfacePlan(tool_key="all", instances=instances, computed_at="t")]

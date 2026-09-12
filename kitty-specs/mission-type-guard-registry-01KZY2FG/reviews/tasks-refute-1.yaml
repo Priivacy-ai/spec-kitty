@@ -1,0 +1,30 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: T003's own 5 numbered steps (verified at tasks/WP01…md:219-262) add a _GUARD_TABLES dict, a new documented exception class, a new evaluate_guards_strict function, and a rewritten evaluate_guards on top of the one ~5-way _evaluate_plan_guards function tasks.md credits, and the sibling UnknownMissionTypeError docstring convention (mission_type_profiles.py:193-205, verified 13+ lines) shows this codebase's realistic size for that one new class alone, so tasks.md's "~10-line production change in 4 files plus one new ~5-way guard function" phrasing does undercount Commit 3 as claimed.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: Verified wc -l on both precedents (361 + 346 = 707 lines) and WP02's own Context & Constraints text (lines 92-97) instructing the implementer not to treat either precedent's line count as a target and to expect the "combined LOC order of magnitude" — this directly contradicts tasks.md's flat "~300-line" PR-Shape estimate for the same module.
+  - id: TASKS-SEQ-001
+    verdict: refuted
+    reason: The cited ci-quality.yml sonarcloud job (lines 3999/4011, job condition at line 3625) runs only "if github.event_name == 'schedule' || 'workflow_dispatch'" with its own comment stating "PRs skip Sonar entirely... pushes skip it too" — it never runs on this mission's PR, so it cannot be a third "shared, aggregate-diff, whole-PR gate" alongside the two gates tasks.md already names; the finding's own cited evidence (read a few lines further than it quoted) contradicts its central claim.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: Direct code read of runtime_bridge_cores.py confirms evaluate_guards(mission_family="plan", ...) falls through to _evaluate_software_dev_guards (351-374), and step_id="research" matches none of that function's branches (554-566), hitting the unconditional `return []` regardless of present_artifacts — so the present-artifact assertion in T001 step 2 (expects `[]`) already passes at the base commit, exactly as the finding claims and contrary to the WP's own "both assertions must be RED today" framing.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: Verified tests/runtime/test_bridge_cores.py imports (lines 33-42) never import gather_artifact_presence and construct ArtifactPresenceSnapshot by hand instead; test_bridge_composition.py has zero "research.md" references; and tests/runtime/test_bridge_io.py's test_gather_artifact_presence_reads_file_presence only asserts spec.md/plan.md — so no test anywhere actually exercises T004's real _PRESENCE_FILE_TAGS change via the real gather_artifact_presence function, refuting the WP's Test Strategy claim of revert-detecting coverage.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: WP01 T001's two steps (verified at lines 156-176) only assert step_id="review" and step_id="research" for mission_family="plan"; no T001/T002 step asserts step_id="specify" or step_id="plan", leaving spec.md's own User Story 2 Acceptance Scenario 2 (specify-step artifact check, verified at spec.md:115-119) and the "plan" branch of T003's new 5-way _evaluate_plan_guards with zero RED-first coverage.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: The named precedent test_nfr_002_timing_200_missions (tests/doctor/test_identity_audit.py:642-666) is a real automated pytest assertion (elapsed < 3.0) on a synthetic 200-mission fixture, while WP02's T012 step 2 (verified at lines 263-265) and Test Strategy only instruct a manual stopwatch measurement recorded in the Activity Log, with no corresponding pytest assertion anywhere in T008 or T012 — NFR-004 genuinely has no automated regression gate.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: Verified only one concrete, runnable pytest invocation exists in either WP (T001 step 1's `-k plan_review` command); T001 step 2, T002's three assertions, and WP02's T008 assertions are backed only by prose reasoning, and both WPs' Review Guidance sections (line 382 / line 298) repeat the C-011 RED->GREEN instruction without a concrete re-verification recipe — and TASKS-VERIFY-001 is itself a live example of that prose reasoning being wrong.

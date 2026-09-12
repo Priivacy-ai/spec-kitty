@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "d52e6bd1bb967a45ef97b32757bc39961a5fdf81",
+  "created_at": "2026-08-18T18:05:29.213536+00:00",
+  "flattened": true,
+  "friendly_name": "SymbolKey source_module provenance field",
+  "mission_id": "01M0B0SFQXSRCNWEBPVZVTQ6X7",
+  "mission_number": null,
+  "mission_slug": "symbolkey-source-module-01M0B0SF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The architectural dead-symbol gate relies on free-form provenance comments to know which module a still-dead allowlisted symbol came from. That makes a load-bearing safety property depend on comment hygiene and caps the #2853 refresh helper's coverage on same-name duplicates. This mission adds a stable, non-hashing machine identity (source_module) to SymbolKey, backfills it across the allowlist, and retires the comment-parsing path — without forfeiting the relocation-tolerance the content-tier keys were designed for.",
+  "purpose_tldr": "Give dead-symbol allowlist entries a stable machine identity so the refresh helper stops depending on fragile provenance-comment parsing.",
+  "slug": "symbolkey-source-module-01M0B0SF",
+  "status_phase": "1",
+  "target_branch": "remediation/symbolkey-source-module-3552",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-18T18:40:51.457074+00:00"
+}

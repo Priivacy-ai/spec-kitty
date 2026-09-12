@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import subprocess
 import threading
 from pathlib import Path
@@ -154,7 +155,10 @@ def test_concurrent_first_acquire_serializes_coord_worktree_creation(repo: Path)
                 operation="concurrent_first_acquire",
                 timeout=10.0,
             ) as txn:
-                assert txn.worktree_root == worktree_path
+                if txn.worktree_root != worktree_path:
+                    raise AssertionError(
+                        f"expected worktree_root={worktree_path}, got {txn.worktree_root}"
+                    )
         except Exception as exc:  # noqa: BLE001 - test records all failures
             outcome = f"{type(exc).__name__}: {exc}"
         else:
@@ -627,6 +631,87 @@ def test_rollback_artifact_restore_refuses_parent_symlink_escape(
 
 
 # ---------------------------------------------------------------------------
+# Rollback byte identity through the Windows path-based fallback (#4181)
+# ---------------------------------------------------------------------------
+
+# The fixture simulates the Windows CRT text-mode conversion (injected
+# O_BINARY + newline translation for descriptors opened without it); on
+# native Windows the real CRT does the translating, so these POSIX-simulated
+# regressions mirror what the unmocked windows_ci fallback tests verify there.
+_rollback_fallback_only = pytest.mark.skipif(
+    os.name == "nt",
+    reason="CRT text-mode translation is simulated; native Windows runs the real fallback",
+)
+
+
+@_rollback_fallback_only
+def test_rollback_restores_artifact_bytes_exactly_through_windows_fallback(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    windows_crt_textmode: None,
+) -> None:
+    """#4181: a failed commit restores the original bytes verbatim.
+
+    The rollback compensator restores through the same confined write the
+    transaction used, so a fallback that opens its tempfile in CRT text mode
+    (3.2.7) does not just corrupt the write — it corrupts the *restore*,
+    the one place bytes are promised to come back exactly.
+    """
+    worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "requirements.md"
+    original = b"# requirements\nline two\r\nmixed endings\n"
+
+    def fail_commit(**_kwargs: object) -> None:
+        raise RuntimeError("forced commit failure")
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_fallback_bytes",
+    ) as txn:
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_bytes(original)
+        txn.write_artifact(artifact, b"replaced\r\ncontent\n")
+        txn.commit("status: should reject")
+
+    assert artifact.read_bytes() == original
+
+
+@_rollback_fallback_only
+def test_rollback_removes_newly_created_artifact_through_windows_fallback(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    windows_crt_textmode: None,
+) -> None:
+    """#4181: rollback of an artifact created inside the transaction unlinks it."""
+    worktree = CoordinationWorkspace.resolve(repo, MISSION_SLUG, MID8)
+    artifact = worktree / "kitty-specs" / FEATURE_DIRNAME / "created.json"
+
+    def fail_commit(**_kwargs: object) -> None:
+        raise RuntimeError("forced commit failure")
+
+    monkeypatch.setattr(transaction_module, "safe_commit", fail_commit)
+
+    with pytest.raises(BookkeepingCommitFailed), BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="rollback_fallback_unlink",
+    ) as txn:
+        txn.write_artifact(artifact, b"created\n")
+        txn.commit("status: should reject")
+
+    assert not artifact.exists()
+
+
+# ---------------------------------------------------------------------------
 # Double event_id
 # ---------------------------------------------------------------------------
 
@@ -841,6 +926,99 @@ def test_write_artifact_preserves_existing_file_mode(repo: Path) -> None:
 # ---------------------------------------------------------------------------
 # Nested-lock
 # ---------------------------------------------------------------------------
+
+
+def test_worktree_has_pending_changes_fails_open_when_git_unreadable(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F-1: an unreadable ``git status`` must fail OPEN (return ``True``).
+
+    ``_worktree_has_pending_changes`` backs :meth:`commit_idempotent`'s no-op
+    detection: reporting "no pending changes" incorrectly would route the
+    commit through the no-op arm and silently skip a real transition. When
+    git itself cannot be consulted (non-zero returncode -- e.g. a corrupted
+    worktree), the safety net must fail OPEN so the caller falls through to
+    the ordinary strict-commit path, which then surfaces the real failure.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="pending_changes_fail_open",
+    ) as txn:
+        txn.append_event(_make_event("WP01", "claimed"))
+        assert txn._staged_paths
+
+        def _unreadable_status(
+            *_args: Any, **_kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                args=[], returncode=128, stdout="", stderr="fatal: not a git repository",
+            )
+
+        with monkeypatch.context() as m:
+            m.setattr(transaction_module.subprocess, "run", _unreadable_status)
+            assert txn._worktree_has_pending_changes() is True
+
+        txn.commit("status: cleanup after fail-open probe")
+
+
+def test_noop_commit_receipt_raises_when_head_unreadable(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F-2: ``_noop_commit_receipt`` must raise when HEAD cannot be resolved.
+
+    The no-op arm is only reached when :meth:`_worktree_has_pending_changes`
+    believes the transition is already durable at HEAD. If ``git rev-parse
+    HEAD`` itself fails or returns an empty SHA, that belief cannot be
+    confirmed, so the safety net must raise :class:`BookkeepingCommitFailed`
+    rather than hand the caller a receipt pinned at an unresolved commit.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="noop_receipt_head_unreadable",
+    ) as txn:
+
+        def _unreadable_head(
+            *_args: Any, **_kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                args=[], returncode=1, stdout="", stderr="fatal: bad HEAD",
+            )
+
+        with monkeypatch.context() as m:
+            m.setattr(transaction_module.subprocess, "run", _unreadable_head)
+            with pytest.raises(BookkeepingCommitFailed, match="could not resolve HEAD"):
+                txn._noop_commit_receipt()
+
+
+def test_commit_idempotent_raises_if_committed_without_receipt(repo: Path) -> None:
+    """E-3: ``commit_idempotent`` must not fall through to an implicit ``None``.
+
+    Models the invariant violation the removed ``assert`` used to guard: an
+    ``assert`` shaping a runtime return is stripped under ``python -O``, which
+    would let ``commit_idempotent`` violate its ``-> CommitReceipt`` contract
+    by returning ``None``. The replacement raises
+    :class:`BookkeepingCommitFailed` instead, matching
+    :meth:`_noop_commit_receipt`'s explicit-raise style.
+    """
+    with BookkeepingTransaction.acquire(
+        repo_root=repo,
+        mission_id=MISSION_ID,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        operation="commit_idempotent_invariant",
+    ) as txn:
+        txn._committed = True
+        with pytest.raises(BookkeepingCommitFailed, match="no commit receipt"):
+            txn.commit_idempotent("status: should not happen")
 
 
 def test_nested_lock_attempt_times_out_from_other_thread(repo: Path) -> None:

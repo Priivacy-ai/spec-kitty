@@ -1,0 +1,38 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: confirmed-round-2
+mission: event-push-watch-channel-01M1K6W2
+source: reviews/analyze-verify.yaml (unresolved) + reviews/analyze-fresh.yaml (all, per R6 rule that fresh-sweep
+  findings are real findings and get fixed, not recorded-and-accepted)
+findings:
+- id: ANALYZE-ARCH-001
+  severity: 3
+  status_going_into_round_2: unresolved
+  remaining_from_round_1: plan.md:229's subsection header 'How this avoids ever exercising the shell's
+    infinite loop in tests' still frames the shell as owning the infinite loop; spec.md's NFR-001 ('...separate
+    from the infinite-poll CLI shell') directly contradicts the already-fixed FR-011 in the same table.
+- id: ANALYZE-FRESH-001
+  severity: 3
+  title: spec.md NFR-001 still frames the CLI shell as the infinite-poll owner, contradicting the corrected
+    FR-011
+  remediation: Reword NFR-001's body to match FR-011's corrected framing (core owns the sleep_fn-driven
+    loop; shell is a plain for-loop consumer, no loop construct of its own) or drop the 'infinite-poll
+    CLI shell' phrase and state the requirement purely in terms of core testability (bounded input, no
+    wall-clock reliance).
+- id: ANALYZE-FRESH-002
+  severity: 2
+  title: tracer-approach.md and tasks/WP01-core-tail-reader-primitives.md still assert the pre-fix 'shell
+    owns while True + time.sleep' architecture
+  remediation: Update tracer-approach.md's Shell bullet + NFR-001 paraphrase to match the corrected Architectural
+    Seam framing. For tasks/WP01-core-tail-reader-primitives.md (an already-executed, approved WP prompt
+    — do NOT rewrite its historical description), add a short dated addendum note clarifying the description
+    was superseded by the fix landed via WP03's T017, rather than silently leaving the stale claim unqualified.
+- id: ANALYZE-FRESH-003
+  severity: 3
+  title: WP03's Definition of Done / Reviewer Guidance have no line item verifying the new T017 docstring-correction
+    instruction was carried out
+  remediation: Add a Definition of Done bullet and a matching Reviewer Guidance bullet requiring the module
+    docstring no longer claims the shell owns the while True/time.sleep loop, and instructing the reviewer
+    to diff the docstring specifically and reject the WP if the stale sentence (or an equivalent restatement)
+    is still present.

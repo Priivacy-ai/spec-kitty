@@ -11,8 +11,9 @@ at 1,000 Op files (same pro-rata budget as the doctor ops sweep enumeration).
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime, parse_iso, Clock, DEFAULT_CLOCK
 from pathlib import Path
+
 
 __all__ = ["render_open_ops_section", "render_open_ops_reminder"]
 
@@ -36,7 +37,7 @@ def _read_first_event(path: Path) -> tuple[str, str]:
 def _format_age(started_at: str, now: datetime) -> str:
     """Human age like ``26h old``; empty string when unparseable."""
     try:
-        started = datetime.fromisoformat(started_at)
+        started = parse_iso(started_at)
     except ValueError:
         return ""
     if started.tzinfo is None:
@@ -45,18 +46,22 @@ def _format_age(started_at: str, now: datetime) -> str:
     return f"{int(hours)}h old"
 
 
-def render_open_ops_section(repo_root: Path, now: datetime | None = None) -> str:
+def render_open_ops_section(repo_root: Path, now: datetime | None = None, *, clock: Clock = DEFAULT_CLOCK) -> str:
     """Render the open-Ops section for session-start output.
 
     Returns an empty string when there are no open Ops — zero open Ops must
     produce zero extra output.  No git calls; single directory scan.
+
+    ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+    FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only when
+    ``now`` is omitted -- ``now`` (an explicit value) still takes precedence.
     """
     from specify_cli.doctor.ops import list_orphan_ops
 
     orphans = list_orphan_ops(repo_root)
     if not orphans:
         return ""
-    now = now or datetime.now(UTC)
+    now = now if now is not None else clock.now()
     lines = [f"⚠ Open Ops ({len(orphans)}): work that was dispatched but never closed"]
     for path in orphans:
         invocation_id = path.stem
@@ -69,12 +74,12 @@ def render_open_ops_section(repo_root: Path, now: datetime | None = None) -> str
     return "\n".join(lines)
 
 
-def render_open_ops_reminder(repo_root: Path, now: datetime | None = None) -> str:
+def render_open_ops_reminder(repo_root: Path, now: datetime | None = None, *, clock: Clock = DEFAULT_CLOCK) -> str:
     """Render the end-of-session reminder for the Stop hook.
 
     Returns an empty string when there are no open Ops.  Scan-only, no git.
     """
-    section = render_open_ops_section(repo_root, now=now)
+    section = render_open_ops_section(repo_root, now=now, clock=clock)
     if not section:
         return ""
     return "spec-kitty: this session is ending with open Ops — close each with the\nreal outcome before moving on.\n" + section

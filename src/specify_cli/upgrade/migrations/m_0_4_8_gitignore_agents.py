@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.gitignore_manager import IgnoreFilePathError, read_ignore_file_text
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -38,12 +40,10 @@ class GitignoreAgentsMigration(BaseMigration):
     def detect(self, project_path: Path) -> bool:
         """Check if .gitignore is missing agent directories."""
         gitignore = project_path / ".gitignore"
-        if not gitignore.exists():
-            return True
 
         try:
-            content = gitignore.read_text(encoding="utf-8-sig", errors="ignore")
-        except OSError:
+            content = read_ignore_file_text(gitignore, errors="ignore")
+        except (OSError, IgnoreFilePathError):
             return True
 
         missing = [d for d in self.EXPECTED_AGENTS if d not in content]

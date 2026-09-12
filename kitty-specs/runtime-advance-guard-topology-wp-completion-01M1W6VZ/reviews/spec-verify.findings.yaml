@@ -1,0 +1,184 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: SPEC-VERIFY-001
+    lens: byte-exact-regression-bar
+    severity: 4
+    title: "C-002's 'byte-exact guard_failures' test citation set is materially incomplete"
+    evidence:
+      - artifact: "spec.md § C-002 (also SC-004)"
+      - code: "tests/runtime/test_bridge_decision_builder.py:109,123,139,215,378"
+      - code: "tests/runtime/test_bridge_decide_next.py:467,509,538,561,595,649"
+      - code: "tests/next/test_runtime_bridge_blocked_paths.py:105,234,290,340,386"
+      - code: "tests/runtime/test_bridge_parity.py:1089-1100 (test_named_highest_risk_fixtures_guard_failures_stable)"
+      - code: "tests/integration/test_documentation_runtime_walk.py:494-500"
+      - code: "tests/integration/test_research_runtime_walk.py:390-392"
+      - code: "tests/specify_cli/next/test_runtime_bridge_composition.py:1953-1956"
+    claim: >
+      C-002 states "guard_failures ... is asserted byte-exact by currently-passing
+      tests: tests/runtime/test_bridge_cores.py::test_evaluate_guards_strict_reports_blocking_artifacts_not_yet_present
+      (line 832) and tests/runtime/next/test_cli_guard_family.py:378" and frames this as
+      the operative constraint the plan/implement phase must protect ("If the eventual
+      plan phase chooses to enrich guard_failures content ... it must explicitly update
+      both of these tests in the same PR"). I independently verified both cited
+      assertions exist exactly as quoted (test_bridge_cores.py:832 and
+      test_cli_guard_family.py:378 in tests/runtime/next/, confirming the spec's own
+      correction that tests/runtime/test_cli_guard_family.py — no "next" — carries zero
+      guard_failures assertions and tests/next/test_cli_guard_family.py does not exist).
+      However, a repo-wide grep for "guard_failures" in tests/ turns up well over a
+      dozen additional byte-exact-or-content assertions across at least 7 other files,
+      several of which exercise the EXACT code paths this mission touches
+      (gather_artifact_presence / evaluate_guards_strict / _check_composed_action_guard),
+      not synthetic decision-builder objects: test_bridge_parity.py's
+      "highest_risk_fixtures" cross-run stability check on guard_failures content AND
+      order; test_documentation_runtime_walk.py and test_research_runtime_walk.py, which
+      assert "spec.md" is named in guard_failures for a real documentation/research
+      mission walk (the same named-artifact presence mechanism FR-001 re-anchors); and
+      test_runtime_bridge_composition.py (specify_cli/next), which asserts
+      "qa-coverage.json" is named in guard_failures for an org-tier QA family (the same
+      manifest-driven presence path C-005 discusses). None of these are named in C-002's
+      "currently-passing tests" list, so a plan/implement agent that treats C-002's
+      2-test citation as the exhaustive protected set (as its own wording invites) could
+      silently break several of these without recognizing it as a C-002 violation.
+    remediation: >
+      Either (a) broaden C-002/NFR-002 to state plainly that "byte-exact" protection
+      covers every existing guard_failures-content assertion in the blast radius of
+      gather_artifact_presence / evaluate_guards_strict / _check_composed_action_guard —
+      and explicitly list the 4 highest-risk additional tests identified above
+      (test_bridge_parity.py, both *_runtime_walk.py integration tests, and
+      test_runtime_bridge_composition.py's qa-coverage.json assertion) alongside the two
+      already named — or (b) narrow C-002's own wording so it no longer implies these
+      two tests are the complete enforcement set, and instead require the plan phase to
+      run a full guard_failures grep across tests/ as an explicit task before locking
+      the implementation approach.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 4
+    title: "US1's coord-worktree fixture (tasks/WP*.md present, tasks.md absent) contradicts the canonical PRIMARY/COORD partition definitions"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 and Independent Test"
+      - artifact: "spec.md § FR-002"
+      - code: "docs/context/orchestration.md:542 (PRIMARY partition definition: 'spec, plan, work-package outlines, and meta.json')"
+      - code: "docs/context/orchestration.md:608 (COORD partition definition: 'status events, notes, trace, issue-matrix, acceptance-matrix, review cycles, move-task' — no work-package outlines)"
+      - code: "src/mission_runtime/artifacts.py:147-160 (_PRIMARY_ARTIFACT_KINDS includes MissionArtifactKind.WORK_PACKAGE_TASK alongside TASKS_INDEX)"
+      - code: "src/mission_runtime/resolution.py:1108 (is_primary_artifact_kind(kind) routes the commit ref to target_branch, i.e. primary, for WORK_PACKAGE_TASK writes)"
+      - code: "src/specify_cli/missions/_create.py:195-247 (ensure_coordination_branch mints the coordination branch off target_branch at mission-create time, before specify/plan/tasks produce spec.md/plan.md/tasks.md/tasks/WP*.md)"
+    claim: >
+      US1's Independent Test and Acceptance Scenario 1 stipulate a fixture "where
+      tasks.md exists ONLY on the mission's primary checkout ... and WP files/lane
+      state exist under the coord worktree's tasks/ + status.events.jsonl" — i.e. WP
+      outline files (tasks/WP*.md) are present in the coord worktree while tasks.md/
+      plan.md/spec.md are sparse-excluded from it. This directly conflicts with the
+      canonical PRIMARY/COORD partition vocabulary: the glossary explicitly classifies
+      "work-package outlines" as PRIMARY-partition (same bucket as spec/plan/tasks.md),
+      and the COORD partition's definition enumerates only status events, notes, trace,
+      issue-matrix, acceptance-matrix, review cycles, and move-task — WP outlines are
+      not in that list. The code agrees: MissionArtifactKind.WORK_PACKAGE_TASK is a
+      member of _PRIMARY_ARTIFACT_KINDS (not _PLACEMENT_ARTIFACT_KINDS, which holds
+      STATUS_STATE), and its writes route to target_branch (primary), never to the
+      coordination branch. Because the coordination branch is minted off target_branch
+      at mission-create time — before any WP files exist — there is no structural
+      mechanism evidenced in the code I traced by which tasks/WP*.md would ever land on
+      the coordination branch/worktree in a real mission. If that holds, FR-002's design
+      choice to keep `tasks_dir = feature_dir / "tasks"` (which both the tasks_wp_files
+      presence check and the get_wp_lane enumeration loop rely on) anchored on the coord
+      feature_dir means `_should_advance_wp_step` would find `wp_files == []` for a real
+      coord-topology mission and take the early "not wp_files: return True" bypass
+      (runtime_bridge.py:757-759) — never reaching the FR-004 fix at all. This would mean
+      the #3884 fix, as scoped, may not actually engage for the exact topology class
+      (coord) that #3883 targets, even though the spec frames the two defects as sharing
+      one guard surface.
+    remediation: >
+      Before the plan phase locks US1's fixture and FR-002's scope, verify empirically
+      (a real `spec-kitty agent mission create` + `finalize-tasks` trace for a
+      coord-topology mission, or an existing integration test that already exercises
+      this) whether tasks/WP*.md files are actually materialized under a real
+      coordination worktree at guard-evaluation time. If they are not: (1) correct US1's
+      Acceptance Scenario 1 / Independent Test fixture description so it does not assert
+      WP files are present in the coord worktree, and (2) either extend FR-001's
+      primary-anchoring to the tasks/WP*.md enumeration as well (since WORK_PACKAGE_TASK
+      is itself a _PRIMARY_ARTIFACT_KINDS member, consistent with C-001's own "read AND
+      write full symmetry" INV-5 framing cited in artifacts.py), or explicitly document
+      why WP-file enumeration is treated differently from the other primary-partition
+      reads FR-001 targets. If tasks/WP*.md ARE confirmed present via some sync
+      mechanism not found in this review, cite that mechanism explicitly in the plan so
+      a future reader does not re-raise this question.
+
+  - id: SPEC-VERIFY-003
+    lens: uninitialized-wp-fix-testability
+    severity: 1
+    title: "_wp_blocks_step line-range citation (781-800) undershoots the actual function by 10 lines"
+    evidence:
+      - artifact: "spec.md § User Story 2 intro paragraph"
+      - code: "src/runtime/next/runtime_bridge.py:781-810"
+    claim: >
+      The spec cites `_wp_blocks_step` at "src/runtime/next/runtime_bridge.py:781-800".
+      The function does start at line 781, but its body (including the `step_id ==
+      "review"` branch and the final fallback `return False`) runs through line 810, not
+      800. The cited range omits the review branch and the terminal return, which are
+      part of the same fall-through logic FR-004 must reason about (specifically, the
+      final bare `return False` is the same class of unguarded fall-through as the
+      buggy implement branch).
+    remediation: >
+      Correct the citation to "runtime_bridge.py:781-810" so a plan/implement agent
+      reading only the cited range does not miss the function's tail.
+
+  - id: SPEC-VERIFY-004
+    lens: silent-success
+    severity: 2
+    title: "FR-006's failure-surfacing requirement is stated too loosely to be a single testable contract"
+    evidence:
+      - artifact: "spec.md § FR-006"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3"
+    claim: >
+      FR-006 requires a primary-resolution failure to "raise or otherwise surface as a
+      reportable error" — this disjunction ("raise OR otherwise surface") leaves open
+      whether the contract is a raised exception (as every other fail-loud path in this
+      codebase's cited precedents use, e.g. CanonicalStatusNotFoundError,
+      CoordWorktreeResolutionError, CoordinationBranchDeleted) or some structured
+      error-carrying return value. US1 Acceptance Scenario 3 repeats the same
+      disjunction ("it raises or surfaces a reportable error") without resolving it.
+      Given NFR-002 requires any new diagnostic to be an additive field (not a mutation
+      of guard_failures), a plan that chooses "surface as a field" instead of "raise"
+      would still satisfy FR-006's literal wording while producing a materially
+      different, harder-to-test contract (callers must remember to check the new field
+      instead of getting an exception for free) than every other fail-loud precedent in
+      this codebase uses for this exact class of failure.
+    remediation: >
+      Pick one contract in the spec rather than deferring the choice implicitly: either
+      state FR-006 as "must raise" (matching the codebase's existing fail-loud
+      precedents for primary-resolution failures, e.g. CoordWorktreeResolutionError),
+      or, if a non-raising structured surface is intended, name the exact mechanism
+      (e.g. a new ArtifactPresenceSnapshot field distinct from guard_failures) so C-008's
+      red-first test has an unambiguous target.
+
+  - id: SPEC-VERIFY-005
+    lens: baseline-honesty
+    severity: 2
+    title: "NFR-001's 'tests/runtime root' phrasing is ambiguous and could trigger a false regression alarm"
+    evidence:
+      - artifact: "spec.md § NFR-001 (also SC-005)"
+    claim: >
+      I confirmed all three NFR-001/SC-005 baseline counts are accurate, but only under
+      a specific reading of "tests/runtime root full continues to report 672 passed, 1
+      skipped": that phrase means the tests directly under tests/runtime EXCLUDING the
+      nested tests/runtime/next subpackage (673 collected, 672 passed after 1 skipped).
+      A literal/naive `pytest tests/runtime -q` (the whole tree, including
+      tests/runtime/next) instead collects 746 tests and reports 745 passed, 1 skipped —
+      a different, larger number than the spec states. Since NFR-001 already cites
+      "tests/runtime/next tests/next" as a separately-scoped 598-passed baseline
+      immediately above this line, the intended reading (root-only, excluding next/) is
+      recoverable from context, but the sentence itself does not say "excluding
+      tests/runtime/next" explicitly. An implementer who runs the naive whole-tree
+      invocation to check this NFR would see 745 instead of 672 and could misread that
+      73-test gap as a regression this mission introduced, when it is purely a scoping
+      mismatch.
+    remediation: >
+      Reword NFR-001's third clause to state the exact invocation, e.g. "`pytest
+      tests/runtime --ignore=tests/runtime/next` (i.e. tests/runtime excluding the
+      nested tests/runtime/next package) continues to report 672 passed, 1 skipped" —
+      removing any need to infer the exclusion from the surrounding sentence.

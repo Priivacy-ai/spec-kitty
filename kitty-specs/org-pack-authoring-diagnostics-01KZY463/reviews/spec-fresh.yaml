@@ -1,0 +1,46 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: SPEC-FRESH2-001
+    lens: root-cause-and-divergence
+    severity: 2
+    title: >-
+      FR-004's "Fails how" reassurance sentence was not updated when this round
+      promoted org_validate to a second, equal carve-out alongside assemble_pack
+    evidence:
+      - artifact: "spec.md:459-465 (FR-004 \"Fails how\" paragraph, unchanged by this round's diff)"
+      - artifact: >-
+          spec.md:392-457 (this round's rewritten "Reflexivity fix" body, the
+          "Verified Code Surfaces" table row at spec.md:84, Constraints C-004,
+          the Campsite section, SC-005, and AC-7 — all updated this round to
+          treat org_validate as a co-equal second carve-out to assemble_pack)
+    claim: >-
+      This round's diff (commit fb244798f vs 959236745) thoroughly propagated the
+      org_validate carve-out through the Reflexivity fix body, the Verified Code
+      Surfaces table, C-004's test-package list, the Campsite note, SC-005's test-
+      surface count, and a new AC-7 — but the FR-004 "Fails how" paragraph
+      immediately below the Reflexivity fix section still reads, unchanged: "After
+      this fix, `pack validate` names the mismatch at authoring time ... while
+      `assemble_pack()`'s internal round-trip check continues to pass for its own
+      known drg/-fragments-only output, unaffected by this new author-facing
+      diagnostic" — naming only the assembler, with no parallel sentence for
+      `org_validate`'s onboarding-scaffold carve-out this round added. A reader who
+      treats "Fails how" as the authoritative one-paragraph summary of the fix's
+      blast radius (as the other three FRs' "Fails how" paragraphs are written to
+      be) would not learn from it that `doctrine org validate` on a freshly-
+      scaffolded pack is likewise expected to keep passing — that fact is only
+      recoverable from AC-7 and the longer Reflexivity fix prose above. Low
+      practical risk since AC-7 is unambiguous and self-contained, but it is a real,
+      round-introduced propagation gap between sections that should read as one
+      consistent story after a fix round specifically about synchronizing two
+      carve-outs.
+    remediation: >-
+      Add one clause to the FR-004 "Fails how" paragraph (spec.md:459-465) naming
+      org_validate's onboarding-scaffold carve-out alongside assemble_pack's, e.g.:
+      "...while both `assemble_pack()`'s internal round-trip check and `doctrine
+      org validate`'s onboarding-scaffold check continue to pass for their own
+      known drg/-fragments-only output, unaffected by this new author-facing
+      diagnostic." No code or requirement change — editorial synchronization only.

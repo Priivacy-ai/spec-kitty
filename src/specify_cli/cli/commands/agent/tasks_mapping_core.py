@@ -36,7 +36,7 @@ partial-write-on-refusal behaviour.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from specify_cli.requirement_mapping import (
     compute_coverage,
@@ -72,6 +72,10 @@ class MappingRequest:
     tasks_md_refs: dict[str, list[str]]
     mode: str
     replace: bool
+    # WP06 (#3396) T032a: bare-prose requirement ids already computed by the
+    # shell (``find_bare_prose_requirement_ids`` over spec.md's raw text) --
+    # ``plan_mapping`` never touches raw spec text itself (INV-4 pure/no-I/O).
+    bare_prose_requirement_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,10 @@ class MappingPlan:
     to_write: dict[str, list[str]]
     offenders: MappingOffenders
     unmapped_fr: list[str]
+    # WP06 (#3396) T032: surfaced verbatim from the request under the SAME
+    # field name ``finalize-tasks`` uses -- a distinct, separately-labeled
+    # signal, never merged into ``unmapped_fr`` (Story 1 / FR-001 / FR-004).
+    bare_prose_requirement_ids: list[str] = field(default_factory=list)
 
 
 def _merge_refs(
@@ -153,4 +161,5 @@ def plan_mapping(req: MappingRequest) -> MappingPlan:
         to_write=to_write,
         offenders=offenders,
         unmapped_fr=list(coverage["unmapped_functional"]),
+        bare_prose_requirement_ids=sorted(req.bare_prose_requirement_ids),
     )

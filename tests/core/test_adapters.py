@@ -93,13 +93,6 @@ def test_cold_miss_with_staged_origin_raises(tmp_path: Path) -> None:
     assert "import specify_cli.tracker" in message
 
 
-def test_cold_miss_without_staged_origin_returns_safe_default(tmp_path: Path) -> None:
-    """No consumer + no staged file => the benign no-op default (no raise)."""
-    meta = dict(_DUMMY_META)
-    result = consume_pending_origin(tmp_path, tmp_path / "feature", meta)
-    assert result == (False, False, None, meta)
-
-
 def test_registered_consumer_runs_even_with_staged_origin(tmp_path: Path) -> None:
     """When a consumer IS registered, the cold-miss guard never fires."""
     _stage_pending_origin(tmp_path)

@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: mission_type.py has no `active` command (grep confirms only `current`/`current_cmd` at line 132-133), and plan.md lines 78, 85, and 668 now all correctly say "the `current` command (`current_cmd`)" with zero remaining "the `active` command" phrasing.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: runtime_bridge.py:1777-1779 is the exact span containing "C-008 hard-guards this on `mission == \"software-dev\"`" (confirmed by sed), and plan.md now cites `1777-1779` at both locations (lines 445, 462) with zero remaining occurrences of the stale `1775-1777` range.

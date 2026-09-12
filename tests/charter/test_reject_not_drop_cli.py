@@ -1,7 +1,7 @@
 """CLI-boundary reject-not-drop coverage for #2529/#2530 (squad NIT, Fix D).
 
-``_resolve_config_activated_ids`` (``charter.compiler``) raises
-:class:`~charter.kind_vocabulary.UnknownArtifactIdError` (a ``ValueError``
+``_resolve_config_activated_ids`` (``charter.activation.compiler``) raises
+:class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError` (a ``ValueError``
 subclass) for a ``config.activated_*`` stem that cannot be resolved to a
 canonical doctrine artifact -- reject, not silently drop (C-006). This module
 pins that the two CLI entry points that reach that resolution path
@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.kind_vocabulary import UnknownArtifactIdError
+from charter.activation.kind_vocabulary import UnknownArtifactIdError
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -45,11 +45,18 @@ def _git_init(repo: Path) -> None:
 
 
 def _write_stale_activation_config(repo: Path) -> None:
-    """A ``.kittify/config.yaml`` activating a directive stem that does not exist."""
+    """A ``.kittify/config.yaml`` activating a directive stem that does not exist.
+
+    ``mission_type_activations`` is provisioned here too -- unrelated to the
+    stale-directive-stem rejection this module pins, but WP04 (C-A1) made it a
+    hard construction precondition for ``PackContext.from_config``; without it
+    the CLI would reject on the missing key before ever reaching the
+    stale-stem resolution path this test exercises.
+    """
     config_dir = repo / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        "activated_directives:\n  - does-not-exist-directive-stem\n",
+        "mission_type_activations:\n  - software-dev\nactivated_directives:\n  - does-not-exist-directive-stem\n",
         encoding="utf-8",
     )
 

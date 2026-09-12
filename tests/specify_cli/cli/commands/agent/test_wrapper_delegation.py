@@ -124,13 +124,13 @@ def test_agent_mission_accept_passes_diagnose_flag(
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission.get_feature_target_branch")
 @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
-def test_agent_mission_merge_passes_explicit_wrapper_defaults(
+def test_agent_mission_merge_preserves_unset_cleanup_choices(
     mock_locate_project_root: MagicMock,
     mock_get_feature_target_branch: MagicMock,
     mock_top_level_merge: MagicMock,
     tmp_path: Path,
 ) -> None:
-    """Merge wrapper must not leak OptionInfo sentinels into the delegate."""
+    """Merge wrapper must let the top-level retention gate see omitted choices."""
 
     mock_locate_project_root.return_value = tmp_path
     mock_get_feature_target_branch.return_value = "main"
@@ -143,8 +143,8 @@ def test_agent_mission_merge_passes_explicit_wrapper_defaults(
     assert result.exit_code == 0, result.output
     mock_top_level_merge.assert_called_once_with(
         strategy=MergeStrategy.MERGE,
-        delete_branch=True,
-        remove_worktree=True,
+        delete_branch=None,
+        remove_worktree=None,
         push=False,
         target_branch="main",
         dry_run=True,

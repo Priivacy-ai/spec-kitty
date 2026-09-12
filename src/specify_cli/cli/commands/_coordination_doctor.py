@@ -12,11 +12,27 @@ reintroduces the ``doctor <-> merge`` module-load cycle. It must stay local.
 
 Import discipline (one-way, I-2): imports shared infra from
 :mod:`._doctor_shared`; never imports the CLI ``doctor`` module at module scope.
+
+WP06 (coord-commit-integrity-01KY5JS8, FR-008/FR-009, Gap-1): adds the
+coord-BRANCH-vs-``target_branch`` staleness detector
+(:func:`_coord_branch_stale_vs_target_finding`), the ``--check-staleness``
+doctor mode, and the minimized ``--fix`` fast-forward
+(:func:`_apply_coord_staleness_fixes`). This is distinct from the existing
+``_coord_worktree_stale_finding`` (worktree HEAD vs its OWN coord branch) —
+Gap-1 is the residual case where the coord branch itself falls behind the
+branch it publishes onto. ``--fix`` stays MINIMIZED (C-003): it performs ONLY
+this fast-forward, and FAILS LOUD (unified diff, zero mutation) on anything
+short of strict-ancestor + a clean coord worktree (C-005 warn-first).
+:func:`check_and_warn_coord_staleness` is the public one-liner hook consumed
+by ``agent/tasks_finalize.py`` (DIRECTIVE_024 declared out-of-map call — that
+module is outside this WP's ``owned_files``).
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,19 +40,22 @@ import typer
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta
 
 from ._doctor_shared import console
 
 # ``__all__`` lists this sibling's cross-module contract: the entrypoint +
-# ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports. The
-# remaining helpers (``_detect_git_version``, ``_check_tracked_worktrees_content``)
-# are intra-module (used here + by this module's own unit tests) and are
-# deliberately NOT exported — listing them would register orphan public symbols
-# under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
+# ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports, plus
+# the WP06 finalize-tasks hook. The remaining helpers (``_detect_git_version``,
+# ``_check_tracked_worktrees_content``) are intra-module (used here + by this
+# module's own unit tests) and are deliberately NOT exported — listing them
+# would register orphan public symbols under the dead-symbol gate
+# (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "DoctorFinding",
     "run_coordination_health",
+    "check_and_warn_coord_staleness",
     "_check_git_version",
     "_check_coordination_worktree_health",
     "_check_lane_sparse_checkout_drift",
@@ -125,12 +144,11 @@ _MARKER_UNRESOLVABLE_MISSION_HINT = (
 
 def _detect_git_version() -> tuple[int, int] | None:
     """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
-    import subprocess as _subprocess
     try:
-        out = _subprocess.check_output(
-            ["git", "--version"], text=True, stderr=_subprocess.DEVNULL,
+        out = subprocess.check_output(
+            ["git", "--version"], text=True, stderr=subprocess.DEVNULL,
         ).strip()
-    except (OSError, _subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
         return None
     # Output shape: "git version 2.45.1.windows.1" — take the first two numbers.
     parts = out.split()
@@ -191,7 +209,6 @@ def _check_tracked_worktrees_content(repo_root: Path) -> list[DoctorFinding]:
     a remediation hint. It reuses the single ``.worktrees/`` predicate that the
     merge staging guards use (Randy Reducer: one predicate, no copies).
     """
-    import subprocess as _subprocess
 
     # H2 / I-6: keep this import FUNCTION-LOCAL — hoisting it to module scope
     # reintroduces the doctor <-> merge module-load cycle.
@@ -199,12 +216,12 @@ def _check_tracked_worktrees_content(repo_root: Path) -> list[DoctorFinding]:
     from specify_cli.core.constants import WORKTREES_DIR
 
     try:
-        out = _subprocess.check_output(
+        out = subprocess.check_output(
             ["git", "-C", str(repo_root), "ls-files", "--", WORKTREES_DIR],
             text=True,
-            stderr=_subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-    except (OSError, _subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
         # Not a git repo / git error — nothing to report here.
         return []
 
@@ -261,13 +278,12 @@ def _coord_worktree_head_finding(
     worktree: Path, coord_branch: str
 ) -> DoctorFinding | None:
     """Return a finding if the coord worktree HEAD is off the coord branch."""
-    import subprocess as _subprocess
 
     try:
-        actual_head = _subprocess.check_output(
+        actual_head = subprocess.check_output(
             ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
         ).strip()
-    except _subprocess.CalledProcessError:
+    except subprocess.CalledProcessError:
         actual_head = "<detached>"
     expected = f"refs/heads/{coord_branch}"
     if actual_head == expected or actual_head.removeprefix("refs/heads/") == coord_branch:
@@ -288,13 +304,12 @@ def _coord_worktree_head_finding(
 
 def _coord_worktree_dirty_finding(worktree: Path) -> DoctorFinding | None:
     """Return a finding if the coord worktree has uncommitted changes."""
-    import subprocess as _subprocess
 
     try:
-        dirty = _subprocess.check_output(
+        dirty = subprocess.check_output(
             ["git", "-C", str(worktree), "status", "--porcelain"], text=True,
         ).strip()
-    except _subprocess.CalledProcessError:
+    except subprocess.CalledProcessError:
         dirty = ""
     if not dirty:
         return None
@@ -309,44 +324,83 @@ def _coord_worktree_dirty_finding(worktree: Path) -> DoctorFinding | None:
     )
 
 
+def _rev_parse(cwd: Path, ref: str) -> str:
+    """Return the SHA ``ref`` resolves to in ``cwd``, or ``""`` when unreadable.
+
+    Shared by every stale/FF-candidate check in this module (worktree-vs-branch
+    and, per WP06, branch-vs-target) so there is exactly one "resolve a git ref
+    to a SHA, tolerate failure" seam.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(cwd), "rev-parse", ref],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
+def _is_ff_candidate(repo_root: Path, ancestor_sha: str, descendant_sha: str) -> bool:
+    """True iff ``ancestor_sha`` is a STRICT ancestor of ``descendant_sha``.
+
+    Uses ``git merge-base --is-ancestor`` scoped at ``repo_root`` (readable
+    regardless of which worktree/branch resolved either SHA). Equal SHAs,
+    blank input, or a genuinely-diverged pair all return ``False`` — never
+    raises.
+    """
+    if not ancestor_sha or not descendant_sha or ancestor_sha == descendant_sha:
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "merge-base", "--is-ancestor",
+             ancestor_sha, descendant_sha],
+            capture_output=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def _fast_forward_finding(
+    *,
+    subject_sha: str,
+    tip_sha: str,
+    repo_root: Path,
+    message: str,
+    next_step: str,
+    error_code: str,
+) -> DoctorFinding | None:
+    """Return a stale/FF-candidate finding, or ``None`` when in sync or diverged.
+
+    Pure predicate — NEVER mutates (C-005 warn-first). ``subject_sha`` is the
+    ref that may be behind; ``tip_sha`` is the ref it would fast-forward to.
+    Returns ``None`` when the SHAs match (nothing to report) or ``subject_sha``
+    is not a strict ancestor of ``tip_sha`` (diverged — the caller decides how,
+    or whether, to surface that separately).
+    """
+    if not subject_sha or not tip_sha or subject_sha == tip_sha:
+        return None
+    if not _is_ff_candidate(repo_root, subject_sha, tip_sha):
+        return None
+    return DoctorFinding(
+        severity="warning", message=message, next_step=next_step, error_code=error_code,
+    )
+
+
 def _coord_worktree_stale_finding(
     worktree: Path, repo_root: Path, coord_branch: str,
 ) -> DoctorFinding | None:
     """Return a finding if the coord worktree HEAD is behind the coord branch tip.
 
-    Compares the worktree HEAD SHA with the coord branch tip via merge-base
-    --is-ancestor.  Returns None when SHAs match, when the worktree has diverged
-    (not a clean fast-forward candidate), or when git is unreadable.
+    Compares the worktree HEAD SHA with the coord branch tip via
+    :func:`_fast_forward_finding` (merge-base --is-ancestor under the hood).
+    Returns None when SHAs match, when the worktree has diverged (not a clean
+    fast-forward candidate), or when git is unreadable.
     """
-    import subprocess as _subprocess
-
-    try:
-        worktree_head = _subprocess.check_output(
-            ["git", "-C", str(worktree), "rev-parse", "HEAD"],
-            text=True, stderr=_subprocess.DEVNULL,
-        ).strip()
-        branch_tip = _subprocess.check_output(
-            ["git", "-C", str(repo_root), "rev-parse",
-             f"refs/heads/{coord_branch}"],
-            text=True, stderr=_subprocess.DEVNULL,
-        ).strip()
-    except _subprocess.CalledProcessError:
-        return None
-    if not worktree_head or not branch_tip or worktree_head == branch_tip:
-        return None
-    # Only report stale when HEAD is a strict ancestor of tip (fast-forward candidate).
-    try:
-        ancestor = _subprocess.run(
-            ["git", "-C", str(repo_root), "merge-base", "--is-ancestor",
-             worktree_head, branch_tip],
-            capture_output=True,
-        )
-    except OSError:
-        return None
-    if ancestor.returncode != 0:
-        return None  # diverged — not a clean stale case
-    return DoctorFinding(
-        severity="warning",
+    worktree_head = _rev_parse(worktree, "HEAD")
+    branch_tip = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    return _fast_forward_finding(
+        subject_sha=worktree_head, tip_sha=branch_tip, repo_root=repo_root,
         message=(
             f"Coordination worktree {worktree} is behind the coord branch "
             f"{coord_branch!r} tip (fast-forward available)."
@@ -357,6 +411,22 @@ def _coord_worktree_stale_finding(
         ),
         error_code="COORDINATION_WORKTREE_STALE",
     )
+
+
+def _resolve_coord_short(mission_slug: str, mission_id: str) -> str:
+    """Resolve the mid8 short-id used to derive coord worktree/branch paths.
+
+    Routes through the authoritative :func:`~specify_cli.lanes.branch_naming.resolve_mid8`
+    resolver (WP03 / FR-009), which never raises (it declines to ``""``). The
+    ``or mission_id[:8]`` fallback consciously PRESERVES the prior short-id
+    tolerance. Shared by every call site that needs to derive a coord
+    worktree/branch path from mission identity (campsite: was duplicated in
+    :func:`_check_coordination_worktree_health` and
+    :func:`_check_lane_sparse_checkout_drift`).
+    """
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    return resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
 
 
 def _check_coordination_worktree_health(
@@ -386,12 +456,7 @@ def _check_coordination_worktree_health(
             error_code="COORDINATION_META_INCOMPLETE",
         )]
 
-    # Route through the authoritative resolver (WP03 / FR-009). resolve_mid8
-    # never raises (it declines to ``""``). The ``or mission_id[:8]`` fallback
-    # consciously PRESERVES the prior short-id tolerance.
-    from specify_cli.lanes.branch_naming import resolve_mid8
-
-    short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
+    short = _resolve_coord_short(mission_slug, mission_id)
     worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
 
     if not worktree.exists():
@@ -454,17 +519,140 @@ def _check_coordination_worktree_health(
     return findings
 
 
+# ---------------------------------------------------------------------------
+# WP06 (coord-commit-integrity-01KY5JS8, FR-008/FR-009, Gap-1): coord BRANCH
+# vs `target_branch` staleness. Distinct from `_coord_worktree_stale_finding`
+# above (worktree HEAD vs its OWN coord branch) -- this is the residual case
+# where the coord branch itself has fallen behind (or diverged from) the
+# branch it publishes onto.
+# ---------------------------------------------------------------------------
+
+#: `--fix`-eligible: coord tip is a strict ancestor of target (clean FF).
+_COORD_STALE_VS_TARGET_CODE = "COORDINATION_BRANCH_STALE_VS_TARGET"
+#: NOT `--fix`-eligible: coord and target have diverged.
+_COORD_DIVERGED_VS_TARGET_CODE = "COORDINATION_BRANCH_DIVERGED_VS_TARGET"
+_COORD_DIVERGED_VS_TARGET_HINT = (
+    "Inspect and reconcile manually; `spec-kitty doctor coordination --fix` "
+    "will refuse to mutate a diverged coordination branch."
+)
+
+
+def _coord_branch_stale_vs_target_finding(
+    repo_root: Path, coord_branch: str, target_branch: str,
+) -> DoctorFinding | None:
+    """FR-008 (Gap-1): compare the coord branch TIP against ``target_branch``.
+
+    * Strict ancestor (coord tip behind target, cleanly fast-forwardable) ->
+      a non-blocking ``warning``, coded so ``--fix`` knows it may act
+      (FR-009).
+    * SHAs differ but are NOT a strict-ancestor pair -> diverged -> a
+      distinct non-blocking ``warning`` that ``--fix`` refuses to touch
+      (C-005 warn-first).
+    * SHAs equal, or either ref is unreadable -> ``None`` (nothing to report).
+    """
+    coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
+    if not coord_sha or not target_sha or coord_sha == target_sha:
+        return None
+    stale = _fast_forward_finding(
+        subject_sha=coord_sha, tip_sha=target_sha, repo_root=repo_root,
+        message=(
+            f"Coordination branch {coord_branch!r} is behind target branch "
+            f"{target_branch!r} (fast-forward available)."
+        ),
+        next_step="Run `spec-kitty doctor coordination --fix` to fast-forward it.",
+        error_code=_COORD_STALE_VS_TARGET_CODE,
+    )
+    if stale is not None:
+        return stale
+    return DoctorFinding(
+        severity="warning",
+        message=(
+            f"Coordination branch {coord_branch!r} has diverged from target "
+            f"branch {target_branch!r} and cannot be fast-forwarded automatically."
+        ),
+        next_step=_COORD_DIVERGED_VS_TARGET_HINT,
+        error_code=_COORD_DIVERGED_VS_TARGET_CODE,
+    )
+
+
+def _coord_vs_target_shas(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> tuple[str, str, str, str] | None:
+    """Resolve ``(coord_branch, target_branch, coord_sha, target_sha)`` for one mission.
+
+    Shared identity + ``target_branch`` + SHA-resolution preamble (A-3,
+    coord-commit-integrity squad) for every Gap-1 coord-vs-target call site
+    (:func:`_check_coord_branch_staleness`, :func:`_fix_one_mission_coord_staleness`).
+    Returns ``None`` when the mission is legacy/non-coordinated, its
+    slug/mission_id/``target_branch`` identity is incomplete, or either ref is
+    unreadable. Deliberately does NOT compare the two SHAs for equality --
+    "already in sync" means something different to each caller (a
+    non-finding vs. nothing-to-fix), so that decision stays with them.
+    """
+    identity = _coordination_identity(mission_meta)
+    if identity is None:
+        return None
+    coord_branch, mission_slug, mission_id = identity
+    if not mission_slug or not mission_id:
+        return None
+    target_branch = mission_meta.get("target_branch")
+    if not isinstance(target_branch, str) or not target_branch:
+        return None
+    coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    target_sha = _rev_parse(repo_root, f"refs/heads/{target_branch}")
+    if not coord_sha or not target_sha:
+        return None
+    return coord_branch, target_branch, coord_sha, target_sha
+
+
+def _check_coord_branch_staleness(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> list[DoctorFinding]:
+    """FR-008 entry: coord-branch-vs-target staleness for one mission (Gap-1).
+
+    Skips silently for legacy (non-coordinated) missions, incomplete
+    identity, a missing/blank ``target_branch``, or an unreadable ref.
+    """
+    shas = _coord_vs_target_shas(repo_root, mission_meta)
+    if shas is None:
+        return []
+    coord_branch, target_branch, _coord_sha, _target_sha = shas
+    finding = _coord_branch_stale_vs_target_finding(repo_root, coord_branch, target_branch)
+    return [finding] if finding is not None else []
+
+
+def check_and_warn_coord_staleness(feature_dir: Path, repo_root: Path) -> None:
+    """Non-blocking WARN hook for ``finalize-tasks`` (FR-008 declared one-liner).
+
+    ``finalize_tasks`` (``agent/tasks.py`` / ``agent/tasks_finalize.py``,
+    DIRECTIVE_024 declared out-of-map call -- those modules sit outside this
+    WP's ``owned_files``) calls this immediately after resolving
+    ``feature_dir``/``repo_root`` to surface Gap-1 coord-vs-target staleness.
+    Purely advisory: swallows a missing/malformed ``meta.json`` or a
+    non-coordinated mission by returning silently, and NEVER raises -- it
+    must not block finalize-tasks.
+    """
+    meta = load_meta(feature_dir, on_malformed="none")
+    if meta is None:
+        return
+    for finding in _check_coord_branch_staleness(repo_root, meta):
+        colour = {"warning": "yellow", "error": "red"}.get(finding.severity, "white")
+        console.print(f"[{colour}]{finding.severity}[/{colour}]: {finding.message}")
+        if finding.next_step:
+            console.print(f"  → {finding.next_step}")
+
+
 def _lane_sparse_file(lane_dir: Path) -> Path | None:
     """Resolve the lane's ``info/sparse-checkout`` path, or None if unresolvable."""
-    import subprocess as _subprocess
 
     try:
-        raw = _subprocess.check_output(
+        raw = subprocess.check_output(
             ["git", "-C", str(lane_dir), "rev-parse",
              "--git-path", "info/sparse-checkout"],
             text=True,
         ).strip()
-    except _subprocess.CalledProcessError:
+    except subprocess.CalledProcessError:
         return None
     sparse_file = Path(raw)
     if not sparse_file.is_absolute():
@@ -522,7 +710,6 @@ def _check_lane_sparse_checkout_drift(
 
     Skips silently for legacy missions.
     """
-    import subprocess as _subprocess
     from specify_cli.coordination import lane_sparse_checkout_patterns
 
     identity = _coordination_identity(mission_meta)
@@ -532,9 +719,7 @@ def _check_lane_sparse_checkout_drift(
     if not mission_slug or not mission_id:
         return []
 
-    from specify_cli.lanes.branch_naming import resolve_mid8
-
-    short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]
+    short = _resolve_coord_short(mission_slug, mission_id)
     expected = set(lane_sparse_checkout_patterns(mission_slug, short))
 
     worktrees_dir = repo_root / ".worktrees"
@@ -543,11 +728,11 @@ def _check_lane_sparse_checkout_drift(
 
     # Cache `git worktree list --porcelain` so we don't shell out per lane.
     try:
-        wt_list = _subprocess.check_output(
+        wt_list = subprocess.check_output(
             ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
             text=True,
         )
-    except _subprocess.CalledProcessError:
+    except subprocess.CalledProcessError:
         wt_list = ""
 
     findings: list[DoctorFinding] = []
@@ -570,8 +755,55 @@ def _check_lane_sparse_checkout_drift(
     return findings
 
 
-def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
-    """Run all coordination + git-health checks and return the aggregated findings."""
+def _resolve_mission_dirs(repo_root: Path, mission_filter: str | None) -> list[Path]:
+    """Return the ``kitty-specs/`` mission directories to scan.
+
+    Without a filter: every direct child of ``kitty-specs/`` (the existing
+    whole-repo scan). With a ``mission_filter`` handle (FR-012): the single
+    directory the shared mission resolver
+    (:func:`specify_cli.context.mission_resolver.resolve_mission` — the SAME
+    resolver ``doctor mission-state`` uses) maps the handle to.
+    :class:`~specify_cli.context.mission_resolver.MissionNotFoundError` /
+    :class:`~specify_cli.context.mission_resolver.AmbiguousHandleError` propagate
+    to the caller for mission-state-parity error handling — there is no silent
+    fallback.
+
+    ``safe_is_dir`` is evaluated per candidate exactly as the previous inline
+    loop did (``#3194``: an unstattable candidate RAISES rather than being
+    silently dropped).
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not safe_is_dir(specs_dir):
+        return []
+    if mission_filter is not None:
+        from specify_cli.context.mission_resolver import resolve_mission
+
+        return [resolve_mission(mission_filter, repo_root).feature_dir]
+    return [
+        mission_dir
+        for mission_dir in sorted(specs_dir.iterdir())
+        if safe_is_dir(mission_dir)
+    ]
+
+
+def _collect_coordination_findings(
+    repo_root: Path,
+    check_staleness: bool = False,
+    mission_filter: str | None = None,
+) -> list[DoctorFinding]:
+    """Run all coordination + git-health checks and return the aggregated findings.
+
+    ``check_staleness`` (FR-008, ``--check-staleness``) additionally folds in
+    the Gap-1 coord-branch-vs-``target_branch`` staleness finding for every
+    coordinated mission. Off by default so the baseline ``doctor
+    coordination`` output stays unchanged.
+
+    ``mission_filter`` (FR-012, ``--mission``) scopes the per-mission
+    kitty-specs iteration to a single mission via the shared resolver; the
+    repo-level checks (git version, tracked-worktrees hygiene, stranded-revert
+    re-verification) always run. Unresolvable / ambiguous handles raise (see
+    :func:`_resolve_mission_dirs`).
+    """
     findings: list[DoctorFinding] = []
     findings.extend(_check_git_version())
     # FR-035 (#1772 Bug 0): repo-level tracked-.worktrees/ hygiene check.
@@ -579,12 +811,7 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
     # FR-007 (#2786 / #2367-B): repo-level stranded-coord-revert re-verification.
     findings.extend(_check_stranded_coord_revert(repo_root))
 
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
-        return findings
-    for mission_dir in sorted(specs_dir.iterdir()):
-        if not mission_dir.is_dir():
-            continue
+    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
             continue
@@ -594,6 +821,8 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
                 f.extra["meta_path"] = str(mission_dir / "meta.json")
         findings.extend(coord_findings)
         findings.extend(_check_lane_sparse_checkout_drift(repo_root, meta))
+        if check_staleness:
+            findings.extend(_check_coord_branch_staleness(repo_root, meta))
     return findings
 
 
@@ -608,7 +837,7 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
 
     Returns a list of mission slugs that were modified.
     """
-    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+    from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty
 
     fixed: list[str] = []
     for f in findings:
@@ -621,15 +850,15 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
         meta = load_meta_or_empty(mission_dir)
         if "coordination_branch" not in meta:
             continue
-        del meta["coordination_branch"]
-        # Clear the stale stored topology so backfill_topology_repo re-derives it:
-        # backfill never overwrites an existing topology (migration/backfill_topology.py),
-        # and every mission minted post-#2069 stores `topology` at create time — leaving it
-        # would keep the mission routed through coordination (false-green flatten). Record the
-        # flatten via the provenance flag. (#2614 adversarial-squad remediation)
-        meta.pop("topology", None)
-        meta["flattened"] = True
-        write_meta(mission_dir, meta, validate=False)
+        # Canonical three-mutation flatten (#3219 / FR-015 / D-PLAN-17), converged
+        # onto the ONE shared primitive: clears `coordination_branch`, pops the
+        # stale `topology` so `backfill_topology_repo` re-derives it (backfill
+        # never overwrites an existing topology, and every mission minted
+        # post-#2069 stores `topology` at create time -- leaving it would keep
+        # the mission routed through coordination, a false-green flatten), and
+        # records the flatten via `flattened=True` (#2614 adversarial-squad
+        # remediation).
+        flatten_coordination_metadata(mission_dir)
         fixed.append(mission_dir.name)
     return fixed
 
@@ -719,6 +948,19 @@ def _finding_for_reconcile_marker(
             extra=base_extra,
         )
     coord_ref, captured_sha, coord_worktree, candidate_wps = parsed
+    if mission_slug is None:
+        # No slug to resolve a planning directory — surface a warning rather
+        # than passing None into the read seam and crashing the doctor sweep.
+        return DoctorFinding(
+            severity="warning",
+            message=(
+                "A `pending_coord_reconcile` marker is present but its mission "
+                "carries no `mission_slug` to resolve a planning directory."
+            ),
+            next_step=_MARKER_UNRESOLVABLE_MISSION_HINT,
+            error_code=_MARKER_UNRESOLVABLE_MISSION_CODE,
+            extra=base_extra,
+        )
     try:
         # Same canonicalizing WORK_PACKAGE_TASK read seam the executor's mark/heal
         # use (folds a bare handle → `<slug>-<mid8>`), so all three strand sites
@@ -967,9 +1209,163 @@ def _apply_coordination_fixes(
     error-code-scoped and idempotent, so the order is irrelevant. Returns any
     ``warning`` findings the fixers raised (e.g. a strand whose coord worktree is
     pruned) so the entrypoint surfaces them in the post-fix output.
+
+    The WP06 Gap-1 fast-forward (:func:`_apply_coord_staleness_fixes`) is
+    deliberately NOT dispatched from here: unlike every other fixer above, an
+    unsafe per-mission precondition surfaces as its own ``error`` finding
+    rather than folding into this function's return, so it runs as its own
+    step in :func:`run_coordination_health` — AFTER these idempotent,
+    order-irrelevant fixers have already applied.
     """
     _apply_never_created_fix(findings, repo_root)
     return _apply_stranded_revert_fix(findings, repo_root)
+
+
+# ---------------------------------------------------------------------------
+# WP06 (FR-009, Gap-1, C-003 MINIMIZED): the ONE `--fix` behaviour for coord-
+# branch-vs-target staleness -- a fast-forward, and ONLY when unambiguously
+# safe. Never grows into a general "repair arbitrary drifted content" command.
+# ---------------------------------------------------------------------------
+
+
+def _unified_diff(repo_root: Path, ref_a: str, ref_b: str) -> str:
+    """Return ``git diff ref_a ref_b`` output, or ``""`` when git is unreadable."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "diff", ref_a, ref_b],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return ""
+    return result.stdout
+
+
+#: Blocked Gap-1 fix (diverged coord branch, or a dirty coord worktree): a
+#: surfaced ``error`` finding rather than an abort (renata LOW, see
+#: :func:`_coord_staleness_fix_blocked_finding`).
+_COORD_STALE_FIX_BLOCKED_CODE = "COORDINATION_BRANCH_STALE_FIX_BLOCKED"
+
+
+def _coord_staleness_fix_blocked_finding(
+    repo_root: Path, coord_branch: str, target_branch: str, *, reason: str,
+) -> DoctorFinding:
+    """FR-009: an unsafe Gap-1 fast-forward precondition, as a surfaced ``error``.
+
+    Renata LOW (coord-commit-integrity squad): a per-mission unsafe
+    precondition (diverged coord branch, or a dirty coord worktree) must not
+    raise and abort the entire ``--fix`` run -- doing so let one mission's
+    Gap-1 problem block the flatten-cleanup fix for every OTHER mission
+    processed in the same run. Returning an ``error`` finding instead keeps
+    C-005 warn-first (the caller never attempts the merge -- mutates
+    NOTHING) and FR-009's fail-loud-with-diff contract (the diff is embedded
+    in the message, exactly as it was previously printed to the console),
+    while letting :func:`_apply_coord_staleness_fixes` continue to the next
+    mission. ``reason`` shapes the message (e.g. ``"diverged from"`` /
+    ``"not cleanly fast-forwardable vs"``); the diff itself is always
+    ``coord_branch..target_branch``.
+    """
+    diff_text = _unified_diff(repo_root, coord_branch, target_branch)
+    message = (
+        f"Refusing to fast-forward: coordination branch {coord_branch!r} "
+        f"is {reason} target branch {target_branch!r} — `--fix` mutates nothing."
+    )
+    if diff_text:
+        message = f"{message}\n{diff_text}"
+    return DoctorFinding(
+        severity="error",
+        message=message,
+        next_step=(
+            "Inspect the diff above and reconcile manually; `--fix` will not "
+            "mutate a diverged or dirty coordination branch."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _fix_one_mission_coord_staleness(
+    repo_root: Path, mission_meta: dict[str, object],
+) -> DoctorFinding | None:
+    """Attempt the Gap-1 fast-forward for a single mission.
+
+    Skips silently (nothing to fix, returns ``None``) when the mission is not
+    coordinated, its identity/``target_branch`` is incomplete, either ref is
+    unreadable, the SHAs already match, or the coord worktree does not exist
+    (the existing ``COORDINATION_WORKTREE_MISSING``/``NEVER_CREATED`` findings
+    already cover that case). Otherwise: strict-ancestor + clean coord
+    worktree fast-forwards the coord worktree onto ``target_branch`` (``git
+    merge --ff-only``, itself belt-and-braces safe) and returns ``None``;
+    anything else returns a blocked-fix ``error`` finding via
+    :func:`_coord_staleness_fix_blocked_finding` instead of raising, mutating
+    nothing (renata LOW: a single mission's unsafe precondition must not
+    abort ``--fix`` for every OTHER mission in the same run).
+    """
+    shas = _coord_vs_target_shas(repo_root, mission_meta)
+    if shas is None:
+        return None
+    coord_branch, target_branch, coord_sha, target_sha = shas
+    if coord_sha == target_sha:
+        return None  # nothing to fix: already in sync
+
+    if not _is_ff_candidate(repo_root, coord_sha, target_sha):
+        return _coord_staleness_fix_blocked_finding(
+            repo_root, coord_branch, target_branch, reason="diverged from",
+        )
+
+    # `shas` only proves coordination_branch/target_branch/slug/id are all
+    # present and non-blank (see _coord_vs_target_shas); re-resolving here is
+    # cheap (dict lookups, no I/O) and keeps this function's own inputs
+    # explicit rather than threading slug/id back out of the shared helper.
+    identity = _coordination_identity(mission_meta)
+    if identity is None:
+        return None  # unreachable in practice -- defensive, not an assert
+    _coord_branch_unused, mission_slug, mission_id = identity
+
+    from specify_cli.coordination import CoordinationWorkspace
+
+    short = _resolve_coord_short(mission_slug, mission_id)
+    worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
+    if not worktree.exists():
+        return None  # no coord worktree to fast-forward into; worktree-health check covers this
+
+    if _coord_worktree_dirty_finding(worktree) is not None:
+        return _coord_staleness_fix_blocked_finding(
+            repo_root, coord_branch, target_branch, reason="not cleanly fast-forwardable vs",
+        )
+
+    subprocess.run(
+        ["git", "-C", str(worktree), "merge", "--ff-only", target_branch],
+        check=True, capture_output=True, text=True,
+    )
+    console.print(
+        f"[green]Fast-forwarded:[/green] coordination branch {coord_branch!r} "
+        f"({coord_sha[:8]} -> {target_sha[:8]}) to match target {target_branch!r}."
+    )
+    return None
+
+
+def _apply_coord_staleness_fixes(
+    repo_root: Path, mission_filter: str | None = None
+) -> list[DoctorFinding]:
+    """FR-009 (Gap-1, C-003 minimized): fast-forward every coordinated mission's
+    coord branch to ``target_branch`` -- and ONLY when that is unambiguously safe.
+
+    Iterates every mission under ``kitty-specs/`` (or the single ``mission_filter``
+    handle, FR-012) and delegates to :func:`_fix_one_mission_coord_staleness`.
+    Stays the ONLY ``--fix`` behaviour for Gap-1 (C-003): it never attempts a
+    general repair of arbitrary drifted coordination content. Returns the
+    blocked-fix ``error`` findings for any mission whose Gap-1 precondition was
+    unsafe (renata LOW) so the caller can fold them into the post-fix findings --
+    one such mission no longer aborts fixing every OTHER mission in the same run.
+    """
+    blocked: list[DoctorFinding] = []
+    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
+        meta = load_meta(mission_dir, on_malformed="none")
+        if meta is None:
+            continue
+        finding = _fix_one_mission_coord_staleness(repo_root, meta)
+        if finding is not None:
+            blocked.append(finding)
+    return blocked
 
 
 def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool) -> None:
@@ -996,13 +1392,54 @@ def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool
             console.print(f"  → {f.next_step}")
 
 
-def run_coordination_health(json_output: bool, fix: bool = False) -> None:
+def _emit_mission_resolver_error(
+    error_code: str, handle: str | None, json_output: bool
+) -> None:
+    """Emit a mission-resolver failure with ``doctor mission-state`` parity.
+
+    JSON surface: a ``{"error": <code>, "handle": <handle>}`` envelope to stdout
+    (mirrors ``_mission_state_doctor._emit_json_error``). Human surface: a red
+    one-liner. The caller raises ``typer.Exit(1)``.
+    """
+    if json_output:
+        json.dump({"error": error_code, "handle": handle}, sys.stdout)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        label = "Mission not found" if error_code == "MISSION_NOT_FOUND" else "Ambiguous handle"
+        console.print(f"[red]Error:[/red] {label}: {handle!r}")
+
+
+def run_coordination_health(
+    json_output: bool,
+    fix: bool = False,
+    check_staleness: bool = False,
+    mission: str | None = None,
+) -> None:
     """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding).
 
     When *fix* is ``True``, automatically removes stale ``coordination_branch``
     keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
-    findings, then re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
-    to re-derive topology from the now-absent key.
+    findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
+    to re-derive topology from the now-absent key, then attempts the WP06
+    Gap-1 coord-vs-target fast-forward (:func:`_apply_coord_staleness_fixes`)
+    for every coordinated mission. A per-mission unsafe precondition (diverged
+    coord branch, or a dirty coord worktree) surfaces as an ``error`` finding
+    rather than raising (renata LOW, coord-commit-integrity squad) -- the
+    command still exits 1 overall for that mission, but no longer aborts
+    fixing every OTHER mission in the same run. FR-009/C-005 hold either way:
+    nothing is ever mutated for the blocked mission.
+
+    ``check_staleness`` (FR-008, ``--check-staleness``) additionally reports
+    Gap-1 coord-branch-vs-``target_branch`` staleness findings; it is purely a
+    reporting toggle -- the Gap-1 ``--fix`` fast-forward above always runs
+    when *fix* is set, independent of this flag.
+
+    ``mission`` (FR-012, ``--mission``) scopes every per-mission check (and the
+    ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
+    the handle to — the SAME resolver ``doctor mission-state`` uses. An
+    unresolvable or ambiguous handle fails closed with exit 1 and a
+    mission-state-parity error (no silent fallback).
     """
     try:
         repo_root = locate_project_root()
@@ -1013,16 +1450,39 @@ def run_coordination_health(json_output: bool, fix: bool = False) -> None:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
 
-    findings = _collect_coordination_findings(repo_root)
+    from specify_cli.context.mission_resolver import (
+        AmbiguousHandleError,
+        MissionNotFoundError,
+    )
 
-    if fix:
-        fix_warnings = _apply_coordination_fixes(findings, repo_root)
-        # Re-collect findings after fix so the exit code reflects the new state,
-        # then fold in any warnings the fixers raised for markers they could not
-        # heal (pruned worktree / unparseable / unresolvable) — these must not be
-        # silently dropped by the re-collect.
-        findings = _collect_coordination_findings(repo_root)
-        findings.extend(fix_warnings)
+    try:
+        findings = _collect_coordination_findings(
+            repo_root, check_staleness=check_staleness, mission_filter=mission
+        )
+
+        if fix:
+            fix_warnings = _apply_coordination_fixes(findings, repo_root)
+            # FR-009 Gap-1: a per-mission unsafe precondition (diverged / dirty)
+            # now returns a blocked-fix `error` finding (renata LOW) instead of
+            # raising, so one mission's Gap-1 problem no longer aborts fixing
+            # every OTHER mission processed in this run.
+            staleness_blocked = _apply_coord_staleness_fixes(repo_root, mission_filter=mission)
+            # Re-collect findings after fix so the exit code reflects the new state,
+            # then fold in any warnings/blocked-fix findings the fixers raised for
+            # issues they could not heal (pruned worktree / unparseable /
+            # unresolvable / unsafe Gap-1 precondition) — these must not be
+            # silently dropped by the re-collect.
+            findings = _collect_coordination_findings(
+                repo_root, check_staleness=check_staleness, mission_filter=mission
+            )
+            findings.extend(fix_warnings)
+            findings.extend(staleness_blocked)
+    except MissionNotFoundError as exc:
+        _emit_mission_resolver_error("MISSION_NOT_FOUND", mission, json_output)
+        raise typer.Exit(1) from exc
+    except AmbiguousHandleError as exc:
+        _emit_mission_resolver_error("AMBIGUOUS_HANDLE", mission, json_output)
+        raise typer.Exit(1) from exc
 
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)

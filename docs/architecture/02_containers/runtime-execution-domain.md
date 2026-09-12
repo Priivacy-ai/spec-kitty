@@ -41,7 +41,7 @@ the canonical work package lifecycle FSM.
 3. Worktree context does not reassign lifecycle authority.
 4. Legacy features without explicit target-line metadata continue on default routing.
 
-## Canonical Work Package Lifecycle FSM
+## Canonical work package lifecycle FSM
 
 ```mermaid
 stateDiagram-v2

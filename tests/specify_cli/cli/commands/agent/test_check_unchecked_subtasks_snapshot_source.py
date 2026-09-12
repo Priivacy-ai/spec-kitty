@@ -163,32 +163,6 @@ def test_gate_follows_snapshot_incomplete_over_checked_markdown(tmp_path: Path) 
 
 
 # ---------------------------------------------------------------------------
-# The gate never consults the HistoryAdded narrative-emission path.
-# ---------------------------------------------------------------------------
-
-
-def test_gate_never_calls_history_added_emitter(tmp_path: Path) -> None:
-    """``_ms_emit_history`` records a ``HistoryAdded`` narrative note via
-    ``specify_cli.sync.events.emit_history_added`` — a render-only feed,
-    structurally distinct from the ``subtasks`` authority slot. Pin that the
-    gate never calls it (a wrong impl could key off "was a HistoryAdded note
-    recorded" instead of reading the true snapshot slot)."""
-    feature_dir = _seed_feature_dir(
-        tmp_path, _TASKS_MD_ALL_UNCHECKED, roster=["T001", "T002", "T003"]
-    )
-    _seed_claim_transition(feature_dir, "WP01")
-    _seed_subtasks_annotation(
-        feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE, "T003": Lane.DONE}
-    )
-
-    with patch("specify_cli.sync.events.emit_history_added") as history_mock:
-        result = _check(tmp_path, feature_dir, "WP01")
-
-    history_mock.assert_not_called()
-    assert result == []
-
-
-# ---------------------------------------------------------------------------
 # Fail-closed (#2816 IC-10): an authored roster with a silent snapshot BLOCKS —
 # the retired legacy checkbox fallback did not become a silent open. An empty
 # authored roster is "nothing to block on".

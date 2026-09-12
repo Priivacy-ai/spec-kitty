@@ -1,0 +1,57 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: SPEC-FRESH-001
+    lens: structural-fix-planning
+    severity: 3
+    title: CL-004a's dead-code-deletion requirement has no corresponding FR/SC, unlike its sibling CL-004
+    evidence:
+      - artifact: "spec.md § CL-004a (lines 132-144)"
+      - artifact: "spec.md § Functional Requirements (FR-010, FR-011)"
+      - artifact: "spec.md § Success Criteria (SC-005)"
+      - code: "src/specify_cli/cli/commands/mission_type.py:38-46,122,150-151,1429-1430"
+    claim: >
+      The fix round added CL-004a as a new binding decision record ("this dead code MUST be
+      deleted in the same PR as the FR-006/FR-007/FR-008 work: `list_cmd`,
+      `_print_available_missions`, and the now-unused `discover_missions` import"). Verified
+      against the live tree: `list_cmd` (mission_type.py:150-151) is genuinely shadowed —
+      confirmed by direct repro (a two-handler Typer app registering `@app.command("list")`
+      twice: the second registration silently wins, first is unreachable) — so the underlying
+      technical claim is accurate. But CL-004a's sibling, CL-004 (dead `resolve_mission_steps` +
+      stale docstring), got promoted into explicit, testable requirements: FR-010 ("Delete
+      `resolve_mission_steps` dead code"), FR-011 ("Correct the stale `_inject_projected_fields`
+      docstring"), and SC-005 ("`resolve_mission_steps` and its test are removed from the
+      codebase... both verified by direct inspection/grep in CI"). CL-004a received no analogous
+      FR or SC entry anywhere in the document — grep for `list_cmd`/`_print_available_missions`/
+      `discover_missions` across the FR table, NFR table, and Success Criteria section returns
+      zero hits outside the CL-004a prose block itself. An implementer or reviewer checking
+      "did this mission satisfy its FRs/SCs" has no line item to point to for CL-004a, even
+      though it uses the same MUST-level binding language as CL-004 and was added in the same
+      fix-round commit that added FR-010/FR-011/SC-005 for CL-004.
+    remediation: >
+      Add an FR (e.g. FR-013) for CL-004a mirroring FR-010's shape ("Delete the shadowed
+      `list_cmd`/`_print_available_missions`/`discover_missions` dead code in
+      `mission_type.py`") and extend SC-005 (or add SC-006) to name `list_cmd`,
+      `_print_available_missions`, and the `discover_missions` import as grep/inspection-verified
+      removals, matching the treatment already given to CL-004's `resolve_mission_steps` deletion.
+  - id: SPEC-FRESH-002
+    lens: five-paradigm-parallel-debugging
+    severity: 1
+    title: "`_resolve_template_set_slot` line-range citation overshoots the function body by two lines"
+    evidence:
+      - artifact: "spec.md § CL-004 (line 122)"
+      - code: "src/charter/mission_type_profiles.py:841-884"
+    claim: >
+      CL-004's rewritten corroborating citation gives `_resolve_template_set_slot` as
+      `mission_type_profiles.py:841-886`. The function's `def` line is verified at 841 (correct)
+      but its last executable line (`return MappingProxyType(dict(template_set))`) is at 884, not
+      886; lines 885-886 are blank lines before the next `def` at 887. The cited range includes
+      two trailing blank lines past the function body. This is a cosmetic overshoot, not a
+      substantive miscitation — the quoted docstring text at lines 859-860 (verified verbatim:
+      "(builtin-only, matching the pre-cutover parity contract)") is itself exactly right — but
+      it's the kind of small line-drift the fix round was explicitly tasked to catch when
+      re-verifying citations rather than copying them forward.
+    remediation: "Tighten the range to `mission_type_profiles.py:841-884` to match the actual function body."

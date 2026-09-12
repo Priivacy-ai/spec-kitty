@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-from charter.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
 
 
 _THIS_DIR = Path(__file__).parent
@@ -79,7 +79,7 @@ def minimal_drg_snapshot() -> dict:
     """Minimal DRG graph snapshot for deterministic testing."""
     return {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",

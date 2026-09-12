@@ -1,0 +1,35 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: Tail cursor entity now states unconditionally "ALWAYS caller-supplied/caller-owned... stateless across invocations... never the command invocation's to own" and the "or command invocation" branch is fully removed.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: Key Entity renamed to "Tail envelope" with an explicit "Distinct from the canonical \"Event Envelope\" glossary term" note citing the different schema; grep confirms no stray bare "Envelope" collision remains.
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: Grep of the full spec.md for "Kitty Desktop", "notify", and "Rust" finds zero matches for the product name or the Rust notify-crate detail; User Story 1 now reads generically ("An external desktop/companion consumer").
+  - id: SPEC-GOV-004
+    status: resolved
+    reason: Verified against src/specify_cli/status/store.py directly — os.replace(tmp_path, path) is at line 392 and raise StoreError(f"Invalid JSON on line...") is at line 554, exactly matching the spec's corrected citations ":392" and ":554".
+  - id: SPEC-GOV-005
+    status: resolved
+    reason: SPEC-KITTY-LEDGER.md contains a coherent "### SK-153 — canonical spec-template.md's \"Key Entities\" heading still says \"feature\" instead of \"mission\"" entry with correct upstream-fix pointer; numeric sort of ^### SK- headings shows SK-153 used exactly once, no collision.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: FR-005 now requires a content-invariant check (hash/raw bytes of the boundary immediately preceding O) on every poll independent of the size check, and User Story 2 gained a real Acceptance Scenario 3 exercising "rollback truncates below O and a subsequent write grows it back to >= O within one poll interval" with Given/When/Then detection/resync behavior specified.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: New User Story 4 (P1) gives shape (a) the same rigor as shape (b) — a "Why this priority" note, an Independent Test description, and two Given/When/Then Acceptance Scenarios (torn-line retry, then exactly-once emission on completion) — not just an Edge Cases bullet.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: NFR-003's second sentence now names FR-005, FR-007, FR-008, FR-009, FR-013 explicitly (FR-006 excluded from that list) and adds an explicit third sentence exempting FR-006 while still requiring it "MUST NOT be silently dropped either — it is retried transparently across polls, not signaled," closing both the contradiction and the silent-drop gap.
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: Checked directly against the Requirements table — "Log file does not exist yet" now cites FR-008, which is indeed "Wait for a not-yet-created log file, then stream once it appears"; "Mission slug does not resolve" now cites FR-009, which is "Fail closed on an unresolvable mission slug". Both corrected citations match their FR rows exactly.
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: New Edge Cases bullet "Invalid or out-of-range resume offset supplied via --from-offset" plus a new User Story 3 Acceptance Scenario 3 and a new FR-013 ("Fail closed on an invalid or out-of-range resume offset") together specify fail-closed, non-clamping, explicit-signal behavior for the invalid-offset case.

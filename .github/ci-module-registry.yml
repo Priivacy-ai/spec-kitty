@@ -1,0 +1,214 @@
+schema_version: 1.0
+description: Committed module-shard registry (FR-006/NFR-001/NFR-005, WP08 T042). The single data source
+  for the per-module CI test matrix, realized as a matrix over a BOUNDED set of reusable workflows (<=
+  GitHub's 20-reusable-workflows-per-caller ceiling) -- adding a module is a registry row, never a new
+  workflow file. Rows are consumed verbatim from the WP05 retirement scrub (tests/release/ci_retirement_scrub.json);
+  this registry does not re-scrub. shard_count is chosen by greedy LPT bin-packing of the MEASURED per-test
+  durations recorded in ci-shard-timings.json (never guessed, never from file counts) so the within-module
+  inter-shard skew stays <=20% (NFR-005).
+source_scrub: tests/release/ci_retirement_scrub.json
+source_timings: .github/ci-shard-timings.json
+reusable_workflow_ceiling: 20
+modules:
+- module: merge
+  roots:
+  - src/specify_cli/merge/**
+  cov_targets:
+  - specify_cli.merge
+  tier: standard
+  shard_count: 1
+- module: missions
+  roots:
+  - src/specify_cli/mission.py
+  - src/specify_cli/mission_metadata.py
+  - src/specify_cli/missions/**
+  - src/charter/offering/missions/**
+  cov_targets:
+  - specify_cli.mission
+  - specify_cli.mission_metadata
+  - specify_cli.missions
+  - charter.offering.missions
+  tier: standard
+  shard_count: 1
+- module: post_merge
+  roots:
+  - src/specify_cli/post_merge/**
+  cov_targets:
+  - specify_cli.post_merge
+  tier: standard
+  shard_count: 1
+- module: release
+  roots:
+  - src/specify_cli/release/**
+  cov_targets:
+  - specify_cli.release
+  tier: standard
+  shard_count: 1
+- module: status
+  roots:
+  - src/specify_cli/status/**
+  - src/specify_cli/coordination/**
+  cov_targets:
+  - specify_cli.status
+  - specify_cli.coordination
+  tier: standard
+  shard_count: 1
+- module: review
+  roots:
+  - src/specify_cli/review/**
+  cov_targets:
+  - specify_cli.review
+  tier: standard
+  shard_count: 1
+- module: next
+  roots:
+  - src/specify_cli/runtime/**
+  - src/runtime/next/**
+  - src/mission_runtime/**
+  cov_targets:
+  - specify_cli.runtime
+  - runtime.next
+  - mission_runtime
+  tier: standard
+  shard_count: 2
+- module: lanes
+  roots:
+  - src/specify_cli/lanes/**
+  cov_targets:
+  - specify_cli.lanes
+  tier: standard
+  shard_count: 1
+- module: dashboard
+  roots:
+  - src/specify_cli/dashboard/**
+  cov_targets:
+  - specify_cli.dashboard
+  tier: standard
+  shard_count: 1
+- module: upgrade
+  roots:
+  - src/specify_cli/upgrade/**
+  cov_targets:
+  - specify_cli.upgrade
+  tier: standard
+  # 4 shards: the module's ~840 tests run near-instant in pytest's measured
+  # "call" phase (module_test_durations sums to ~5s) but each carries heavy
+  # per-test fixture setup (project init / ensure_runtime) that the call-phase
+  # timings do not capture, so the SERIAL single-shard run overran the 30m job
+  # timeout. Splitting by test count keeps each serial shard well under budget;
+  # inter-shard skew stays 0% (the per-test call durations are near-uniform).
+  shard_count: 4
+- module: cli
+  roots:
+  - src/specify_cli/cli/**
+  cov_targets:
+  - specify_cli.cli
+  tier: standard
+  shard_count: 2
+- module: charter
+  roots:
+  - src/charter/**
+  - src/specify_cli/charter_runtime/**
+  cov_targets:
+  - charter
+  - specify_cli.charter_runtime
+  tier: standard
+  shard_count: 5
+- module: agent
+  roots:
+  - src/specify_cli/agent_utils/**
+  cov_targets:
+  - specify_cli.agent_utils
+  tier: standard
+  # 3 shards: ~1173 tests at ~1.2s wall each (CliRunner + ensure_runtime
+  # overhead the measured call-phase timings undercount) → ~23m SERIAL, which
+  # brushed the 30m job timeout. Three serial shards land each near ~8m;
+  # inter-shard skew stays 0% under LPT of the near-uniform per-test durations.
+  shard_count: 3
+- module: kernel
+  roots:
+  - src/kernel/**
+  cov_targets:
+  - kernel
+  tier: standard
+  shard_count: 1
+- module: glossary
+  roots:
+  - src/glossary/**
+  cov_targets:
+  - glossary
+  tier: standard
+  shard_count: 1
+- module: execution_context
+  roots:
+  - src/mission_runtime/**
+  - src/specify_cli/status/**
+  - src/runtime/next/**
+  - src/specify_cli/cli/commands/agent/**
+  cov_targets:
+  - mission_runtime
+  - specify_cli.status
+  - runtime.next
+  tier: standard
+  shard_count: 3
+  # AGGREGATE module: no single tests/<module> mirror exists for
+  # "execution_context" -- the roots above are covered by these real
+  # directories instead (verified to exist and collect >0 tests, WP09 landing
+  # fold). module-tests.yml consumes this list when present rather than
+  # guessing tests/{module}.
+  test_dirs:
+  - tests/mission_runtime
+  - tests/runtime
+  - tests/specify_cli/cli/commands/agent
+- module: core_misc
+  roots:
+  - src/kernel/**
+  - src/charter/offering/**
+  - src/specify_cli/core/**
+  - src/specify_cli/coordination/**
+  - src/specify_cli/doctrine_synthesizer/**
+  - src/specify_cli/status/**
+  - src/specify_cli/tool_surface/**
+  - src/specify_cli/zeitgeist_client/**
+  cov_targets:
+  - specify_cli
+  - glossary
+  - mission_runtime
+  tier: standard
+  shard_count: 5
+  # AGGREGATE module: no single tests/<module> mirror exists for "core_misc"
+  # -- the roots above are covered by these real directories instead
+  # (verified to exist and collect >0 tests, WP09 landing fold). Both
+  # src/specify_cli/core/** and src/specify_cli/coordination/** have two
+  # live test trees (tests/<name> and tests/specify_cli/<name>) that each
+  # exercise the src module -- both are kept for faithful coverage (overlap
+  # accepted, per CLAUDE.md "Test policy"). src/charter/offering/** mirrors
+  # the same dual-tree tests/charter + tests/doctrine pattern
+  # module-tests.yml already special-cases for the "charter" module.
+  test_dirs:
+  - tests/core
+  - tests/specify_cli/core
+  - tests/coordination
+  - tests/specify_cli/coordination
+  - tests/doctrine_synthesizer
+  - tests/specify_cli/tool_surface
+  - tests/zeitgeist_client
+special_tiers:
+  integration_tests_next:
+    job: integration-tests-next
+    parallel_mode: -n auto
+    previous_duration_minutes: 69.2
+    target_duration_minutes: 7
+    roots:
+    - tests/integration/**
+    - tests/next/**
+    note: De-serialized from fully-serial (FR-008/NFR-001). Runs its own internal xdist fan-out inside
+      one job rather than being split across separate registry shards.
+  architectural:
+    job: architectural-heavy
+    always_on: true
+    deserialized: true
+    filter_group: null
+    note: Runs the full tests/architectural battery (minus the 3 fast always-on gates) as one always-on,
+      de-serialized job -- adds no filter group, consistent with WP07's fast/heavy split already live
+      in .github/workflows/ci-router.yml.

@@ -1,46 +1,42 @@
-"""Auto-scoped pre-review regression gate: scope derivation + head-side runner + verdict.
+"""Auto-scoped pre-review regression gate: scope aggregation + head-side runner + verdict.
 
 Mission ``review-regression-gate-01KWX6DF`` WP01 (closes #572 + the per-WP
-review-blind-spot facet of #1979; part of #2283). Today ``move-task --to
-for_review`` (``cli/commands/agent/tasks_move_task.py``) runs no tests and
-review is scoped to a WP's ``owned_files`` — a WP that breaks a *consumer*
-outside its owned set reaches approval unnoticed. This module is the engine
-half of the fix (the CLI hook + config/override wiring is WP02):
+review-blind-spot facet of #1979; part of #2283). ``move-task --to
+for_review`` (``cli/commands/agent/tasks_move_task.py``) scopes review to a
+WP's ``owned_files`` — a WP that breaks a *consumer* outside its owned set
+would otherwise reach approval unnoticed. This module is the engine half of
+the fix (the CLI hook + config/override wiring lives in ``tasks_move_task.py``):
 
-1. **Derive the affected test scope** (FR-002/FR-005/FR-006) from a WP's
-   changed files, keyed on the dorny filter-group SHAPE parsed by
-   ``tests/architectural/_gate_coverage.py`` (the live, single-source
-   authority — never hand-declared here):
+1. **Build a :class:`ScopeResult`** (FR-002/FR-005/FR-006) from a WP's
+   changed files via an injected
+   :class:`~specify_cli.review.scope_source.ScopeSource` (see
+   :func:`_scope_result_from_source`). The per-file derivation SHAPE — which
+   dorny filter groups match, catch-all exclusion, composite-dir cone
+   routing — is owned entirely by the port's implementations
+   (``scope_source.py``); this module never re-derives it (mission
+   ``scopesource-gate-followup-01KY6S9P`` WP04 retired the census tier this
+   module used to own directly, FR-001). An EMPTY affected scope from a
+   census-*narrowing* source is NEVER "verified clean" — always a
+   ``no_coverage`` warn (SC-007), distinct from a green ``no_new_failures``
+   verdict.
 
-   - **per-shard groups** (``status``, ``cli``, ``merge``, ``review``, …) —
-     their glob set already carries ``tests/**`` entries -> those globs ARE
-     the affected test scope.
-   - **composite groups** (``auth_audit_git``, ``lifecycle``,
-     ``agent_surface``, ``closeout``, ``governance``, ``platform``) — their
-     glob set is src-only -> the scope comes from the census
-     ``_COMPOSITE_ROUTING`` cone_roots for the file's own worklist dir.
-   - The catch-all groups (``core_misc``, ``e2e``, ``any_src``) are EXCLUDED
-     regardless of shape — ``core_misc`` alone carries ~53 ``tests/**``
-     globs (~17 min) and would defeat FR-005's bounded-cost goal.
-   - An EMPTY affected scope is NEVER "verified clean" — always a
-     ``no_coverage`` warn (SC-007), distinct from a green
-     ``no_new_failures`` verdict.
+2. **Run the derived scope at head** (subprocess) — either the legacy
+   hardcoded pytest/JUnit path (:func:`run_scoped_tests_at_head`, kept live
+   via the FR-004 override tier) or the injected port's own
+   ``test_command()``/``parse_results()`` (:func:`_evaluate_via_scope_source`)
+   — and parse its output into per-failure identities.
 
-2. **Run the derived scope at head** (subprocess) and parse its JUnit output
-   with ``review/baseline.py``'s existing parser (``_parse_junit_xml``) —
-   the shard-scoped invocation + this head-side run are net-new (C-001);
-   ``baseline.py`` has neither today.
-
-3. **Compute the new-failure verdict** as ``head_failures - base_failures``
-   via ``review/baseline.py``'s existing ``diff_baseline`` (also reused
-   unchanged). An uncomputable baseline degrades to a warn, never a hard
-   block (FR-003).
+3. **Compute the verdict** as ``head_failures - base_failures`` via
+   ``review/baseline.py``'s existing ``diff_baseline`` (reused unchanged).
+   An uncomputable baseline degrades to a warn, never a hard block (FR-003);
+   a KNOWN baseline/head ``ScopeSource`` identity mismatch degrades to
+   ``SOURCE_MISMATCH``, also a warn, never a hard block (FR-009/FR-011,
+   mission ``scopesource-gate-followup-01KY6S9P`` WP04).
 """
+
 from __future__ import annotations
 
 import contextlib
-import fnmatch
-import importlib
 import os
 import signal
 import subprocess
@@ -48,96 +44,90 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
-from types import ModuleType
-from typing import cast
+from typing import Protocol
 
+from kernel.paths import to_posix
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
     CAPTURE_BASELINE_TIMEOUT_SECONDS,
     BaselineFailure,
     BaselineTestResult,
+    _extract_junit_output_path,
     _parse_junit_xml,
     diff_baseline,
 )
+from specify_cli.review.gate_budget import (
+    BudgetClassification,
+    ScopeBudgetAssessment,
+    assess_scope_budget,
+)
+from specify_cli.review.scope_source import (
+    UNKNOWN_SOURCE_IDENTITY,
+    RawRunResult,
+    ScopeBreakdownSource,
+    ScopeSource,
+    empty_scope_is_coverage_gap,
+    exposes_scope_breakdown,
+    scope_source_identity,
+)
 
 # ---------------------------------------------------------------------------
-# Catch-all exclusion (FR-002/FR-005)
+# Composite-route shape kept for the resolver's compatibility arguments and
+# narrowing-source test doubles. The production GitHub Actions census source
+# was retired by issue #380.
 # ---------------------------------------------------------------------------
-
-# Dorny groups excluded from the review-time run regardless of shape (FR-002/
-# FR-005) come from TWO signals, both consulted at call time (never a single
-# fixed literal set) so a future whole-tree probe group doesn't silently slip
-# through:
-#
-# 1. NAMED_CATCHALL_GROUPS — breadth that is a judgment call, not a structural
-#    glob-shape property _gate_coverage.py exposes: core_misc alone carries
-#    ~53 tests/** globs (~17 min); e2e's heavy full-CLI runs are excluded by
-#    category. core_misc in particular DOES carry tests/** globs — it would
-#    otherwise look "per-shard"-shaped — so it must be named, not inferred.
-# 2. Any group whose glob set carries the literal ``src/**`` whole-tree probe
-#    (``any_src``'s own glob) matches EVERY src file by construction — this is
-#    a MECHANICAL signal, so it is derived per group map rather than named.
-#    ci-windows.yml's ``windows_critical`` group is exactly this shape (it
-#    globs plain ``src/**`` alongside ~20 specific windows-regression test
-#    files) — aggregate_filter_groups() merges ci-windows.yml's groups into
-#    the same namespace as ci-quality.yml's, so it must be excluded the same
-#    way any_src is, or every src touch would unconditionally drag in those
-#    ~20 unrelated files and mask an otherwise-empty (SC-007) scope.
-NAMED_CATCHALL_GROUPS: frozenset[str] = frozenset({"core_misc", "e2e"})
-_WHOLE_SRC_TREE_GLOB = "src/**"
-
-
-def resolve_excluded_catchall_groups(filter_groups: Mapping[str, tuple[str, ...]]) -> frozenset[str]:
-    """The full catch-all exclusion set for a given ``group -> globs`` map.
-
-    = :data:`NAMED_CATCHALL_GROUPS` UNION every group whose glob set carries
-    the literal ``src/**`` whole-tree probe (``any_src`` itself, plus any
-    other group shaped the same way).
-    """
-    whole_tree_groups = {name for name, globs in filter_groups.items() if _WHOLE_SRC_TREE_GLOB in globs}
-    return NAMED_CATCHALL_GROUPS | whole_tree_groups
-
-_SRC_PACKAGE_PREFIX = "src/specify_cli/"
-_TESTS_PREFIX = "tests/"
-_GATE_COVERAGE_MODULE_NAME = "tests.architectural._gate_coverage"
 
 # Mirrors _gate_coverage._CompositeRoute: (target_group, target_shard, cone_roots).
 _CompositeRoute = tuple[str | None, str | None, tuple[str, ...]]
-_EMPTY_COMPOSITE_ROUTE: _CompositeRoute = (None, None, ())
-
-_LoadWorkflowModels = Callable[[], dict[str, object]]
-_AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
 
 _DEFAULT_HEAD_RUN_TIMEOUT = CAPTURE_BASELINE_TIMEOUT_SECONDS  # shared with baseline.py's capture_baseline.
 _HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
 _HEAD_RUN_TERMINATE_GRACE = 5.0
+_JUNIT_ARTIFACT_FILENAME = "pre-review-junit.xml"
+
+# How many trailing stderr chars a run-error message carries (bounded tail).
+_STDERR_TAIL_CHARS = 500
+
+
+def _gate_run_env() -> dict[str, str]:
+    """Environment for an automated gate subprocess: inherit + force headless.
+
+    Shared by the pytest/JUnit runner (:func:`run_scoped_tests_at_head`) and
+    the raw-command runner (:func:`_run_raw_command`) so the ``PWHEADLESS``
+    guard — never pop a browser window during an automated gate run — is set
+    in ONE place rather than copied per call site.
+    """
+    env = dict(os.environ)
+    env["PWHEADLESS"] = "1"
+    return env
+
+
+def _launch_failed_error(exc: OSError) -> str:
+    """Shared ``OSError`` launch-failure message for the head-run subprocess."""
+    return f"scoped test run failed to launch: {exc}"
+
+
+def _timed_out_error(timeout: int, stderr: str) -> str:
+    """Shared timeout message carrying a bounded stderr tail."""
+    return f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
+
+
+def _cancelled_error(stderr: str) -> str:
+    """Shared cancellation message carrying a bounded stderr tail."""
+    return f"scoped test run cancelled; stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
 
 
 class GateAuthoritiesUnavailable(RuntimeError):
-    """The live CI-topology authorities module could not be loaded for a repo.
+    """Compatibility signal for callers that still handle authority failures.
 
-    Raised by :func:`_load_gate_coverage_module` when
-    ``tests/architectural/_gate_coverage.py`` is missing, fails to import, or
-    resolves to a module living outside the requested ``repo_root`` (a stale
-    cross-repo ``sys.modules`` cache hit). Callers treat this as an
-    "unverified scope" signal (folded into a ``no_coverage`` warn by
-    :func:`derive_test_scope`'s caller), never as a hard failure — an
-    inability to compute coverage must be surfaced, not silently swallowed
-    or escalated to a crash.
-
-    ``is_consumer_repo`` (#2534) distinguishes WHY the authority is missing:
-    ``True`` when ``repo_root`` itself never carried
-    ``tests/architectural/_gate_coverage.py`` (a legitimate ``spec-kitty
-    init`` consumer checkout — this is the expected, common case), ``False``
-    when the module SHOULD exist there (inside the spec-kitty source repo)
-    but genuinely failed to load — a real signal worth the detailed,
-    internal-audience message. Callers (the ``move-task --to for_review``
-    CLI hook) use this flag to pick a calm consumer-facing message instead of
-    naming this internal module to an operator who has never heard of it.
+    The production resolver no longer imports the retired GitHub Actions
+    coverage authority. The exception remains importable so older injection
+    tests and callers can keep treating authority loss as a visible
+    ``no_coverage`` warning instead of a hard crash.
     """
 
     def __init__(self, message: str, *, is_consumer_repo: bool) -> None:
@@ -146,125 +136,13 @@ class GateAuthoritiesUnavailable(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# Live-authority loading (FR-002/FR-006)
-# ---------------------------------------------------------------------------
-
-
-def _is_spec_kitty_source_repo(repo_root: Path) -> bool:
-    """True iff ``repo_root`` is the spec-kitty SOURCE repo, not a consumer checkout.
-
-    The single robust signal is direct filesystem presence of
-    ``tests/architectural/_gate_coverage.py`` under ``repo_root`` — that file
-    IS the authority :func:`_load_gate_coverage_module` is about to import,
-    so checking for it directly (rather than a proxy such as a
-    ``src/specify_cli/`` package, which a consumer project could coincidentally
-    also carry, e.g. while developing spec-kitty itself as a dependency)
-    means the discriminator can never diverge from the thing it discriminates.
-    """
-    return (repo_root / "tests" / "architectural" / "_gate_coverage.py").is_file()
-
-
-def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
-    """Import the live CI-topology model for ``repo_root``.
-
-    ``tests/architectural/_gate_coverage.py`` is the single-source authority
-    for both group shapes this module derives scope from:
-    ``aggregate_filter_groups()`` (per-shard ``tests/**`` globs) and
-    ``_COMPOSITE_ROUTING`` (composite cone_roots). It is test-tree code,
-    imported lazily here (never at this module's own import time) so a
-    consumer repo without a spec-kitty-shaped ``tests/`` tree degrades to
-    :class:`GateAuthoritiesUnavailable` instead of breaking unrelated CLI
-    imports.
-    """
-    resolved_root = repo_root.resolve()
-    repo_str = str(resolved_root)
-    if repo_str not in sys.path:
-        sys.path.insert(0, repo_str)
-    is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
-    try:
-        module = importlib.import_module(_GATE_COVERAGE_MODULE_NAME)
-    except ImportError as exc:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} is not importable under {resolved_root}: {exc}",
-            is_consumer_repo=is_consumer_repo,
-        ) from exc
-    module_file = getattr(module, "__file__", None)
-    if module_file is None or resolved_root not in Path(module_file).resolve().parents:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} resolved to {module_file!r}, outside "
-            f"{resolved_root} — refusing a cross-repo authorities import.",
-            is_consumer_repo=is_consumer_repo,
-        )
-    return module
-
-
-def _default_filter_groups(repo_root: Path) -> dict[str, tuple[str, ...]]:
-    """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``."""
-    module = _load_gate_coverage_module(repo_root)
-    load_workflow_models = cast("_LoadWorkflowModels", module.load_workflow_models)
-    aggregate_filter_groups = cast("_AggregateFilterGroups", module.aggregate_filter_groups)
-    return aggregate_filter_groups(load_workflow_models())
-
-
-def _default_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:
-    """Live composite-dir -> ``(target_group, target_shard, cone_roots)`` routing plan.
-
-    Reads ``_gate_coverage``'s own committed routing table directly (rather
-    than mirroring a copy here) so this stays the single FR-006 authority.
-    """
-    module = _load_gate_coverage_module(repo_root)
-    return cast("Mapping[str, _CompositeRoute]", module._COMPOSITE_ROUTING)
-
-
-# ---------------------------------------------------------------------------
-# Glob / path helpers
-# ---------------------------------------------------------------------------
-
-
-def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
-    """True iff a dorny filter glob matches a specific changed-file path.
-
-    Close enough to dorny/paths-filter's own semantics for our purposes: a
-    ``<dir>/**`` glob matches the dir itself and everything under it; any
-    other glob containing ``*`` falls back to shell-style matching;
-    anything else is an exact-path match.
-    """
-    pattern = glob_pattern.replace("\\", "/")
-    path = file_path.replace("\\", "/")
-    if pattern.endswith("/**"):
-        prefix = pattern[: -len("/**")]
-        return path == prefix or path.startswith(f"{prefix}/")
-    if "*" in pattern:
-        return fnmatch.fnmatch(path, pattern)
-    return path == pattern
-
-
-def _glob_to_pytest_target(glob_pattern: str) -> str:
-    """A ``tests/**`` dorny glob -> a runnable pytest path argument."""
-    normalized = glob_pattern.replace("\\", "/")
-    if normalized.endswith("/**"):
-        return normalized[: -len("/**")]
-    return normalized
-
-
-def _src_dir_segment(file_path: str) -> str | None:
-    """The direct ``src/specify_cli/<dir>`` child a file lives under, else ``None``.
-
-    Same extraction rule as ``_gate_coverage._src_dir_of_glob`` — mirrored
-    rather than imported, since it is applied to a concrete changed-file path
-    rather than a glob. A top-level ``src/specify_cli/<file>.py`` has no
-    owning worklist dir and returns ``None``.
-    """
-    if not file_path.startswith(_SRC_PACKAGE_PREFIX):
-        return None
-    segment = file_path[len(_SRC_PACKAGE_PREFIX) :].split("/", 1)[0]
-    if not segment or segment.endswith(".py"):
-        return None
-    return segment
-
-
-# ---------------------------------------------------------------------------
 # Scope derivation (FR-002/FR-005/FR-006)
+#
+# The census-narrowing DERIVATION that used to live here (``derive_test_scope``
+# + its glob/path helpers) is retired (FR-001, mission
+# scopesource-gate-followup-01KY6S9P WP04). This module only builds/consumes
+# :class:`ScopeResult` from an injected
+# :class:`~specify_cli.review.scope_source.ScopeSource` now.
 # ---------------------------------------------------------------------------
 
 
@@ -293,10 +171,7 @@ class ScopeResult:
         if self.empty_cone_composite_dirs:
             dirs = ", ".join(self.empty_cone_composite_dirs)
             return f"unmapped composite dir(s) with no test cone_roots — unverified (SC-007): {dirs}"
-        return (
-            "excluded scope — unverified: every changed file landed only in a catch-all "
-            "group (core_misc/e2e/any_src) or matched no dorny group at all"
-        )
+        return "excluded scope — unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all"
 
     @classmethod
     def from_override(cls, targets: tuple[str, ...]) -> ScopeResult:
@@ -314,71 +189,6 @@ class ScopeResult:
         )
 
 
-def derive_test_scope(
-    changed_files: Sequence[str],
-    *,
-    repo_root: Path,
-    filter_groups: Mapping[str, tuple[str, ...]] | None = None,
-    composite_routing: Mapping[str, _CompositeRoute] | None = None,
-) -> ScopeResult:
-    """Derive the affected pytest targets for ``changed_files``.
-
-    Reads BOTH live authorities from ``tests.architectural._gate_coverage``
-    unless overridden — the ``filter_groups``/``composite_routing`` override
-    seam exists for ``test_pre_review_scope_singlesource.py``'s mutation-bite
-    proofs and offline unit tests, never for production callers.
-
-    Recall > precision applies only within the focused (non-catch-all)
-    groups: every matching focused group contributes its scope (no attempt
-    to pick a single "best" group for an ambiguous file); this never
-    re-admits the excluded catch-alls.
-    """
-    groups = filter_groups if filter_groups is not None else _default_filter_groups(repo_root)
-    routing = composite_routing if composite_routing is not None else _default_composite_routing(repo_root)
-    excluded_groups = resolve_excluded_catchall_groups(groups)
-
-    test_targets: set[str] = set()
-    matched_shard_groups: set[str] = set()
-    matched_composite_dirs: set[str] = set()
-    empty_cone_dirs: set[str] = set()
-    excluded_scope_files: list[str] = []
-
-    for raw_file in changed_files:
-        changed_file = raw_file.replace("\\", "/")
-        matched_group_names = {
-            name for name, globs in groups.items() if any(_glob_matches_file(g, changed_file) for g in globs)
-        }
-        focused_group_names = matched_group_names - excluded_groups
-        if not focused_group_names:
-            excluded_scope_files.append(changed_file)
-            continue
-
-        for group_name in focused_group_names:
-            test_globs = [g for g in groups[group_name] if g.startswith(_TESTS_PREFIX)]
-            if test_globs:
-                matched_shard_groups.add(group_name)
-                test_targets.update(_glob_to_pytest_target(g) for g in test_globs)
-                continue
-
-            dir_name = _src_dir_segment(changed_file)
-            if dir_name is None:
-                continue
-            _, _, cone_roots = routing.get(dir_name, _EMPTY_COMPOSITE_ROUTE)
-            matched_composite_dirs.add(dir_name)
-            if cone_roots:
-                test_targets.update(cone_roots)
-            else:
-                empty_cone_dirs.add(dir_name)
-
-    return ScopeResult(
-        test_targets=tuple(sorted(test_targets)),
-        matched_shard_groups=tuple(sorted(matched_shard_groups)),
-        matched_composite_dirs=tuple(sorted(matched_composite_dirs)),
-        empty_cone_composite_dirs=tuple(sorted(empty_cone_dirs)),
-        excluded_scope_files=tuple(sorted(set(excluded_scope_files))),
-    )
-
-
 # ---------------------------------------------------------------------------
 # Head-side scoped runner (FR-001/FR-003, net-new — C-001)
 # ---------------------------------------------------------------------------
@@ -392,6 +202,7 @@ class HeadRunState(StrEnum):
     CANCELLED = "cancelled"
     LAUNCH_FAILED = "launch_failed"
     INCOMPLETE_OUTPUT = "incomplete_output"
+    NOT_STARTED = "not_started"
 
 
 @dataclass(frozen=True)
@@ -405,6 +216,7 @@ class HeadRunResult:
     state: HeadRunState = HeadRunState.COMPLETED
     stdout: str = ""
     stderr: str = ""
+    observed_elapsed_seconds: float | None = None
 
 
 _SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
@@ -482,6 +294,7 @@ def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
 
 _ProgressCallback = Callable[[float], None]
 _ProcessWait = Callable[[subprocess.Popen[str], float], tuple[str, str]]
+_ElapsedObserver = Callable[[float], None]
 
 
 def _default_process_wait(process: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
@@ -504,9 +317,7 @@ def _signal_owned_process_tree(
     *,
     force: bool,
     platform: str | None = None,
-    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (
-        _run_windows_taskkill
-    ),
+    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (_run_windows_taskkill),
 ) -> None:
     """Signal only the process group created for this runner-owned child."""
     platform = platform or os.name
@@ -563,14 +374,18 @@ def _observe_process(
     progress_callback: _ProgressCallback | None,
     monotonic: Callable[[], float],
     wait: _ProcessWait,
+    elapsed_observer: _ElapsedObserver | None = None,
 ) -> tuple[HeadRunState, str, str]:
     """Drain, observe, and clean up one runner-owned process."""
     started_at = monotonic()
     deadline = started_at + timeout
     while True:
-        remaining = deadline - monotonic()
+        now = monotonic()
+        remaining = deadline - now
         if remaining <= 0:
             stdout, stderr = _terminate_and_reap(process, wait=wait)
+            if elapsed_observer is not None:
+                elapsed_observer(now - started_at)
             return HeadRunState.TIMED_OUT, stdout, stderr
         try:
             stdout, stderr = wait(process, min(_HEAD_RUN_HEARTBEAT_INTERVAL, remaining))
@@ -579,6 +394,8 @@ def _observe_process(
             now = monotonic()
             if now >= deadline:
                 stdout, stderr = _terminate_and_reap(process, wait=wait)
+                if elapsed_observer is not None:
+                    elapsed_observer(now - started_at)
                 return HeadRunState.TIMED_OUT, stdout, stderr
             if progress_callback is not None:
                 progress_callback(now - started_at)
@@ -648,11 +465,11 @@ def run_scoped_tests_at_head(
             state=HeadRunState.INCOMPLETE_OUTPUT,
         )
 
-    env = dict(os.environ)
-    env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
+    env = _gate_run_env()
+    observed_elapsed: list[float] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        junit_path = Path(tmp_dir) / "pre-review-junit.xml"
+        junit_path = Path(tmp_dir) / _JUNIT_ARTIFACT_FILENAME
         command = resolve_pytest_command(
             [*test_targets, f"--junitxml={junit_path}", "-q"],
             repo_root=repo_root,
@@ -670,11 +487,12 @@ def run_scoped_tests_at_head(
                     progress_callback=progress_callback,
                     monotonic=monotonic,
                     wait=wait,
+                    elapsed_observer=observed_elapsed.append,
                 )
         except OSError as exc:
             return HeadRunResult(
                 ran=False,
-                error=f"scoped test run failed to launch: {exc}",
+                error=_launch_failed_error(exc),
                 state=HeadRunState.LAUNCH_FAILED,
             )
 
@@ -682,16 +500,17 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-500:]}",
+                error=_timed_out_error(timeout, stderr),
                 state=state,
                 stdout=stdout,
                 stderr=stderr,
+                observed_elapsed_seconds=(observed_elapsed[-1] if observed_elapsed else float(timeout)),
             )
         if state is HeadRunState.CANCELLED:
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=f"scoped test run cancelled; stderr tail: {stderr[-500:]}",
+                error=_cancelled_error(stderr),
                 state=state,
                 stdout=stdout,
                 stderr=stderr,
@@ -701,10 +520,7 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=(
-                    f"no JUnit XML produced by the scoped run (exit={process.returncode}); "
-                    f"stderr tail: {stderr[-500:]}"
-                ),
+                error=(f"no JUnit XML produced by the scoped run (exit={process.returncode}); stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"),
                 state=HeadRunState.INCOMPLETE_OUTPUT,
                 stdout=stdout,
                 stderr=stderr,
@@ -746,8 +562,36 @@ class GateOutcome(StrEnum):
     NO_NEW_FAILURES = "no_new_failures"  # non-empty run, no new failures vs. baseline
     NEW_FAILURES = "new_failures"  # non-empty run, >=1 new failure vs. baseline
     UNVERIFIED_BASELINE = "unverified_baseline"  # FR-003: baseline uncomputable -> warn
+    SOURCE_MISMATCH = "source_mismatch"  # FR-009/FR-011: baseline/head ScopeSource identity differs -> warn
     TIMED_OUT = "timed_out"
     CANCELLED = "cancelled"
+    SCOPE_OVERSIZED = "scope_oversized"
+
+
+@dataclass(frozen=True)
+class ScopeAssessed:
+    """Renderer-neutral notification that deterministic preflight completed."""
+
+    assessment: ScopeBudgetAssessment
+
+
+@dataclass(frozen=True)
+class Heartbeat:
+    """Renderer-neutral liveness notification from the candidate-head run."""
+
+    phase: str
+    observed_elapsed_seconds: float
+
+
+GateStatusEvent = ScopeAssessed | Heartbeat
+
+
+class GateStatusObserver(Protocol):
+    """Presentation-neutral consumer of typed gate status events."""
+
+    def __call__(self, event: GateStatusEvent) -> None:
+        """Observe one ordered event without affecting the gate verdict."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -760,6 +604,242 @@ class GateVerdict:
     new_failures: tuple[BaselineFailure, ...] = ()
     pre_existing_failures: tuple[BaselineFailure, ...] = ()
     run_state: HeadRunState = HeadRunState.COMPLETED
+    budget_assessment: ScopeBudgetAssessment | None = None
+    classification_candidate: bool = False
+    observed_elapsed_seconds: float | None = None
+
+
+def _progress_observer(
+    progress_callback: _ProgressCallback | None,
+    status_observer: GateStatusObserver | None,
+) -> _ProgressCallback | None:
+    """Compose the incumbent float callback with typed renderer-neutral events."""
+    if progress_callback is None and status_observer is None:
+        return None
+
+    def _observe(elapsed: float) -> None:
+        if progress_callback is not None:
+            progress_callback(elapsed)
+        if status_observer is not None:
+            status_observer(Heartbeat(phase="candidate_head", observed_elapsed_seconds=elapsed))
+
+    return _observe
+
+
+def _unknown_timeout_reason(
+    reason: str | None,
+    assessment: ScopeBudgetAssessment,
+    observed_elapsed_seconds: float | None,
+) -> str:
+    """Build immutable-policy diagnostic evidence for an unknown timeout."""
+    elapsed = observed_elapsed_seconds
+    elapsed_text = "unavailable" if elapsed is None else f"{elapsed:.3f}s"
+    targets = ", ".join(assessment.scope_identity.normalized_targets) or "(empty)"
+    prefix = f"{reason}; " if reason else ""
+    return (
+        f"{prefix}budget classification unknown; scope identity "
+        f"{assessment.scope_identity.value}; normalized targets: {targets}; configured "
+        f"budget: {assessment.effective_budget_seconds:g}s; monotonic observed elapsed: "
+        f"{elapsed_text}; lane remains unchanged. This is a classification candidate "
+        "for a reviewed metadata update; runtime policy was not modified."
+    )
+
+
+def _finalize_budget_evidence(
+    verdict: GateVerdict,
+    assessment: ScopeBudgetAssessment,
+    observed_elapsed_seconds: float | None = None,
+) -> GateVerdict:
+    """Attach one assessment and, only for unknown timeout, candidate evidence."""
+    is_candidate = verdict.outcome is GateOutcome.TIMED_OUT and assessment.classification is BudgetClassification.UNKNOWN
+    reason = verdict.reason
+    if is_candidate:
+        reason = _unknown_timeout_reason(reason, assessment, observed_elapsed_seconds)
+    return replace(
+        verdict,
+        reason=reason,
+        budget_assessment=assessment,
+        classification_candidate=is_candidate,
+        observed_elapsed_seconds=observed_elapsed_seconds,
+    )
+
+
+def _classify_current_failures(
+    current_failures: tuple[BaselineFailure, ...],
+    *,
+    scope: ScopeResult,
+    baseline: BaselineTestResult | None,
+) -> GateVerdict:
+    """The shared baseline-diff tail: classify a completed run's failures.
+
+    Extracted (WP03, mission ``doctrine-controlled-transition-gates-01KY51Z7``)
+    so BOTH the legacy ``run_scoped_tests_at_head`` path and the NEW
+    injected-``ScopeSource`` path (:func:`_evaluate_via_scope_source`) share
+    ONE tested verdict-classification body instead of duplicating the
+    ``diff_baseline`` call and its outcome mapping.
+    """
+    if baseline is None or baseline.failed == -1:
+        return GateVerdict(
+            outcome=GateOutcome.UNVERIFIED_BASELINE,
+            scope=scope,
+            reason="baseline uncomputable — surfacing all current failures as unverified",
+            new_failures=current_failures,
+        )
+
+    pre_existing, new_failures, _fixed = diff_baseline(baseline, list(current_failures))
+    if new_failures:
+        return GateVerdict(
+            outcome=GateOutcome.NEW_FAILURES,
+            scope=scope,
+            new_failures=tuple(new_failures),
+            pre_existing_failures=tuple(pre_existing),
+        )
+    return GateVerdict(
+        outcome=GateOutcome.NO_NEW_FAILURES,
+        scope=scope,
+        pre_existing_failures=tuple(pre_existing),
+    )
+
+
+def _run_raw_command(
+    command: Sequence[str],
+    *,
+    repo_root: Path,
+    timeout: int,
+    progress_callback: _ProgressCallback | None,
+    monotonic: Callable[[], float],
+    wait: _ProcessWait,
+    elapsed_observer: _ElapsedObserver | None = None,
+) -> tuple[HeadRunState, RawRunResult | None, str | None]:
+    """Run ``command`` under the SAME process-lifecycle machinery
+    :func:`run_scoped_tests_at_head` uses (launch/observe/lock/reap), but
+    without baking in a pytest/JUnit-specific command shape — the
+    injected-``ScopeSource`` counterpart (T011/FR-010). Returns the run
+    state, an unparsed :class:`RawRunResult` (``None`` on a non-completion),
+    and an error string (``None`` on success).
+
+    A ``--junitxml=<relative path>`` embedded in a ``DeclaredCommandScopeSource``
+    -resolved command resolves against the subprocess's ``cwd`` (``repo_root``,
+    per :func:`_launch_scoped_process`) — mirroring the SAME B1 anchor
+    ``baseline._run_command_for_baseline`` applies (data-model.md sec. 5),
+    on the head side (mission scopesource-gate-followup-01KY6S9P WP04). Without
+    this, a relative artifact path is checked against THIS process's own cwd
+    (the gate's, not the subprocess's), silently missing a genuinely-produced
+    artifact and mislabeling the run's ``scope_source_identity`` parse-mode —
+    the exact false-``SOURCE_MISMATCH`` shape T024's parity suite exists to
+    catch.
+    """
+    env = _gate_run_env()
+    try:
+        with _scoped_run_lock():
+            process = _launch_scoped_process(list(command), repo_root=repo_root, env=env)
+            state, stdout, stderr = _observe_process(
+                process,
+                timeout=timeout,
+                progress_callback=progress_callback,
+                monotonic=monotonic,
+                wait=wait,
+                elapsed_observer=elapsed_observer,
+            )
+    except OSError as exc:
+        return HeadRunState.LAUNCH_FAILED, None, _launch_failed_error(exc)
+
+    if state is HeadRunState.TIMED_OUT:
+        return state, None, _timed_out_error(timeout, stderr)
+    if state is HeadRunState.CANCELLED:
+        return state, None, _cancelled_error(stderr)
+
+    artifact_path = _extract_junit_output_path(command)
+    if artifact_path is not None and not artifact_path.is_absolute():
+        artifact_path = repo_root / artifact_path
+    raw = RawRunResult(returncode=process.returncode, stdout=stdout, stderr=stderr, output_artifact_path=artifact_path)
+    return state, raw, None
+
+
+_NO_TEST_COMMAND_REASON = "no test command configured for the injected ScopeSource — review proceeds without it"
+
+
+def _evaluate_via_scope_source(
+    scope: ScopeResult,
+    *,
+    repo_root: Path,
+    baseline: BaselineTestResult | None,
+    timeout: int,
+    progress_callback: _ProgressCallback | None,
+    monotonic: Callable[[], float],
+    wait: _ProcessWait,
+    scope_source: ScopeSource,
+    elapsed_observer: _ElapsedObserver | None = None,
+) -> GateVerdict:
+    """T011/FR-010/FR-011/FR-012: drive the head run + parse through the
+    injected port instead of the hardcoded pytest/JUnit path
+    (:func:`run_scoped_tests_at_head` / :func:`_parse_junit_xml`).
+
+    Empty-scope handling is impl-shape-dependent (NFR-001):
+
+    - A narrowing source (satisfying
+      :class:`~specify_cli.review.scope_source.ScopeBreakdownSource`) treats an
+      empty derived scope as a coverage gap — a ``no_coverage`` warn carrying the
+      incumbent :meth:`ScopeResult.describe_empty_reason` wording — exactly as
+      the now-retired census tier + the legacy branch of :func:`evaluate_with_scope`
+      did. Restoring this keeps the empty-cone / all-excluded cases from silently
+      running the whole suite through the inverted hook.
+    - A non-narrowing implementation (``DeclaredCommandScopeSource``)
+      legitimately reports an empty per-file scope while still running its whole
+      declared suite (FR-003/FR-010) — that is not a no-coverage signal. For it,
+      the ONLY no-coverage trigger here is ``test_command() -> None`` (FR-012),
+      the port's own explicit no-config signal.
+
+    **``SOURCE_MISMATCH`` (FR-009/FR-011, mission
+    scopesource-gate-followup-01KY6S9P WP04).** After a completed run, the
+    head-side identity (:func:`~specify_cli.review.scope_source.scope_source_identity`)
+    is compared against the already-loaded ``baseline.source_identity`` (the
+    baseline itself is loaded upstream, by ``tasks_move_task._mt_resolve_gate_baseline``
+    — this function only COMPARES). A KNOWN (non-``"unknown"``) baseline
+    identity that differs from the head's own -> ``SOURCE_MISMATCH`` (warn,
+    fail-open by construction — see ``verdict_aggregation``'s member
+    allowlists). ``baseline is None`` or its identity is ``"unknown"`` (legacy
+    artifact / never captured) -> degrades to the existing
+    ``UNVERIFIED_BASELINE`` path via :func:`_classify_current_failures`, never a
+    mismatch.
+    """
+    if empty_scope_is_coverage_gap(scope_source) and scope.is_empty:
+        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
+
+    command = scope_source.test_command()
+    if command is None:
+        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=_NO_TEST_COMMAND_REASON)
+
+    state, raw, error = _run_raw_command(
+        [*command, *scope.test_targets],
+        repo_root=repo_root,
+        timeout=timeout,
+        progress_callback=progress_callback,
+        monotonic=monotonic,
+        wait=wait,
+        elapsed_observer=elapsed_observer,
+    )
+    if state is HeadRunState.TIMED_OUT:
+        return GateVerdict(outcome=GateOutcome.TIMED_OUT, scope=scope, reason=error, run_state=state)
+    if state is HeadRunState.CANCELLED:
+        return GateVerdict(outcome=GateOutcome.CANCELLED, scope=scope, reason=error, run_state=state)
+    if raw is None:
+        return GateVerdict(
+            outcome=GateOutcome.NO_COVERAGE,
+            scope=scope,
+            reason=f"scoped test run did not complete: {error}",
+            run_state=state,
+        )
+
+    failures = scope_source.parse_results(raw)
+    head_identity = scope_source_identity(scope_source, raw)
+    if baseline is not None and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY and baseline.source_identity != head_identity:
+        return GateVerdict(
+            outcome=GateOutcome.SOURCE_MISMATCH,
+            scope=scope,
+            reason=(f"baseline captured under {baseline.source_identity}; head ran under {head_identity} — failure identities are not comparable"),
+        )
+    return _classify_current_failures(failures, scope=scope, baseline=baseline)
 
 
 def evaluate_with_scope(
@@ -771,12 +851,16 @@ def evaluate_with_scope(
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
+    scope_source: ScopeSource | None = None,
+    status_observer: GateStatusObserver | None = None,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
     Extracted (pre-merge finding, #572/#1979/#2283) so BOTH the
-    census-derived auto-scope tier (:func:`evaluate_pre_review_gate`, below)
-    AND the FR-004 explicit-override tier
+    injected-``ScopeSource`` tier (:func:`evaluate_pre_review_gate`, below —
+    the census-derived auto-scope tier it used to also serve was retired by
+    mission ``scopesource-gate-followup-01KY6S9P`` WP04, FR-001) AND the
+    FR-004 explicit-override tier
     (``tasks_move_task._mt_pre_review_gate_with_override_scope``) drive the
     EXACT same warn/new-failure/unverified-baseline policy from ONE tested
     body — instead of the override tier hand-mirroring this tail as a
@@ -793,60 +877,166 @@ def evaluate_with_scope(
     ``describe_empty_reason()``'s catch-all/composite-dir phrasing would be
     misleading there) should check ``scope.is_empty`` itself and skip this
     function entirely for that branch, exactly as the override tier does.
-    """
-    if scope.is_empty:
-        return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
 
-    run_result = run_scoped_tests_at_head(
-        scope.test_targets,
+    ``scope_source`` (T011, mission ``doctrine-controlled-transition-gates-01KY51Z7``
+    WP03): when injected, the head run + parse route through the port
+    (:func:`_evaluate_via_scope_source`) instead of the legacy hardcoded
+    pytest/JUnit path — see that function's docstring for why its
+    empty-scope handling differs. ``None`` (the default, C-002 KEPT LIVE) is
+    the FR-004 explicit-override tier's own shape
+    (``tasks_move_task._mt_pre_review_gate_with_override_scope``) — it never
+    injects a ``scope_source``, by design, since an override IS the test
+    scope.
+    """
+    assessment = assess_scope_budget(scope.test_targets, timeout)
+    if status_observer is not None:
+        status_observer(ScopeAssessed(assessment=assessment))
+
+    if assessment.classification is BudgetClassification.OVERSIZED:
+        return GateVerdict(
+            outcome=GateOutcome.SCOPE_OVERSIZED,
+            scope=scope,
+            reason=(
+                "validation did not start because the selected scope is explicitly "
+                f"oversized for the {assessment.effective_budget_seconds:g}s budget; "
+                f"{assessment.guidance}"
+            ),
+            run_state=HeadRunState.NOT_STARTED,
+            budget_assessment=assessment,
+        )
+
+    combined_progress = _progress_observer(progress_callback, status_observer)
+    if scope_source is None:
+        if scope.is_empty:
+            return _finalize_budget_evidence(
+                GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason()),
+                assessment,
+            )
+
+        run_result = run_scoped_tests_at_head(
+            scope.test_targets,
+            repo_root=repo_root,
+            timeout=timeout,
+            progress_callback=combined_progress,
+            monotonic=monotonic,
+            wait=wait,
+        )
+        if run_result.state is HeadRunState.TIMED_OUT:
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.TIMED_OUT,
+                    scope=scope,
+                    reason=run_result.error,
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
+            )
+        if run_result.state is HeadRunState.CANCELLED:
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.CANCELLED,
+                    scope=scope,
+                    reason=run_result.error,
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
+            )
+        if not run_result.ran:
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.NO_COVERAGE,
+                    scope=scope,
+                    reason=f"scoped test run did not complete: {run_result.error}",
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
+            )
+        return _finalize_budget_evidence(
+            _classify_current_failures(run_result.current_failures, scope=scope, baseline=baseline),
+            assessment,
+            run_result.observed_elapsed_seconds,
+        )
+
+    observed_elapsed: list[float] = []
+    verdict = _evaluate_via_scope_source(
+        scope,
         repo_root=repo_root,
+        baseline=baseline,
         timeout=timeout,
-        progress_callback=progress_callback,
+        progress_callback=combined_progress,
         monotonic=monotonic,
         wait=wait,
+        scope_source=scope_source,
+        elapsed_observer=observed_elapsed.append,
     )
-    if run_result.state is HeadRunState.TIMED_OUT:
-        return GateVerdict(
-            outcome=GateOutcome.TIMED_OUT,
-            scope=scope,
-            reason=run_result.error,
-            run_state=run_result.state,
-        )
-    if run_result.state is HeadRunState.CANCELLED:
-        return GateVerdict(
-            outcome=GateOutcome.CANCELLED,
-            scope=scope,
-            reason=run_result.error,
-            run_state=run_result.state,
-        )
-    if not run_result.ran:
-        return GateVerdict(
-            outcome=GateOutcome.NO_COVERAGE,
-            scope=scope,
-            reason=f"scoped test run did not complete: {run_result.error}",
-            run_state=run_result.state,
-        )
+    return _finalize_budget_evidence(
+        verdict,
+        assessment,
+        observed_elapsed[-1] if observed_elapsed else None,
+    )
 
-    if baseline is None or baseline.failed == -1:
-        return GateVerdict(
-            outcome=GateOutcome.UNVERIFIED_BASELINE,
-            scope=scope,
-            reason="baseline uncomputable — surfacing all current failures as unverified",
-            new_failures=run_result.current_failures,
-        )
 
-    pre_existing, new_failures, _fixed = diff_baseline(baseline, list(run_result.current_failures))
-    if new_failures:
-        return GateVerdict(
-            outcome=GateOutcome.NEW_FAILURES,
-            scope=scope,
-            new_failures=tuple(new_failures),
-            pre_existing_failures=tuple(pre_existing),
-        )
-    return GateVerdict(
-        outcome=GateOutcome.NO_NEW_FAILURES,
-        scope=scope,
-        pre_existing_failures=tuple(pre_existing),
+def _scope_result_from_source(scope_source: ScopeSource, changed_files: Sequence[str]) -> ScopeResult:
+    """Build a :class:`ScopeResult` from the injected port's per-file scoping.
+
+    A narrowing source (satisfying the
+    :class:`~specify_cli.review.scope_source.ScopeBreakdownSource` refinement)
+    reconstructs the FULL breakdown — ``matched_shard_groups`` /
+    ``matched_composite_dirs`` / ``empty_cone_composite_dirs`` /
+    ``excluded_scope_files`` — so the inverted hook's transition metadata is
+    byte-identical to the incumbent (now-retired) census tier (NFR-001).
+
+    A non-narrowing source (``DeclaredCommandScopeSource`` or an arbitrary
+    injected stub) has no shard groups by construction — the injected-port path
+    only needs the flat union of ``file_to_scope`` targets, exactly as before.
+    """
+    if exposes_scope_breakdown(scope_source):
+        return _scope_result_from_breakdown(scope_source, changed_files)
+    targets: set[str] = set()
+    for changed_file in changed_files:
+        targets.update(scope_source.file_to_scope(changed_file))
+    return ScopeResult(
+        test_targets=tuple(sorted(targets)),
+        matched_shard_groups=(),
+        matched_composite_dirs=(),
+        empty_cone_composite_dirs=(),
+        excluded_scope_files=(),
+    )
+
+
+def _scope_result_from_breakdown(scope_source: ScopeBreakdownSource, changed_files: Sequence[str]) -> ScopeResult:
+    """Aggregate a narrowing source's per-file
+    :class:`~specify_cli.review.scope_source.FileScopeBreakdown` contributions
+    into a full :class:`ScopeResult`.
+
+    Mirrors the retired census tier's own union/aggregation (recall >
+    precision across focused groups; a file contributing no focused group
+    lands in ``excluded_scope_files``) so the port-driven path reproduces the
+    incumbent ``ScopeResult`` shape for the same changed set (NFR-001).
+    """
+    targets: set[str] = set()
+    shard_groups: set[str] = set()
+    composite_dirs: set[str] = set()
+    empty_cone_dirs: set[str] = set()
+    excluded_scope_files: list[str] = []
+    for raw_file in changed_files:
+        changed_file = to_posix(raw_file)
+        breakdown = scope_source.scope_breakdown(changed_file)
+        targets.update(breakdown.test_targets)
+        shard_groups.update(breakdown.matched_shard_groups)
+        composite_dirs.update(breakdown.matched_composite_dirs)
+        empty_cone_dirs.update(breakdown.empty_cone_composite_dirs)
+        if not breakdown.contributes_scope:
+            excluded_scope_files.append(changed_file)
+    return ScopeResult(
+        test_targets=tuple(sorted(targets)),
+        matched_shard_groups=tuple(sorted(shard_groups)),
+        matched_composite_dirs=tuple(sorted(composite_dirs)),
+        empty_cone_composite_dirs=tuple(sorted(empty_cone_dirs)),
+        excluded_scope_files=tuple(sorted(set(excluded_scope_files))),
     )
 
 
@@ -856,25 +1046,28 @@ def evaluate_pre_review_gate(
     repo_root: Path,
     baseline: BaselineTestResult | None,
     timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
-    filter_groups: Mapping[str, tuple[str, ...]] | None = None,
-    composite_routing: Mapping[str, _CompositeRoute] | None = None,
     progress_callback: _ProgressCallback | None = None,
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
+    scope_source: ScopeSource,
+    status_observer: GateStatusObserver | None = None,
 ) -> GateVerdict:
     """Compose scope derivation + the shared head-run/verdict tail.
 
-    Warn-shaped outcomes (``NO_COVERAGE`` / ``UNVERIFIED_BASELINE``) are
-    never escalated to a hard failure here — the warn-default/opt-in-block/
-    ``--force`` policy is layered on top of this verdict by WP02's
-    ``for_review`` hook, not this function's concern.
+    Warn-shaped outcomes (``NO_COVERAGE`` / ``UNVERIFIED_BASELINE`` /
+    ``SOURCE_MISMATCH``) are never escalated to a hard failure here — the
+    warn-default/opt-in-block/``--force`` policy is layered on top of this
+    verdict by the ``for_review`` hook, not this function's concern.
+
+    ``scope_source`` (mission ``doctrine-controlled-transition-gates-01KY51Z7``
+    WP03; required as of mission ``scopesource-gate-followup-01KY6S9P`` WP04,
+    which retired the census-derived auto-scope tier this function used to
+    fall back to when ``scope_source`` was omitted): scope/command/parse are
+    sourced ENTIRELY from the injected port. The sole production caller
+    (``gate_registry._spec_kitty_pre_review_handler``) always supplies a
+    concrete, non-``None`` source resolved by activation.
     """
-    scope = derive_test_scope(
-        changed_files,
-        repo_root=repo_root,
-        filter_groups=filter_groups,
-        composite_routing=composite_routing,
-    )
+    scope = _scope_result_from_source(scope_source, changed_files)
     return evaluate_with_scope(
         scope,
         repo_root=repo_root,
@@ -883,4 +1076,6 @@ def evaluate_pre_review_gate(
         progress_callback=progress_callback,
         monotonic=monotonic,
         wait=wait,
+        scope_source=scope_source,
+        status_observer=status_observer,
     )

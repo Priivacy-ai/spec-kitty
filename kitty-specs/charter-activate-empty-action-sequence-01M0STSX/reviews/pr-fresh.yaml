@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-sweep
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+- id: PR-FRESH-001
+  lens: tests-that-do-not-pin-behaviour
+  severity: 4
+  title: "CLI extends-fallback happy-path test passes identically with the fix reverted"
+  evidence:
+  - code: "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py: TestActivateMissionTypeEmptyActionSequenceGate.test_extends_fallback_non_empty_parent_activates_successfully"
+    quote: |
+      Documented exception (plan.md, WP01 T003): this assertion is
+      expected GREEN already at the T003 commit -- it pins TODAY's
+      unconditional-success behavior for an unregistered candidate, not
+      the fix; activation already unconditionally succeeds today for any
+      unregistered candidate, including one whose extends chain would
+      resolve non-empty. Only the sibling unit-level extends test in
+      ``tests/charter/test_mission_type_profiles.py`` is RED at that
+      commit.
+  claim: |
+    Pre-fix, `activate_cmd` performs no empty-action-sequence check at all for
+    kind=="mission-type", so a candidate whose own action_sequence is empty but
+    whose extends parent is non-empty activates successfully both before and
+    after this diff (nothing about the fix changes this outcome — the fix only
+    changes behaviour for candidates that stay empty after the fallback). The
+    test's own docstring says exactly this ("expected GREEN already at the T003
+    commit... not the fix"). This is a literal instance of the mandate's
+    definition: "a test passing with the change reverted is severity 4." It is
+    legitimate as a non-regression/happy-path check, but it does not pin the new
+    behaviour this PR ships — only the sibling unit test in
+    tests/charter/test_mission_type_profiles.py
+    (TestValidateActivatableMissionTypeExtendsFallback) does that at the
+    CLI-adjacent layer's semantics; nothing at the CLI-invocation layer pins
+    "extends-fallback candidates activate through the new gate", only that they
+    still activate.
+  remediation: |
+    Either accept this test purely as documented non-regression coverage (fine
+    as-is, but its docstring should not be read as FR-005/AC4 CLI-level
+    coverage), or strengthen it to actually exercise the gate having run — e.g.
+    patch/spy on `validate_activatable_mission_type` (or the module-level
+    import site) to assert it was invoked and did not raise for this candidate,
+    so a regression that skips the gate call entirely for extends-resolved
+    candidates would be caught at the CLI seam, not only at the unit layer.
+
+- id: PR-FRESH-002
+  lens: error-surface-correctness
+  severity: 2
+  title: "validate_activatable_mission_type's internal PackContext.from_config re-load can raise an exception type the caller does not catch"
+  evidence:
+  - code: "src/charter/mission_type_profiles.py — validate_activatable_mission_type: `pack_context = PackContext.from_config(repo_root)`"
+  - code: "src/specify_cli/cli/commands/charter/activate.py:213-217 — `try: _validate_mission_type_activatable(...) \n    except ValueError as exc: ...`"
+  claim: |
+    `validate_activatable_mission_type` calls `PackContext.from_config(repo_root)`
+    a second time, independently of the identical call `activate_cmd` already
+    made moments earlier via `validate_pack_config(repo_root)` (which IS wrapped
+    in `except CharterPackConfigError`, at src/specify_cli/cli/commands/charter/activate.py
+    around line 531). `CharterPackConfigError` subclasses
+    `kernel.errors.KittyInternalConsistencyError(Exception)`, not `ValueError` —
+    so the new gate's own try/except in `activate_cmd` (`except ValueError as exc`)
+    would NOT catch it if this second, independent config load ever raised where
+    the first one did not. Today this is unreachable in practice: nothing mutates
+    `.kittify/config.yaml` between the two calls in the same command invocation,
+    so the second load is deterministically consistent with the first having
+    already succeeded. But the invariant is implicit and ordering-dependent, not
+    enforced — a future reordering of the checks in `activate_cmd` (e.g. moving
+    the new gate earlier for performance, or a future caller of
+    `validate_activatable_mission_type` that doesn't call `validate_pack_config`
+    first) would surface a raw, uncaught traceback to the operator instead of the
+    command's own established clean `[red]Error:[/red]` pattern. The function's
+    own docstring "Raises" section documents only
+    `MissionTypeEmptyActionSequenceError`, silently omitting the
+    `CharterPackConfigError` its own internal `PackContext.from_config` call can
+    raise — an incomplete contract for a function explicitly designed to be a
+    reusable activation-time gate.
+  remediation: |
+    Either (a) thread the already-validated `PackContext` into
+    `validate_activatable_mission_type` instead of re-loading it internally, so
+    there is exactly one canonical load per command invocation and no duplicate
+    fallible call, or (b) explicitly catch and re-raise/document
+    `CharterPackConfigError` in this function and widen the CLI seam's except
+    clause (or catch both) so the contract is enforced by construction rather
+    than by incidental call ordering.
+
+- id: PR-FRESH-003
+  lens: test-fixture-duplication
+  severity: 1
+  title: "Test-fixture helpers for the new gate are copy-pasted across two test files rather than shared"
+  evidence:
+  - code: "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py — `_write_candidate_mission_type_yaml` / `_write_org_pack_activation_config`"
+    quote: |
+      This file has no `CliRunner`-free precedent for cross-importing the
+      private test helpers from `tests/charter/test_mission_type_profiles.py`
+      (`_write_layered_mission_type_yaml` / `_write_org_pack_config`), so the
+      two-call fixture shape is reproduced locally below rather than imported.
+  claim: |
+    The new CLI-level test file reimplements (with near-identical shape and
+    intent) the YAML-and-config-writing helpers already added to
+    tests/charter/test_mission_type_profiles.py in this same diff. This is a
+    deliberate, documented choice (no existing cross-import precedent between
+    the two test files), not an oversight, and it is test-only code — but it is
+    exactly the kind of parallel-copy the codebase's own canonical-sources
+    discipline (directive 044) flags when it appears in src/. Low stakes here
+    since it's fixture code, not production logic, but the two helper pairs can
+    now drift (e.g. one gains an `extends` edge case the other doesn't).
+  remediation: |
+    If this pattern (mission-type CLI-level gate tests) recurs, promote the
+    fixture helpers to a small shared test-support module both files import,
+    rather than letting a third copy appear in a future mission.
+
+fail_open_check:
+  result: not-found
+  detail: |
+    Traced every path that can add to `mission_type_activations`
+    (grep across src/): the direct `charter activate mission-type <T>` CLI
+    command (now gated, this diff), plus three pre-existing provisioning paths
+    — fresh `spec-kitty init` (`provision_default_mission_type_activations`),
+    `spec-kitty charter generate` (`provision_mission_type_activations`), and
+    the `m_3_2_0rc35_activate_builtin_mission_types` upgrade migration. All
+    three of the latter copy verbatim, hardcoded/shipped built-in IDs from
+    `src/charter/packs/default.yaml` or a literal list
+    (`[software-dev, documentation, research, plan]`) — never user-authored
+    org/project content — so they are outside this issue's threat model (empty
+    action sequence on a *custom* mission type) and are explicitly consistent
+    with the design review's own scoping decision to leave `promote_activations()`
+    out. Cascade (`charter.cascade`) cannot reach mission-type activation at all:
+    `_kind_of()` only recognizes the eight canonical `ArtifactKind` URN prefixes,
+    and `mission-type` is explicitly not one (confirmed via
+    `CascadeScope.parse`'s `MissionTypeNotAnArtifactKind` and cascade.py's own
+    module docstring). Within `activate_cmd` itself, the new gate
+    (`_validate_mission_type_activatable`) runs strictly after the two prior
+    read-only checks (`validate_pack_config`, `_emit_step_removal_warnings` —
+    both confirmed non-mutating by inspection) and strictly before
+    `manager.activate(...)`, the sole write call in the command — so a raise
+    from the gate always precedes any write, and no write happens on the
+    raising path. No route was found by which `charter activate mission-type`
+    can write a candidate into `mission_type_activations` after the gate raises,
+    or can reach `manager.activate()` for kind=="mission-type" without the gate
+    having run first.
+
+verified_empirically:
+- "Ran `.venv/bin/python -m pytest tests/charter/test_mission_type_profiles.py tests/specify_cli/cli/commands/charter/ -q`: 164 passed, 0 failed, 141.78s — matches the stated baseline exactly."
+verified_statically:
+- "Confirmed MissionTypeEmptyActionSequenceError and UnknownMissionTypeError are both ValueError subclasses (src/charter/mission_type_profiles.py:196,261), so activate_cmd's `except ValueError` around the new gate call correctly catches the gate's own raise."
+- "Confirmed CharterPackConfigError is NOT a ValueError (subclasses kernel.errors.KittyInternalConsistencyError(Exception)) — basis for PR-FRESH-002."
+- "Confirmed the gate call site in activate.py sits after both read-only pre-checks and strictly before the only mutating call (manager.activate(...)) — basis for the fail-open-check clean result."
+- "Confirmed cascade.py's _kind_of() cannot resolve a mission-type URN to a cascade-activatable ArtifactKind, so cascade activation cannot reach mission-type."
+- "Confirmed extends field on doctrine.missions.models.MissionType predates this diff (unchanged) — no schema change, contract preserved."
+- "Confirmed validate_activatable_mission_type is charter/doctrine-layer only (no specify_cli import), preserving the C-001 layering boundary; new public symbol correctly added to __all__, new private helper _resolve_with_extends_fallback correctly omitted from __all__ (C-007 __all__ discipline satisfied)."
+- "grep for 'Feature' terminology in the diff: no hits — Terminology Canon respected."

@@ -1,0 +1,20 @@
+{
+  "count_drift_fixture_rejected": true,
+  "duplicate_fixture_rejected": true,
+  "errors": [],
+  "group_rows": 91,
+  "ledger_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP04.yaml",
+  "ledger_sha256": "0084fb88675f7c21011fc9ef97c54c6d457a0b8ee4143734557625ba5b8d5e79",
+  "results_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-results.json",
+  "results_sha256": "ed440dd1f89172a4e61b016592bba848f6f867fa453e848d5776c897e2cf04b8",
+  "schema_version": "wp04-evidence-consistency/v1",
+  "unique_fingerprints": 91,
+  "valid": true,
+  "verdict_counts": {
+    "CONSOLIDATE": 57,
+    "DELETE": 9,
+    "KEEP": 25
+  },
+  "verifier_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-evidence-verify.py",
+  "verifier_sha256": "ebd00d8554da08cf88517f458412f2416017ce1415fa867af20fd7d25e7637fe"
+}

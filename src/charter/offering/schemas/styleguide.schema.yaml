@@ -1,0 +1,175 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/styleguide.schema.yaml
+title: Styleguide
+description: Minimal schema for doctrine styleguides.
+type: object
+additionalProperties: false
+required:
+- id
+- schema_version
+- title
+- scope
+- principles
+definitions:
+  anti_pattern:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - description
+    - bad_example
+    - good_example
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+        minLength: 1
+      bad_example:
+        type: string
+        minLength: 1
+      good_example:
+        type: string
+        minLength: 1
+  pattern:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - description
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+        minLength: 1
+      bad_example:
+        type: string
+      good_example:
+        type: string
+  point_in_time_marker:
+    type: object
+    additionalProperties: false
+    required:
+    - frontmatter_field
+    - frontmatter_value
+    properties:
+      frontmatter_field:
+        type: string
+        minLength: 1
+      frontmatter_value:
+        type: string
+        minLength: 1
+  structural_lint_config:
+    type: object
+    additionalProperties: false
+    properties:
+      curated_complete_sections:
+        type: array
+        items:
+          type: string
+      concern_bucket_to_section:
+        type: object
+        additionalProperties:
+          type: string
+      point_in_time_patterns:
+        type: array
+        items:
+          type: string
+      point_in_time_markers:
+        type: array
+        items:
+          $ref: '#/definitions/point_in_time_marker'
+      point_in_time_allowlist:
+        type: array
+        items:
+          type: string
+      frontmatter_required_fields:
+        type: array
+        items:
+          type: string
+      frontmatter_in_scope_exclusions:
+        type: array
+        items:
+          type: string
+      shadow_tree_nav_exemptions:
+        type: array
+        items:
+          type: string
+      guides_boundary:
+        type: string
+      redirect_stub_description_prefix:
+        type: string
+      sanctioned_content_sections:
+        type: array
+        items:
+          type: string
+      non_content_dirs:
+        type: array
+        items:
+          type: string
+      root_allowlist:
+        type: array
+        items:
+          type: string
+      one_index_per_dir:
+        type: boolean
+    description: Machine-parseable policy block a companion lint script LOADS as its single source of truth (e.g. 
+      common-docs' docs_structural_lint.py config, FR-011). Plain scalars/lists/mappings only.
+properties:
+  id:
+    type: string
+    pattern: ^[a-z][a-z0-9-]*$
+  schema_version:
+    type: string
+    pattern: ^1\.0$
+  title:
+    type: string
+    minLength: 1
+  scope:
+    type: string
+    minLength: 1
+    enum:
+    - code
+    - docs
+    - architecture
+    - testing
+    - operations
+    - glossary
+  principles:
+    type: array
+    minItems: 1
+    items:
+      type: string
+  patterns:
+    type: array
+    description: Concrete code patterns demonstrating how to apply the styleguide's principles. Each pattern includes a 
+      name, description, and optional good/bad examples.
+    minItems: 1
+    items:
+      $ref: '#/definitions/pattern'
+  anti_patterns:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/anti_pattern'
+  tooling:
+    type: object
+    description: Recommended tools for enforcing the styleguide (formatters, linters, type checkers, test runners, 
+      etc.).
+    additionalProperties:
+      type: string
+  quality_test:
+    type: string
+  applies_to_languages:
+    type: array
+    items:
+      type: string
+  references:
+    type: array
+    items:
+      type: string
+  structural_lint_config:
+    $ref: '#/definitions/structural_lint_config'

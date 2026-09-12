@@ -72,14 +72,3 @@ class VCSConflictError(VCSError):
     """
 
     pass
-
-
-class VCSSyncError(VCSError):
-    """
-    Sync operation failed.
-
-    Raised when workspace synchronization fails due to
-    network issues, permissions, or other errors.
-    """
-
-    pass

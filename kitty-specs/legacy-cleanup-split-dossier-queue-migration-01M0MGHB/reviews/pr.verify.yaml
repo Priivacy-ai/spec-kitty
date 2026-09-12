@@ -1,0 +1,51 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+fix_commit: 16ba83026
+verifier: debugger-debbie (fresh context; not the fixer, not on the finding squad)
+note: >-
+  Anchored verification. Every verdict below rests on evidence the verifier produced itself, not on
+  the fixer's transcript. Code phases are report-only, so the fixes were routed OUT of the squad to a
+  separate fix dispatch and verified here.
+results:
+  - id: PR-TESTS-001
+    severity: 4
+    status: CLOSED
+    method: >-
+      Reproduced the discriminator independently against the PERMANENT suite (not a scratch copy).
+      Monkeypatched spec_kitty_events.conformance.validate_event in-process with the retired logic -
+      required-field check plus the retired regex ^(?:sha256:)?[a-f0-9]{64}$, recovered byte-for-byte
+      from git show 8a03733e73 - then ran the three committed discriminator tests: all three FAILED
+      under the stub. Restored; all three passed. This is precisely the property the original seven
+      tests lacked.
+  - id: PR-BOUNDARY-001
+    severity: 3
+    status: CLOSED
+    residual: >-
+      Verified the fixer's FIXTURE_EVENTS argument is TRUE by reading
+      TestEventTypeCoverage.test_all_event_types_covered - it asserts exact set equality over the 8
+      documented non-dossier types, so a 9th entry would fail it. Consequence: the in-place
+      is_dossier_delegate branch is never executed by the real parametrize loop; TestDossierFixtureGuard
+      exercises the same predicate independently. Recorded as severity-2 informational, not a blocker.
+  - id: PR-CONTRACT-001
+    severity: 3
+    status: CLOSED
+    method: >-
+      Called emit_artifact_indexed with the mis-shaped provenance from the finding; it raised
+      pydantic.ValidationError (2 extra_forbidden violations), escaping cleanly because the
+      model_validate sits structurally BEFORE the blanket except (TypeError, ValueError).
+      Confirmed no translation layer was added. provenance=None (the real production shape) unchanged.
+  - id: PR-CONTRACT-002
+    severity: 2
+    status: CLOSED
+    method: Confirmed "artifact_mutated" is a real Literal member via typing.get_type_hints; positive-path
+      assertions added that would fail if the value were still non-canonical.
+  - id: WP02-ASSERT-RAISE
+    severity: 2
+    status: CLOSED
+    method: mypy --strict clean on diagnose.py (not quarantined) and emitter.py (quarantined, checked anyway).
+  - id: PR-BOUNDARY-003
+    severity: 1
+    status: CLOSED
+    method: grep -rn _DOSSIER_EVENT_TYPES src/ tests/ -> zero hits.

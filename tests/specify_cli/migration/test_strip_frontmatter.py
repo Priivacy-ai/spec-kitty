@@ -175,6 +175,7 @@ class TestStripMutableFields:
         fm = FrontmatterManager()
         try:
             fm_data, _ = fm.read(tasks_md)
-            assert "lane" not in fm_data
         except Exception:
-            pass  # tasks.md with no frontmatter is also acceptable
+            fm_data = None  # tasks.md with no frontmatter is also acceptable
+        if fm_data is not None:
+            assert "lane" not in fm_data

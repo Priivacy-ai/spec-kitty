@@ -23,12 +23,16 @@ import pytest
 
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
-    REVIEW_ARTIFACT_SCHEMA_INVALID,
     ReviewArtifactPreflightResult,
     run_review_artifact_consistency_preflight,
 )
+
+# The schema-invalid diagnostic code was retired with its producer (FR-013,
+# verdict-seam-write-unification-01KZ9Q35). Kept as a bare string so the
+# regression assertion below still proves the code never reaches output.
+_RETIRED_REVIEW_ARTIFACT_SCHEMA_INVALID = "REVIEW_ARTIFACT_SCHEMA_INVALID"
 from specify_cli.review.artifacts import ReviewCycleArtifact
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -51,13 +55,30 @@ def _write_review_artifact(
         wp_id="WP01",
         mission_slug=mission_slug,
         reviewer_agent="reviewer-renata",
-        verdict=verdict,
         reviewed_at="2026-05-14T12:00:00+00:00",
         body=f"# Review\n\nVerdict: {verdict}\n",
     )
     path = artifact_dir / f"review-cycle-{cycle_number}.md"
     artifact.write(path)
     return path
+
+
+def _rejection_review_result(
+    mission_slug: str, wp_slug: str = "WP01-regression-harness", cycle_number: int = 1,
+) -> ReviewResult:
+    """The event-sourced ``changes_requested`` opinion a real rejection
+    records (WP05, verdict-seam-write-unification-01KZ9Q35, FR-013 pure-event
+    repoint): ``find_rejected_review_artifact_conflicts`` no longer reads
+    ``review-cycle-N.md`` frontmatter at all -- a fixture that seeds only the
+    on-disk artifact (no matching ``review_result`` event) is invisible to
+    the gate. Every test below that wants the gate to see a rejection must
+    ALSO record this event, mirroring the real ``move-task --to planned
+    --review-feedback-file`` write path's own event emission."""
+    return ReviewResult(
+        reviewer="reviewer-renata",
+        verdict="changes_requested",
+        reference=f"review-cycle://{mission_slug}/{wp_slug}/review-cycle-{cycle_number}.md",
+    )
 
 
 def _write_malformed_review_artifact(artifact_dir: Path) -> Path:
@@ -135,7 +156,15 @@ def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: obje
 def test_preflight_detects_rejected_review_artifact_on_approved_wp(
     tmp_path: Path,
 ) -> None:
-    """The shared preflight helper detects the same conflict the real gate detects."""
+    """The shared preflight helper detects the same conflict the real gate detects.
+
+    WP06 (FR-003/SC-007) repoint: ``find_rejected_review_artifact_conflicts``
+    is pure-event post-WP05 (verdict-seam-write-unification-01KZ9Q35,
+    FR-013) -- it no longer reads ``review-cycle-N.md`` frontmatter at all.
+    The on-disk artifact below is written only as realistic surrounding
+    state; the ``review_result`` event on the SAME transition is what the
+    gate actually consults (see ``_rejection_review_result``'s docstring).
+    """
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
@@ -143,6 +172,7 @@ def test_preflight_detects_rejected_review_artifact_on_approved_wp(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KRKTT5APPROVED00000001",
+        review_result=_rejection_review_result(mission.mission_slug),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     _write_review_artifact(
@@ -161,13 +191,15 @@ def test_preflight_detects_rejected_review_artifact_on_approved_wp(
     assert not result.passed
     assert len(result.findings) == 1
     assert result.findings[0].wp_id == "WP01"
-    assert result.findings[0].verdict == "rejected"
+    # Event-domain verdict (WP04's vocabulary bridge), not the artifact-domain
+    # "rejected" -- the gate reports what the event authority actually says.
+    assert result.findings[0].verdict == "changes_requested"
 
     diagnostics = result.diagnostics(repo_root=mission.repo_root)
     assert len(diagnostics) == 1
     assert diagnostics[0]["diagnostic_code"] == REJECTED_REVIEW_ARTIFACT_CONFLICT
     assert diagnostics[0]["branch_or_work_package"] == "WP01"
-    assert diagnostics[0]["latest_review_cycle_verdict"] == "rejected"
+    assert diagnostics[0]["latest_review_cycle_verdict"] == "changes_requested"
 
 
 def test_preflight_passes_on_clean_mission(tmp_path: Path) -> None:
@@ -201,7 +233,12 @@ def test_preflight_passes_on_clean_mission(tmp_path: Path) -> None:
 def test_dry_run_emits_rejected_review_artifact_conflict(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``merge --dry-run --json`` exits non-zero and emits REJECTED_REVIEW_ARTIFACT_CONFLICT."""
+    """``merge --dry-run --json`` exits non-zero and emits REJECTED_REVIEW_ARTIFACT_CONFLICT.
+
+    WP06 repoint: the gate is pure-event post-WP05 -- the ``review_result``
+    event on the SAME transition (not the on-disk artifact alone) is what
+    makes this WP visible as rejected.
+    """
     import typer
     from typer.testing import CliRunner
 
@@ -214,6 +251,7 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KRKTT5APPROVED00000003",
+        review_result=_rejection_review_result(mission.mission_slug),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     _write_review_artifact(
@@ -253,7 +291,22 @@ def test_dry_run_emits_rejected_review_artifact_conflict(
 def test_dry_run_emits_review_artifact_schema_invalid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``merge --dry-run --json`` reports malformed review-cycle frontmatter."""
+    """``merge --dry-run --json`` no longer reports malformed review-cycle
+    frontmatter as a blocker (WP06 repoint, same precedent as WP05's own
+    ``test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic``
+    in ``tests/post_merge/test_review_artifact_consistency.py``):
+    ``find_rejected_review_artifact_conflicts`` is pure-event post-WP05
+    (verdict-seam-write-unification-01KZ9Q35, FR-013) -- it no longer parses
+    ``review-cycle-N.md`` frontmatter AT ALL, so a malformed on-disk artifact
+    with no matching ``review_result`` event is now SILENTLY IRRELEVANT to
+    the gate. ``ReviewArtifactSchemaFinding``/``REVIEW_ARTIFACT_SCHEMA_INVALID``
+    are retired dead code on this path (verified: grep confirms
+    ``ReviewArtifactSchemaFinding(`` is never constructed anywhere in
+    ``src/``) -- this test's original "malformed frontmatter blocks merge"
+    premise no longer holds under the new single-authority design, so it now
+    pins the CURRENT real invariant instead: a malformed-but-unreviewed
+    artifact does not fabricate a block (G2 fail-open-on-damaged-data).
+    """
     import typer
     from typer.testing import CliRunner
 
@@ -284,25 +337,26 @@ def test_dry_run_emits_review_artifact_schema_invalid(
         ["--mission", mission.mission_slug, "--dry-run", "--json"],
     )
 
-    assert result.exit_code == 1, (
-        f"Expected exit 1, got {result.exit_code}\nstdout={result.stdout}\nstderr={result.stderr}"
+    assert result.exit_code == 0, (
+        f"Expected exit 0 (malformed-but-unreviewed artifact must not "
+        f"fabricate a block), got {result.exit_code}\n"
+        f"stdout={result.stdout}\nstderr={result.stderr}"
     )
     payload = json.loads(result.stdout.strip().splitlines()[-1])
-    assert payload["blocked"] is True
-    assert payload["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
-    assert payload["blockers"][0]["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
-    assert payload["blockers"][0]["branch_or_work_package"] == "WP01"
-    assert (
-        payload["blockers"][0]["violated_invariant"]
-        == "review_cycle_frontmatter_must_match_schema"
+    assert "blocked" not in payload, (
+        "a clean dry-run payload carries no 'blocked' key at all -- "
+        f"got: {payload}"
     )
-    assert "affected_files entries must be mappings" in payload["blockers"][0]["schema_error"]
 
 
 def test_dry_run_human_emits_rejected_review_artifact_conflict(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``merge --dry-run`` without --json prints a labelled REJECTED_REVIEW_ARTIFACT_CONFLICT block."""
+    """``merge --dry-run`` without --json prints a labelled REJECTED_REVIEW_ARTIFACT_CONFLICT block.
+
+    WP06 repoint: the gate is pure-event post-WP05 -- the ``review_result``
+    event on the SAME transition is what makes this WP visible as rejected.
+    """
     import typer
     from typer.testing import CliRunner
 
@@ -315,6 +369,7 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KRKTT5APPROVED00000004",
+        review_result=_rejection_review_result(mission.mission_slug),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     _write_review_artifact(
@@ -345,7 +400,15 @@ def test_dry_run_human_emits_rejected_review_artifact_conflict(
 def test_dry_run_human_emits_review_artifact_schema_invalid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``merge --dry-run`` prints labelled schema diagnostics without a traceback."""
+    """``merge --dry-run`` (human channel) no longer prints schema diagnostics
+    for a malformed review-cycle artifact (WP06 repoint, same precedent as
+    WP05's own ``test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic``):
+    ``find_rejected_review_artifact_conflicts`` is pure-event post-WP05
+    (verdict-seam-write-unification-01KZ9Q35, FR-013) and never parses
+    ``review-cycle-N.md`` frontmatter, so a malformed artifact with no
+    matching ``review_result`` event is silently irrelevant -- the dry-run
+    completes cleanly, with no traceback either way.
+    """
     import typer
     from typer.testing import CliRunner
 
@@ -360,7 +423,7 @@ def test_dry_run_human_emits_review_artifact_schema_invalid(
         event_id="01KRKTT5APPROVED00000007",
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
-    review_path = _write_malformed_review_artifact(artifact_dir)
+    _write_malformed_review_artifact(artifact_dir)
     _write_lanes_json(mission)
 
     monkeypatch.chdir(mission.repo_root)
@@ -373,25 +436,33 @@ def test_dry_run_human_emits_review_artifact_schema_invalid(
 
     result = runner.invoke(app, ["--mission", mission.mission_slug, "--dry-run"])
 
-    assert result.exit_code == 1
-    output = result.stdout
-    unwrapped_output = output.replace("\n", "")
-    review_path_text = str(review_path.relative_to(mission.repo_root))
-    assert REVIEW_ARTIFACT_SCHEMA_INVALID in output
-    assert "branch_or_work_package: WP01" in output
-    assert (
-        "violated_invariant: review_cycle_frontmatter_must_match_schema" in output
+    assert result.exit_code == 0, (
+        f"Expected exit 0 (malformed-but-unreviewed artifact must not "
+        f"fabricate a block), got {result.exit_code}\nstdout={result.stdout}"
     )
-    assert f"latest_review_cycle_path: {review_path_text}" in unwrapped_output
-    assert "schema_error: affected_files entries must be mappings" in output
-    assert "affected_files entries must be mappings" in unwrapped_output
+    output = result.stdout
+    assert _RETIRED_REVIEW_ARTIFACT_SCHEMA_INVALID not in output
     assert "Traceback" not in output
 
 
 def test_real_merge_schema_preflight_does_not_write_merge_state(
     tmp_path: Path,
 ) -> None:
-    """Schema-invalid review artifacts must fail before merge-state mutation."""
+    """A rejected-verdict review-artifact conflict must fail before merge-state
+    mutation.
+
+    WP06 repoint: this test's ORIGINAL fixture drove the invariant through
+    ``REVIEW_ARTIFACT_SCHEMA_INVALID`` (a malformed on-disk artifact). That
+    leg is retired post-WP05 (verdict-seam-write-unification-01KZ9Q35,
+    FR-013 pure-event repoint) -- ``find_rejected_review_artifact_conflicts``
+    no longer parses artifact frontmatter at all, so a malformed-but-
+    unreviewed artifact is silently irrelevant (same precedent as WP05's own
+    ``test_malformed_review_artifact_frontmatter_becomes_schema_diagnostic``).
+    The invariant THIS test actually cares about -- "the review-artifact
+    preflight gate fires and blocks BEFORE merge-state mutation" -- is still
+    real and still live via the surviving ``REJECTED_REVIEW_ARTIFACT_CONFLICT``
+    leg, so the fixture now seeds a genuine event-sourced rejection instead.
+    """
     import typer
 
     from specify_cli.cli.commands.merge import _run_lane_based_merge_locked
@@ -404,9 +475,15 @@ def test_real_merge_schema_preflight_does_not_write_merge_state(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KRKTT5APPROVED00000008",
+        review_result=_rejection_review_result(mission.mission_slug),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
-    _write_malformed_review_artifact(artifact_dir)
+    _write_review_artifact(
+        artifact_dir,
+        cycle_number=1,
+        verdict="rejected",
+        mission_slug=mission.mission_slug,
+    )
     lanes_manifest = SimpleNamespace(
         lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
         mission_branch=f"kitty/mission-{mission.mission_slug}",

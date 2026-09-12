@@ -3,12 +3,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import click
 import pytest
+from typer.main import get_command
+
+from specify_cli import app
+from specify_cli.skills.registry import SkillRegistry
 
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SKILLS_ROOT = REPO_ROOT / "src" / "doctrine" / "skills"
+SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
 SPK_SKILLS = {
     "spk-admin-agent-config",
     "spk-admin-dashboard",
@@ -19,6 +24,7 @@ SPK_SKILLS = {
     "spk-doctrine-charter",
     "spk-doctrine-glossary",
     "spk-doctrine-profile-load",
+    "spk-doctrine-show-me",
     "spk-doctrine-semantic-compression",
     "spk-doctrine-spdd-reasons",
     "spk-gate-accept",
@@ -39,6 +45,7 @@ SPK_SKILLS = {
     "spk-run-next",
     "spk-run-program-orchestrate",
     "spk-run-review-wp",
+    "spk-run-verdict-capture",
     "spk-start-agent-surface",
     "spk-start-command-map",
     "spk-start-first-feature",
@@ -108,6 +115,52 @@ def test_spk_skill_bodies_stay_concise() -> None:
         assert len(body.splitlines()) <= 80, f"{skill_name} body is too long"
 
 
+def test_skill_command_literals_resolve_against_live_cli() -> None:
+    root_command = get_command(app)
+    errors: list[str] = []
+
+    for skill_md in sorted(SKILLS_ROOT.rglob("SKILL.md")):
+        text = skill_md.read_text(encoding="utf-8")
+        for literal in re.findall(r"`(spec-kitty\s+[^`]+)`(?!\s+not found)", text):
+            command = root_command
+            command_path: list[str] = []
+            unresolved: str | None = None
+            for token in literal.split()[1:]:
+                if token.startswith("-") or token in {"...", "…"}:
+                    break
+                if token.startswith("<") and token.endswith(">"):
+                    break
+                if not isinstance(command, click.Group):
+                    break
+                next_command = command.commands.get(token)
+                if next_command is None:
+                    # The walk stopped on an unresolved token while the current
+                    # node is still a `click.Group` -- i.e. a real subcommand was
+                    # expected and none exists. Record it rather than breaking
+                    # silently, so drift *below* the first token (e.g.
+                    # `spec-kitty tracker sync-pull`, the exact class issue #669
+                    # exists to catch) can no longer sail through green on the
+                    # already-resolved prefix left in `command_path`.
+                    unresolved = token
+                    break
+                command_path.append(token)
+                command = next_command
+
+            if unresolved is not None:
+                under = " ".join(["spec-kitty", *command_path])
+                errors.append(
+                    f"{skill_md.relative_to(REPO_ROOT)}: `{literal}` references "
+                    f"unknown command '{unresolved}'"
+                    + (f" under `{under}`" if command_path else "")
+                )
+            elif not command_path:
+                errors.append(
+                    f"{skill_md.relative_to(REPO_ROOT)}: `{literal}` resolves no command"
+                )
+
+    assert not errors, "\n".join(errors)
+
+
 def test_spk_skill_map_mentions_every_public_skill() -> None:
     skill_map = (
         SKILLS_ROOT
@@ -128,3 +181,30 @@ def test_legacy_alias_skills_remain_installed() -> None:
     }
 
     assert actual >= LEGACY_ALIAS_SKILLS
+
+
+def test_profile_load_skill_owns_and_installs_detailed_mechanics() -> None:
+    registry = SkillRegistry.from_local_repo(REPO_ROOT)
+    skill = registry.get_skill("spk-doctrine-profile-load")
+
+    assert skill is not None
+    reference = (
+        SKILLS_ROOT
+        / "spk-doctrine-profile-load"
+        / "references"
+        / "profile-load-mechanics.md"
+    )
+    assert skill.references == [reference]
+
+    skill_text = skill.skill_md.read_text(encoding="utf-8")
+    alias_text = (
+        SKILLS_ROOT / "ad-hoc-profile-load" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    reference_text = reference.read_text(encoding="utf-8")
+
+    assert "`ad-hoc-profile-load` is a compatibility alias that points here" in skill_text
+    assert "`spk-doctrine-profile-load`" in alias_text
+    assert "spec-kitty agent profile show <profile-id>" in reference_text
+    assert "spec-kitty charter context --action <action> --json" in reference_text
+    assert "read-only harness that cannot invoke the CLI" in reference_text
+    assert "specializes_from" in reference_text

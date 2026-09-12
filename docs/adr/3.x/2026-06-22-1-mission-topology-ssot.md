@@ -1,5 +1,6 @@
 ---
 title: 'ADR: MissionTopology SSOT — Store the Mission Shape, Resolve It Once'
+description: 'Stores the coordination-by-lanes mission shape as a `MissionTopology` value minted at creation instead of re-inferring it from disk; `flattened` stays a provenance flag.'
 status: Accepted
 date: '2026-06-22'
 ---

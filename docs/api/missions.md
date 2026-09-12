@@ -2,7 +2,7 @@
 title: Mission Types Reference
 description: Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-09-03'
 related:
 - docs/api/configuration.md
 ---
@@ -230,6 +230,67 @@ You can create custom missions by:
 
 Custom missions appear as options during `/spec-kitty.specify`.
 
+### Plan-field declaration (`plan-field-declaration.yaml`)
+
+The plan-substantiveness gate (`spec-kitty setup-plan` / `mission create`'s auto-commit
+check) decides whether a mission's `plan.md` is real content or an unedited scaffold.
+For the four built-in mission types this check is built in. For a **custom mission
+type shipped by a pack**, the pack must additionally ship a `plan-field-declaration.yaml`
+file next to its `plan-template.md`, in the same `missions/<mission-key>/templates/`
+directory. It resolves through the same override → legacy → org → global-mission →
+global → package-default tier chain used for every other mission-type template asset —
+but note this asset is only honoured from a **mission-scoped** tier (the resolved path
+must contain `missions/<mission-key>/`); a hit at one of the mission-agnostic tiers
+(global override, legacy) is ignored (see below). Without this file, a custom
+type's plan is **fail-closed** — reported as non-substantive with an "no field
+declaration is registered" reason — never silently treated as passing.
+
+The file declares one **primary** field (must be substantive) plus a non-empty list of
+**peer** fields (at least one must be substantive). Each field entry is a mapping with a
+`kind` key selecting one of four shapes:
+
+| `kind` | Checks | Keys (beyond common `kind`/`heading`) |
+| --- | --- | --- |
+| `bold_field` | A specific `**Label**: value` line under `## heading` | `label` (required, str), `sub_list_valued` (optional, bool, default `false` — set when the field's value is itself a bulleted sub-list) |
+| `any_bold_field` | Any bold-labelled line under `## heading`, optionally excluding one label | `exclude_label` (optional, str — skip this label when scanning for a substantive peer), `example_label` (optional, str — used only in diagnostic messages) |
+| `table_field` | A Markdown table directly under `## heading` | (none) |
+| `nested_heading_field` | A nested `### heading` structure under the parent `## heading` | `sub_shape` (required, one of `repeatable` \| `named_sibling`), `child_label` (required, str) |
+
+Every entry also requires a non-blank `heading` (the `##` section the field's presence
+check reads). Unknown keys anywhere in the file — a typo'd optional key, or a top-level
+key outside `primary`/`peers` — fail loud with a diagnosable error rather than being
+silently ignored.
+
+Worked example, mirroring `software-dev`'s own Technical Context shape:
+
+```yaml
+primary:
+  kind: bold_field
+  heading: Technical Context
+  label: Language/Version
+
+peers:
+  - kind: bold_field
+    heading: Technical Context
+    label: Testing
+  - kind: any_bold_field
+    heading: Technical Context
+    exclude_label: Language/Version
+  - kind: table_field
+    heading: Problem Decomposition
+  - kind: nested_heading_field
+    heading: Decisions
+    sub_shape: repeatable
+    child_label: "Decision D-"
+```
+
+Org-pack precedence for this asset is deliberately **first-declared-root-wins** —
+consistent with the `plan-template.md` it rides alongside — unlike
+`expected-artifacts.yaml`, which resolves last-match. A `plan-field-declaration.yaml`
+that resolves through a **mission-agnostic** tier (the global override or legacy tiers,
+which are not scoped to any one mission type) is ignored, so it can never accidentally
+gate an unrelated, undeclared mission type's plan.
+
 ---
 
 ## Mission Comparison
@@ -305,6 +366,8 @@ A composed step needs a profile so the runtime knows which agent persona to disp
 
 Declaring both `agent_profile` and `contract_ref` on the same step is rejected with `MISSION_STEP_AMBIGUOUS_BINDING`. Declaring neither (and having no `requires_inputs`) is rejected with `MISSION_STEP_NO_PROFILE_BINDING`. See [research §R-003](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the full rationale.
 
+Built-in missions (`software-dev`, `research`, `documentation`) do not set `agent_profile` on their shipped steps; the executor resolves each `(mission, action)` through a built-ins-only defaults table instead. When a table default (e.g. `researcher-robbie` for `software-dev/specify`) is deactivated in the project, the executor falls back to the highest-`routing-priority` available profile carrying the default's role (`researcher`, `architect`, `implementer`, or `reviewer`), and blocks with a structured composition error — not a crash — when no available profile carries that role. `charter deactivate agent-profile <id>` and `charter preflight` warn when a deactivated profile is one of these defaults. A project that wants a specific profile for a built-in step without relying on priority can deactivate the shipped default (the fallback then picks its own activated same-role profile) or define a custom mission type with explicit per-step `agent_profile` bindings.
+
 YAML examples:
 
 ```yaml
@@ -332,15 +395,16 @@ Any non-builtin discovery tier that produces a definition with one of these keys
 
 ### Discovery precedence
 
-The loader queries seven tiers in priority order; the highest-precedence tier wins. Lower-precedence definitions of the same key emit a `MISSION_KEY_SHADOWED` warning (except built-in shadow, which is the `MISSION_KEY_RESERVED` error above).
+The loader queries eight tiers in priority order; the highest-precedence tier wins. Lower-precedence definitions of the same key emit a `MISSION_KEY_SHADOWED` warning (except built-in shadow, which is the `MISSION_KEY_RESERVED` error above).
 
 1. **Explicit path** — `--mission-path <path>` (env-forwarded; not exposed by `mission run` directly in v1).
 2. **Environment variable** — `SPEC_KITTY_MISSION_PATHS=/path/one:/path/two`.
 3. **Project override** — `.kittify/overrides/missions/<key>/mission.yaml`.
 4. **Project legacy** — `.kittify/missions/<key>/mission.yaml`.
-5. **User global** — `~/.kittify/missions/<key>/mission.yaml`.
-6. **Project config (mission packs)** — `.kittify/config.yaml mission_packs: [...]` referencing `mission-pack.yaml` manifests.
-7. **Built-in** — `software-dev`, `research`, `documentation`, `plan`.
+5. **Org** — org-provided mission roots (`context.org_roots`), sitting between project legacy and user global.
+6. **User global** — `~/.kittify/missions/<key>/mission.yaml`.
+7. **Project config (mission packs)** — `.kittify/config.yaml mission_packs: [...]` referencing `mission-pack.yaml` manifests.
+8. **Built-in** — `software-dev`, `research`, `documentation`, `plan`.
 
 ## Authoring Custom Workflows
 
@@ -437,7 +501,7 @@ Detail key conventions:
 
 - All paths are absolute strings.
 - `mission_key` is the value of `template.mission.key` once known; `null` when unknown.
-- `tier` ∈ `{"explicit", "env", "project_override", "project_legacy", "user_global", "project_config", "builtin"}`.
+- `tier` ∈ `{"explicit", "env", "project_override", "project_legacy", "org", "user_global", "project_config", "builtin"}`.
 - `step_id` is the `PromptStep.id` value.
 
 ### Example: ERP integration mission
@@ -528,7 +592,7 @@ $ spec-kitty mission run no-such-key --mission x --json
   "message": "No mission definition with key 'no-such-key' was found in any discovery tier.",
   "details": {
     "mission_key": "no-such-key",
-    "tiers_searched": ["explicit", "env", "project_override", "project_legacy", "user_global", "project_config", "builtin"]
+    "tiers_searched": ["explicit", "env", "project_override", "project_legacy", "org", "user_global", "project_config", "builtin"]
   },
   "warnings": []
 }
@@ -548,12 +612,12 @@ For the operator-narrative walkthrough (decision resolution, advancement, recove
 
 ## Getting Started
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Use the Dashboard](../guides/use-dashboard.md)
-- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 
 ## Background
 

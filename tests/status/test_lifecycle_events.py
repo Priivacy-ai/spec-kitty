@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -30,6 +31,8 @@ import specify_cli.status.lifecycle_events as lifecycle
 from specify_cli.status.lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
+    PLAN_COMPLETED,
+    PLAN_STARTED,
     PROJECT_INITIALIZED,
     REVIEWER_SELF_APPROVAL,
     SPECIFY_COMPLETED,
@@ -37,6 +40,7 @@ from specify_cli.status.lifecycle_events import (
     WP_CREATED,
     append_lifecycle_event,
     emit_artifact_phase,
+    emit_artifact_phase_local,
     emit_mission_created_local,
     emit_project_initialized,
     emit_reviewer_self_approval,
@@ -46,6 +50,8 @@ from specify_cli.status.lifecycle_events import (
     mission_event_log_path,
     project_event_log_path,
     read_lifecycle_events,
+    fanout_lifecycle_event_hosted,
+    persist_lifecycle_event_local,
 )
 
 
@@ -156,7 +162,11 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
 def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> None:
     """The MissionCreated payload must include all fields required by the
     canonical events 5.1.0 schema (``mission_type`` and ``wp_count`` are
-    required; ``actor`` is forbidden). See issues #1190 and #1199."""
+    required). See issues #1190 and #1199.
+
+    ``actor`` was payload-forbidden under #1190; spec-kitty-events 8.0.0 added
+    it back as an optional WHO field and #75 makes the local emitter resolve
+    it, so its presence is now asserted here rather than its absence."""
     envelope = emit_mission_created_local(
         feature_dir,
         mission_slug="demo-mission",
@@ -171,11 +181,6 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     )
     assert envelope is not None
     payload = envelope["payload"]
-    # Forbidden: ``actor`` belongs on the envelope, not the payload (#1190).
-    assert "actor" not in payload, (
-        f"MissionCreated payload must not contain 'actor'; got {payload!r}. "
-        "See Priivacy-ai/spec-kitty#1190."
-    )
     # Required by the canonical schema (#1199).
     assert payload["mission_type"] == "software-dev"
     assert payload["wp_count"] == 0
@@ -184,6 +189,132 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     assert payload["mission_id"] == "01J6XW9KQT7M0YB3N4R5CQZ2EX"
     assert payload["target_branch"] == "main"
     assert payload["friendly_name"] == "Demo Mission"
+    # WHO is set by default (#75): an opaque identifier, never empty.
+    assert isinstance(payload["actor"], str) and payload["actor"].strip()
+
+
+# ---------------------------------------------------------------------------
+# MissionCreated actor resolution (#75)
+# ---------------------------------------------------------------------------
+
+
+def _fake_git_config(monkeypatch: pytest.MonkeyPatch, *, stdout: str, error: bool = False):
+    """Intercept ``git config`` probes; every other command runs for real."""
+
+    real_run = subprocess.run
+    calls: list[list[str]] = []
+
+    def _run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if cmd[:3] != ["git", "config", "user.email"]:
+            return real_run(cmd, **kwargs)
+        calls.append(list(cmd))
+        if error:
+            raise FileNotFoundError("git binary missing")
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _run)
+    return calls
+
+
+def test_mission_created_local_resolves_actor_from_git_email(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _fake_git_config(monkeypatch, stdout="robert@example.com\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "robert@example.com"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+@pytest.mark.parametrize("error", [False, True], ids=["unconfigured", "git-absent"])
+def test_mission_created_local_actor_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch, error: bool) -> None:
+    _fake_git_config(monkeypatch, stdout="", error=error)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+
+
+def test_mission_created_local_oversized_email_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A resolved email over the zeitgeist attrs codec's 240-byte-per-value
+    bound must degrade to ``"cli"`` at emit time (#74) — otherwise the value
+    passes producer-time validation (no ``max_length`` on the contract) and
+    ``to_zeitgeist_attrs`` only rejects it later, silently dropping the whole
+    moment instead of just its WHO."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    oversized_email = ("a" * (ZEITGEIST_ATTRS_MAX_BYTES + 10)) + "@example.com"
+    calls = _fake_git_config(monkeypatch, stdout=f"{oversized_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+def test_mission_created_local_boundary_length_email_is_kept(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An email exactly at the byte bound is still a valid actor — only
+    strictly-over-bound values fall back."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    boundary_email = "a" * (ZEITGEIST_ATTRS_MAX_BYTES - len("@example.com")) + "@example.com"
+    assert len(boundary_email.encode("utf-8")) == ZEITGEIST_ATTRS_MAX_BYTES
+    _fake_git_config(monkeypatch, stdout=f"{boundary_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == boundary_email
+
+
+def test_mission_created_local_explicit_actor_wins_without_identity_probe(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pinned actor bypasses resolution entirely (other git use is fine —
+    the write lock legitimately shells out to git around the append)."""
+    calls = _fake_git_config(monkeypatch, stdout="", error=True)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        actor="agent:sk-impl-spec-kitty-75",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "agent:sk-impl-spec-kitty-75"
+    assert calls == []
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +368,77 @@ def test_artifact_phase_records_optional_metadata(feature_dir: Path) -> None:
     assert payload["wp_count"] == 3
 
 
+def test_local_artifact_phase_persists_started_without_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+    try:
+        envelope = emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_STARTED,
+            mission_slug="demo-mission",
+            actor="test",
+            artifact_path="kitty-specs/demo-mission/plan.md",
+        )
+
+        assert envelope is not None
+        entries = read_lifecycle_events(mission_event_log_path(feature_dir))
+        assert entries == [envelope]
+        assert entries[0]["payload"]["artifact_path"] == ("kitty-specs/demo-mission/plan.md")
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_artifact_phase_persists_completed_without_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+    try:
+        envelope = emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_COMPLETED,
+            mission_slug="demo-mission",
+            actor="test",
+            artifact_path="kitty-specs/demo-mission/plan.md",
+            summary="Plan generated",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(mission_event_log_path(feature_dir)) == [envelope]
+        assert envelope["payload"]["summary"] == "Plan generated"
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_artifact_phase_retains_strict_event_type_validation(
+    feature_dir: Path,
+) -> None:
+    with pytest.raises(ValueError, match="Unsupported artifact phase event_type"):
+        emit_artifact_phase_local(
+            feature_dir,
+            event_type="NotARealPhase",
+            mission_slug="demo-mission",
+        )
+
+    with pytest.raises(ValueError):
+        emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_STARTED,
+            mission_slug="demo-mission",
+            mission_number="not-an-integer",  # type: ignore[arg-type]
+        )
+
+
 # ---------------------------------------------------------------------------
 # WPCreated
 # ---------------------------------------------------------------------------
@@ -273,11 +475,7 @@ def test_wp_created_full_roster_writes_one_event_per_wp(feature_dir: Path) -> No
             wp_id=wp_id,
             wp_title=title,
         )
-    entries = [
-        e
-        for e in read_lifecycle_events(mission_event_log_path(feature_dir))
-        if e["event_type"] == WP_CREATED
-    ]
+    entries = [e for e in read_lifecycle_events(mission_event_log_path(feature_dir)) if e["event_type"] == WP_CREATED]
     assert sorted(e["aggregate_id"] for e in entries) == ["WP01", "WP02", "WP03"]
 
 
@@ -478,7 +676,7 @@ def test_has_non_bootstrap_status_history_tolerates_noise_and_detects_planned_re
     log.write_text(
         "\n"
         "not-json\n"
-        "[\"not\", \"an\", \"event\"]\n"
+        '["not", "an", "event"]\n'
         + json.dumps(
             {
                 "event_id": "01H3",
@@ -497,9 +695,7 @@ def test_has_non_bootstrap_status_history_tolerates_noise_and_detects_planned_re
     assert has_non_bootstrap_status_history(feature_dir) is True
 
 
-def test_has_non_bootstrap_status_history_false_when_log_read_fails(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_has_non_bootstrap_status_history_false_when_log_read_fails(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mission_event_log_path(feature_dir).write_text("{}", encoding="utf-8")
 
     def _raise(*args, **kwargs):  # noqa: ANN002, ANN003
@@ -541,23 +737,14 @@ def test_has_lifecycle_event_matches_dedup_keys(feature_dir: Path) -> None:
         aggregate_type="WorkPackage",
         dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"},
     )
-    assert has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"}
-    )
-    assert not has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP99"}
-    )
+    assert has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP07"})
+    assert not has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission", "wp_id": "WP99"})
 
 
-def test_read_lifecycle_events_tolerates_unreadable_and_malformed_logs(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_read_lifecycle_events_tolerates_unreadable_and_malformed_logs(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     log = mission_event_log_path(feature_dir)
     log.write_text(
-        "\n"
-        "not-json\n"
-        + json.dumps({"event_type": WP_CREATED, "payload": {"wp_id": "WP01"}})
-        + "\n",
+        "\nnot-json\n" + json.dumps({"event_type": WP_CREATED, "payload": {"wp_id": "WP01"}}) + "\n",
         encoding="utf-8",
     )
     assert len(read_lifecycle_events(log)) == 1
@@ -573,9 +760,7 @@ def test_has_lifecycle_event_ignores_non_mapping_payload(feature_dir: Path) -> N
     log = mission_event_log_path(feature_dir)
     _write_jsonl(log, [{"event_type": WP_CREATED, "payload": ["not", "a", "mapping"]}])
 
-    assert not has_lifecycle_event(
-        log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission"}
-    )
+    assert not has_lifecycle_event(log, event_type=WP_CREATED, dedup_keys={"mission_slug": "demo-mission"})
 
 
 def test_append_lifecycle_event_rejects_unknown_type(feature_dir: Path) -> None:
@@ -591,9 +776,7 @@ def test_append_lifecycle_event_rejects_unknown_type(feature_dir: Path) -> None:
     )
 
 
-def test_append_lifecycle_event_returns_none_when_write_fails(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_append_lifecycle_event_returns_none_when_write_fails(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(path: Path, line: str) -> None:
         raise OSError("disk full")
 
@@ -611,15 +794,92 @@ def test_append_lifecycle_event_returns_none_when_write_fails(
     )
 
 
-def test_lifecycle_saas_outbox_skips_when_disabled(
+def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+    log_path = mission_event_log_path(feature_dir)
+    try:
+        envelope = persist_lifecycle_event_local(
+            log_path,
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(log_path) == [envelope]
+        assert captured == []
+
+        fanout_lifecycle_event_hosted(envelope, log_path=log_path)
+
+        assert captured == [{"envelope": envelope, "log_path": log_path}]
+        assert captured[0]["envelope"] is envelope
+        assert read_lifecycle_events(log_path) == [envelope]
+    finally:
+        adapters.reset_handlers()
+
+
+def test_append_lifecycle_event_composes_local_write_and_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+    log_path = mission_event_log_path(feature_dir)
+    try:
+        envelope = append_lifecycle_event(
+            log_path,
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(log_path) == [envelope]
+        assert captured == [{"envelope": envelope, "log_path": log_path}]
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_write_failure_returns_none_without_hosted_fanout(
+    feature_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: False,
-    )
+    from specify_cli.status import adapters
 
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+
+    def fail_write(path: Path, line: str) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(lifecycle, "_atomic_append", fail_write)
+    try:
+        envelope = persist_lifecycle_event_local(
+            mission_event_log_path(feature_dir),
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+            mission_slug="demo-mission",
+        )
+
+        assert envelope is None
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
 
 
 def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> None:
@@ -645,7 +905,8 @@ def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> No
 
 
 def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
-    repo: Path, monkeypatch: pytest.MonkeyPatch,
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A path the resolver cannot anchor to a git root returns ``None``.
 
@@ -662,172 +923,6 @@ def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
     assert lifecycle._repo_root_for_lifecycle_log(repo / "anywhere.jsonl") is None
 
 
-def test_lifecycle_saas_builder_skips_non_materializable_inputs(
-    repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    log_path = project_event_log_path(repo)
-    valid_payload = {
-        "project_uuid": "00000000-0000-0000-0000-000000000001",
-        "project_slug": "demo",
-        "actor": "test",
-    }
-
-    assert lifecycle._build_saas_lifecycle_event({}, log_path=log_path) is None
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {"event_type": PROJECT_INITIALIZED, "payload": valid_payload},
-            log_path=log_path,
-        )
-        is None
-    )
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {
-                "event_type": PROJECT_INITIALIZED,
-                "payload": valid_payload,
-                "aggregate_type": "Project",
-            },
-            log_path=repo / "other" / "status.events.jsonl",
-        )
-        is None
-    )
-
-    from specify_cli.identity.project import ProjectIdentity
-
-    monkeypatch.setattr(
-        # #2263 WP02: lifecycle SaaS fan-out resolves identity read-only.
-        "specify_cli.identity.project.resolve_identity",
-        lambda _repo_root: ProjectIdentity(),
-    )
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {
-                "event_type": PROJECT_INITIALIZED,
-                "payload": valid_payload,
-                "aggregate_type": "Project",
-            },
-            log_path=log_path,
-        )
-        is None
-    )
-
-
-def test_lifecycle_saas_outbox_skips_unmaterializable_event(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    queued: list[dict[str, object]] = []
-
-    class _Queue:
-        def queue_event(self, event: dict[str, object]) -> bool:
-            queued.append(event)
-            return True
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-    monkeypatch.setattr(lifecycle, "_build_saas_lifecycle_event", lambda *_args, **_kwargs: None)
-
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
-
-    assert queued == []
-
-
-def test_lifecycle_saas_outbox_queues_when_scoped(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    queued: list[dict[str, object]] = []
-
-    # Mint + persist a real project identity (as ``spec-kitty init`` does).
-    # Post-#2263 the SaaS lifecycle fan-out resolves identity WITHOUT
-    # persisting, so an uninitialized repo yields ``project_uuid=None`` and the
-    # handler early-returns before queuing. A real project always carries a
-    # minted identity, which is what the outbox path requires to enqueue.
-    from specify_cli.identity.project import ensure_identity
-
-    (tmp_path / ".kittify").mkdir(exist_ok=True)
-    ensure_identity(tmp_path)
-
-    class _Queue:
-        def queue_event(self, event: dict[str, object]) -> bool:
-            queued.append(event)
-            return True
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_credentials",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-
-    emit_artifact_phase(
-        feature_dir,
-        event_type=SPECIFY_COMPLETED,
-        mission_slug="demo-mission",
-        actor="test",
-        artifact_path="kitty-specs/demo-mission/spec.md",
-    )
-
-    assert len(queued) == 1
-    queued_event = queued[0]
-    assert queued_event["event_type"] == SPECIFY_COMPLETED
-    assert queued_event["schema_version"] == "3.0.0"
-    assert queued_event["build_id"]
-    assert queued_event["node_id"]
-    assert isinstance(queued_event["lamport_clock"], int)
-    assert queued_event["lamport_clock"] >= 1
-    assert queued_event["correlation_id"] == queued_event["event_id"]
-
-    from spec_kitty_events import Event
-    from spec_kitty_events.project_lifecycle import SpecifyCompletedPayload
-
-    Event(**queued_event)
-    SpecifyCompletedPayload.model_validate(queued_event["payload"])
-
-
-def test_lifecycle_saas_outbox_suppresses_queue_failures(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    class _Queue:
-        def __init__(self) -> None:
-            raise RuntimeError("queue unavailable")
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-
-    emit_artifact_phase(
-        feature_dir,
-        event_type=SPECIFY_COMPLETED,
-        mission_slug="demo-mission",
-        actor="test",
-        artifact_path="kitty-specs/demo-mission/spec.md",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Canonical-conformance guard (issue Priivacy-ai/spec-kitty#1190)
-# ---------------------------------------------------------------------------
-
-
 def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
     """The canonical-conformance guard catches extra-property drift at
     emit time. This is the regression guard for issue
@@ -839,13 +934,16 @@ def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
         "mission_number": None,
         "target_branch": "main",
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
-        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        # extra — schema forbids it. NOT ``actor``: events 8.0.0 declared an
+        # optional opaque ``actor`` on MissionCreated/MissionClosed, so the
+        # drift probe uses a key that is still outside the contract.
+        "emitted_by": "spec-kitty mission create",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
         "purpose_tldr": "tldr",
         "purpose_context": "context",
     }
-    with pytest.raises(ValueError, match="actor"):
+    with pytest.raises(ValueError, match="emitted_by"):
         lifecycle._validate_lifecycle_payload("MissionCreated", bad_payload)
 
 
@@ -904,6 +1002,57 @@ def test_validate_lifecycle_payload_falls_through_for_unknown_event_types() -> N
     lifecycle._validate_lifecycle_payload("NotARealEventType", {"foo": "bar"})
 
 
+def test_validate_lifecycle_payload_skips_local_only_lifecycle_types() -> None:
+    """MISSION_REOPENED / FOLLOW_UP_RECORDED must skip strict validation.
+
+    Regression guard for the #2884 review finding: both event types are
+    present in the installed ``spec_kitty_events`` model map (so they are
+    NOT "unknown" and would otherwise fall into ``validate_event(strict=True)``),
+    while ``spec_kitty_events.LOCAL_ONLY_EVENT_TYPES`` is empty and does not
+    yet cover them. Without consulting the local
+    ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` SSOT, a malformed payload for either
+    type would incorrectly raise here, contradicting the module docstring's
+    claim that they are "deliberately kept OFF the SaaS strict-validation
+    delivery path". A payload that is missing required canonical fields and
+    carries extra ones must still pass without raising.
+    """
+    from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
+
+    assert lifecycle.MISSION_REOPENED in _EVENT_TYPE_TO_MODEL
+    assert lifecycle.FOLLOW_UP_RECORDED in _EVENT_TYPE_TO_MODEL
+    malformed_payload = {"unexpected_field": "drift", "mission_slug": "demo"}
+    # Should not raise for either local-only lifecycle event type, despite
+    # the payload being nowhere near canonical shape.
+    lifecycle._validate_lifecycle_payload(lifecycle.MISSION_REOPENED, malformed_payload)
+    lifecycle._validate_lifecycle_payload(lifecycle.FOLLOW_UP_RECORDED, malformed_payload)
+
+
+def test_validate_lifecycle_payload_still_strict_for_delivery_path_types() -> None:
+    """A non-local-only, known event type must still validate strictly.
+
+    Guards against the fix in the sibling test above degrading into a
+    blanket skip: only types in ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` are
+    exempted; MissionCreated (a real delivery-path type) still rejects a
+    payload with extra/missing fields.
+    """
+    assert lifecycle.MISSION_CREATED not in lifecycle.LOCAL_ONLY_LIFECYCLE_EVENT_TYPES
+    bad_payload = {
+        "mission_slug": "demo",
+        "mission_number": None,
+        "target_branch": "main",
+        "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+        # extra — schema forbids it (see the drift-probe note above: events
+        # 8.0.0 declared an optional ``actor``, so probe with a foreign key).
+        "emitted_by": "spec-kitty mission create",
+        "created_at": "2026-05-20T00:00:00+00:00",
+        "friendly_name": "Demo",
+        "purpose_tldr": "tldr",
+        "purpose_context": "context",
+    }
+    with pytest.raises(ValueError, match="emitted_by"):
+        lifecycle._validate_lifecycle_payload(lifecycle.MISSION_CREATED, bad_payload)
+
+
 _SAAS_KW = {
     "build_id": "build-1",
     "project_uuid": "proj-uuid",
@@ -916,18 +1065,17 @@ _SAAS_KW = {
 def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_event_type_or_payload() -> None:
     """A non-queueable envelope (bad ``event_type``/``payload``) yields None."""
     # Non-str event_type.
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": None, "payload": {}}, **_SAAS_KW
-    ) is None
+    assert lifecycle.build_saas_lifecycle_queue_event({"event_type": None, "payload": {}}, **_SAAS_KW) is None
     # Non-Mapping payload.
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": "ProjectInitialized", "payload": "not-a-mapping"}, **_SAAS_KW
-    ) is None
+    assert lifecycle.build_saas_lifecycle_queue_event({"event_type": "ProjectInitialized", "payload": "not-a-mapping"}, **_SAAS_KW) is None
 
 
 def test_build_saas_lifecycle_queue_event_returns_none_for_invalid_aggregate_type() -> None:
     """A valid event_type+payload but non-str ``aggregate_type`` yields None."""
-    assert lifecycle.build_saas_lifecycle_queue_event(
-        {"event_type": "ProjectInitialized", "payload": {}, "aggregate_type": None},
-        **_SAAS_KW,
-    ) is None
+    assert (
+        lifecycle.build_saas_lifecycle_queue_event(
+            {"event_type": "ProjectInitialized", "payload": {}, "aggregate_type": None},
+            **_SAAS_KW,
+        )
+        is None
+    )

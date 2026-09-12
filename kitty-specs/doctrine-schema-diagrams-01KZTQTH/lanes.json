@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-schema-diagrams-01KZTQTH",
+  "mission_id": "01KZTQTH31ERP3NRGTWEGPJY6R",
+  "mission_branch": "kitty/mission-doctrine-schema-diagrams-01KZTQTH",
+  "target_branch": "feat/doctrine-schema-diagrams-impl",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/plantuml-egress-spike.yml",
+        "scripts/docs/plantuml_invoke.py",
+        "scripts/docs/plantuml_pins.json",
+        "tests/docs/fixtures/spike_startyaml.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-08-12-*-plantuml-schema-diagram-rendering.md",
+        "docs/architecture/diagrams/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-build-pr.yml",
+        ".github/workflows/docs-pages.yml",
+        "scripts/docs/plantuml_render.py",
+        "tests/docs/test_plantuml_render.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/architecture/doctrine-kinds.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/architecture/doctrine-relationships.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/architecture/mission-type-resolution.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/docs/test_plantuml_no_egress_corpus.py",
+        "tests/docs/test_plantuml_sandbox_negative.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/docs/diagram_drift/**",
+        "tests/docs/test_diagram_drift_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/doctrine/**/README.md",
+        "tests/docs/test_module_readme_lint.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-12T16:49:49.422793+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ab2e00d423b8fb006989792a13372d18b19225d2"
+}

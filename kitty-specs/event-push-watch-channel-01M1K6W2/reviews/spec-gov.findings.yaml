@@ -1,0 +1,140 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: SPEC-GOV-001
+    lens: scope-relitigation-guard
+    severity: 3
+    title: "Tail cursor / FR-004 wording leaves open a 'command invocation owns the cursor' reading that C-001 does not permit"
+    evidence:
+      - artifact: "spec.md § Key Entities — Tail cursor: \"Not persisted by the command itself unless FR-004's resume mechanism requires it; owned by whichever side (consumer or command invocation) FR-004's design settles on.\""
+      - artifact: "spec.md § FR-004: \"the command to accept a resume point (e.g. `--from-offset <N>`) and/or emit its current offset in each envelope so that I can persist and supply it on restart\""
+      - artifact: "spec.md § C-001: \"No daemon process ... may be introduced, even as a partially-built on-ramp.\""
+    claim: >
+      FR-004 itself only ever describes client-owned resumption: the consumer either
+      supplies `--from-offset` (it already holds the value) or reads the emitted offset
+      out of the stream and persists it externally. Neither mechanism requires the
+      `events tail` process to remember anything between invocations. But the Key
+      Entities "Tail cursor" bullet introduces a third possibility not present in FR-004
+      — the cursor "owned by ... the command invocation" — which, taken literally, would
+      mean the CLI process itself persists resumable state across separate runs (e.g. an
+      implicit per-mission cursor file the tool reads/writes without an explicit flag).
+      That is a small but real seed of exactly the "server remembers consumer state"
+      concept C-001 rules out even as a partially-built on-ramp: it implies the tool
+      tracking a consumer's position on the consumer's behalf, which only makes sense if
+      the tool anticipates more than one long-lived relationship between itself and a
+      caller — the beginning of a session concept. A plan/tasks author reading only the
+      Key Entities section (not cross-checking it against FR-004's tighter language)
+      could design exactly that, and a later reviewer would then have to unwind it.
+    remediation: >
+      Tighten the Key Entities "Tail cursor" bullet to match FR-004 exactly: state that
+      the cursor is ALWAYS caller-supplied/caller-owned, that `events tail` is stateless
+      across invocations, and that it MUST NOT persist cursor state to disk on the
+      consumer's behalf (no implicit per-mission state file, no CLI-invocation-owned
+      store). Delete the "or command invocation" branch of the ownership sentence, or
+      replace it with an explicit negative constraint ("never the command invocation").
+
+  - id: SPEC-GOV-002
+    lens: terminology
+    severity: 3
+    title: "Spec's 'Envelope' key entity reuses an already-canonical glossary term ('Event Envelope') with a different schema, and introduces new domain terms with no glossary-candidate flag"
+    evidence:
+      - artifact: "spec.md § Key Entities — Envelope: \"one JSON line emitted on stdout — either a pass-through of an existing StatusEvent/InnerStateChanged dict ... or one of the two new signal shapes\""
+      - code: "docs/context/system-events.md:16-25 — canonical 'Event Envelope' term: \"Standard wrapper for an emitted event, including identity, ordering, and payload fields.\" Common fields: event_id, event_type, aggregate_id, lamport_clock, payload."
+      - code: "src/specify_cli/status/models.py:319-359 — StatusEvent dataclass fields (event_id, mission_slug, wp_id, from_lane, to_lane, at, actor, force, execution_mode, reason, ...) — no aggregate_id, no lamport_clock, no event_type field, i.e. a materially different shape from the canonical Event Envelope schema."
+    claim: >
+      `docs/context/system-events.md` already defines a canonical, `Status: canonical`
+      glossary term "Event Envelope" with a specific schema (event_id, event_type,
+      aggregate_id, lamport_clock, payload). This spec's Key Entities section defines a
+      new, differently-shaped "Envelope" (a StatusEvent JSON line, or one of two new
+      signal shapes) without cross-referencing, reconciling, or distinguishing it from
+      the existing canonical term. This is exactly the terminology drift the charter's
+      "Supporting workflows" standing order exists to catch early ("Run continuous term
+      capture/triage against the living glossary so terminology drift is caught early
+      rather than in a big periodic cleanup" — charter.md Writing/Comms doctrine
+      section). Separately, the spec introduces several other new domain terms this
+      mission originates — "Tail cursor," "resume token," the `log_truncated` signal
+      shape — with no note that they are glossary candidates for
+      `docs/context/system-events.md` at plan/implement time; the spec is silent on this
+      even though `docs/context/contextive-glossaries.md` documents a generator pipeline
+      that expects new terms to land in `docs/context/*.md` as the source of truth.
+    remediation: >
+      Either rename the new Key Entity to avoid the collision (e.g. "tail line" or
+      "tail envelope") and note in the Clarifications section that it is deliberately
+      distinct from the canonical "Event Envelope" term, or add a one-line
+      reconciliation note explaining the relationship. Add a short note (in
+      Clarifications or a new "Terminology" subsection) flagging "Tail cursor," "resume
+      token," and the `log_truncated`/resolve-failure signal shapes as glossary
+      candidates for `docs/context/system-events.md`, to be added at plan/implement time
+      per the charter's glossary-maintenance-workflow.
+
+  - id: SPEC-GOV-003
+    lens: public-repo
+    severity: 3
+    title: "User Story 1 discloses an unreleased downstream product's internal implementation approach in a permanently-public repo"
+    evidence:
+      - artifact: "spec.md § User Story 1: \"An external consumer (e.g. Kitty Desktop's engine) currently runs its own `notify`-based filesystem watcher and debounced re-reduction of `status.events.jsonl` for one mission.\""
+    claim: >
+      "Kitty Desktop" does not appear anywhere else in this repository (docs/, specs/,
+      or code) — this spec is the sole place it is named. The corresponding local
+      workspace (`SK-missions/kitty-desktop/`) is a planning-stage tree with no git
+      remote configured, i.e. an unreleased/internal product, not a public one with
+      documented public architecture. This spec names that product and states a
+      specific internal implementation detail about it (uses the Rust `notify` crate for
+      filesystem watching, plus a debounced re-reduction step) in `spec-kitty`, which is
+      a PUBLIC, permanently-visible repository. This is exactly the class of disclosure
+      the review brief calls out to check for, even though it is not credential or
+      customer data.
+    remediation: >
+      Replace the specific product name and implementation detail with a generic
+      description (e.g. "An external desktop/companion consumer currently runs its own
+      filesystem-watcher and debounced re-reduction logic for one mission"), unless the
+      operator confirms Kitty Desktop's architecture is intended to be public knowledge
+      before this spec is published/merged.
+
+  - id: SPEC-GOV-004
+    lens: ledger
+    severity: 1
+    title: "Two of the spec's own store.py verification-pointer line citations are off by a few lines"
+    evidence:
+      - artifact: "spec.md § Clarifications §3 — Verification pointers: \"`:390` (`os.replace` call site)\" and \"`:549` (`StoreError` on first bad JSON line)\""
+      - code: "src/specify_cli/status/store.py:392 — actual `os.replace(tmp_path, path)` call site (spec cites :390)"
+      - code: "src/specify_cli/status/store.py:554 — actual `raise StoreError(f\"Invalid JSON on line {line_number}: {exc}\")` (spec cites :549)"
+    claim: >
+      All other file:line citations in the Clarifications section were spot-checked and
+      are exact (transaction.py:921/938/940, store.py:292/358, C-002's
+      cli/commands/__init__.py:247-336 registration range, C-007's charter.md:586-590,
+      C-003's charter.md:533-549, C-008's CI job/path-filter names). Only these two
+      store.py citations drift by 2 and 5 lines respectively from the actual line
+      containing the described code — the function/behavior described is otherwise
+      accurate, so this has no effect on implementation, but a reviewer following the
+      citation literally lands on the wrong line.
+    remediation: >
+      Correct the two line numbers to :392 and :554 (or cite the function name only,
+      without a line number, to avoid future drift as the file changes before the plan
+      phase locks a commit).
+
+  - id: SPEC-GOV-005
+    lens: terminology
+    severity: 1
+    title: "Key Entities heading inherits the canonical spec-template's stray 'feature' wording (pre-existing tooling defect, not authored by this mission)"
+    evidence:
+      - artifact: "spec.md § Key Entities: \"### Key Entities *(include if feature involves data)*\""
+      - code: "packs/built-in/missions/software-dev/templates/spec-template.md:113 — identical boilerplate heading, present in the canonical template every spec-kitty mission spec is generated from."
+    claim: >
+      This is the one place in the spec's rendered document text (as opposed to an
+      internal Python parameter name, which C-003 explicitly permits) where the word
+      "feature" appears outside a code/path citation. It is inherited verbatim from
+      `packs/built-in/missions/software-dev/templates/spec-template.md`, i.e. it is a
+      pre-existing Terminology-Canon gap in spec-kitty's own canonical template that
+      every mission spec (not just this one) inherits — not something this mission's
+      author introduced, and not fixable by editing this mission's spec.md alone.
+    remediation: >
+      No fix owed by this mission's spec.md. Log a short entry to
+      `SPEC-KITTY-LEDGER.md` (or fold into an existing terminology-canon ledger entry if
+      one exists) noting that the canonical `spec-template.md`'s "Key Entities" heading
+      still says "feature" instead of "mission," so every generated spec.md carries a
+      one-word Terminology Canon violation in its own template boilerplate.

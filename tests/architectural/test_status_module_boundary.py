@@ -33,12 +33,38 @@ Residual allow-list (post-WP10):
   promoting the relevant symbols into ``status/__init__.__all__``
   (lifecycle_events, work_package_lifecycle, reducer.materialize_snapshot,
   doctor.run_doctor, aggregate.InvalidMissionSlug) and refactoring the sync
-  SaaS fan-out handler onto facade helpers. The only remaining entry is the
-  permanent import-time cycle-breaker:
+  SaaS fan-out handler onto facade helpers. Three entries remain:
   - ``workspace/context.py`` — ``status.wp_metadata``
     (cycle-breaker: status/__init__ → .emit → workspace → .context; facade
     is not yet initialized when workspace.context loads at import time —
     permanent).
+  - ``upgrade/migrations/m_3_2_9_migrate_lifecycle_envelope.py`` —
+    ``status.migrate_lifecycle_envelope`` (WIRE-M2-03, 2026-08-22,
+    rework cycle 2 — temporary, needs a follow-up bead). The one symbol
+    this file still reaches directly, the ``migrate_lifecycle_envelope``
+    function, cannot be promoted onto the facade under its own name: that
+    name is identical to its home submodule's filename
+    (``status/migrate_lifecycle_envelope.py``), so promoting it would make
+    ``from specify_cli.status import migrate_lifecycle_envelope`` resolve
+    to the function everywhere — silently breaking the two pre-existing
+    tests that already use that exact shape to reach the MODULE via
+    Python's implicit submodule-fallback (``tests/status/
+    test_migrate_lifecycle_envelope.py``, ``tests/status/
+    test_migrate_lifecycle_envelope_node_id_parity.py``). The file's other
+    two symbols (``mission_event_log_path``, ``project_event_log_path``)
+    ARE routed through the facade — only this one colliding name is
+    deferred.
+  - ``runtime/next/committed_authority.py`` —
+    ``status.uninitialized_hint.feature_event_log_missing_error``
+    (convergence port PR #1066, 2026-09-03 — temporary). The verbatim
+    upstream pick of the next-committed-state-authority WP01 fail-loud
+    gate imports the error-message helper function-level from its home
+    submodule; the symbol is not on the ``status`` facade yet (upstream
+    has not promoted it either). TODO(triage): promote
+    ``feature_event_log_missing_error`` onto ``status/__init__.__all__``
+    and migrate this callsite to the facade, then remove this entry —
+    tracked with the #1065 manual re-port queue that carries this
+    mission's conflicted WP02 wiring.
 
 See also:
   - ``tests/architectural/test_shared_package_boundary.py`` — template / pattern
@@ -48,20 +74,23 @@ See also:
 from __future__ import annotations
 
 import ast
-import contextlib
 import pathlib
 import textwrap
 import time
 from pathlib import Path
 
 import pytest
-from pytestarch import EvaluableArchitecture, Rule
-from pytestarch.eval_structure.exceptions import ImpossibleMatch
 
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
+
+# The one status submodule an outside caller MAY import: the enumerated raw
+# append door (fsm-write-path-integrity-01M1TZV6 WP03, FR-010). Its importers
+# are gated by tests/architectural/test_status_unsafe_allowlist.py, not here.
+_UNSAFE_DOOR_NAME = "_unsafe"
+_UNSAFE_DOOR_MODULE = f"specify_cli.status.{_UNSAFE_DOOR_NAME}"
 
 # ---------------------------------------------------------------------------
 # Exemption documentation (C-004 — permanent plumbing exemptions)
@@ -99,8 +128,12 @@ _EXEMPT_FILES: frozenset[Path] = frozenset(
 # aggregate.InvalidMissionSlug symbols were promoted onto the ``status`` facade
 # (``status/__init__.__all__``), and the sync SaaS fan-out handler now consumes
 # ``build_saas_lifecycle_queue_event`` / ``repo_root_for_lifecycle_log`` from the
-# facade instead of reaching into ``status.lifecycle_events`` internals. The only
-# remaining entry is the permanent import-time cycle-breaker.
+# facade instead of reaching into ``status.lifecycle_events`` internals. Three
+# entries remain: the permanent import-time cycle-breaker, one temporary
+# WIRE-M2-03 entry pending a follow-up bead (see the module docstring above
+# for the full name-collision rationale on the latter), and one temporary
+# convergence-port entry (PR #1066) pending facade promotion of
+# ``feature_event_log_missing_error``.
 _WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
     {
         # cycle-breaker (permanent): status/__init__ → .emit → workspace →
@@ -108,6 +141,45 @@ _WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
         # import time, so it must import status.wp_metadata directly. Cannot be
         # routed through the facade without an import cycle.
         _SRC / "specify_cli" / "workspace" / "context.py",
+        # TEMPORARY (WIRE-M2-03, 2026-08-22, rework cycle 2): the sole
+        # remaining direct import in this file is
+        # ``from specify_cli.status.migrate_lifecycle_envelope import
+        # migrate_lifecycle_envelope`` -- the function's bare name is
+        # identical to its home submodule's filename
+        # (status/migrate_lifecycle_envelope.py), so promoting it onto the
+        # facade under that name would make ``from specify_cli.status
+        # import migrate_lifecycle_envelope`` resolve to the function
+        # everywhere and silently break the two pre-existing tests that
+        # rely on that exact shape resolving to the MODULE (via Python's
+        # implicit submodule fallback): tests/status/
+        # test_migrate_lifecycle_envelope.py (monkeypatches
+        # ``migrate_lifecycle_envelope_module.os.replace``) and
+        # tests/status/test_migrate_lifecycle_envelope_node_id_parity.py
+        # (calls the private ``_generate_node_id`` helper). This file's
+        # other two status imports (mission_event_log_path,
+        # project_event_log_path) ARE routed through the facade -- only
+        # this one colliding name is deferred. Follow-up bead: either
+        # rename the function to something that does not collide with its
+        # module's filename, or teach the SR-2 AST scanner to consult
+        # status/__init__.__all__ as an override for names that
+        # legitimately collide with a submodule filename.
+        _SRC
+        / "specify_cli"
+        / "upgrade"
+        / "migrations"
+        / "m_3_2_9_migrate_lifecycle_envelope.py",
+        # TEMPORARY (convergence port PR #1066, 2026-09-03): the verbatim
+        # upstream pick of next-committed-state-authority WP01
+        # (committed_authority.py) imports
+        # ``feature_event_log_missing_error`` function-level from
+        # ``status.uninitialized_hint`` for its fail-loud absent-log gate.
+        # The symbol is not on the ``status`` facade yet (upstream has not
+        # promoted it either). TODO(triage): promote it onto
+        # ``status/__init__.__all__``, migrate this callsite to
+        # ``from specify_cli.status import feature_event_log_missing_error``,
+        # and remove this entry — tracked with the #1065 manual re-port
+        # queue carrying this mission's conflicted WP02 wiring.
+        _SRC / "runtime" / "next" / "committed_authority.py",
     }
 )
 
@@ -135,40 +207,6 @@ class TestStatusModuleBoundary:
     from the allow-list is what makes this rule bite for those packages.
     """
 
-    def test_no_direct_status_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
-        """pytestarch rule: the 6 WP03 packages must not bypass the status facade.
-
-        Scoped to the WP03-owned packages (the regression-lock). Repo-wide
-        coverage is SR-2's job. C-004 plumbing (coordination.status_transition,
-        coordination.transaction) is not in these packages, so no exemption is
-        needed here.
-
-        pytestarch raises ``ImpossibleMatch`` when the constrained module is not
-        present in the evaluable graph at all; that is the rule passing (vacuously,
-        no such module found → no violations).
-        """
-        # WP03 fully-fixed packages: already clean, no violations allowed.
-        fully_fixed_packages = [
-            r"^specify_cli\.agent_utils(\..*)?$",
-            r"^specify_cli\.lanes(\..*)?$",
-            r"^specify_cli\.post_merge(\..*)?$",
-            r"^specify_cli\.missions(\..*)?$",
-            r"^specify_cli\.merge(\..*)?$",
-            r"^specify_cli\.next(\..*)?$",
-        ]
-
-        for pattern in fully_fixed_packages:
-            rule = (
-                Rule()
-                .modules_that()
-                .have_name_matching(pattern)
-                .should_not()
-                .import_modules_that()
-                .are_sub_modules_of("specify_cli.status")
-            )
-            # ImpossibleMatch: subject absent -> no importers -> rule satisfied.
-            with contextlib.suppress(ImpossibleMatch):
-                rule.assert_applies(evaluable)
 
 
 # ---------------------------------------------------------------------------
@@ -220,14 +258,72 @@ def scan_for_bypass_imports(
             node_lineno = getattr(node, "lineno", None)
             if node_lineno in type_checking_linenos:
                 continue
-            if isinstance(node, ast.ImportFrom) and node.module:
-                if _is_bypass_import(node.module):
-                    violations.append(f"{py_file}:{node_lineno}: {node.module}")
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    if _is_bypass_import(alias.name):
-                        violations.append(f"{py_file}:{node_lineno}: {alias.name}")
+            violations.extend(_bypass_violations_for_node(node, py_file, node_lineno))
     return violations
+
+
+def _bypass_violations_for_node(
+    node: ast.Import | ast.ImportFrom, py_file: pathlib.Path, node_lineno: int | None
+) -> list[str]:
+    """Return the (zero or more) bypass-violation strings a single import
+    node produces. Extracted (WP02, T009/NFR-004) so the caller's per-file /
+    per-node walk stays under the complexity ceiling once the alias-name
+    widening below is added alongside the pre-existing ``node.module`` check.
+    """
+    if isinstance(node, ast.ImportFrom) and node.module:
+        return _bypass_violations_for_import_from(node, py_file, node_lineno)
+    if isinstance(node, ast.Import):
+        return [
+            f"{py_file}:{node_lineno}: {alias.name}"
+            for alias in node.names
+            if _is_bypass_import(alias.name)
+        ]
+    return []
+
+
+def _bypass_violations_for_import_from(
+    node: ast.ImportFrom, py_file: pathlib.Path, node_lineno: int | None
+) -> list[str]:
+    """The ``ImportFrom``-specific half of :func:`_bypass_violations_for_node`.
+
+    Two independent bypass shapes:
+    1. ``from specify_cli.status.<submodule> import X`` -- the dotted-path
+       form; ``node.module`` itself names the submodule.
+    2. ``from specify_cli.status import <submodule>`` (WP02, T009) -- the
+       SAME bypass, handing the caller a raw submodule object instead of a
+       curated facade symbol. ``node.module`` can't see this shape (its
+       module IS the facade, ``"specify_cli.status"``); only the per-alias
+       name distinguishes a submodule handle from a legitimate facade symbol.
+    """
+    assert node.module is not None
+    if _is_bypass_import(node.module):
+        return [f"{py_file}:{node_lineno}: {node.module}"]
+    if node.module != "specify_cli.status":
+        return []
+    return [
+        f"{py_file}:{node_lineno}: {node.module}.{alias.name}"
+        for alias in node.names
+        if _is_status_submodule_name(alias.name)
+    ]
+
+
+def _is_status_submodule_name(name: str) -> bool:
+    """Return True if ``name`` names an actual ``specify_cli.status`` submodule.
+
+    ``name`` is the bare alias from ``from specify_cli.status import <name>``.
+    Resolved against the real submodule files on disk (``status/<name>.py``)
+    rather than any string-shape heuristic on ``name`` itself: a bare
+    ``name.startswith("specify_cli.status")`` (or an equivalent check against
+    a reconstructed ``f"{node.module}.{alias.name}"``) would be vacuously
+    true for every facade-symbol import too -- ``node.module`` is ALWAYS
+    ``"specify_cli.status"`` at this call site -- and would flag 100+
+    legitimate ``from specify_cli.status import <symbol>`` sites (C-003).
+    ``__init__`` is excluded explicitly: it is the package's own module file,
+    never a submodule alias a caller would import by that name.
+    """
+    if name in {"__init__", _UNSAFE_DOOR_NAME}:
+        return False
+    return (_SRC / "specify_cli" / "status" / f"{name}.py").is_file()
 
 
 def _collect_type_checking_linenos(tree: ast.AST) -> set[int]:
@@ -251,10 +347,19 @@ def _collect_type_checking_linenos(tree: ast.AST) -> set[int]:
 
 
 def _is_bypass_import(module_name: str) -> bool:
-    """Return True if the module is a direct status submodule import (bypass)."""
+    """Return True if the module is a direct status submodule import (bypass).
+
+    ``specify_cli.status._unsafe`` is NOT a bypass: it is the sanctioned,
+    enumerated door for the raw append primitives (fsm-write-path-integrity
+    WP03, FR-010), gated separately by
+    ``tests/architectural/test_status_unsafe_allowlist.py`` (every importer
+    must be in ``_unsafe.ALLOWED_CALLERS``, shrink-only). Treating it as a
+    bypass here would force each allowed writer onto ``_ALL_EXEMPT_FILES``
+    and widen THIS gate's exemption ledger for a door another gate owns.
+    """
     return (
         module_name.startswith("specify_cli.status.")
-        and module_name != "specify_cli.status"
+        and module_name not in {"specify_cli.status", _UNSAFE_DOOR_MODULE}
     )
 
 
@@ -360,6 +465,89 @@ def test_ast_scan_catches_injected_violation(tmp_path: pathlib.Path) -> None:
     )
 
 
+def test_ast_scan_catches_submodule_object_import(tmp_path: pathlib.Path) -> None:
+    """Two-way teeth (WP02, T009, NFR-002), flagged half.
+
+    A fabricated ``from specify_cli.status import verdict_vocab`` -- the
+    exact bypass shape WP02 migrated away from at all 8 verdict_vocab call
+    sites -- must be caught. Proves the alias-name widening (not just the
+    pre-existing ``node.module`` dotted-path check) has teeth on its own.
+    """
+    bad_file = tmp_path / "bad_submodule_alias_import.py"
+    bad_file.write_text(
+        textwrap.dedent(
+            """
+            # Synthetic SR-2 violator -- submodule-object-via-facade shape.
+            from specify_cli.status import verdict_vocab  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([bad_file], exempt_files=set())
+    assert len(violations) == 1, (
+        f"Expected exactly 1 violation, got {len(violations)}: {violations}"
+    )
+    assert "specify_cli.status.verdict_vocab" in violations[0], (
+        f"Expected 'specify_cli.status.verdict_vocab' in violation string, "
+        f"got: {violations[0]}"
+    )
+
+
+def test_ast_scan_does_not_flag_facade_symbol_import(tmp_path: pathlib.Path) -> None:
+    """Two-way teeth (WP02, T009, NFR-002), unflagged half.
+
+    A fabricated ``from specify_cli.status import is_approved`` -- a curated
+    facade **symbol**, not a submodule object -- must NOT be flagged. Guards
+    against the C-003 trap: a bare ``startswith("specify_cli.status")`` shape
+    check on the imported name (or on a reconstructed ``module.alias`` string)
+    would be vacuously true for this import too, since ``node.module`` is
+    always ``"specify_cli.status"`` at this call site -- that shape would
+    flag every one of the 100+ legitimate facade-symbol imports across the
+    repo, not just the ~12 real submodule-object bypasses.
+    """
+    good_file = tmp_path / "good_facade_symbol_import.py"
+    good_file.write_text(
+        textwrap.dedent(
+            """
+            # A legitimate facade-symbol import -- must never be flagged.
+            from specify_cli.status import is_approved  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([good_file], exempt_files=set())
+    assert not violations, (
+        f"Facade-symbol import must not be flagged as a bypass, got: {violations}"
+    )
+
+
+def test_ast_scan_does_not_flag_the_sanctioned_unsafe_door(tmp_path: pathlib.Path) -> None:
+    """The ``status._unsafe`` door is gated elsewhere, not a bypass here.
+
+    fsm-write-path-integrity-01M1TZV6 WP03 (FR-010): the raw append
+    primitives left the facade for ``specify_cli.status._unsafe``. Both import
+    shapes of that door must pass SR-2 unflagged -- its importers are
+    enumerated and shrink-only under ``test_status_unsafe_allowlist.py``.
+    """
+    door_file = tmp_path / "allowed_unsafe_door_import.py"
+    door_file.write_text(
+        textwrap.dedent(
+            """
+            from specify_cli.status._unsafe import append_raw_rows_atomic  # noqa: F401
+            from specify_cli.status import _unsafe  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([door_file], exempt_files=set())
+    assert not violations, (
+        f"The sanctioned _unsafe door must not be flagged as a bypass, got: {violations}"
+    )
+
+
 def test_ast_scan_ignores_type_checking_imports(tmp_path: pathlib.Path) -> None:
     """Verify that TYPE_CHECKING-guarded imports are not flagged as violations.
 
@@ -386,40 +574,4 @@ def test_ast_scan_ignores_type_checking_imports(tmp_path: pathlib.Path) -> None:
     violations = scan_for_bypass_imports([safe_file], exempt_files=set())
     assert not violations, (
         f"TYPE_CHECKING imports should not be flagged as violations, got: {violations}"
-    )
-
-
-def test_ast_scan_allow_list_covers_known_residuals() -> None:
-    """Guard against allow-list rot in ``_WP10_DEFERRED_FILES``.
-
-    Two ways an entry goes stale, both caught here:
-
-    1. **Deleted file** still listed — the path no longer exists on disk.
-    2. **Migrated file** still listed — the file exists but no longer contains
-       any deep ``specify_cli.status.*`` import (someone routed it onto the
-       facade but forgot to remove it from the allow-list). A file-exists check
-       alone misses this; we re-scan each allow-listed file *without* exemptions
-       and require it to still produce ≥1 bypass violation, so a migrated-but-
-       not-delisted file fails the guard and the ledger self-polices as it
-       shrinks.
-    """
-    missing = [p for p in _WP10_DEFERRED_FILES if not p.exists()]
-    assert not missing, (
-        f"Files in _WP10_DEFERRED_FILES no longer exist on disk "
-        f"({len(missing)} entries):\n"
-        + "\n".join(f"  {p}" for p in sorted(missing))
-        + "\n\nRemove stale entries from _WP10_DEFERRED_FILES."
-    )
-
-    existing = [p for p in _WP10_DEFERRED_FILES if p.exists()]
-    # Scan WITHOUT exemptions: a still-justified entry must itself produce ≥1
-    # bypass violation. Zero violations ⇒ the file was migrated onto the facade
-    # and the allow-list entry is now dead weight.
-    no_longer_violating = [p for p in existing if not scan_for_bypass_imports([p])]
-    assert not no_longer_violating, (
-        f"Files in _WP10_DEFERRED_FILES no longer contain a deep "
-        f"``specify_cli.status.*`` import ({len(no_longer_violating)} entries):\n"
-        + "\n".join(f"  {p}" for p in sorted(no_longer_violating))
-        + "\n\nThese were migrated onto the status facade but left in the "
-        "allow-list. Remove them from _WP10_DEFERRED_FILES."
     )

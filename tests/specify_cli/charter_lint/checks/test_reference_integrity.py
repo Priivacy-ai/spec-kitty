@@ -10,7 +10,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.charter_runtime.lint.checks.reference_integrity import ReferenceIntegrityChecker
+from specify_cli.charter_runtime.lint.checks.reference_integrity import (
+    ReferenceIntegrityChecker,
+    _edge_relation_value,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +151,73 @@ class TestSupersededADRReferences:
 # ---------------------------------------------------------------------------
 # Tests — missing/empty DRG
 # ---------------------------------------------------------------------------
+
+
+class TestEdgeRelationValueHelper:
+    """Direct coverage for the extracted ``_edge_relation_value`` helper.
+
+    Extracted (and de-duplicated between the two checks) during Sonar S3776
+    cognitive-complexity remediation of ``_check_superseded_adr_references``.
+    """
+
+    def test_string_relation_returned_as_is(self):
+        edge = _make_edge("wp:WP01", "adr:ADR-001", "replaces")
+        assert _edge_relation_value(edge) == "replaces"
+
+    def test_enum_like_relation_uses_value_attribute(self):
+        edge = SimpleNamespace(
+            source="wp:WP01", target="adr:ADR-001", relation=SimpleNamespace(value="replaces")
+        )
+        assert _edge_relation_value(edge) == "replaces"
+
+    def test_none_relation_returns_empty_string(self):
+        edge = _make_edge("wp:WP01", "adr:ADR-001", None)
+        assert _edge_relation_value(edge) == ""
+
+    def test_missing_relation_attribute_returns_empty_string(self):
+        edge = SimpleNamespace(source="wp:WP01", target="adr:ADR-001")
+        assert _edge_relation_value(edge) == ""
+
+
+class TestSupersededHelpers:
+    """Direct coverage for the extracted superseded-ADR helper functions."""
+
+    def test_collect_superseded_adrs_only_from_replaces_edges(self):
+        replaces_edge = _make_edge("adr:ADR-002", "adr:ADR-001", "replaces")
+        other_edge = _make_edge("wp:WP01", "adr:ADR-003", "references")
+        drg = _make_drg(nodes=[], edges=[replaces_edge, other_edge])
+        result = ReferenceIntegrityChecker._collect_superseded_adrs(drg)
+        assert result == {"adr:ADR-001"}
+
+    def test_collect_superseded_adrs_ignores_empty_target(self):
+        replaces_edge = _make_edge("adr:ADR-002", "", "replaces")
+        drg = _make_drg(nodes=[], edges=[replaces_edge])
+        result = ReferenceIntegrityChecker._collect_superseded_adrs(drg)
+        assert result == set()
+
+    def test_iter_wp_to_superseded_edges_filters_non_wp_sources(self):
+        edge = _make_edge("directive:DIR-001", "adr:ADR-001", "governs")
+        drg = _make_drg(nodes=[], edges=[edge])
+        result = ReferenceIntegrityChecker._iter_wp_to_superseded_edges(
+            drg, {"adr:ADR-001"}
+        )
+        assert result == []
+
+    def test_iter_wp_to_superseded_edges_filters_non_superseded_targets(self):
+        edge = _make_edge("wp:WP01", "adr:ADR-002", "references")
+        drg = _make_drg(nodes=[], edges=[edge])
+        result = ReferenceIntegrityChecker._iter_wp_to_superseded_edges(
+            drg, {"adr:ADR-001"}
+        )
+        assert result == []
+
+    def test_iter_wp_to_superseded_edges_yields_matching_pair(self):
+        edge = _make_edge("wp:WP01", "adr:ADR-001", "references")
+        drg = _make_drg(nodes=[], edges=[edge])
+        result = ReferenceIntegrityChecker._iter_wp_to_superseded_edges(
+            drg, {"adr:ADR-001"}
+        )
+        assert result == [("wp:WP01", "adr:ADR-001")]
 
 
 class TestReferenceIntegrityCheckerMissingDRG:

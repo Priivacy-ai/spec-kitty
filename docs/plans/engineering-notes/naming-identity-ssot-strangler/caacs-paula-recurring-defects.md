@@ -1,7 +1,7 @@
 ---
 title: Paula Patterns — CaaCS Recurring-Defect / Temporal Backing for the Naming-Identity SSOT Strangler (3.2.1)
 description: "Paula Patterns' CaaCS recurring-defect and temporal backing for the naming/identity SSOT strangler: forensic evidence behind the static duplication map (3.2.1)."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # Paula Patterns — CaaCS Recurring-Defect / Temporal Backing for the Naming-Identity SSOT Strangler (3.2.1)
@@ -208,9 +208,9 @@ So Shape B-root is **confirmed but small and already mostly closed**; its guard 
 ### Class 4 — Ownership pattern-vs-existence (Shape E / #1888) · **confirmed, single-shot, closed**
 
 `ownership/validation.py` (8 fix-touches). The class is real but **already closed by
-#1886** (`validate_glob_matches`, hard error on literal zero-match). No recurring trail
-after the fix — a *one-shot* defect, not a multi-fix saga. Disposition: **verify-and-close
-+ carry the exact-typo regression test** (matches the static note and the overview). Guard
+issue #1886** (`validate_glob_matches`, hard error on literal zero-match). No recurring trail
+after the fix — a *one-shot* defect, not a multi-fix saga. Disposition: **verify-and-close +
+carry the exact-typo regression test** (matches the static note and the overview). Guard
 ROI: low (the hard-error branch is already the guard).
 
 ---

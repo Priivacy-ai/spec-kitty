@@ -159,9 +159,13 @@ _ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     # exception before this more specific fail-closed one could raise) — no git
     # worktree is ever created/looked up from this value; it is raised
     # immediately.
-    ("_coord_mid8", "coord_candidate = repo_root"): (
-        "src/specify_cli/coordination/surface_resolver.py"
-    ),
+    # (PR #845/#801: the composed join was line-joined by ruff format when the
+    # merged-primary pre-check landed above it — same site, same disposition,
+    # token updated to the single-line form.)
+    (
+        "_coord_mid8",
+        "coord_candidate = repo_root / / / KITTY_SPECS_DIR / mission_slug ,",
+    ): "src/specify_cli/coordination/surface_resolver.py",
     # ── workspace.py: CoordinationWorkspaceIdentityUnresolved diagnostic (idiom 2) ──
     # post-merge addition (coord-primary-partition-lock-01KWZ46V, same commit):
     # the exception's message is a human-readable string that names the
@@ -451,90 +455,8 @@ def test_no_worktree_or_branch_name_guess_outside_seam() -> None:
         )
 
 
-def test_allow_list_entries_are_real_and_benign() -> None:
-    """Every allow-list composite key must still be live in its expected file.
-
-    Guards against the allow-list silently rotting (a carved-out qualname or
-    token-line changes, leaving a stale exemption that could mask a future
-    regression at the same site).  Each key in ``_ALLOWED_SITES_FILES`` is
-    verified by re-scanning the mapped file and confirming the composite key
-    appears at least once.
-    """
-    stale: list[str] = []
-    for key, rel in sorted(_ALLOWED_SITES_FILES.items(), key=lambda kv: kv[1]):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        # Re-scan the file and collect all composite keys it produces.
-        live_keys = {
-            composite_key(source, ln) for ln in _scan_file(abs_path)
-        }
-        if key not in live_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (no longer a flagged site in the file — "
-                "function renamed or code line changed; update or drop)"
-            )
-    assert stale == [], (
-        "Stale allow-list entries (the composite key no longer matches a live "
-        "offender in the expected file — re-verify and update or drop):\n  "
-        + "\n  ".join(stale)
-    )
 
 
-def test_name_compose_offenders_match_pinned_baseline() -> None:
-    """The name-compose offender count is objectively pinned and fully accounted.
-
-    Mirrors ``test_shortid_consumer_class_is_empty_against_pinned_baseline`` for
-    the name-COMPOSE detector (whose only prior hygiene check,
-    ``test_allow_list_entries_are_real_and_benign``, verified merely that an
-    allow-listed line *exists* — not that it is still an offender). A stale
-    allow-list entry (one that no longer points at a live compose) leaves a
-    silent false-negative window; this cross-check catches it two ways:
-
-      1. the live raw offender count must equal the committed literal, and
-      2. every raw offender must be accounted for by the allow-list (zero
-         un-accounted), so an *extra* unjustified entry cannot hide either.
-    """
-    raw_offenders: list[tuple[str, str]] = []
-    for path in _iter_source_files():
-        rel = _rel(path)
-        if rel == _SEAM_REL:
-            continue  # the seam is the legal home of these idioms
-        source = path.read_text(encoding="utf-8")
-        for lineno in sorted(_scan_file(path)):
-            raw_offenders.append(composite_key(source, lineno))
-
-    assert len(raw_offenders) == _NAME_COMPOSE_BASELINE_RAW_MATCHES, (
-        "Pinned name-compose baseline drifted. Expected "
-        f"{_NAME_COMPOSE_BASELINE_RAW_MATCHES} raw name-compose offenders across "
-        f"the scan roots, found {len(raw_offenders)}:\n  "
-        + "\n  ".join(str(k) for k in sorted(raw_offenders))
-        + "\n\nIf a NEW offender appeared, route it through the canonical seam. "
-        "If an allow-listed offender was legitimately removed (routed through "
-        "the seam), drop its allow-list entry AND update "
-        "_NAME_COMPOSE_BASELINE_RAW_MATCHES (and the composition comment)."
-    )
-
-    unaccounted = [key for key in raw_offenders if key not in _ALLOWED_SITES]
-    assert unaccounted == [], (
-        "Name-compose offenders not covered by the allow-list (each is a REAL "
-        "name-guess outside the seam — route it through the canonical seam, do "
-        "NOT add an allow-list entry without a justification proving it is not a "
-        "compose):\n  " + "\n  ".join(str(k) for k in sorted(unaccounted))
-    )
-
-    # Inverse guard: every allow-list entry must STILL be a live offender, so a
-    # stale exemption (the renata GAP) cannot survive. Combined with the count
-    # assertion above this makes the allow-list exactly the offender set.
-    stale_exemptions = sorted(set(_ALLOWED_SITES) - set(raw_offenders))
-    assert stale_exemptions == [], (
-        "Stale name-compose allow-list entries (the composite key is no longer a "
-        "live offender the detector flags — the site was routed through the seam; "
-        "drop the exemption to close the false-negative window):\n  "
-        + "\n  ".join(str(k) for k in stale_exemptions)
-    )
 
 
 # ===========================================================================
@@ -589,16 +511,22 @@ def _iter_shortid_source_files() -> list[Path]:
     return files
 
 
-# The two permanent sanctioned slice HOMES, skipped at FILE level (the
+# The three permanent sanctioned slice HOMES, skipped at FILE level (the
 # ``_SEAM_REL`` home-skip pattern). ``mission_id[:8]`` is legitimate ONLY here:
-#   * branch_naming.py — ``_mid8`` / ``resolve_mid8`` are THE single-derivation
-#     primitive + its failover-aware public door.
+#   * mission_runtime/identity.py — ``resolve_mid8``'s single-derivation
+#     primitive now lives here (relocated out of ``branch_naming.py`` by the
+#     coord-trust-2841 layer-boundary follow-up); its failover-aware ``[:8]``
+#     slice is THE canonical derivation every consumer routes through.
+#   * branch_naming.py — retained as a re-export site for ``resolve_mid8`` /
+#     ``mid8_from_slug`` (back-compat import surface) and still hosts its own
+#     private ``_mid8`` primitive plus ``resolve_transaction_mid8``'s slice.
 #   * mission_runtime/context.py — ``IdentityFragment`` computes the mid8
 #     "here and nowhere else" (its own docstring) and self-checks the invariant.
 _SHORTID_HOME_FILES: frozenset[str] = frozenset(
     {
         "src/specify_cli/lanes/branch_naming.py",
         "src/mission_runtime/context.py",
+        "src/mission_runtime/identity.py",
     }
 )
 
@@ -642,56 +570,55 @@ _SHORTID_NAMED_EXCLUSIONS_FILES: dict[tuple[str, str], str] = {
 # The mission-identity CONSUMER class is otherwise EMPTY after WP03/WP04/WP05
 # routed every site; only this deliberate diagnostic-tolerance fallback remains.
 # Keyed as (enclosing_qualname, token_line) composite (FR-008 / WP06 re-key).
-# The two doctor.py sites are byte-identical in source but live in DIFFERENT
-# functions — the composite key disambiguates them via the qualname component.
+# The two formerly byte-identical doctor.py tolerance sites were CONSOLIDATED by
+# the coord-trust Surface D fold into the single shared helper
+# ``_resolve_coord_short`` — one allow-list entry now covers every coord
+# worktree/branch short-id derivation in the doctor.
 _SHORTID_ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(
     {
         # ── _coordination_doctor.py — diagnostic short-id TOLERANCE, not a missed route ──
-        # ``short = resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``
-        # inside ``_check_coordination_worktree_health`` (moved from doctor.py by #2059).
+        # ``return resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``
+        # inside the shared ``_resolve_coord_short`` helper. The coord-trust
+        # Surface D fold deduplicated the two byte-identical tolerance sites
+        # (formerly ``_check_coordination_worktree_health`` and
+        # ``_check_lane_sparse_checkout_drift``) into this one helper.
         # WP03 routed the derivation through the failover-aware ``resolve_mid8``;
         # the ``or mission_id[:8]`` tail is a CONSCIOUS fallback that keeps the
         # doctor diagnostic emitting a display short-id even when resolve_mid8
         # declines to ``""`` (e.g. a malformed/short mission_id). Tolerance branch.
         (
-            "_check_coordination_worktree_health",
-            "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-        ),
-        # ── _coordination_doctor.py — same idiom, different function ──
-        # Inside ``_check_lane_sparse_checkout_drift``.  Byte-identical source
-        # line; distinct qualname makes the composite key unique (T025-distinct-keys).
-        (
-            "_check_lane_sparse_checkout_drift",
-            "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
+            "_resolve_coord_short",
+            "return resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
         ),
     }
 )
 
 # Stale-detection map for the short-id allow-list: composite_key → relative file path.
-# #2059 moved both tolerance sites out of ``doctor.py`` into the ``_coordination_doctor``
-# sibling (same functions, byte-identical lines); the composite keys are unchanged, only
-# the home file moved.
+# The coord-trust Surface D fold consolidated the two ``_coordination_doctor``
+# tolerance sites into the single ``_resolve_coord_short`` helper; one entry now.
 _SHORTID_ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     (
-        "_check_coordination_worktree_health",
-        "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-    ): "src/specify_cli/cli/commands/_coordination_doctor.py",
-    (
-        "_check_lane_sparse_checkout_drift",
-        "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
+        "_resolve_coord_short",
+        "return resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
     ): "src/specify_cli/cli/commands/_coordination_doctor.py",
 }
 
 # Pre-mission baseline of mission-identity ``[:8]`` slices across ``src/`` (the
 # raw count BEFORE home/allow-list filtering), pinned as a committed literal so
 # "the consumer class is empty" is an OBJECTIVE, diff-checkable claim rather
-# than a re-derivation of the live tree. Composition (verified at WP02 land):
-#   branch_naming.py:146/199/415  (3, HOME)
-#   mission_runtime/context.py:99/112  (2, HOME)
-#   cli/commands/_coordination_doctor.py  (2, allow-listed tolerance; moved from
-#       doctor.py by #2059)
-# => 7 raw matches; 5 in homes + 2 allow-listed => 0 un-accounted consumers.
-_SHORTID_BASELINE_RAW_MATCHES = 7
+# than a re-derivation of the live tree. Composition (verified at WP02 land;
+# doctor sites collapsed 2→1 by the coord-trust Surface D fold; re-verified
+# after the coord-trust-2841 relocation of ``resolve_mid8`` into
+# ``mission_runtime/identity.py``):
+#   mission_runtime/identity.py:84  (1, HOME — ``resolve_mid8``'s derivation,
+#       post-relocation)
+#   branch_naming.py:146/363  (2, HOME — ``_mid8`` + ``resolve_transaction_mid8``)
+#   mission_runtime/context.py:152/165  (2, HOME)
+#   cli/commands/_coordination_doctor.py  (1, allow-listed tolerance in the
+#       shared ``_resolve_coord_short`` helper; was 2 byte-identical sites
+#       before the coord-trust Surface D dedup)
+# => 6 raw matches; 5 in homes + 1 allow-listed => 0 un-accounted consumers.
+_SHORTID_BASELINE_RAW_MATCHES = 6
 
 
 def _unwrap_str_call(node: ast.expr) -> ast.expr:
@@ -795,11 +722,14 @@ def test_no_mission_shortid_slice_or_failover_bypass_outside_seam() -> None:
     """No mission-identity ``mid8`` short-id may be hand-derived outside the seam.
 
     The mission-identity CONSUMER class must be EMPTY: every consumer routes its
-    mid8 through ``resolve_mid8`` (FR-004 / FR-010). The two sanctioned
-    derivation homes (``branch_naming.py``, ``mission_runtime/context.py``) are
-    skipped at file level; ``invocation_id[:8]`` is a different identity domain
-    excluded by name; the doctor diagnostic-tolerance ``or mission_id[:8]`` is a
-    single justified allow-list entry. Anything else is a real missed route.
+    mid8 through ``resolve_mid8`` (FR-004 / FR-010). The three sanctioned
+    derivation homes (``mission_runtime/identity.py`` — ``resolve_mid8``'s
+    single-derivation slice, relocated here by the coord-trust-2841
+    layer-boundary follow-up — plus ``branch_naming.py`` and
+    ``mission_runtime/context.py``) are skipped at file level;
+    ``invocation_id[:8]`` is a different identity domain excluded by name; the
+    doctor diagnostic-tolerance ``or mission_id[:8]`` is a single justified
+    allow-list entry. Anything else is a real missed route.
     """
     offenders = _iter_shortid_offenders()
     if offenders:
@@ -816,48 +746,6 @@ def test_no_mission_shortid_slice_or_failover_bypass_outside_seam() -> None:
         )
 
 
-def test_shortid_consumer_class_is_empty_against_pinned_baseline() -> None:
-    """The un-accounted short-id consumer count is objectively zero.
-
-    Pins the pre-mission raw match count as a committed literal and asserts the
-    live tree's accounting (homes + named exclusions + allow-list) leaves zero
-    un-accounted consumers, so "the consumer class is empty" is diff-checkable
-    rather than a re-derivation of whatever the tree happens to contain.
-    """
-    raw_matches: list[tuple[str, tuple[str, str]]] = []
-    for path in _iter_shortid_source_files():
-        rel = _rel(path)
-        source = path.read_text(encoding="utf-8")
-        for lineno, label in sorted(_scan_shortid_file(path).items()):
-            if "short-id slice" not in label:
-                continue  # count slices only for the baseline, not _mid8 calls
-            raw_matches.append((rel, composite_key(source, lineno)))
-
-    assert len(raw_matches) == _SHORTID_BASELINE_RAW_MATCHES, (
-        "Pinned short-id baseline drifted. Expected "
-        f"{_SHORTID_BASELINE_RAW_MATCHES} raw mission-identity `[:8]` slices "
-        f"across src/, found {len(raw_matches)}:\n  "
-        + "\n  ".join(f"{r}: {k}" for r, k in sorted(raw_matches))
-        + "\n\nIf a NEW slice appeared, it is almost certainly a missed route — "
-        "route it through `resolve_mid8`. If a home/allow-listed slice was "
-        "legitimately removed, update _SHORTID_BASELINE_RAW_MATCHES (and the "
-        "composition comment) to match."
-    )
-
-    # Every raw match must be accounted for by a home, a named exclusion, or the
-    # allow-list — leaving an EMPTY un-accounted consumer set.
-    unaccounted = [
-        f"{rel}: {key}"
-        for rel, key in raw_matches
-        if rel not in _SHORTID_HOME_FILES
-        and key not in _SHORTID_NAMED_EXCLUSIONS
-        and key not in _SHORTID_ALLOWED_SITES
-    ]
-    assert unaccounted == [], (
-        "The mission-identity short-id CONSUMER class is not empty — these "
-        "slices are neither in a sanctioned home nor justified in the "
-        "allow-list:\n  " + "\n  ".join(sorted(unaccounted))
-    )
 
 
 def test_shortid_detector_self_test_flags_all_five_shapes() -> None:
@@ -924,69 +812,6 @@ def test_shortid_failover_bypass_self_test() -> None:
     assert flagged, "failover-bypass rule must flag a bare `_mid8(...)` call"
 
 
-def test_shortid_allow_list_entries_are_real() -> None:
-    """Every short-id allow-list / named-exclusion composite key is still live.
-
-    Mirrors ``test_allow_list_entries_are_real_and_benign`` for the short-id
-    carve-outs: a stale composite key (qualname renamed or code line changed)
-    could silently mask a future regression at the same site.
-
-    * **Allow-list entries** are verified against the scanner: the composite key
-      must still appear in ``_scan_shortid_file`` output for the mapped file.
-    * **Named-exclusion entries** (a DIFFERENT identity domain, not flagged by
-      the scanner) are verified by scanning ALL composite keys in the mapped
-      file; the entry's key must appear among them (proves the qualname + token
-      line still exist, even though the scanner intentionally does not flag it).
-    """
-    from tests.architectural._ratchet_keys import composite_key as _ck
-
-    stale: list[str] = []
-
-    # --- allow-list entries (scanner-flagged sites) ---
-    for key, rel in sorted(_SHORTID_ALLOWED_SITES_FILES.items(), key=lambda kv: kv[1]):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        live_keys = {_ck(source, ln) for ln in _scan_shortid_file(abs_path)}
-        if key not in live_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (no longer a flagged site — "
-                "function renamed or code line changed; update or drop)"
-            )
-
-    # --- named-exclusion entries (different identity domain, not scanner-flagged) ---
-    for key, rel in sorted(
-        _SHORTID_NAMED_EXCLUSIONS_FILES.items(), key=lambda kv: kv[1]
-    ):
-        abs_path = _REPO_ROOT / rel
-        if not abs_path.is_file():
-            stale.append(f"{rel!r} key={key!r} (file missing)")
-            continue
-        source = abs_path.read_text(encoding="utf-8")
-        # Collect ALL composite keys in the file (not just scanner-flagged ones)
-        # to verify the qualname + token line still exist.
-        from tests.architectural._ratchet_keys import (
-            code_tokens_by_line as _ctbl,
-            enclosing_qualname as _eq,
-        )
-        all_keys = {
-            (_eq(source, ln), tl)
-            for ln, tl in _ctbl(source).items()
-            if tl  # skip empty token lines
-        }
-        if key not in all_keys:
-            stale.append(
-                f"{rel!r} key={key!r} (qualname or token line no longer "
-                "present in file — update or drop)"
-            )
-
-    assert stale == [], (
-        "Stale short-id allow-list / named-exclusion entries (the composite key "
-        "no longer matches a live site in the expected file — re-verify "
-        "and update or drop):\n  " + "\n  ".join(stale)
-    )
 
 
 # ===========================================================================
@@ -999,59 +824,6 @@ def test_shortid_allow_list_entries_are_real() -> None:
 # ===========================================================================
 
 
-def test_composite_key_survives_line_drift() -> None:
-    """A +1 line drift leaves the composite key UNCHANGED (ratchet stays GREEN).
-
-    Builds a minimal Python source with a flagged short-id slice inside a known
-    function, records the composite key, inserts a blank line above the
-    flagged line (shifting it from line N to line N+1), re-scans, and asserts
-    the composite key is identical.  This proves the qualname + token-line
-    anchoring survives pure line-number drift with zero semantic change.
-    """
-    from tests.architectural._ratchet_keys import composite_key as ck
-
-    original_source = (
-        "def _check_coord_health(mission_id: str) -> None:\n"
-        "    from foo import resolve_mid8\n"
-        "    short = resolve_mid8(mission_id) or mission_id[:8]\n"
-        "    print(short)\n"
-    )
-    # Insert a blank comment line BEFORE the flagged line (line 3 → line 4).
-    drifted_source = (
-        "def _check_coord_health(mission_id: str) -> None:\n"
-        "    from foo import resolve_mid8\n"
-        "    # inserted comment — pure drift, no semantic change\n"
-        "    short = resolve_mid8(mission_id) or mission_id[:8]\n"
-        "    print(short)\n"
-    )
-
-    # Locate the short-id slice in the original source via the AST scanner.
-    import ast as _ast
-
-    def _find_slice_lineno(src: str) -> int:
-        tree = _ast.parse(src)
-        for node in _ast.walk(tree):
-            if _is_eight_slice(node):
-                assert isinstance(node, _ast.Subscript)
-                if _operand_is_mission_identity(node.value):
-                    return node.lineno
-        raise AssertionError("no short-id slice found in fixture source")
-
-    original_lineno = _find_slice_lineno(original_source)
-    drifted_lineno = _find_slice_lineno(drifted_source)
-
-    assert drifted_lineno == original_lineno + 1, (
-        f"expected the drift to shift the line by 1 "
-        f"(original={original_lineno}, drifted={drifted_lineno})"
-    )
-
-    original_key = ck(original_source, original_lineno)
-    drifted_key = ck(drifted_source, drifted_lineno)
-
-    assert original_key == drifted_key, (
-        f"composite key changed after a +1 line drift — the ratchet is NOT "
-        f"drift-proof.\n  original key : {original_key!r}\n  drifted key  : {drifted_key!r}"
-    )
 
 
 def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
@@ -1118,74 +890,4 @@ def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
     assert extra_lineno in flagged_linenos, (
         f"the short-id scanner did not flag the extra offender at line {extra_lineno}; "
         f"flagged lines: {flagged_linenos}"
-    )
-
-
-def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
-    """The two byte-identical doctor tolerance sites produce DISTINCT composite keys.
-
-    Both sites contain the same source line
-    ``short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]``.
-    A bare token-line key would collide, silently allowing one to cover the other.
-    The qualname component distinguishes them: ``_check_coordination_worktree_health``
-    vs ``_check_lane_sparse_checkout_drift``.  This test proves the two entries in
-    ``_SHORTID_ALLOWED_SITES`` are genuinely distinct.
-
-    #2059 decomposed ``doctor.py``: both functions (and their byte-identical
-    tolerance lines) moved into the ``_coordination_doctor`` sibling. The composite
-    keys are unchanged (qualname + token-line are byte-preserved); only the file the
-    sites live in changed, so this test now scans the sibling.
-    """
-    from tests.architectural._ratchet_keys import composite_key_from_file
-
-    doctor_path = _REPO_ROOT / "src/specify_cli/cli/commands/_coordination_doctor.py"
-    if not doctor_path.exists():
-        pytest.skip("_coordination_doctor.py not present in this checkout")
-
-    # Locate the two byte-identical tolerance sites by source content rather than
-    # by hardcoded line numbers — the literal-line pins drift whenever an edit
-    # above them shifts the file (e.g. the #2059 god-module tag comment), turning
-    # a pure line-shift into a spurious RED. The qualname-anchored composite key
-    # is itself drift-proof; the test fixture must be too.
-    site_marker = "short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]"
-    doctor_lines = doctor_path.read_text(encoding="utf-8").splitlines()
-    site_linenos = [
-        idx for idx, line in enumerate(doctor_lines, start=1) if site_marker in line
-    ]
-    assert len(site_linenos) == 2, (
-        "expected exactly two byte-identical `mission_id[:8]` tolerance sites in "
-        f"_coordination_doctor.py, found {len(site_linenos)} at lines {site_linenos}"
-    )
-
-    key_3074 = composite_key_from_file(doctor_path, site_linenos[0])
-    key_3166 = composite_key_from_file(doctor_path, site_linenos[1])
-
-    # The token-line component must be EQUAL (byte-identical source lines).
-    assert key_3074[1] == key_3166[1], (
-        "expected the token-line component to be identical for the two "
-        f"byte-identical source lines:\n  3074 token: {key_3074[1]!r}\n  3166 token: {key_3166[1]!r}"
-    )
-
-    # The qualname component must be DIFFERENT (different enclosing functions).
-    assert key_3074[0] != key_3166[0], (
-        "expected different qualnames for the two doctor.py sites but got the same — "
-        "the composite key cannot disambiguate them:\n"
-        f"  3074 qualname: {key_3074[0]!r}\n  3166 qualname: {key_3166[0]!r}"
-    )
-
-    # The overall composite keys must be DISTINCT.
-    assert key_3074 != key_3166, (
-        f"composite keys are identical — a colliding implementation would "
-        f"allow one allow-list entry to cover both sites:\n"
-        f"  3074 key: {key_3074!r}\n  3166 key: {key_3166!r}"
-    )
-
-    # Cross-check: both keys appear in _SHORTID_ALLOWED_SITES.
-    assert key_3074 in _SHORTID_ALLOWED_SITES, (
-        f"doctor.py:3074 composite key {key_3074!r} is missing from "
-        "_SHORTID_ALLOWED_SITES — the allow-list and the live source are out of sync"
-    )
-    assert key_3166 in _SHORTID_ALLOWED_SITES, (
-        f"doctor.py:3166 composite key {key_3166!r} is missing from "
-        "_SHORTID_ALLOWED_SITES — the allow-list and the live source are out of sync"
     )

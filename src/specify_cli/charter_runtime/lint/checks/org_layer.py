@@ -14,13 +14,11 @@ yet shipped — they simply return an empty finding list.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
-if TYPE_CHECKING:
-    from charter.pack_context import PackContext
-
+KITTIFY_DIR_NAME = ".kittify"
 
 _OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = (
     "directives",
@@ -44,10 +42,10 @@ def _find_repo_root_from_drg(drg: Any) -> Path | None:
     """
     _ = drg  # drg carries no repo-root metadata today
     cwd = Path.cwd()
-    if (cwd / ".kittify").exists():
+    if (cwd / KITTIFY_DIR_NAME).exists():
         return cwd
     for parent in cwd.parents:
-        if (parent / ".kittify").exists():
+        if (parent / KITTIFY_DIR_NAME).exists():
             return parent
     return None
 
@@ -71,67 +69,16 @@ class OrgOverridesBuiltinChecker:
         if repo_root is None:
             return []
 
-        try:
-            from specify_cli.doctrine.config import load_pack_registry
-        except ImportError:
+        services = _resolve_override_scan_services(repo_root)
+        if services is None:
             return []
-
-        registry = load_pack_registry(repo_root)
-        if not registry.packs:
-            return []
-
-        # Build a service with org layer applied so provenance is populated.
-        service = _build_service_with_org_layer(repo_root, registry)
-        if service is None:
-            return []
-
-        # Build a built-in-only baseline to detect which IDs exist in built-in.
-        built_in_only = _build_built_in_only_service(repo_root)
-        if built_in_only is None:
-            return []
+        service, built_in_only = services
 
         findings: list[LintFinding] = []
         for artifact_type in _OVERRIDABLE_ARTIFACT_TYPES:
-            org_repo = getattr(service, artifact_type, None)
-            built_in_repo = getattr(built_in_only, artifact_type, None)
-            if org_repo is None or built_in_repo is None:
-                continue
-            try:
-                items = org_repo.list_all()
-            except Exception:  # noqa: BLE001, S112 — degrade silently on bad pack
-                continue
-            for item in items:
-                item_id = getattr(item, "id", None)
-                if not isinstance(item_id, str):
-                    continue
-                try:
-                    provenance = org_repo.get_provenance(item_id)
-                except Exception:  # noqa: BLE001, S112 — provenance is advisory only
-                    continue
-                if provenance != "org":
-                    continue
-                try:
-                    builtin_match = built_in_repo.get(item_id)
-                except Exception:  # noqa: BLE001
-                    builtin_match = None
-                if builtin_match is None:
-                    continue
-                findings.append(
-                    LintFinding(
-                        category="org_layer",
-                        type="org_overrides_builtin",
-                        id=f"{artifact_type}:{item_id}",
-                        severity="low",
-                        message=(
-                            f"org layer overrides built-in {artifact_type[:-1]} "
-                            f"{item_id!r}"
-                        ),
-                        remediation_hint=(
-                            "Verify the override is intentional; remove the org pack "
-                            "copy if the built-in artifact already meets policy."
-                        ),
-                    )
-                )
+            findings.extend(
+                _scan_artifact_type_for_overrides(artifact_type, service, built_in_only)
+            )
         return findings
 
 
@@ -160,14 +107,19 @@ class OrgCharterDeviationChecker:
         except ImportError:
             return []
 
-        _pack_ctx = None
-        try:
-            from charter.invocation_context import ProjectContext  # noqa: PLC0415
+        # Landing-fold regression fix (defect 3): the previous
+        # ``try/except Exception: pass`` silently degraded to an unfiltered
+        # (``pack_context=None``) policy load on ANY failure, not just a
+        # genuinely-absent-module case -- the byte-identical fail-open shape
+        # this same commit removes from ``generate.py``. ``charter`` is
+        # first-party and ships in the same wheel, so there is no legitimate
+        # "not yet available" case to tolerate here; call it directly and let
+        # ``charter.activation.pack_context.CharterPackConfigError`` (raised by
+        # ``PackContext.from_config`` inside ``ProjectContext.from_repo``)
+        # propagate rather than silently falling back to an unfiltered scan.
+        from charter.activation.invocation_context import ProjectContext  # noqa: PLC0415
 
-            _ctx = ProjectContext.from_repo(repo_root)
-            _pack_ctx = _ctx.require_pack_context()
-        except Exception:  # noqa: BLE001 — activation filter is best-effort
-            pass
+        _pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
 
         try:
             policies = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
@@ -213,73 +165,184 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 
 
-def _build_service_with_org_layer(
-    repo_root: Path,
-    registry: Any,
-    pack_context: PackContext | None = None,
-) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project + configured org packs.
+def _resolve_override_scan_services(repo_root: Path) -> tuple[Any, Any] | None:
+    """Build the (org-layered, built-in-only) service pair for override scanning.
 
-    When *pack_context* is supplied, the returned service is wrapped in
-    :class:`charter.resolver.DoctrineService` for activation filtering
-    (Pattern B + C).
+    Returns ``None`` when the ``charter.drg`` facade is unavailable, no org
+    packs are configured, or either service fails to construct — every case
+    degrades to "skip the advisory".
     """
     try:
-        from charter._doctrine_paths import resolve_project_root
-        from charter.catalog import resolve_doctrine_root
-        from doctrine.service import DoctrineService
+        from charter.drg import load_pack_registry
     except ImportError:
         return None
 
-    doctrine_root = resolve_doctrine_root()
-    project_root = resolve_project_root(repo_root)
-    org_roots = []
-    for p in registry.packs:
-        eff = p.effective_root(repo_root)
-        if eff.exists():
-            org_roots.append(eff)
+    registry = load_pack_registry(repo_root)
+    if not registry.packs:
+        return None
+
+    # Build a service with org layer applied so provenance is populated.
+    service = _build_service_with_org_layer(repo_root, registry)
+    if service is None:
+        return None
+
+    # Build a built-in-only baseline to detect which IDs exist in built-in.
+    built_in_only = _build_built_in_only_service(repo_root)
+    if built_in_only is None:
+        return None
+
+    return service, built_in_only
+
+
+def _scan_artifact_type_for_overrides(
+    artifact_type: str, service: Any, built_in_only: Any
+) -> list[LintFinding]:
+    """Return org-overrides-builtin findings for a single artifact type."""
+    org_repo = service.raw_repository(artifact_type)
+    built_in_repo = built_in_only.raw_repository(artifact_type)
+    if org_repo is None or built_in_repo is None:
+        return []
+
+    try:
+        items = org_repo.list_all()
+    except Exception:  # noqa: BLE001, S112 — degrade silently on bad pack
+        return []
+
+    findings: list[LintFinding] = []
+    for item in items:
+        finding = _check_item_overrides_builtin(artifact_type, item, org_repo, built_in_repo)
+        if finding is not None:
+            findings.append(finding)
+    return findings
+
+
+def _check_item_overrides_builtin(
+    artifact_type: str, item: Any, org_repo: Any, built_in_repo: Any
+) -> LintFinding | None:
+    """Return a finding if *item* is org-provenanced and shadows a built-in artifact."""
+    item_id = getattr(item, "id", None)
+    if not isinstance(item_id, str):
+        return None
+    try:
+        provenance = org_repo.get_provenance(item_id)
+    except Exception:  # noqa: BLE001, S112 — provenance is advisory only
+        return None
+    if provenance != "org":
+        return None
+    try:
+        builtin_match = built_in_repo.get(item_id)
+    except Exception:  # noqa: BLE001
+        builtin_match = None
+    if builtin_match is None:
+        return None
+    return LintFinding(
+        category="org_layer",
+        type="org_overrides_builtin",
+        id=f"{artifact_type}:{item_id}",
+        severity="low",
+        message=f"org layer overrides built-in {artifact_type[:-1]} {item_id!r}",
+        remediation_hint=(
+            "Verify the override is intentional; remove the org pack "
+            "copy if the built-in artifact already meets policy."
+        ),
+    )
+
+
+def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> Any:
+    """Construct the activation-aware provenance-scan service, unfiltered.
+
+    Returns a :class:`charter.activation.resolver.DoctrineService` constructed with
+    ``pack_context=None`` — the sanctioned "unfiltered-diagnostic" form
+    named in this mission's ``data-model.md``
+    (charter-sole-door-bypass-closure-01KZ3WAA WP01, FR-002 Option A,
+    cycle-2 review fix for Blocker 1). The wrapper's three-state filter
+    treats ``pack_context is None`` as "admit all"; this call site is
+    distinguished from every activation-gated caller ONLY by that explicit
+    argument, never by a different class or a raw, unwrapped
+    ``charter.offering.service.DoctrineService`` returned directly (the cycle-1
+    violation: this function previously returned the raw inner service
+    under a docstring-authorized "exception" that C-002 does not sanction —
+    a docstring is not an escalation, and the claimed
+    ``_doctrine_collect.py`` precedent was itself an unfixed FR-002
+    violation, not a sanctioned pattern).
+
+    :class:`OrgOverridesBuiltinChecker` needs the RAW repository objects
+    behind the wrapper's gated ``dict`` properties — ``.list_all()`` /
+    ``.get_provenance()``, which a ``dict`` has neither of. It reaches them
+    via :meth:`charter.activation.resolver.DoctrineService.raw_repository`, the Option
+    A accessor this cycle adds (the same "filtered dict can't do repository
+    ops" pattern :attr:`~charter.activation.resolver.DoctrineService.agent_profile_repository`
+    already solves for ``agent_profiles``), instead of this function
+    returning an unwrapped service. There is no charter activation
+    *decision* being read here at all — only raw on-disk provenance ("which
+    layer supplied this artifact"), a structural question the activation
+    filter does not answer and the ``raw_repository`` accessor is
+    documented as not gating.
+
+    The inner service is built via
+    :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — the
+    ONE function in this codebase permitted to construct a raw
+    ``charter.offering.service.DoctrineService`` (NFR-001) — so this scan path
+    shares the same ``active_languages``/``project_root`` resolution as
+    every other consumer of the unified builder, rather than a bespoke
+    shape that could silently drift from it.
+
+    This helper also closes the FR-002 fail-open bug named at this module's
+    two call sites: the previous code built the raw service, then
+    conditionally attempted to wrap it in ``charter.activation.resolver.DoctrineService``
+    behind a ``try/except ImportError: pass`` that silently returned the
+    unwrapped service on import failure. No caller ever passed the
+    ``pack_context`` that gated that attempt (verified: zero call sites), so
+    the branch was dead code; per the above it would also have been the
+    *wrong* fix had it ever fired. It is removed outright (DIRECTIVE_025 Boy
+    Scout Rule) rather than "fixed" into a wrap that provably breaks the
+    checker.
+
+    Landing-fold regression fix (defect 3): a SECOND ``except ImportError:
+    return None`` survived here, guarding the imports below. Both callers
+    (:func:`_build_service_with_org_layer` / :func:`_build_built_in_only_service`)
+    treat a ``None`` return as "skip the check" (``OrgOverridesBuiltinChecker.run``'s
+    ``if service is None: return []`` / ``if built_in_only is None: return []``).
+    ``charter.activation.doctrine_service_builder`` and ``charter.activation.resolver`` are
+    first-party modules shipped in the same wheel as this one -- there is no
+    legitimate partial-install scenario in which this import fails -- so the
+    handler could only ever fire on a genuinely broken install, in which case
+    the operator should see an ``ImportError``, not a silently empty
+    org-override report. The import is left function-local (matching this
+    module's lazy-import convention) but is no longer guarded.
+    """
+    from charter.activation.doctrine_service_builder import _build_doctrine_service
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+
+    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
+    return ActivationAwareDoctrineService(inner, pack_context=None)
+
+
+def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
+    """Construct an unfiltered scan service rooted at built-in + project + configured org packs.
+
+    See :func:`_build_scan_service` for the wrapped, unfiltered-diagnostic
+    construction this returns.
+    """
+    org_roots = [
+        effective_root
+        for pack in registry.packs
+        if (effective_root := pack.effective_root(repo_root)).exists()
+    ]
     if not org_roots:
         return None
-    inner = DoctrineService(
-        built_in_root=doctrine_root,
-        project_root=project_root,
-        org_roots=org_roots,
-    )
-    if pack_context is not None:
-        try:
-            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
-            return ActivationDoctrineService(inner, pack_context=pack_context)
-        except ImportError:
-            pass
-    return inner
+    return _build_scan_service(repo_root, org_roots=org_roots)
 
 
-def _build_built_in_only_service(
-    repo_root: Path,
-    pack_context: PackContext | None = None,
-) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project only (no org).
+def _build_built_in_only_service(repo_root: Path) -> Any:
+    """Construct an unfiltered scan service rooted at built-in + project only (no org).
 
-    When *pack_context* is supplied, the returned service is wrapped in
-    :class:`charter.resolver.DoctrineService` for activation filtering.
+    The deliberate absence of an org layer is the baseline
+    :class:`OrgOverridesBuiltinChecker` diffs against to detect an override;
+    see :func:`_build_scan_service` for the wrapped, unfiltered-diagnostic
+    construction this returns.
     """
-    try:
-        from charter._doctrine_paths import resolve_project_root
-        from charter.catalog import resolve_doctrine_root
-        from doctrine.service import DoctrineService
-    except ImportError:
-        return None
-
-    doctrine_root = resolve_doctrine_root()
-    project_root = resolve_project_root(repo_root)
-    inner = DoctrineService(built_in_root=doctrine_root, project_root=project_root)
-    if pack_context is not None:
-        try:
-            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
-            return ActivationDoctrineService(inner, pack_context=pack_context)
-        except ImportError:
-            pass
-    return inner
+    return _build_scan_service(repo_root)
 
 
 def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:
@@ -288,7 +351,7 @@ def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:
     Returns an empty dict if the file is absent or unreadable — the calling
     advisory check will then emit no findings.
     """
-    answers_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
+    answers_path = repo_root / KITTIFY_DIR_NAME / "charter" / "interview" / "answers.yaml"
     if not answers_path.exists():
         return {}
     try:

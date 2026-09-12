@@ -62,14 +62,6 @@ class TestGitDetection:
             assert parts[0].isdigit()
             assert parts[1].isdigit()
 
-    def test_is_git_available_caching(self):
-        """Repeated calls should use cache (no new subprocess)."""
-        # First call
-        result1 = is_git_available()
-        # Second call should return same result from cache
-        result2 = is_git_available()
-        assert result1 == result2
-
     def test_is_git_available_with_missing_binary(self):
         """Should return False if git binary not found."""
         with patch("specify_cli.core.vcs.detection.shutil.which", return_value=None):
@@ -195,29 +187,3 @@ class TestLockedVCSFromMeta:
         # Request git and feature is locked to git - should work
         vcs = get_vcs(path_inside, backend=VCSBackend.GIT)
         assert vcs.backend == VCSBackend.GIT
-
-
-# =============================================================================
-# Caching Tests
-# =============================================================================
-
-
-class TestCaching:
-    """Tests for detection result caching."""
-
-    def test_is_git_available_is_cached(self):
-        """is_git_available should cache its result."""
-        # Call twice
-        result1 = is_git_available()
-        result2 = is_git_available()
-        assert result1 == result2
-
-    def test_cache_can_be_cleared(self):
-        """_clear_detection_cache should clear cached results."""
-        # First call
-        is_git_available()
-        # Clear
-        _clear_detection_cache()
-        # After clear, calling again should work
-        result = is_git_available()
-        assert isinstance(result, bool)

@@ -6,6 +6,11 @@ Verifies:
 - Error logged to propagation-errors.jsonl on SaaS failure
 - invocation_id present in the event dict passed to client.send_event
 - _log_propagation_error swallows OSError (disk full)
+
+Every test drives a client in through the ``_get_saas_client`` seam directly:
+with nothing registered (production reality since issue #5 deleted the sync
+transport) propagation is a permanent no-op and none of the envelope behaviour
+below would execute at all.
 """
 
 from __future__ import annotations
@@ -33,6 +38,8 @@ from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def make_started_record() -> OpStartedEvent:
     return OpStartedEvent(
         invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
@@ -52,6 +59,7 @@ def make_started_record() -> OpStartedEvent:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_propagator_non_blocking(tmp_path: pytest.TempPathFactory) -> None:
     """submit() returns in < 50ms even if the SaaS call takes 500ms."""
     record = make_started_record()

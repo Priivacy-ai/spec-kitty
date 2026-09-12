@@ -31,7 +31,19 @@ _FIXTURES_DIR = Path(__file__).parent / "_fixtures"
 # The pure-shim adapter files (detector/gate/version_checker) were dead and are
 # deleted (salvaged from closed #2159/#2049). uv_receipt.py is a real reader with
 # logic, so it is intentionally NOT a pure-shim under this gate.
-_ADAPTER_FILES: list[Path] = []
+_KNOWN_NON_SHIM_ADAPTERS = frozenset({"uv_receipt.py"})
+
+# Discovered live from disk (S8998): previously a hardcoded `[]`, which made the
+# two parametrized tests below silently collect zero cases forever — even a
+# newly-added pure-shim adapter would never be checked. Deriving the list from
+# the directory means a new pure-shim adapter is automatically covered, and
+# ``test_no_pure_shim_adapters_currently_exist`` below pins today's expected
+# (legitimately empty) state as a real, always-collected assertion.
+_ADAPTER_FILES: list[Path] = sorted(
+    p
+    for p in _ADAPTERS_DIR.glob("*.py")
+    if p.name != "__init__.py" and p.name not in _KNOWN_NON_SHIM_ADAPTERS
+)
 
 _DISALLOWED_NODE_TYPES = (
     ast.FunctionDef,
@@ -107,6 +119,23 @@ def test_adapter_marker_present(adapter_path: Path) -> None:
     assert adapter_path.exists(), f"Adapter file not found: {adapter_path}"
     source = adapter_path.read_text(encoding="utf-8")
     assert "# adapter:no-logic" in source, f"{adapter_path.name}: '# adapter:no-logic' marker is absent"
+
+
+def test_no_pure_shim_adapters_currently_exist() -> None:
+    """Pin the current (legitimately empty) adapter set explicitly (S8998).
+
+    The detector/gate/version_checker pure-shim adapters were dead and are
+    deleted (#2159/#2049); ``uv_receipt.py`` is a real reader with logic and
+    is excluded. ``_ADAPTER_FILES`` is now derived live from disk, so if a new
+    pure-shim adapter is added, ``test_adapter_no_logic`` and
+    ``test_adapter_marker_present`` above automatically start covering it —
+    this test just turns "currently empty" into a live, always-collected
+    assertion instead of a silently-vestigial empty parametrize.
+    """
+    assert _ADAPTER_FILES == [], (
+        f"Expected no pure-shim adapter files, found: {[p.name for p in _ADAPTER_FILES]}. "
+        "If this is intentional, update this test's expectations."
+    )
 
 
 # ---------------------------------------------------------------------------

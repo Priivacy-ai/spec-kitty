@@ -1,0 +1,120 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-sweep
+    severity: 4
+    title: FR-009's confidence-key fix to RouterAmbiguityError is scoped to the one existing raise
+      site; WP3's new/restructured ambiguity raises (FR-007's generalization) are not told to
+      carry it too
+    evidence:
+      - artifact: "spec.md § FR-009 amendment — \"The candidate dicts route() raises inside RouterAmbiguityError for ROUTER_AMBIGUOUS must also carry a confidence/_confidence key\""
+      - artifact: "spec.md § Blast Radius / Files Touched — errors.py bullet: \"built in route()'s ROUTER_AMBIGUOUS raise\" (singular), justified only by \"so the dry-run ROUTER_AMBIGUOUS branch can populate alternatives from err.candidates\""
+      - artifact: "spec.md § C-002 — enumerates the WP2/WP3 shared touch points as only \"the if len(candidates) == 1: single-candidate return and the routing_priority tiebreaker block\"; does not mention the final \"still ambiguous\" raise or WP1's edit to it"
+      - artifact: "spec.md § User Story 3 AC-2 (lone domain-keyword case must now raise ROUTER_AMBIGUOUS instead of returning) and AC-4 (2+ keyword-tier candidates must now raise ROUTER_AMBIGUOUS regardless of routing_priority) — both are NEW-or-changed ambiguity outcomes FR-006/FR-007 requires WP3 to implement"
+      - code: "src/specify_cli/invocation/router.py:343-351 — the current `if len(candidates) == 1:` block RETURNS a RouterDecision (does not raise); FR-007 AC-2 requires this to become a NEW RouterAmbiguityError raise for the lone-keyword-tier case"
+      - code: "src/specify_cli/invocation/router.py:353-370 — the current routing_priority tiebreaker auto-selects a winner by priority for 2+ candidates; FR-007 AC-4 requires this path to instead raise (not auto-select) whenever zero verb-tier candidates are present, which is either a new raise site or a restructured branch ahead of the existing final raise"
+      - code: "src/specify_cli/invocation/router.py:372-386 — the existing \"still ambiguous after tiebreaker\" raise is the ONLY site FR-009's confidence-key fix targets; it is reached today only on a genuine post-tiebreak tie, not on AC-2's or AC-4's new trigger conditions"
+    claim: >
+      This fix round correctly closed SPEC-ARCH-001 (RouterAmbiguityError candidates lacked a
+      confidence key) for the one RouterAmbiguityError raise call site that exists in today's
+      router.py (the final "still ambiguous after tiebreaker" raise, lines 372-386). But WP3
+      lands AFTER WP1 (which owns FR-009) and must itself change route()'s control flow so that
+      the lone-candidate case (AC-2) and the 2+-keyword-tier-candidates case (AC-4) also raise
+      RouterAmbiguityError — cases that, in the current code, do NOT reach the line-372 raise at
+      all (the lone case returns early at line 343; the 2+ case would otherwise auto-select via
+      the priority tiebreaker at lines 353-370). Nothing in FR-006, FR-007, C-002, or the Blast
+      Radius text tells WP3's implementer that any RouterAmbiguityError it raises or restructures
+      for these newly-ambiguous cases must carry the same confidence/_confidence key FR-009
+      mandates. AC-2 and AC-4 are WP3's own flagship acceptance scenarios and are exactly the
+      kind of request a `--dry-run` caller would probe (per User Story 2's "consumer reads
+      alternatives to judge routing confidence" premise) — so a WP3 implementation that reuses
+      the pre-FR-009 candidate-dict shape (profile_id/action/match_reason only) for its new raise
+      sites reproduces the exact class of bug SPEC-ARCH-001 identified, just on code this fix
+      round did not yet exist to guard.
+    remediation: >
+      Add one explicit sentence — to FR-007, or as a new sub-bullet under the FR-009 amendment —
+      stating that every RouterAmbiguityError raised for ROUTER_AMBIGUOUS anywhere in route(),
+      including any new or restructured raise sites WP3 introduces for the lone-candidate (AC-2)
+      and multi-keyword-tier-candidate (AC-4) cases, must carry the confidence/_confidence key on
+      each candidate dict, sourced the same way FR-009 already requires for the pre-existing
+      raise site. Also add this as an explicit WP1/WP3 shared-contract note (alongside C-002's
+      WP2/WP3 note), since WP1 lands first and fixes only the raise site that exists at WP1 time.
+
+  - id: SPEC-FRESH-002
+    lens: fresh-sweep
+    severity: 3
+    title: FR-007's generalization to "zero verb-tier, 2+ keyword-tier candidates" (new AC-4) has
+      no corresponding Success Criterion or Independent-Test coverage — SC-005 and the User Story
+      3 Independent Test still describe only the lone/weak single-candidate case
+    evidence:
+      - artifact: "spec.md § FR-007 — generalized to \"whenever zero verb-tier candidates exist, the router MUST raise ROUTER_AMBIGUOUS regardless of how many domain-keyword-tier candidates there are or how their routing_priority values compare\""
+      - artifact: "spec.md § User Story 3, new Acceptance Scenario 4 — \"tokens match ... TWO OR MORE profiles' domain keywords ... the router raises RouterAmbiguityError ... regardless of the routing_priority spread\""
+      - artifact: "spec.md § Success Criteria SC-005 — unchanged by this fix round, still worded \"On a lone/weak domain-keyword-only match with no competing canonical-verb match, real dispatch ... exits 1 with error_code: ROUTER_AMBIGUOUS\" — no mention of the 2+-candidate case"
+      - artifact: "spec.md § User Story 3 Independent Test paragraph — unchanged, still says \"if no canonical verb matched at all and only one lone domain-keyword candidate exists, the router raises ROUTER_AMBIGUOUS\" with no reference to the 2+-candidate generalization"
+    claim: >
+      The fix round broadened FR-007 from "a single unopposed domain-keyword hit" to "zero
+      verb-tier candidates, any number of keyword-tier candidates, any routing_priority spread" —
+      a materially different (and previously auto-selecting) behavior for the 2+-candidate case —
+      and backed it with a new Acceptance Scenario (AC-4). But the mission's measurable-outcomes
+      section (SC-005) and the User Story 3 "Independent Test" summary, which is what a WP3
+      implementer or reviewer is most likely to check for "is this WP done," were left
+      word-for-word unchanged and still describe only the narrower lone-candidate case. This
+      leaves the newly-broadened requirement's most behaviorally significant scenario (multiple
+      keyword-tier candidates with a routing_priority spread, which today silently auto-selects —
+      the opposite of the old lone case, which today already raises when priorities tie) without
+      an explicit Success Criterion, increasing the chance it is implemented per AC-4's prose but
+      never gets a dedicated regression test the way SC-004/SC-005 pin the other SK-08 cases.
+    remediation: >
+      Add a new Success Criterion (e.g. SC-006) mirroring SC-005 for the 2+-keyword-tier-candidate
+      case: "On a request with zero verb-tier candidates and two or more keyword-tier candidates
+      at different routing_priority values, dispatch exits 1 with ROUTER_AMBIGUOUS and opens no
+      Op, regardless of the priority spread — verified by an automated test." Extend the User
+      Story 3 Independent Test paragraph's parenthetical to mention the 2+-candidate case
+      alongside the existing lone-candidate one.
+
+  - id: SPEC-FRESH-003
+    lens: fresh-sweep
+    severity: 2
+    title: SC-002's rewritten glossary-directory-snapshot test description does not explicitly
+      handle the (most likely, clean-checkout) case where `.kittify/events/glossary/` does not
+      exist at all before or after N dry-run calls, unlike SC-001/AC-1's explicit handling of the
+      analogous "no kitty-ops/ directory" case
+    evidence:
+      - artifact: "spec.md § SC-002 (rewritten) — \"asserts that the set of files under .kittify/events/glossary/ (by name, or by total file count when the directory is empty at test start) is unchanged\" — covers \"empty\" but does not name the \"does not exist\" sub-case"
+      - artifact: "spec.md § User Story 1 Acceptance Scenario 1 — the analogous kitty-ops/ case is spelled out explicitly: \"Given a clean checkout with no kitty-ops/ directory ... no kitty-ops/ directory is created\""
+      - code: "src/glossary/events.py:100-117 (get_event_log_path) — mkdir(parents=True, exist_ok=True) only runs when this function is called, i.e. only on an actual (attempted) write; if FR-003's suppression works, .kittify/events/glossary/ is plausibly never created in a clean checkout, so both before- and after-snapshots would be \"directory does not exist,\" not \"directory exists and is empty\""
+    claim: >
+      SC-002's rewrite fixes the primary problem (per-file line-count checks are vacuous given
+      invocation-keyed filenames) by switching to a directory-level snapshot, mirroring SC-001.
+      But its wording only anticipates two states for the assertion — "named file set" or "empty
+      directory" — and omits the state most likely to actually occur in a fresh test fixture: the
+      directory not existing at all (since get_event_log_path's mkdir only fires on an attempted
+      write, and a correctly-suppressed dry-run never calls it). SC-001's own Acceptance Scenario
+      1 explicitly calls out the parallel "no kitty-ops/ directory" sub-case for exactly this
+      reason; SC-002 does not carry the same explicit treatment over, despite citing SC-001 as its
+      model technique.
+    remediation: >
+      Add one clause to SC-002: "...unchanged before and after N dry-run calls — including the
+      case where the directory does not exist either before or after (the common case in a clean
+      checkout, since a correctly-suppressed write never calls get_event_log_path's directory
+      creation)." This keeps the test from having to special-case a FileNotFoundError differently
+      from an empty-listdir() result.
+
+  - id: SPEC-FRESH-004
+    lens: fresh-sweep
+    severity: 1
+    title: Blast Radius's new errors.py bullet points to "FR-009 amendment below," but FR-009 is
+      defined earlier in the document, not below
+    evidence:
+      - artifact: "spec.md § Blast Radius / Files Touched, errors.py bullet — \"must also carry a confidence key (see FR-009 amendment below)\""
+      - artifact: "spec.md § FR-009 — appears in the Requirements section, well before the Blast Radius / Files Touched section later in the same document"
+    claim: >
+      Minor navigation error: "below" should be "above" (or simply omitted) — FR-009 precedes
+      the Blast Radius section in reading order. Purely a wording slip; the FR-009 reference is
+      still unambiguous by ID, so this does not affect implementation.
+    remediation: >
+      Change "(see FR-009 amendment below)" to "(see FR-009 amendment above)" or "(see FR-009)".

@@ -259,7 +259,7 @@ class TestMoveTaskPreflightCheck:
         feature_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
+        (feature_dir / "meta.json").write_text('{"mission_type": "software-dev", "target_branch": "main"}')
 
         worktree_path = lane_worktree_path(tmp_path, mission_slug)
         _mark_fake_worktree(worktree_path)
@@ -309,7 +309,7 @@ class TestMoveTaskPreflightCheck:
         feature_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
-        (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
+        (feature_dir / "meta.json").write_text('{"mission_type": "software-dev", "target_branch": "main"}')
 
         worktree_path = lane_worktree_path(tmp_path, mission_slug)
         _mark_fake_worktree(worktree_path)

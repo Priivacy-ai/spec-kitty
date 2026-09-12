@@ -1,0 +1,101 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 2
+    title: "fast-tests-doctrine mischaracterized as unconditionally-running; it is actually triggered by this mission's own test-file edit via a path filter"
+    evidence:
+      - artifact: "plan.md § The Gate Set, `fast-tests-doctrine` bullet"
+      - code: ".github/workflows/ci-quality.yml:1138-1143"
+    claim: >
+      The plan states `fast-tests-doctrine` "Applies as a standing CI job (it always runs)."
+      Read directly, the job's `if:` condition is
+      `needs.changes.outputs.doctrine == 'true' || github.event_name == 'push'`
+      (ci-quality.yml:1141-1143) — on a `pull_request` event (this mission ships as a PR per
+      the charter's draft-PR-first discipline) it runs only when the `doctrine` dorny path
+      filter fires, not unconditionally. The `doctrine` filter is `src/doctrine/**`,
+      `.kittify/doctrine/overlays/**`, `tests/doctrine/**` (ci-quality.yml:443-446). This
+      mission's own Project Structure lists `tests/doctrine/test_agent_profile_model_field.py`
+      as touched (FR-002's model-layer fixture) — that file is under `tests/doctrine/**`, so
+      the filter genuinely fires for this diff, but because of the mission's own test edit, not
+      because the job is unconditional. The plan's stated mechanism is wrong even though its
+      practical conclusion (the job runs, contributes no `src/doctrine`/`src/charter` line-count
+      delta) is not.
+    remediation: >
+      Replace "Applies as a standing CI job (it always runs)" with "Applies: this mission's own
+      edit to tests/doctrine/test_agent_profile_model_field.py (FR-002) falls under the
+      `doctrine` dorny path filter (`tests/doctrine/**`, ci-quality.yml:446), which gates
+      `fast-tests-doctrine`'s `if:` condition (ci-quality.yml:1141-1143) on `pull_request`
+      events — the job is not unconditional, it is triggered by this mission's own diff." Keep
+      the existing "expected zero new-code coverage delta" conclusion, which is unaffected by
+      this correction.
+
+  - id: PLAN-VERIFY-002
+    lens: "Mission-specific — The Baseline procedure's concreteness"
+    severity: 3
+    title: "The Baseline's step 4 ('once per FR' vs 'once for the combined lane') is internally ambiguous about run cadence inside Lane B, undermining its own stated reviewer-traceability goal"
+    evidence:
+      - artifact: "plan.md § The Baseline, step 4"
+      - artifact: "plan.md § Chokepoint"
+      - artifact: "plan.md § Implementation Concern Map, IC-02/IC-03/IC-04 'Sequencing/depends-on' bullets"
+    claim: >
+      Step 4 reads: "This procedure is run once per FR (or once for the FR-002+003+004
+      combined lane, if implemented as a single lane per 'Chokepoint' below) — not once
+      globally — so a reviewer can trace exactly which FR's change flipped which test." Two
+      problems: (1) the "(or ... if implemented as a single lane ...)" phrasing frames the
+      combined-lane treatment as a contingency, but the "Chokepoint" section does not leave
+      this open — it states as a firm decision that FR-002+FR-003+FR-004 land as one lane
+      (Lane B), sequenced internally FR-003 -> FR-002 -> FR-004. So the "once per FR" branch of
+      the "or" is not actually available for these three FRs; only the combined-lane branch
+      applies, and the "if" wording misstates that as still undecided. (2) More materially: "once
+      for the ... combined lane" reads as a single pre-check (before any of the three FR
+      commits) and a single post-check (after all three have landed) — but IC-02/IC-03/IC-04
+      each describe FR-003/FR-002/FR-004 as separate, ordered steps within Lane B with no
+      baseline re-run named between them. If the four-file suite is genuinely run only once at
+      each end of the lane, then when the final re-run shows a new red test, nothing in the
+      procedure as written lets a reviewer determine whether FR-003, FR-002, or FR-004's commit
+      is responsible — directly contradicting the clause "so a reviewer can trace exactly which
+      FR's change flipped which test" in the same sentence. The plan does not specify running
+      the targeted-file baseline after each of the three intra-lane commits, which is the only
+      reading that would make the traceability claim true.
+    remediation: >
+      Rewrite step 4 to state, without hedging, that Lane B's three internal FR commits
+      (FR-003, FR-002, FR-004 per Chokepoint's ordering) each get their own before/after run of
+      the four C-004-targeted files — i.e. the baseline set is captured once at Lane B's start
+      and re-captured after each of the three sequenced commits, not only once at the lane's
+      end — so a delta is attributable to the specific commit that produced it. Alternatively,
+      if a single pre/post pair for the whole lane is intentional (e.g. to save CI time), say so
+      explicitly and drop the traceability claim for intra-lane attribution, replacing it with
+      an honest statement that intra-lane attribution falls back to `git bisect`/manual
+      inspection of the three commits if a post-lane regression appears.
+
+  - id: PLAN-VERIFY-003
+    lens: "Mission-specific — The Baseline procedure's concreteness"
+    severity: 2
+    title: "Step 1's pytest command is one inline-code span broken across four markdown lines with no line-continuation, so a literal copy-paste runs four separate (mostly invalid) commands instead of one four-file invocation"
+    evidence:
+      - artifact: "plan.md § The Baseline, step 1 (lines 302-305 of the source markdown)"
+    claim: >
+      Step 1's command is written as a single backtick-delimited span:
+      "`uv run pytest tests/specify_cli/doctrine/test_pack_validator.py\n
+      tests/doctrine/test_agent_profile_model_field.py\n
+      tests/specify_cli/doctrine/test_pack_assembler.py\n
+      tests/cli/test_doctrine_org_commands.py -q`" with no trailing backslash
+      line-continuation on any of the first three lines. CommonMark renders this as one
+      space-joined command, so it *displays* correctly in a rendered plan.md — but an
+      implementer who copies the raw markdown source (or a terminal-paste of the rendered
+      block, if any renderer preserves the literal newlines) gets four separate shell
+      invocations: `uv run pytest tests/specify_cli/doctrine/test_pack_validator.py` (silently
+      runs only 1 of the 4 targeted files as "the baseline"), followed by three bare path
+      strings that are not valid commands. The four file paths themselves are correct and
+      match spec's C-004 list exactly (verified: all four files exist at the stated paths).
+    remediation: >
+      Reformat step 1's command as a fenced code block (triple backtick, bash) with explicit
+      trailing backslashes for continuation, or as one unbroken line, so both the rendered
+      output and the raw markdown source agree on a single, directly copy-pasteable four-file
+      invocation.

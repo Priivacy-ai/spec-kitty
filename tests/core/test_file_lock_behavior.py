@@ -6,7 +6,7 @@ Supplements ``tests/core/test_file_lock.py`` with:
 - corrupt-lock-file recovery (read_lock_record returns None)
 - contention via multiprocessing (marked slow; serialization invariant)
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -17,7 +17,7 @@ import json
 import multiprocessing
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from kernel.clock import timedelta, now_utc
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +40,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_synthetic_record(path: Path, *, age_s: float = 0.0, pid: int = 12345) -> None:
     """Write a synthetic lock record at ``path``."""
-    started = datetime.now(UTC) - timedelta(seconds=age_s)
+    started = now_utc() - timedelta(seconds=age_s)
     payload: dict[str, Any] = {
         "schema_version": 1,
         "pid": pid,

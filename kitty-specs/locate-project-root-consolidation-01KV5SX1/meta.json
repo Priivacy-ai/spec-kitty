@@ -1,7 +1,7 @@
 {
   "baseline_merge_commit": "a7a51b7eb618ff006f909034eb047f7c65485a45",
-  "coordination_branch": "kitty/mission-locate-project-root-consolidation-01KV5SX1",
   "created_at": "2026-06-15T14:10:24.112943+00:00",
+  "flattened": true,
   "friendly_name": "locate_project_root Split-Brain Consolidation",
   "mission_id": "01KV5SX17ERG3B9YEVJ1NF6FX9",
   "mission_number": 138,
@@ -13,6 +13,7 @@
   "slug": "locate-project-root-consolidation-01KV5SX1",
   "status_phase": "1",
   "target_branch": "feat/locate-project-root-consolidation",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-15T14:54:20.715889+00:00"
 }

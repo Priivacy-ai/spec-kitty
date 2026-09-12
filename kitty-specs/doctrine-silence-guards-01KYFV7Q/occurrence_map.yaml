@@ -1,0 +1,224 @@
+# Occurrence map — doctrine-silence-guards-01KYFV7Q (Mission A)
+#
+# DIRECTIVE_035 guardrail for WP07's two same-term sweeps.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY THIS MISSION HAS ONE AT ALL
+# ─────────────────────────────────────────────────────────────────────────────
+# `spec-kitty implement` scored this mission 4/4 on bulk-edit inference and I was
+# about to suppress it with --acknowledge-not-bulk-edit, on the reasoning that
+# Mission A is guards-and-campsite and the matched words ("rename", "migrate",
+# "change") describe *mission B2's* work rather than this one's.
+#
+# That was wrong. WP07 corrects the same two strings across ~26 files, and the
+# directive's stated purpose is "classify string occurrences by semantic context
+# before edits begin" — which is precisely WP07's entire difficulty. Some hits
+# are prose, some are deliberate forbidding-mentions, and one is a live
+# project-tier path that must never change.
+#
+# The post-tasks squad sharpened the point: NFR-003 requires each discriminator
+# be proven by a fixture, but places **no cap on its breadth**. So the open
+# escape valve in WP07 is to widen a regex until the sites it cannot fix stop
+# tripping the gate. This map is what closes that: every exception below needs a
+# path, a reason, and a reviewer's eye — a widened discriminator becomes a
+# visible diff here rather than a quiet regex tweak.
+#
+# Reproduce the scope — commands must match the GATE's scope, which is all of
+# src/, not just src/doctrine/. The original second line scanned the narrower
+# path and so under-enumerated: it reported 2 live project-tier sites where the
+# gate sees 6, and 1 prose site where the gate sees 2. Retargeted at src/ so the
+# map's own reproduce step reproduces the numbers the map is governing.
+#   grep -rl "src/doctrine/graph\.yaml" src/      → 17 files       (at authoring)
+#   grep -rn "shipped/" src/                      → 23 hits / 10 files (at authoring)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# RECONCILED AT IMPLEMENTATION (WP07, lane-g)
+# ─────────────────────────────────────────────────────────────────────────────
+# Three divergences between this map and the occurrence set WP07 actually
+# found. Each is recorded rather than papered over.
+#
+# 1. 17 → 16 files for the dead `graph.yaml` path. WP04 corrected
+#    `src/doctrine/agent_profiles/profile.py` under T023a before lane-g
+#    branched, so that carrier was already gone. Expected shrinkage, not a
+#    miscount.
+#
+# 2. The live project-tier class was UNDER-enumerated. The map named two
+#    files carrying `.kittify/doctrine/graph.yaml`; the real count is six.
+#    All four newcomers are the same semantic class as merge.py:647 and are
+#    added to `exceptions` below. This matters because WP07's gate scans all
+#    of `src/`, not just `src/doctrine/` — the map's reproduce command was
+#    scoped narrower than the gate it governs.
+#
+# 3. `shipped/` prose exists outside `src/doctrine/` too:
+#    `src/runtime/next/_internal_runtime/planner.py:104` ("a shipped/custom
+#    mission step"). Same class as the model-to-task_type.yaml exemption and
+#    likewise a discriminator fixture. Added below.
+#
+# The `shipped/` count inside `src/doctrine/` was exact: 22 hits / 9 files,
+# of which 21 are path-shaped (swept) and 1 is prose (exempted).
+
+target:
+  term: >-
+    two dead path strings in operator-facing guidance — `src/doctrine/graph.yaml`
+    (sharded out of existence by #2680) and `<kind>/shipped/` (a pack layer that
+    has never existed on disk)
+  replacement: >-
+    the per-kind `<kind>.graph.yaml` fragment, and `<kind>/built-in/`
+  operation: rename
+
+categories:
+
+  # The dead `graph.yaml` path appears in docstrings and module-level comments
+  # across validation and model modules. Each needs reading: some describe the
+  # historical monolith correctly in past tense.
+  code_symbols:
+    action: manual_review
+
+  # No module moves. No import path changes in this mission.
+  import_paths:
+    action: do_not_change
+
+  # THE TARGET. 17 files carry the dead `graph.yaml` path; 9 carry `shipped/`.
+  # Three semantic classes must survive untouched — see `exceptions` below.
+  filesystem_paths:
+    action: manual_review
+
+  # The rejection-hint contract fixture hard-pins the dead path in a regex, so
+  # it changes with the hint. No other serialized key is in scope.
+  serialized_keys:
+    action: manual_review
+
+  # `spec-kitty doctrine regenerate-graph` keeps its name and contract.
+  cli_commands:
+    action: do_not_change
+
+  # The whole point: `InlineReferenceRejectedError`'s hint, two operator-facing
+  # SKILL.md files, a canonical glossary term body, and the authoring READMEs
+  # all name paths that do not exist.
+  user_facing_strings:
+    action: rename_if_user_visible
+
+  # WP07's discriminator fixtures deliberately CONTAIN the dead strings — that
+  # is what proves the discriminator works. They must not be swept.
+  tests_fixtures:
+    action: manual_review
+
+  # No metric names, log keys or analytics events in scope.
+  logs_telemetry:
+    action: do_not_change
+
+exceptions:
+
+  - path: "src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml"
+    action: do_not_change
+    reason: >-
+      Forbidding-mention. Line 129 reads "...and does not tell an operator to edit
+      `src/doctrine/graph.yaml`" — it names the dead path in order to forbid it.
+      Sweeping it would invert the sentence's meaning. This is a discriminator
+      fixture for T034, not an edit target.
+
+  - path: "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml"
+    action: do_not_change
+    reason: >-
+      Prose, not a path. Line 596 says "the shipped/packaged ..." — an English
+      construction, not a `<kind>/shipped/` directory reference. This is why the
+      `shipped/` gate needs a path-shape discriminator, and this file is its
+      fixture (T037).
+
+  - path: "src/doctrine/drg/merge.py"
+    action: manual_review
+    reason: >-
+      Carries BOTH classes and must be split by hand. Line 647 names
+      `.kittify/doctrine/graph.yaml` — a LIVE project-tier path that must never
+      change (discriminator fixture for T034). Line 29 says "shipped" as prose
+      ("resolves identically across shipped, org, and ..."). The post-tasks squad
+      found I had miscounted this file as a dead-path carrier; it is not.
+
+  - path: "src/specify_cli/charter_runtime/freshness/computer.py"
+    action: do_not_change
+    reason: >-
+      Another live `.kittify/doctrine/graph.yaml` project-tier reference. Same
+      class as merge.py:647 — the gate must not flag it.
+
+  # ── Added at implementation (WP07). Same live-project-tier class as the two
+  # above; the authored map under-enumerated it. These four are discriminator
+  # A1's effect set together with merge.py and computer.py, and the gate pins
+  # that set of six positively.
+
+  - path: "src/charter/synthesizer/manifest.py"
+    action: do_not_change
+    reason: >-
+      Live `.kittify/doctrine/graph.yaml` project-tier reference — the
+      synthesizer's manifest authority ignores stale residue at that path.
+
+  - path: "src/charter/synthesizer/project_drg.py"
+    action: do_not_change
+    reason: >-
+      Live `.kittify/doctrine/graph.yaml` project-tier reference — this module
+      writes and unlinks that exact file.
+
+  - path: "src/glossary/drg_builder.py"
+    action: do_not_change
+    reason: >-
+      Live `<repo_root>/.kittify/doctrine/graph.yaml` overlay reference.
+
+  - path: "src/specify_cli/state/contract.py"
+    action: do_not_change
+    reason: >-
+      Live project-tier path declared as a `path_pattern` in the state
+      contract. Rewriting it would break the contract, not fix a dead path.
+
+  - path: "src/runtime/next/_internal_runtime/planner.py"
+    action: do_not_change
+    reason: >-
+      Prose, not a path. Line 104 says "a shipped/custom mission step" — same
+      English construction as model-to-task_type.yaml:596, and the second
+      fixture proving the `shipped/` gate's path-shape discriminator (T037).
+      Outside `src/doctrine/`, so the authored map's reproduce command missed
+      it.
+
+  - path: "src/doctrine/shared/errors.py"
+    action: manual_review
+    reason: >-
+      `build_migration_hint` is where the operator-facing string is CONSTRUCTED,
+      so this is the root fix rather than one of its echoes. The squad found this
+      file was owned by no work package at all, which meant WP07 could not meet
+      its own success criterion inside its boundary.
+
+  - path: "src/doctrine/shared/exceptions.py"
+    action: manual_review
+    reason: >-
+      Defines `InlineReferenceRejectedError` itself. Same root-cause class as
+      errors.py, and likewise previously unowned.
+
+status:
+  authored_by: agent
+  authored_at: "2026-07-26"
+  reconciled_at: "2026-07-27"
+  reviewed_by: null
+  note: >-
+    Scoped to WP07. WP05's schema regeneration is a generator output, not a
+    string sweep, so it is out of this map's scope. The map uses the current
+    path-glob granularity, which suffices here because WP07's exemptions are
+    path-shaped; the field-path granularity WP02 adds exists for mission B2,
+    whose GOVERNANCE and MIGRATE entries share files.
+  reconciliation_note: >-
+    Reconciled against the real occurrence set during WP07 implementation; the
+    three divergences are named in the header comment (WP04 shrank the
+    graph.yaml carrier set by one; the live project-tier class was
+    under-enumerated by four; `shipped/` prose exists outside src/doctrine/).
+    Exceptions were only ever ADDED here, never removed, and every addition is
+    a do_not_change on a correct site. No exception was widened to excuse an
+    unfixed occurrence — the gate's residue is empty, not allowlisted.
+    Field-path exceptions were not used: lane-g's copy of
+    src/doctrine/schemas/occurrence-map.schema.yaml still has
+    `additionalProperties: false` on `exception_entry` with no `field_path`
+    key, because WP02's schema change lives on another lane and resolves at
+    merge. Path-glob granularity is sufficient for all of WP07's exemptions.
+  out_of_map_edits: >-
+    Three T039 cross-link corrections touch files that carry neither target
+    term and so fall outside this map: templates/agent-file-template.md and
+    templates/checklist-template.md (self-referential broken `Path:` links)
+    and skills/spec-kitty-bulk-edit-classification/SKILL.md (a `../` depth off
+    by one). Recorded here so the diff-compliance review does not read them as
+    unclassified sweep collateral.

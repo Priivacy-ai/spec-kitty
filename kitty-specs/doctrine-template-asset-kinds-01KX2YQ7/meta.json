@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "fbad9294742dd2b58066cef1ba5e396978f57bf3",
-  "coordination_branch": "kitty/mission-doctrine-template-asset-kinds-01KX2YQ7",
   "created_at": "2026-07-09T08:08:17.179527+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "First-Class TEMPLATE + ASSET Doctrine Kinds",
   "mission_id": "01KX2YQ7GV9A6FZEZRP8Z31YX4",
   "mission_number": 170,
@@ -14,5 +13,5 @@
   "slug": "doctrine-template-asset-kinds-01KX2YQ7",
   "status_phase": "1",
   "target_branch": "feat/doctrine-template-asset-kinds-2495",
-  "topology": "coord"
+  "topology": "lanes"
 }

@@ -1,0 +1,20 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      FR-013 (spec.md:303) and SC-006 (spec.md:375-378) were added mirroring FR-010/SC-005's
+      treatment of sibling CL-004, and the cited line numbers were re-verified against the live
+      src/specify_cli/cli/commands/mission_type.py — import block 38-46 (discover_missions at 42),
+      _print_available_missions def at 122, list_cmd registration at 150-151, and
+      list_mission_types registration at 1429-1430 all match exactly.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      The CL-004 citation for _resolve_template_set_slot now reads mission_type_profiles.py:841-884
+      (spec.md:121-122), and direct inspection of the live source confirms the function's def is at
+      841 and its last executable line ("return MappingProxyType(dict(template_set))") is at 884,
+      with blank lines 885-886 before the next def at 887 — the corrected range matches the actual
+      function body exactly.

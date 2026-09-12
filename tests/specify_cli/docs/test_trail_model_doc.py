@@ -1,4 +1,4 @@
-"""WP08 — docs/trail-model.md subsection presence regression tests."""
+"""WP08 — docs/architecture/trail-model.md subsection presence regression tests."""
 from pathlib import Path
 
 import pytest
@@ -6,7 +6,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-TRAIL = REPO_ROOT / "docs/trail-model.md"
+TRAIL = REPO_ROOT / "docs/architecture/trail-model.md"
 
 
 def test_trail_model_has_mode_enforcement_subsection() -> None:

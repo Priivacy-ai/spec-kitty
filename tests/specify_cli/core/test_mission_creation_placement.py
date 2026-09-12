@@ -53,8 +53,15 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def _init_git_repo(repo: Path) -> None:
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set for the default software-dev resolution
+    # exercised throughout this file.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     _git(repo, "init", "-q", "-b", _CHECKOUT_BRANCH)
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
@@ -110,7 +117,6 @@ def test_meta_commit_destination_comes_from_seam_not_checkout(tmp_path: Path) ->
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
     ):
         create_mission_core(
@@ -147,7 +153,6 @@ def test_non_coord_single_branch_meta_commit_still_targets_target_branch(tmp_pat
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
     ):
         create_mission_core(
@@ -183,7 +188,6 @@ def test_meta_commit_matches_seam_write_target_when_checkout_equals_target(tmp_p
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}.safe_commit", side_effect=_capturing_safe_commit(captured_targets)),
     ):
         create_mission_core(

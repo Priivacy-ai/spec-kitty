@@ -11,7 +11,7 @@ from specify_cli.tool_surface.enums import (
     MutabilityPolicy,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 
 import pytest
@@ -19,7 +19,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 ALL_ENUMS = [
-    SurfaceKind,
+    ToolSurfaceKind,
     SourceKind,
     InstallScope,
     ActivationMode,
@@ -35,7 +35,7 @@ def test_all_enums_are_str_enum() -> None:
 
 
 def test_surface_kind_values_are_distinct_strings() -> None:
-    values = [member.value for member in SurfaceKind]
+    values = [member.value for member in ToolSurfaceKind]
     assert all(isinstance(value, str) for value in values)
     assert len(values) == len(set(values))
 
@@ -47,7 +47,7 @@ def test_required_policy_values_are_distinct_strings() -> None:
 
 
 def test_str_enum_compares_equal_to_raw_string() -> None:
-    assert SurfaceKind.COMMAND_SKILL == "command_skill"
+    assert ToolSurfaceKind.COMMAND_SKILL == "command_skill"
     assert RequiredPolicy.RESEARCH_GAP == "research_gap"
 
 

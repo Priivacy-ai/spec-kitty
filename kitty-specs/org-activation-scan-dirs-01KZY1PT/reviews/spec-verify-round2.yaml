@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 2
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      The Net-effect paragraph (spec.md ~L114) now states only that activating the org
+      pack's own stem can never succeed via _org_scan_dirs, and separately, explicitly
+      marked "(Separately, and not fixed by this mission: ...)", the unrelated-stem
+      eviction case is attributed to FR-021's static default-pack materialization and
+      cross-referenced to Acceptance Scenario 5 instead of being folded into the "whole
+      defect" framing; "Why this priority" is narrowed the same way, and no other
+      over-broad "any single artifact evicts every org artifact" claim remains elsewhere
+      in the Problem-restated or Edge Cases sections.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      User Story 1's Independent Test (spec.md ~L143) now reads "fixture-construction
+      detail per FR-002; test data only" with the "/FR-003" citation removed, matching
+      FR-003's own text that it needs no DRG-graph fixture.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      The Functional Requirements table header (spec.md ~L298) is now "| ID | Title |
+      Requirement | User Story | Priority | Status |" — 6 columns matching the FR-001/
+      FR-002/FR-003 data rows.

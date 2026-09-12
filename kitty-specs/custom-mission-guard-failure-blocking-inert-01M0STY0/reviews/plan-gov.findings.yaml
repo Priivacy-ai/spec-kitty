@@ -1,0 +1,68 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: PLAN-GOV-001
+    lens: campsite-scope
+    severity: 3
+    title: "WP00 campsite-clean commit is stated to precede WP02's functional commit, but the plan's own dead-symbols reasoning requires the caller (added by the functional commit) to exist first"
+    evidence:
+      - artifact: "plan.md § Campsite-clean scope (charter Standing Order #2), \"Sequencing\" paragraph (lines 388-393)"
+      - artifact: "plan.md § ATDD-first per WP, WP00 row (lines 404)"
+      - code: "src/specify_cli/runtime/resolver.py:58-66 (stale comment: \"adding either to __all__ before that caller exists reds tests/architectural/test_no_dead_symbols.py\")"
+    claim: >
+      The "Sequencing" paragraph states the campsite-clean commit (restoring
+      `required_artifacts_for` to `__all__` + fixing the stale comment) is "a distinct commit
+      preceding that WP's functional implementation commit." But the WP00 row of the ATDD-first
+      table, and the stale comment itself (quoted in the Campsite-clean scope section), both
+      establish that adding `required_artifacts_for` to `__all__` is only valid (keeps
+      `tests/architectural/test_no_dead_symbols.py` green) once a real caller exists — and the
+      real caller is added by the functional implementation commit the campsite-clean commit is
+      said to precede. Taken literally, following "precedes" would mean the campsite-clean commit
+      lands with `required_artifacts_for` in `__all__` and zero callers, redding
+      `test_no_dead_symbols.py` at that commit — the exact failure mode the plan's own quoted
+      comment warns about. The plan states both "precedes" and "the comment only becomes stale
+      once the caller exists" in the same paragraph without resolving the contradiction.
+    remediation: >
+      Fix the ordering statement in the "Sequencing" paragraph: the campsite-clean commit
+      (stale-comment removal + `__all__` restoration) must land AFTER (or as part of the same
+      commit as) the functional commit that wires `required_artifacts_for` into
+      `gather_artifact_presence` — not before it — since the comment is only false, and the
+      `__all__` addition only non-vacuous, once that caller exists. Either merge the two into one
+      WP02 commit, or explicitly reorder so the caller-adding commit lands first and the
+      campsite-clean commit immediately follows it, and update the WP00 ATDD-first row's wording
+      to match so a WP-implementing agent does not attempt the literal "precedes" order and hit
+      the dead-symbols gate.
+
+  - id: PLAN-GOV-002
+    lens: ledger
+    severity: 2
+    title: "tracer-tooling-friction.md attributes the plan.md-authoring session's event-journal-lock warnings only to a vague \"#3283 shared-lock-timeout class\" pointer, not the specific matching ledger entries (SK-63/SK-65/SK-70) that document this exact command and warning signature"
+    evidence:
+      - artifact: "tracer-tooling-friction.md, first entry (2026-08-24, `.venv/bin/spec-kitty plan --mission ... --json`)"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-70 (\"spec-kitty plan --mission <slug> --json hangs forever after writing partial state\"), lines 461-505"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-63/SK-65 (same warning-signature family), lines 4812-4920"
+    claim: >
+      This mission's own tracer-tooling-friction.md entry logs the exact warning signature
+      (`event journal capture failed: project sync store is locked`, `Explicit-context event
+      capture failed: machine layout cutover did not publish within the bounded wait`) that
+      SPEC-KITTY-LEDGER.md's SK-70 documents for the identical command
+      (`spec-kitty plan --mission <slug> --json`), reproduced twice already including a
+      corroboration dated 2026-08-24 (the same day as this plan). SK-70's own text distinguishes
+      "hangs forever, no JSON" (its own symptom) from "warned but completed with
+      `result: success`" (the milder SK-63/F1-shaped symptom this mission actually hit) — so this
+      occurrence is the milder variant, but it is squarely inside the SK-63/SK-65/SK-70 family the
+      ledger already tracks by name. The tracer entry instead attributes it only to "the shared
+      test-venv/event-store contention issue already tracked elsewhere (adjacent to issue #3283's
+      shared-lock-timeout class)" — a generic GitHub issue pointer, never citing the specific
+      SK-ID(s) that already document this precise command and warning text, even though the
+      mission's own review instructions direct checking the ledger for exactly this kind of
+      planning-phase tooling entry.
+    remediation: >
+      Update tracer-tooling-friction.md's first entry to cite SK-63/SK-65/SK-70 by ledger ID
+      (in addition to or instead of #3283), noting this occurrence completed with a JSON payload
+      (the milder, non-hanging variant) rather than reproducing SK-70's full hang — so a future
+      reader correlating tracer friction against the ledger does not have to re-discover the match
+      independently.

@@ -278,9 +278,9 @@ my-project/
 
 ## Getting Started
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Upgrade to 0.11.0](../guides/how-to/installation/install-and-upgrade.md)

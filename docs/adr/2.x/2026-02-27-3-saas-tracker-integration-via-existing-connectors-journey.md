@@ -1,5 +1,6 @@
 ---
 title: SaaS Tracker Integration via Existing Connectors Journey
+description: Folds tracker binding, snapshot ingestion, and drift reporting into the established connectors and dashboard journey instead of building a parallel hosted surface.
 status: Accepted
 date: '2026-02-27'
 ---

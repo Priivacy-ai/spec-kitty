@@ -1,0 +1,35 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: cover
+mission: cascade-org-inert-01M07E9P
+note: >
+  Same deviation note as tasks-decomp.findings.yaml. Applied directly by the phase agent.
+findings: []
+checks_applied:
+  - "Every FR traceable to at least one task: Requirements Coverage Summary table in tasks.md maps
+    FR-001 -> WP02, FR-002 -> WP03, FR-003 -> WP01, plus every NFR and Constraint -- cross-checked
+    against spec.md's actual FR/NFR/C table, all present."
+  - "File references real: re-verified live during the plan phase already (activate.py:226/317,
+    deactivate.py:139, _layer_roots.py, charter/context.py, cli/commands/charter/context.py,
+    dossier/rebaseline.py -- all exist at the cited lines); tasks.md and the WP prompt files
+    inherit those same verified citations rather than re-deriving fresh (and possibly stale) ones."
+  - "Test task for every gate plan.md named: pytest (targeted files, per-WP), mypy --strict (via
+    uvx, per-WP baseline check), ruff check -- all three appear as an explicit 'Gates before
+    calling this WP done' section in every WP prompt file, not just tasks.md's summary."
+  - "CAUGHT AND FIXED during this review pass (the substantive finding of this lens sweep): every
+    FR's AC1 (the baseline 'healthy single-pack config, already works today, must not regress'
+    case) was traceable to spec.md but NOT explicitly named in the first drafted version of
+    tasks.md's T011 (WP02) and T020 (WP03) -- both subtasks jumped straight to the more
+    interesting multi-pack/no-org-pack cases and left AC1 as an implicit, unstated assumption.
+    This matters because AC1 is not actually free: before this mission's fix, these call sites
+    never threaded ANY org root, so even the single-healthy-pack case was previously unexercised at
+    these specific call sites (activate.py's cascade renderers, context.py's CLI command) -- it is
+    a genuinely new code path, not a pre-existing passing case. Expanded T011 to test BOTH the
+    single-pack (FR-001 AC1) and two-pack (FR-001 AC2) cases explicitly; expanded T020 to test
+    BOTH single-pack (FR-002 AC1) and no-org-pack (FR-002 AC4) explicitly. FR-003's AC1 was already
+    correctly covered by T004's 'project with a healthy org pack' framing -- no fix needed there."
+  - "FR-001 AC6 (_resolve_org_root not modified) and C-001: not a task in the traditional sense
+    (nothing to implement), correctly represented as a 'Read first' / Implementation Notes
+    constraint in WP02's prompt rather than a fake subtask manufactured just to have a T-number for
+    it."

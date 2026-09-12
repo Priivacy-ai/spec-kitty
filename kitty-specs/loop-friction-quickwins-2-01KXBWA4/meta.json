@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "e1de2dc52a393977d2d6b2c79c0758dff91d7a57",
-  "coordination_branch": "kitty/mission-loop-friction-quickwins-2-01KXBWA4",
   "created_at": "2026-07-12T19:19:20.432323+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Implement-Loop Friction Quick-Wins II",
   "mission_id": "01KXBWA43FCFWNMGDG8RN6N8WY",
   "mission_number": 176,
@@ -14,5 +13,5 @@
   "slug": "loop-friction-quickwins-2-01KXBWA4",
   "status_phase": "1",
   "target_branch": "feat/loop-friction-quickwins-2",
-  "topology": "coord"
+  "topology": "lanes"
 }

@@ -1,0 +1,121 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+merge_note: >
+  R2 merge of plan-gov-round3.findings.yaml (3), plan-arch-round3.findings.yaml (0),
+  plan-verify-round3.findings.yaml (1) = 4 raw findings. PLAN-GOV-002 and PLAN-VERIFY-001 cite
+  the same artifact section (plan.md § Reflexivity, Recovery path, FR-006/commitlint branch,
+  lines ~528-533) and make substantially the same claim (the FR-006 branch's RED-first fixture
+  instruction is materially less concrete than IC-01's §591 sequencing / SC-005's actual
+  commit-range mechanism), so they are merged here under PLAN-GOV-002 with evidence and
+  remediation unioned from both. PLAN-GOV-001 and PLAN-GOV-003 are distinct claims (a mislabeled
+  IC-01/IC-03 cross-reference; a missing RED-first sequencing subsection for IC-03/FR-007) and
+  are kept as-is. Original ids preserved; nothing renumbered.
+findings:
+  - id: PLAN-GOV-001
+    lens: Reflexivity recovery-path split correctness
+    severity: 3
+    title: FR-007 recovery-path branch mislabels its own RED-first discipline as belonging to IC-01, not IC-03
+    evidence:
+      - artifact: "plan.md § Reflexivity, 'Recovery path' bullet 1 (FR-007/NFR-002 leak branch), around line 527"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 378-397 — this section's content is entirely about IC-01's two guard fixtures"
+    claim: >
+      The just-split FR-007/NFR-002 recovery-path bullet reads: "confirm it is RED against the
+      currently-landed IC-03 implementation, then amend that implementation until it is GREEN — the
+      same RED-first discipline §591 applies to IC-01." Every noun phrase in this sentence up to that
+      point is about IC-03 (the record-analysis path-relativization fix): "IC-03 implementation,"
+      "that implementation." The closing clause then names IC-01 — a completely unrelated concern
+      (the dossier-emitter positional-call guard). This is either a copy-paste artifact from the prior
+      draft or a genuine mix-up; either way it is exactly the kind of cross-IC conflation the round-2
+      re-authoring (PLAN-FRESH2-003) was meant to eliminate from this section, and it survives into
+      the current re-authored text. A reader has to guess whether the sentence means "apply the same
+      discipline §591 establishes for IC-01" (i.e., a by-analogy reference) or is mistakenly saying
+      this recovery step IS part of IC-01.
+    remediation: >
+      Rewrite the closing clause to unambiguously reference IC-03, e.g.: "— the same RED-first
+      discipline §591 establishes for IC-01 applies here, to this IC-03 fix." Or drop the IC-01
+      reference entirely and simply state "— apply the same RED-first discipline as §591 (RED-first
+      commit before the GREEN implementation commit)."
+
+  - id: PLAN-GOV-002
+    lens: "Reflexivity recovery-path split correctness (FR-006 branch vs SC-005 acceptance method) [merged with PLAN-VERIFY-001]"
+    severity: 3
+    title: FR-006 recovery-path RED-first fixture instruction is materially underspecified — it claims SC-005's commit-range mechanism but reads as a bare-string check, and leaves fixture-persistence/timing mechanics unstated
+    evidence:
+      - artifact: "plan.md § Reflexivity, 'Recovery path' bullet 2 (FR-006 branch), lines 528-533"
+      - artifact: "spec.md SC-005, line 162: 'commitlint --from <parent-sha> --to <analysis-commit-sha> reports 0 problems'"
+      - artifact: "plan.md § Test strategy per FR/AC, FR-006 row, line 457, which does state the --from/--to form explicitly"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 380-397 (IC-01's own RED-first instruction, for comparison — names the exact fixture idiom, exact pre-widening lines, and exact tests to re-run)"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:365 (current f\"Add analysis report for mission {slug}\" message= construction the fixture would need to exercise)"
+    claim: >
+      The FR-006 recovery-path branch instructs: "Add a RED-first fixture that runs the repo's real
+      `commitlint` invocation against the actual failing subject string (per SC-005's live-commitlint
+      acceptance method, not a unit-level string-shape assertion alone)." Two compounding problems: (1)
+      SC-005's actual acceptance method is a git-commit-range invocation (`commitlint --from
+      <parent-sha> --to <analysis-commit-sha>`), which requires two real commits in a git history to
+      lint against — materially different from linting a bare subject string in isolation (e.g. via
+      commitlint's stdin/message-only mode). The branch's phrase "against the actual failing subject
+      string" reads as the latter (string-only) shape while simultaneously claiming to follow SC-005's
+      commit-range method; the plan's own Test-strategy table (line 457) uses the explicit
+      `--from/--to` phrasing for this same FR, but the Reflexivity branch drops it. (2) Independent of
+      which mechanism is meant, the branch does not say what test file/function would house this
+      fixture, whether it must be a persisted, committed pytest test (as charter C-011 generally
+      requires — "the ATDD test is committed as a separate commit ... BEFORE any implementation
+      commits") or a one-off manual commitlint invocation during the fix-forward loop, or how a
+      "RED-first" fixture can even be authored in advance for this failure mode at all: unlike
+      FR-001/FR-002's two positive-control fixtures (planted files authored ahead of time), this path
+      is only reachable AFTER this mission's own record-analysis commit already exists on the branch
+      and has already failed commitlint — the "failing subject string" is a specific git commit SHA
+      not knowable at plan-authoring time, not a string a WP can hardcode into a fixture file. IC-01's
+      own §591 section, by contrast, names the exact fixture idiom, exact pre-widening code lines, and
+      exact tests to re-run — an implementer there cannot get the mechanics wrong. The FR-006 branch
+      does not meet that same bar, and an implementing WP is left to invent whether this becomes a
+      permanent regression test or a throwaway manual check — exactly the kind of gap likely to cause
+      rework or a review disagreement about whether §591/C-011 was actually satisfied for this branch.
+    remediation: >
+      Rewrite the FR-006 recovery-path bullet to state explicitly: (1) the concrete commitlint
+      invocation, reusing the Test Strategy table's exact syntax (`commitlint --from <parent-sha>
+      --to <analysis-commit-sha>`, with `<analysis-commit-sha>` bound to this mission's own
+      already-made record-analysis commit rather than a hardcoded string) — not a bare-string/stdin
+      lint; and (2) whether this fixture must be committed as a persisted, reusable pytest test
+      (naming the target file, e.g. a new test in tests/specify_cli/test_analysis_report.py or a
+      dedicated commitlint integration test module) or is explicitly permitted to be a one-off,
+      uncommitted manual verification step during the fix-forward loop — matching the level of
+      concreteness IC-01's §591 section already gives (named idiom to mimic, named lines, named
+      tests to re-run).
+
+  - id: PLAN-GOV-003
+    lens: Directive (charter RED-first / ATDD-first standing order, C-011)
+    severity: 3
+    title: IC-03/FR-007's new NFR-002 test has no explicit RED-first commit-sequencing instruction, unlike IC-01's dedicated §591 section, despite plan.md's own Standing-Order-4 text implying one exists
+    evidence:
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 4 ('Test remediation & bug-fix discipline'), lines 136-140: 'the RED-first sequencing above satisfies this for the guard widening; the five updated charter-path assertions are judged VALID ... and are being changed because the product's own contract changed (FR-007)'"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 378-397 — scoped entirely to IC-01's two new guard fixtures, with an explicit two-commit RED-then-GREEN order and reviewer-verification framing"
+      - artifact: "plan.md § Test strategy per FR/AC, FR-007 row, line 458 — describes WHAT the new NFR-002 test asserts, not WHEN (commit order) it must be written relative to the implementation"
+      - artifact: "plan.md § Revert discipline, lines 468-471 — frames the five updated assertions and the NFR-002 test in terms of what fails on revert, not in terms of RED-first commit ordering"
+    claim: >
+      Charter C-011 (ATDD-First Discipline, binding) requires every implementation WP to have "at
+      least one failing-first ATDD test ... committed as a separate commit ... BEFORE any
+      implementation commits," with the reviewer verifying RED-on-base/GREEN-on-final. IC-01 operates
+      this literally: its own dedicated "§591 ATDD-First sequencing" subsection prescribes a two-commit
+      order (RED-first fixture commit, then GREEN implementation commit) and states the exact
+      before/after checkout verification a reviewer must run. IC-03/FR-007 introduces genuinely new
+      user-observable behavior too — the NFR-002 test that "constructs an unrelativizable-path
+      condition" and asserts raise/non-raise behavior is a new test, not merely an updated assertion —
+      yet plan.md has no equivalent dedicated sequencing subsection for it: the closest text ("Test
+      strategy per FR/AC" and "Revert discipline") describes what the test checks, not when in commit
+      order it must land relative to the FR-007 implementation. Worse, plan.md's own Standing-Order-4
+      paragraph asserts "the RED-first sequencing above satisfies this ... [for] the five updated
+      charter-path assertions," but the only "sequencing... above" in the document (§591) is scoped
+      explicitly and exclusively to IC-01 in every sentence of that section — it never mentions FR-007,
+      `analysis_report.py`, or the charter-path assertions. This is an internal inconsistency: the plan
+      claims a RED-first sequencing procedure already covers IC-03's test-remediation work when the
+      procedure it points to does not.
+    remediation: >
+      Either (a) add an explicit RED-first commit-sequencing subsection for IC-03/FR-007 paralleling
+      §591's structure — a numbered RED-first-commit-then-GREEN-implementation-commit sequence for the
+      new NFR-002 test and the five updated assertions, with the same before/after
+      checkout-and-re-run reviewer-verification framing — or (b) if the intent was genuinely to rely on
+      §591 by cross-reference, correct the Standing-Order-4 sentence so it does not claim §591 already
+      covers FR-007's assertions when §591's own text is scoped to IC-01 only.

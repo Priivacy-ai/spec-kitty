@@ -1,0 +1,45 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: fresh-2
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: ANALYZE-FRESH2-001
+    lens: cross-artifact-consistency
+    severity: 4
+    title: "NFR-002 still attributes poll-interval ownership to the CLI shell, contradicting the corrected FR-011/NFR-001 core-owns-the-loop architecture"
+    evidence:
+      - artifact: "spec.md:343 (NFR-002 row: 'The shell's poll interval MUST default to a fixed, documented value between 100ms and 1000ms ...')"
+      - artifact: "spec.md:334 (FR-011, corrected this round: 'a pure, finite generator/iterator core whose own internal poll loop ... is driven by an injectable `sleep_fn` ... with the Typer CLI shell reduced to a plain `for`-loop consumer ... holding no explicit `while True` and no direct `time.sleep` call of its own')"
+      - artifact: "spec.md:342 (NFR-001, corrected this round: 'whose own internal poll-then-sleep loop is driven by an injectable `sleep_fn` ...; the CLI shell holds no loop construct of its own')"
+      - artifact: "plan.md:160 ('DEFAULT_POLL_INTERVAL_SECONDS: float = 0.25  # NFR-002: within [0.1s, 1.0s]' — defined inside the plan's **Core** code sketch for `tail_reader.py`, not the shell's `events.py` sketch)"
+      - artifact: "plan.md:716 (IC-03 'Covers: FR-011, NFR-001, NFR-002 (poll interval constant + doc comment stating the chosen value and why it's within bounds)' — IC-03 is the core-only `tail_events()` concern, confirming plan.md itself treats NFR-002's constant as core-owned)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md:209-215 (T002 defines `DEFAULT_POLL_INTERVAL_SECONDS` inside `tail_reader.py`, the core module, with an inline NFR-002 rationale comment)"
+      - artifact: "tasks/WP03-bounded-generator-core.md:219-240 (T018 'DEFAULT_POLL_INTERVAL_SECONDS doc comment (NFR-002)' — amends the constant's doc comment in `tail_reader.py`, the core)"
+      - artifact: ".worktrees/event-push-watch-channel-01M1K6W2-lane-a/src/specify_cli/status/tail_reader.py:34 (landed WP01 code: `DEFAULT_POLL_INTERVAL_SECONDS: float = 0.25` is defined in the core module; no poll-interval flag or default exists anywhere in the plan's CLI Surface section for `events.py`)"
+    claim: >
+      Both fix rounds corrected FR-011 and NFR-001 (spec.md:334, :342) plus plan.md's Architectural
+      Seam section to state that the poll-then-sleep loop, and by extension the poll interval that
+      drives it, is owned by the core's `tail_events()` generator (via its `poll_interval`/`sleep_fn`
+      parameters, defaulting from `DEFAULT_POLL_INTERVAL_SECONDS` defined in `tail_reader.py`) — the
+      CLI shell (`events.py`) has no loop, no sleep, and (per plan.md's CLI Surface section) no
+      `--poll-interval` flag of its own; it only forwards to the core's default. NFR-002 (spec.md:343)
+      was NOT touched by either fix round and still reads "The shell's poll interval MUST default to
+      a fixed, documented value..." — the exact same defect class (attributing the poll/sleep
+      mechanism to the wrong component) the two rounds were dispatched to close, just in the one
+      requirement row neither round's search apparently covered. This is not merely stale prose: it
+      directly contradicts the already-landed WP01 code (`tail_reader.py:34`, confirmed by direct
+      read of `.worktrees/event-push-watch-channel-01M1K6W2-lane-a/`), which defines the poll-interval
+      constant in the core, not the shell, and it contradicts plan.md's own IC-03 concern mapping,
+      which places the NFR-002 doc-comment obligation on the core-only WP03. A reviewer or acceptance-
+      test author working from spec.md alone (without cross-referencing the plan/tasks) would look for
+      a shell-level poll-interval default that does not exist as an artifact of the shell at all.
+    remediation: >
+      Reword NFR-002's requirement text in spec.md to match FR-011/NFR-001's corrected framing, e.g.:
+      "The core's poll interval (`tail_events()`'s `poll_interval` parameter, defaulting to
+      `DEFAULT_POLL_INTERVAL_SECONDS`) MUST default to a fixed, documented value between 100ms and
+      1000ms ... so that the CLI shell — which has no poll-interval flag or loop of its own and simply
+      iterates `tail_events()` at its default — inherits a bounded, sub-second poll cadence." Keep the
+      title ("Poll interval bound") and the numeric bound/rationale unchanged; only the
+      component-ownership language needs correcting, mirroring the exact fix already applied to
+      FR-011/NFR-001 in this same table.

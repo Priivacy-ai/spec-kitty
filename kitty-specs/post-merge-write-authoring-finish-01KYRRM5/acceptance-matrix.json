@@ -1,0 +1,169 @@
+{
+  "mission_slug": "post-merge-write-authoring-finish-01KYRRM5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 lifecycle_phase.resolve_lifecycle_phase; tests/mission_runtime/test_lifecycle_phase.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:46:52.902913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 SurfaceLocations.consolidated wired; tests/mission_runtime/test_consolidated_resolution.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:46:54.594542+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 SC-001: safe-commit PRIMARY on E2 commits to Primary Branch; test_issue_3033_post_consolidation_write.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:46:56.324500+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 SC-002: coord-kind write committed on E2; test_issue_3033_post_consolidation_write.py (lane-b re-pin)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:46:58.044342+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 SC-003: single-locus staging thunk, refused write 0 residue; test_write_seam_thunk.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:46:59.768599+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 SC-004: off-checkout refuse-with-recovery, branch-derived; test_write_seam_thunk.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:01.462677+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: acceptance-verdict --negative-invariant register; test_negative_invariant_authoring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:03.176518+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: negative-invariant execute via enforce_negative_invariants; test_negative_invariant_authoring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:04.888130+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: accept --diagnose typed AcceptanceMatrixParseError hardening; test_negative_invariant_authoring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:06.615529+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: overall_verdict computed-property (already-satisfied by #3076); TestFreshVerdictPersistPin",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:08.411796+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05: accept mission-step prompt SOURCE drives acceptance-verdict; structural test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:10.199967+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 SC-008: same-repo GitHub-URL issue recognition (single regex); test_issue_ref_url_provenance.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:11.906659+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: source_file provenance on IssueReference + round-trip + dedup; test_issue_ref_url_provenance.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:13.614022+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: ADR 2026-07-30-1 (CONSOLIDATED wiring + consolidate canonical + HiC decisions)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:15.322640+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: docs/context/orchestration.md consolidate canonical + guards",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:17.050769+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 SC-011: drift-ratchet guard in test_no_legacy_terminology.py (bite-tested)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-07-30T16:47:18.785788+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

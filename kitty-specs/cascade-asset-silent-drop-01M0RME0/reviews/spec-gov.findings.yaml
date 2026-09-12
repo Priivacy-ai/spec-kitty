@@ -1,0 +1,82 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: gov
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: SPEC-GOV-001
+    lens: public-repo
+    severity: 2
+    title: Spec cites private, operator-local absolute paths that will not resolve for any external reader of the merged public PR
+    evidence:
+      - artifact: "spec.md § Clarifications (lines 60-62)"
+      - artifact: "spec.md § C-005 (line 232)"
+    claim: >
+      This checkout's spec.md is already committed on the mission branch of the public
+      `Priivacy-ai/spec-kitty` repo (confirmed via `git log --oneline -3` showing
+      "spec: real spec for cascade-asset-silent-drop (#3705)" and `git remote -v`
+      pointing at the public GitHub origin). Two places in the spec cite absolute
+      filesystem paths under `/home/jeroennouws/dev/SK-missions/` — the operator's
+      private, non-repo, multi-issue mission-orchestration meta-directory (verified:
+      `git ls-files` on this checkout shows no `SPEC-KITTY-LEDGER.md` or `_readiness/`
+      tracked anywhere in the spec-kitty repo; `ls /home/jeroennouws/dev/SK-missions/`
+      shows this is a sibling directory of per-issue-numbered workspaces, e.g. `1058`,
+      `3086`, `3384`...`3705`, none of which are part of the public repo). Once this
+      spec merges, these two citations become permanent public content that (a)
+      exposes the operator's OS username (`jeroennouws`) and the internal directory
+      layout of a private multi-repo orchestration tool, and (b) point to files no
+      external reader — including a future contributor or a different operator's
+      machine — can ever dereference, undermining C-005's own claim that "this has
+      been verified" against a citable source.
+    remediation: >
+      Before this spec is used as the canonical planning record for implementation,
+      strip the absolute local paths from both citations. For the readiness-probe
+      citation (line 61), either drop the path entirely (the operator-confirmation
+      parenthetical already carries the load-bearing fact) or replace it with a
+      repo-relative reference if the probe is copied into the mission's own
+      `kitty-specs/.../research/` directory. For the SK-76 citation (C-005, line 232),
+      cite the ledger entry by ID only ("Ledger entry SK-76") without the absolute
+      path, or reference a repo-relative/public copy if one exists.
+  - id: SPEC-GOV-002
+    lens: process-gate-vs-functional-requirement
+    severity: 3
+    title: FR-006/C-003/SC-005's PR-body-citation gate has no named verifier or verification mechanism, unlike every other SC
+    evidence:
+      - artifact: "spec.md § FR-006 (line 211)"
+      - artifact: "spec.md § C-003 (line 230)"
+      - artifact: "spec.md § SC-005 (lines 289-291)"
+      - code: "~/.hermes/skills/pr-prep/SKILL.md (grepped for ADR/spec.md/FR-/C-0 cross-reference instructions: none found)"
+    claim: >
+      FR-006/C-003/SC-005 are explicitly and correctly self-labelled as a
+      mission-completion/process gate distinct from the runtime-behavior ACs
+      (FR-006: "checked at PR-open time, not a runtime behavior"; C-003 Category:
+      "Process" vs. "Technical" for every other constraint) — so the mission-derived
+      lens's core question (is it appropriate for a spec to gate on this at all) is
+      already answered by the spec's own phrasing and is not itself a defect. The gap
+      is one level down: SC-001 through SC-004 and SC-006 each name a concrete test or
+      assertion that verifies them ("verified by a red-first test...", "verified by a
+      single test exercising both commands..."). SC-005 names no verifier at all —
+      just "Fails if the PR is opened without that citation," with no statement of who
+      checks this (the implementer self-attesting at PR-open, the pre-merge squad, the
+      accept gate?) or when. A scan of `~/.hermes/skills/pr-prep/SKILL.md` (the
+      canonical PR-body-authoring skill referenced by `sk-implement`) found no generic
+      mechanism that reads a mission's spec.md for FR/C items like this one and
+      surfaces them into the PR body checklist — so satisfying SC-005 currently
+      depends entirely on whichever agent drafts the PR body having read and retained
+      this one spec's Clarifications section. Because FR-006 is placed in the same
+      Functional Requirements table as the seven runtime FRs (FR-001–FR-005, FR-007,
+      FR-008), and the charter's ATDD-First Discipline (C-011) binds WP-level
+      red-first tests to FRs delivering "user-observable behaviour," a plan/tasks-phase
+      reader could either (a) try to manufacture a nonsensical red-first test for
+      FR-006, or (b) silently drop it from task decomposition because it does not fit
+      the WP+test pattern — the exact "lost by mission close" failure the spec's own
+      Clarifications section (line 47) says it is trying to avoid.
+    remediation: >
+      Add one sentence to FR-006 (or a new short subsection) explicitly routing this
+      requirement to a named downstream mechanism — e.g. "verified by the pre-merge
+      review squad / accept gate checking the PR body for the ADR citation before
+      operator merge, not by a work package or automated test" — so the plan/tasks
+      phase knows not to create a WP or red-first test for it, and so a specific
+      reviewer step (not "whoever remembers") is on the hook for SC-005 at mission
+      close.

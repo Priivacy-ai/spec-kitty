@@ -30,12 +30,12 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict, replace
-from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any
 
 from rich.console import Console
 
+from kernel.clock import Clock, DEFAULT_CLOCK, datetime, parse_iso, timedelta
 from specify_cli.core.env import is_truthy
 from specify_cli.core.upgrade_probe import (
     UpgradeChannel,
@@ -103,13 +103,9 @@ def _deserialize_result(data: dict[str, Any]) -> UpgradeProbeResult | None:
     try:
         return UpgradeProbeResult(
             installed_version=str(data["installed_version"]),
-            latest_pypi_version=(
-                str(data["latest_pypi_version"])
-                if data.get("latest_pypi_version") is not None
-                else None
-            ),
+            latest_pypi_version=(str(data["latest_pypi_version"]) if data.get("latest_pypi_version") is not None else None),
             channel=UpgradeChannel(data["channel"]),
-            probed_at=datetime.fromisoformat(data["probed_at"]),
+            probed_at=parse_iso(data["probed_at"]),
             error=(str(data["error"]) if data.get("error") is not None else None),
             releases=tuple(data.get("releases") or ()),
         )
@@ -185,17 +181,9 @@ def _is_fresh(
 
 
 _NOTICE_TEMPLATES: dict[UpgradeChannel, str] = {
-    UpgradeChannel.ALREADY_CURRENT: (
-        "[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"
-    ),
-    UpgradeChannel.AHEAD_OF_PYPI: (
-        "[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release "
-        "({latest}). No upgrade required.[/dim]"
-    ),
-    UpgradeChannel.NO_UPGRADE_PATH: (
-        "[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. "
-        "No PyPI upgrade path is available.[/dim]"
-    ),
+    UpgradeChannel.ALREADY_CURRENT: ("[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"),
+    UpgradeChannel.AHEAD_OF_PYPI: ("[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release ({latest}). No upgrade required.[/dim]"),
+    UpgradeChannel.NO_UPGRADE_PATH: ("[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. No PyPI upgrade path is available.[/dim]"),
     # UPGRADE_AVAILABLE intentionally emits no no-upgrade notice; the existing
     # upgrade nag owns that user-facing path.
     # UNKNOWN intentionally emits no notice (contract: "do not block on inability to probe").
@@ -240,6 +228,7 @@ def maybe_emit_upgrade_notice(
     console: Console | None = None,
     now: datetime | None = None,
     cache_path: Path | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> bool:
     """Emit a channel-appropriate notice if and only if one is warranted.
 
@@ -256,8 +245,12 @@ def maybe_emit_upgrade_notice(
     Args:
         cli_version: Installed CLI version (from ``get_cli_version()``).
         console: Rich console; defaults to a fresh ``Console()`` on stdout.
-        now: Current time; defaults to ``datetime.now(UTC)``. Test seam.
+        now: Current time; explicit-value test seam, takes precedence over
+            ``clock`` when given.
         cache_path: Override cache file location. Test seam.
+        clock: Injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+            FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`, the
+            sanctioned wall-clock read. Used only when ``now`` is omitted.
 
     Returns:
         ``True`` if a notice was emitted; ``False`` otherwise (opt-out,
@@ -275,7 +268,7 @@ def maybe_emit_upgrade_notice(
         if console is None:
             console = Console()
         if now is None:
-            now = datetime.now(UTC)
+            now = clock.now()
         if cache_path is None:
             cache_path = _default_cache_path()
 
@@ -315,11 +308,7 @@ def maybe_emit_upgrade_notice(
             emitted = _render_notice(result, console)
 
         # Persist the result (best-effort) regardless of whether we emitted.
-        ttl = (
-            TTL_UNKNOWN_SECONDS
-            if result.channel == UpgradeChannel.UNKNOWN
-            else TTL_SUCCESS_SECONDS
-        )
+        ttl = TTL_UNKNOWN_SECONDS if result.channel == UpgradeChannel.UNKNOWN else TTL_SUCCESS_SECONDS
         _save_cache(cache_path, result, ttl)
 
         return emitted

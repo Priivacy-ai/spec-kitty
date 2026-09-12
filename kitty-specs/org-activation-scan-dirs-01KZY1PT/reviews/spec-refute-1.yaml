@@ -1,0 +1,59 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      Read parse_requirement_ids_from_spec_md (requirement_mapping.py:104-117) directly — it is
+      a pure `_REF_FIND_PATTERN` regex scan with no exemption for the FR-004/FR-005 "contingent"
+      or "Low" priority markers; read _validate_requirement_mapping (mission_finalize.py:609-663)
+      directly — unmapped_functional_requirements is a plain set-difference with no
+      priority/contingent filtering anywhere in requirement_mapping.py or mission_finalize.py
+      (grepped both files for "contingent"/"priority", zero hits), so the claimed hard-fail via
+      typer.Exit(1) has no escape hatch and the finding's mechanism holds exactly as stated.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      charter.md:126-134 confirms step 1 (smallest-viable-diff) already selects
+      kind_vocabulary.py into the file set and step 2 (Boy Scout) explicitly permits
+      "proportional tidy-up ... without adding files to the set," so the Clarifications' stated
+      rationale ("touching them grows the file set beyond the stated goal") misapplies the
+      mechanism for an edit that adds no new file — the finding's textual analysis is accurate
+      even though the underlying scope decision (leave the two functions untouched) remains
+      independently defensible under Locality of Change (charter.md:119-120, 131-134).
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Read resolve_artifact_urn (kind_vocabulary.py:253-297) directly — it is first-match-wins
+      over _iter_artifact_paths, returning on the first path whose config stem matches; _scan_roots
+      (kind_vocabulary.py:142-180) extends with whatever order _org_scan_dirs constructs for a
+      single org root, so once FR-001's fix adds both flat and legacy entries per root, a
+      same-stem collision between them resolves solely by list order — exactly as claimed, and
+      Acceptance Scenario 3 (spec.md) indeed uses two different stems, never exercising this case.
+      The broader-blast-radius citations (compiler.py:146, consistency_check.py:744,815) also
+      match verbatim.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Re-verified independently: _resolve_activated_urns_for_kind (drg.py:333-380) only calls
+      resolve_artifact_urn on stems already in activated_ids; plan_activation (activation_engine.py
+      :257-274) materializes default_ids (sourced from the static _load_default_pack() /
+      packs/default.yaml, pack_manager.py:406,512-520,604) plus the single requested stem when no
+      explicit activation set exists — the org stem is never added, so Acceptance Scenario 1's
+      premise (activating one unrelated built-in artifact reveals the org node) is false by the
+      gate's own design, matching the currently-passing test_non_activated_directive_is_still_excluded
+      (test_drg_activation_gate.py:209-216) read directly.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Read load_validated_graph (_drg_helpers.py:55-96) directly — org-layer nodes come only from
+      load_graph_or_dir on *.graph.yaml fragments, never synthesized from *.directive.yaml files;
+      confirmed load_graph_or_dir's non-recursive path.glob("*.graph.yaml") (doctrine/drg/loader.py
+      :81-107) and that packs/built-in/directive.graph.yaml is a static, committed fragment (not
+      derived from artifact files); confirmed the documented canonical org-pack layout places DRG
+      fragments under a drg/ subdirectory (create-an-org-doctrine-pack.md:58-66) — Scenario 1's
+      fixture (spec.md, only a *.directive.yaml file, no *.graph.yaml) therefore would not register
+      a graph node at all if run through the real load path, an ambiguity the spec's own User Story
+      3 findings corroborate but Scenario 1's fixture description omits.

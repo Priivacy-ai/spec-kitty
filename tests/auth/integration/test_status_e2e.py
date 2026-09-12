@@ -8,12 +8,13 @@ a :class:`FakeSecureStorage` pre-populated with a known session.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, now_utc, timedelta
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.auth.errors import StorageDecryptionError
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -27,7 +28,7 @@ runner = CliRunner()
 
 def _authenticated_session() -> StoredSession:
     """Build a StoredSession with deterministic, human-readable fields."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_alice",
         email="alice@example.com",
@@ -103,12 +104,29 @@ class TestStatusE2E:
         assert "Not authenticated" in result.stdout
         assert "spec-kitty auth login" in result.stdout
 
+    def test_status_names_decryption_failure_instead_of_absent_session(self) -> None:
+        class UndecryptableStorage(FakeSecureStorage):
+            def read(self) -> StoredSession | None:
+                raise StorageDecryptionError("synthetic corrupt ciphertext")
+
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=UndecryptableStorage(),
+        ):
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "could not be decrypted" in result.stdout
+        assert "unreadable session removed" in result.stdout
+        assert "no active session" not in result.stdout
+
     def test_status_refresh_expired_prompts_re_login(
         self,
         fake_storage: FakeSecureStorage,
     ) -> None:
-        """A session whose refresh token has expired prompts re-login."""
-        now = datetime.now(UTC)
+        """A session whose refresh token has expired reads as the honest
+        ``Not authenticated`` verdict (evidence-named) and prompts re-login (#3723)."""
+        now = now_utc()
         session = _authenticated_session()
         # Force refresh expiry into the past.
         session.refresh_token_expires_at = now - timedelta(minutes=1)
@@ -121,7 +139,9 @@ class TestStatusE2E:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
-        assert "Session expired" in result.stdout
+        assert "Not authenticated" in result.stdout
+        assert "expired" in result.stdout
+        assert "spec-kitty auth login" in result.stdout
 
     def test_status_device_code_method_label(
         self,

@@ -300,6 +300,53 @@ def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# WP05 (#3396) T021/T022 — bare-prose requirement fact-port/pure-core split.
+#
+# A SIBLING fact object to ``RequirementMappingFacts``, not an extension
+# (C-007): the bare-prose signal must fire independent of ``tasks_dir``/
+# WP-file state (FR-002), and ``RequirementMappingFacts`` is WP-shaped
+# (``wp_ids``/``wp_requirement_refs``) in a way that would force an
+# artificial coupling here. Facts arrive as plain data only -- computed by
+# the residual gather step in ``runtime_bridge.py`` (T023), which is the
+# only caller that may import ``specify_cli.requirement_mapping``; this
+# module (a stdlib-only zero-dependency leaf, see module docstring) never
+# does.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BareProseRequirementFacts:
+    """Facts gathered from spec.md alone (T023-sibling) so the bare-prose
+    classification decision can be pure, independent of tasks/ dir state."""
+
+    flagged: Mapping[str, tuple[str, ...]]
+    classification_error: str | None
+
+
+def _evaluate_bare_prose_requirements(facts: BareProseRequirementFacts) -> list[str]:
+    """Pure decision tail for the bare-prose requirement signal (T022).
+
+    Fail-loud (Story 5 / FR-007 / FR-008 / NFR-002): a non-``None``
+    ``classification_error`` is ALWAYS blocking -- the residual gather step
+    already formatted the full failure message (mission name included), so
+    this function returns it verbatim rather than re-deriving it. Never
+    silently downgrades an unresolved/ambiguous classification to a clean
+    result.
+    """
+    if facts.classification_error is not None:
+        return [facts.classification_error]
+    if not facts.flagged:
+        return []
+    details = "; ".join(f"{heading}: {', '.join(ids)}" for heading, ids in sorted(facts.flagged.items()))
+    return [
+        "Bare-prose requirement id(s) found, uncounted by requirement mapping: "
+        + details
+        + ". Rewrite them in a recognized declared shape (table row / id-naming heading / "
+        "bulleted item / bold-led paragraph) before finalizing."
+    ]
+
+
+# ---------------------------------------------------------------------------
 # T022 — ArtifactPresenceSnapshot consumer: pure evaluate_guards(snapshot)
 # ---------------------------------------------------------------------------
 
@@ -318,6 +365,16 @@ class _ArtifactPresenceSnapshotLike(Protocol):
     ``_should_advance_wp_step`` I/O read through so its own WP02 compat
     reach stays intact, without adding a new gather concern to the WP05
     port or its already-green test suite.
+
+    ``blocking_artifact_names`` (WP01/WP02, FR-001/FR-002/FR-006, #3704
+    Part 1) is ``frozenset[str] | None``: ``None`` means no expected-
+    artifacts manifest is reachable at any tier for this mission family
+    (the existing ``evaluate_guards_strict`` strict raise is unchanged in
+    this state); a real, possibly-empty ``frozenset`` means a manifest WAS
+    resolved and names the blocking artifacts for this step, to be
+    compared against ``present_artifacts``. Preserve this distinction with
+    ``is None`` — never bare falsiness, which would silently collapse it
+    (SPEC-FRESH-001).
 
     Declared via read-only ``@property`` getters (not plain attribute
     annotations) so this Protocol is satisfied by ``ArtifactPresenceSnapshot``
@@ -344,34 +401,11 @@ class _ArtifactPresenceSnapshotLike(Protocol):
     @property
     def wp_advance_ready(self) -> bool | None: ...
 
+    @property
+    def blocking_artifact_names(self) -> frozenset[str] | None: ...
+
 
 _CLI_TASKS_STEP_IDS = frozenset({"tasks_outline", "tasks_packages", "tasks_finalize"})
-
-
-def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """Pure decision folding ``_check_cli_guards`` + ``_check_composed_action_guard``
-    (+ ``_check_requirement_mapping_ready``'s tail, via the precomputed
-    ``status_facts["requirement_mapping_failures"]`` fact) over one
-    ``ArtifactPresenceSnapshot``-shaped input (FR-009, SC-007).
-
-    Dispatch mirrors the two original functions' mission-family branching
-    exactly: research / documentation get their own fail-closed-by-default
-    action tables; anything else (including the literal ``"software-dev"``
-    family AND any unrecognized family value — the original composed guard
-    fell through to the software-dev chain for both) gets the software-dev
-    dispatch, which further branches on whether ``step_id`` carries the
-    CLI-guard native vocabulary (``tasks_outline``/``tasks_packages``/
-    ``tasks_finalize``) or the composed-action vocabulary (``tasks``, with
-    ``legacy_step_id`` disambiguating the same three sub-cases plus the
-    terminal/union case) — the two vocabularies produce genuinely different
-    messages for the tasks family (see ``_evaluate_cli_tasks_guard`` vs.
-    ``_evaluate_composed_tasks_guard`` — do not unify them further).
-    """
-    if snapshot.mission_family == "research":
-        return _evaluate_research_guards(snapshot)
-    if snapshot.mission_family == "documentation":
-        return _evaluate_documentation_guards(snapshot)
-    return _evaluate_software_dev_guards(snapshot)
 
 
 def _check_artifact_present(snapshot: _ArtifactPresenceSnapshotLike, tag: str) -> list[str]:
@@ -431,6 +465,17 @@ def _evaluate_research_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[s
 
 
 def _evaluate_generate_docs_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Block the "generate" -> next-step transition when no generated docs exist.
+
+    NOTE (#3542-C): this always blocks on a missing docs/**/*.md, regardless
+    of the `documentation` mission's `expected-artifacts.yaml` `generate`
+    entry, which marks that same path pattern `blocking: false`. That
+    `blocking` flag governs a different axis -- *dossier completeness*
+    scoring (ManifestRegistry / Indexer) -- not the *runtime step-transition
+    gate* implemented here. The two are allowed to disagree by design; do
+    not "fix" this guard (or the manifest) to match the other without
+    re-checking both call sites.
+    """
     if snapshot.status_facts["has_generated_docs"]:
         return []
     return ["Required artifact missing: docs/**/*.md (no Markdown files found under docs/)"]
@@ -483,17 +528,38 @@ def _first_missing_dependency_failure(snapshot: _ArtifactPresenceSnapshotLike) -
 
 def _evaluate_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """CLI-native ``tasks_packages`` — no tasks.md existence check (unlike
-    the composed vocabulary's equivalent branch)."""
+    the composed vocabulary's equivalent branch).
+
+    WP05 (#3396) FR-002: the bare-prose requirement fact is read FIRST,
+    unconditionally, before the ``_tasks_dir_ready`` short-circuit below --
+    the exact ordering fix the reverted ``3823f2b00``
+    (``_zero_declared_requirement_block``) lacked, which read the analogous
+    ``requirement_mapping_failures`` fact only in the branch AFTER this
+    check, making it provably inert whenever zero WP files existed.
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
     if not _tasks_dir_ready(snapshot):
-        return [MISSING_TASK_FILES_MESSAGE]
-    return list(snapshot.status_facts["requirement_mapping_failures"])
+        failures.append(MISSING_TASK_FILES_MESSAGE)
+        return failures
+    failures.extend(snapshot.status_facts["requirement_mapping_failures"])
+    return failures
 
 
 def _evaluate_tasks_finalize_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """CLI-native ``tasks_finalize`` — distinct dir-missing message from the
     composed vocabulary, no requirement-mapping check, unconditional
-    occurrence-gate check."""
-    failures: list[str] = []
+    occurrence-gate check.
+
+    WP05 (#3396) FR-002: unlike the other three wired guards, this one has
+    NO ``_tasks_dir_ready`` call today -- it uses its own inline
+    ``tasks_dir_is_dir``/``tasks_wp_files`` branches with no early-return
+    short-circuit. The bare-prose fact is still read as the FIRST statement,
+    unconditionally, independent of those branches (it is also the one guard
+    FR-003's audit found never read ``requirement_mapping_failures`` at all
+    -- a pre-existing asymmetry this mission's wiring closes rather than
+    leaves structurally blind).
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
     if not snapshot.status_facts["tasks_dir_is_dir"]:
         failures.append("Required: tasks/ directory with finalized WP files")
     elif "tasks_wp_files" not in snapshot.present_artifacts:
@@ -513,7 +579,12 @@ def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotL
 
 
 def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
+    """WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
+    before the ``tasks.md`` presence check and the ``_tasks_dir_ready``
+    short-circuit below -- see ``_evaluate_tasks_packages_guard`` for the
+    full ordering rationale."""
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
+    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
@@ -523,8 +594,14 @@ def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotL
 
 def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """Composed ``tasks`` for ``legacy_step_id in {"tasks_finalize", None}`` —
-    the union of all three legacy substep checks (no weakening)."""
-    failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
+    the union of all three legacy substep checks (no weakening).
+
+    WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
+    before every other check in this guard -- see
+    ``_evaluate_tasks_packages_guard`` for the full ordering rationale.
+    """
+    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
+    failures.extend(_check_artifact_present(snapshot, TASKS_ARTIFACT))
     if not _tasks_dir_ready(snapshot):
         failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
@@ -564,6 +641,110 @@ def _evaluate_software_dev_guards(snapshot: _ArtifactPresenceSnapshotLike) -> li
     if step_id in ("implement", "review"):
         return _evaluate_wp_iteration_guard(step_id, snapshot)
     return []
+
+
+# ---------------------------------------------------------------------------
+# plan mission family (composed-action guard only, FR-002) + T003's
+# _GUARD_TABLES registry (FR-001/FR-006) and the strict/tolerant split
+# (FR-003–FR-005, FR-011). Placed after all four per-family evaluators are
+# defined (above) since ``_GUARD_TABLES`` is a module-level dict literal
+# built at import time from direct function-object references, not a lazy
+# lookup — it cannot forward-reference names not yet bound.
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_plan_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Guard chain for the ``"plan"`` mission family (FR-002, issue #3386).
+
+    ``specify``/``plan`` mirror the software-dev artifact-presence checks;
+    ``research`` checks the new ``"research.md"`` presence tag (T004);
+    ``review`` is a terminal status-commit step (direct analogy to
+    ``_evaluate_documentation_guards``'s ``accept`` case above — publish gate
+    is sufficient); any other action fails closed, matching the research/
+    documentation families' own unknown-action convention.
+    """
+    action = snapshot.step_id
+    if action == "specify":
+        return _check_artifact_present(snapshot, SPEC_ARTIFACT)
+    if action == "research":
+        return _check_artifact_present(snapshot, "research.md")
+    if action == "plan":
+        return _check_artifact_present(snapshot, PLAN_ARTIFACT)
+    if action == "review":
+        return []  # terminal status commit step; publish gate is sufficient
+    return [f"No guard registered for plan action: {action}"]
+
+
+class UnregisteredMissionFamilyError(ValueError):
+    """Raised by :func:`evaluate_guards_strict` when ``snapshot.mission_family``
+    has no entry in ``_GUARD_TABLES`` (FR-006/FR-011).
+
+    Sibling concept: ``charter.activation.mission_type_profiles.UnknownMissionTypeError``
+    — same shape (a ``ValueError`` carrying the offending string), different
+    layer (this one is runtime guard-family dispatch; that one is charter
+    mission-type resolution). The two are intentionally NOT unified.
+    """
+
+
+_GUARD_TABLES: dict[str, Callable[[_ArtifactPresenceSnapshotLike], list[str]]] = {
+    "research": _evaluate_research_guards,
+    "documentation": _evaluate_documentation_guards,
+    "software-dev": _evaluate_software_dev_guards,
+    "plan": _evaluate_plan_guards,
+}
+
+
+def evaluate_guards_strict(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Strict guard-table lookup (FR-006/FR-011): raises
+    :class:`UnregisteredMissionFamilyError` instead of silently falling
+    through to the software-dev chain for an unregistered
+    ``mission_family``. Direct callers: ``_check_cli_guards``
+    (``runtime_bridge.py``, T006 — caught by the WP-iteration runtime path,
+    logged at WARNING, degrades to ``[]``) and
+    ``_check_composed_action_guard`` (``runtime_bridge_composition.py``,
+    T005 — caught, logged at WARNING, degrades to ``[]``).
+
+    WP01 (FR-001/FR-002/FR-006, #3704 Part 1): when the family is not in
+    ``_GUARD_TABLES``, this no longer unconditionally raises. It checks
+    ``snapshot.blocking_artifact_names`` — data already gathered by
+    :func:`~runtime.next.runtime_bridge_io.gather_artifact_presence`, never
+    computed here (this module stays a stdlib-only pure leaf; see
+    ``_ArtifactPresenceSnapshotLike``'s docstring / the import-boundary
+    gate). ``None`` (no expected-artifacts manifest reachable at any tier)
+    keeps the original fail-closed raise — unchanged. A real, possibly-empty
+    ``frozenset`` means a manifest WAS resolved for this custom family, so
+    the dispatch miss is evaluated genuinely instead: the blocking artifacts
+    not already in ``present_artifacts`` are returned (empty list when the
+    blocking set is fully satisfied). Uses ``is None`` explicitly —
+    ``frozenset()`` is falsy in Python, and bare falsiness would silently
+    collapse the None-vs-frozenset() distinction SPEC-FRESH-001 requires.
+    """
+    guard_table_entry = _GUARD_TABLES.get(snapshot.mission_family)
+    if guard_table_entry is not None:
+        return guard_table_entry(snapshot)
+    if snapshot.blocking_artifact_names is None:
+        raise UnregisteredMissionFamilyError(snapshot.mission_family)
+    missing = snapshot.blocking_artifact_names - snapshot.present_artifacts
+    return sorted(missing)
+
+
+def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Pure decision folding ``_check_cli_guards`` + ``_check_composed_action_guard``
+    (+ ``_check_requirement_mapping_ready``'s tail, via the precomputed
+    ``status_facts["requirement_mapping_failures"]`` fact) over one
+    ``ArtifactPresenceSnapshot``-shaped input (FR-009, SC-007).
+
+    Tolerant wrapper over :func:`evaluate_guards_strict` (FR-006): an
+    unregistered ``mission_family`` degrades to ``[]`` here instead of
+    raising. Kept tolerant/public only for existing direct test callers
+    (this module's own docstring/SC-004 compat contract); any **new**
+    production call site should use :func:`evaluate_guards_strict` instead
+    so an unregistered family is never silently swallowed.
+    """
+    try:
+        return evaluate_guards_strict(snapshot)
+    except UnregisteredMissionFamilyError:
+        return []
 
 
 # ---------------------------------------------------------------------------

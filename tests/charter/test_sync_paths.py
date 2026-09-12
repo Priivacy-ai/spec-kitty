@@ -23,7 +23,7 @@ SAMPLE_CHARTER = """# Testing Standards
 
 def test_sync_path_helpers_use_standard_bundle_paths(tmp_path: Path) -> None:
     """Canonical sync module resolves charter bundle paths consistently."""
-    charter_sync = import_module("charter.sync")
+    charter_sync = import_module("charter.activation.sync")
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     charter_path = charter_dir / "charter.md"

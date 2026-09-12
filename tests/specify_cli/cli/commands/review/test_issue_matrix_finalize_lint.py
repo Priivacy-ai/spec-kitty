@@ -80,7 +80,7 @@ def _disable_saas_sync_for_finalize_lint_tests(
     collaborators in-process and are not testing the SaaS boundary preflight;
     leaving the flag enabled makes finalize refuse before the lint phase runs.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _make_bootstrap_result() -> BootstrapResult:
@@ -143,12 +143,6 @@ def _common_patches(tmp_path: Path) -> dict[str, MagicMock]:
         # ``emit_mission_created_local`` -> registered observers. Patch the facade entry
         # so the finalize path stays hermetic (no network) regardless of whether it emits.
         "specify_cli.status.emit_mission_created_local": MagicMock(),
-        f"{MODULE}.emit_wp_created": MagicMock(),
-        f"{MODULE}.get_emitter": MagicMock(
-            return_value=MagicMock(
-                generate_causation_id=MagicMock(return_value="test-id")
-            ),
-        ),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),
@@ -246,5 +240,31 @@ def test_finalize_lint_never_blocks_even_if_engine_raises(
     exit_code = _run_finalize(
         _common_patches(tmp_path), extra={REVIEW_ENGINE: _boom}
     )
+    assert exit_code == 0
+
+
+def test_finalize_lint_validates_a_json_only_mission(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C1 fold (write-side-seam-matrix-tracer-01KYP3MH WP05): a mission with
+    ONLY ``issue-matrix.json`` (no ``.md``) must still be linted -- the prior
+    ``.md``-only ``.exists()`` precheck returned early for exactly this case,
+    silently skipping the lint (dead code behind the precheck)."""
+    feature_dir = _setup_mission(tmp_path, matrix=None)
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rows": {"#2223": {"verdict": "not-a-real-verdict", "evidence_ref": "x"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = _run_finalize(_common_patches(tmp_path))
+
+    out = _clean(capsys.readouterr().out)
+    assert "Advisory" in out
+    assert exit_code == 0
 
     assert exit_code == 0

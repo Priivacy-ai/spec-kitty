@@ -1,0 +1,137 @@
+{
+ "rows": {
+  "#2144": {
+   "evidence_ref": "Architectural parent (event durability); partially advanced by WP03 capture fix. Follow-up: #2144 remains open.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "deferred-with-followup",
+   "wp": "WP03"
+  },
+  "#2688": {
+   "evidence_ref": "Auto-migration direction realized by WP03 lazy cutover; full closure tied to #2750 (out of scope). Follow-up: #2688 remains open.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "deferred-with-followup",
+   "wp": "WP03"
+  },
+  "#2750": {
+   "evidence_ref": "Retire legacy queue.db write path is out of scope (spec Out of Scope). Follow-up: #2750 remains open (parent #2144).",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "deferred-with-followup",
+   "wp": "WP03"
+  },
+  "#2846": {
+   "evidence_ref": "Divergent-duplicate dedup + quarantine (not last-write-win): WP02 4c1879813e.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "fixed",
+   "wp": "WP02"
+  },
+  "#3262": {
+   "evidence_ref": "Closed epic \u2014 the per-project consent program that #3293 implemented; already terminal upstream.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "verified-already-fixed",
+   "wp": "WP02"
+  },
+  "#3278": {
+   "evidence_ref": "Honest sync-now convergence needs legacy-row cleanup (#2750, out of scope), per research Decision 7. Follow-up: #3278 remains open.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "deferred-with-followup",
+   "wp": "WP06"
+  },
+  "#3293": {
+   "evidence_ref": "Introducer of the regression, already merged (cd3d6a91d2); ProjectSyncStore selection kept, not reverted.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "verified-already-fixed",
+   "wp": "WP01"
+  },
+  "#3300": {
+   "evidence_ref": "Draft PR (per-project sync consent), separate/related work not modified here. Follow-up: #3300.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "deferred-with-followup",
+   "wp": "WP02"
+  },
+  "#3391": {
+   "evidence_ref": "Both emitter swallow sites observable + process-level flag (never-raises intact): WP05 f9b67d250a.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "fixed",
+   "wp": "WP05"
+  },
+  "#3425": {
+   "evidence_ref": "Silent-capture fixed end-to-end: WP01 credentials + WP03 layout/cutover + WP05 live-path seam + WP06 repro; squash 3e77ab22bd; integration 75 passed.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "fixed",
+   "wp": "WP03"
+  },
+  "#3476": {
+   "evidence_ref": "Loud cutover/backfill failures (write-cannot-land surfaced): WP04 694262097c.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "<fill at WP-implementation time>",
+   "verdict": "fixed",
+   "wp": "WP04"
+  }
+ },
+ "schema_version": 1
+}

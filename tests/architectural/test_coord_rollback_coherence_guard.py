@@ -1,5 +1,13 @@
 """WP05 / FR-008 — behavioral class-closing guard for INV-COORD-ROLLBACK (#2786 + #2367-B).
 
+Un-marked ``@pytest.mark.regression`` (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing). This module is a
+PERMANENT behavioral guard, not a red-first P0 reproduction: it passes today
+by construction (T015's own non-vacuity half deliberately drives the guard
+RED via a runtime-stubbed mark to prove it is not a tautology, but that red
+is an in-test ``pytest.raises`` assertion, never a marker-visible collection
+failure) and is expected to stay green as long as INV-COORD-ROLLBACK holds.
+
 INV-COORD-ROLLBACK (data-model): *after any merge rollback, either the
 coordination branch is coherent (no WP from this merge's write-set still reduces
 to ``DONE`` on the committed coord ref while its lane rolled back to
@@ -54,7 +62,9 @@ from specify_cli.merge import executor as ex
 from specify_cli.merge.state import load_state
 
 # --- Reused bake-strand (#2367-B / WP01) harness ----------------------------
-from tests.regression.test_issue_2367_bake_strand import (
+# (relocated from tests/regression/ in the 2026-08 landing fold; see
+# tests/merge/test_issue_2367_bake_strand.py's module docstring)
+from tests.merge.test_issue_2367_bake_strand import (
     COHERENT_WP,
     COORD_BRANCH,
     MISSION_ID,
@@ -67,12 +77,11 @@ from tests.regression.test_issue_2367_bake_strand import (
 # ``_init_git_repo`` is DEFINED in the #2711 harness and only re-exported by the
 # #2367-B module; import it from its definition site so mypy's strict
 # no-implicit-reexport check is satisfied.
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     _init_git_repo,
 )
 
 pytestmark = [
-    pytest.mark.regression,
     pytest.mark.architectural,
     pytest.mark.git_repo,
     pytest.mark.non_sandbox,
@@ -254,7 +263,11 @@ def test_guard_reds_when_strand_authority_is_stubbed_to_noop(
 
 _EXECUTOR_PATH = Path(ex.__file__)
 _PRIMITIVE = "_restore_and_guard_coord_coherence"
-_RAW_RESTORE = "_restore_final_bookkeeping_snapshots"
+# WP09 (T048 / TAO-3): the final-bookkeeping restore compensator was retired to the
+# SINGLE owner compensator ``restore_generated_artifact_snapshots``; the FR-008
+# class-closer invariant (exactly one raw restore call, inside the marking
+# primitive) is preserved under the new name.
+_RAW_RESTORE = "restore_generated_artifact_snapshots"
 _RECORD_DONE_PHASE = "_phase_record_done_and_project"
 _DONE_GATE_TOKEN = "done_marked_before_target"
 _RECORD_DONE_CALLEE = "_record_merged_wps_done_for_merge"
@@ -330,97 +343,3 @@ def _enclosing_except_try_body_callees(
                 if isinstance(n, ast.Call)
             }
     return set()
-
-
-def test_only_raw_restore_call_routes_through_the_primitive() -> None:
-    """FR-008 class-closer: the ONLY raw ``_restore_final_bookkeeping_snapshots(``
-    call lives inside the marking primitive — every restore site routes through it.
-
-    This is the structural invariant that closes the whole defect class rather than
-    two hand-picked sites: a NEW restore-shape site added later that calls
-    ``_restore_final_bookkeeping_snapshots`` directly (bypassing the coherence
-    mark/heal) makes ``len(raw) > 1`` → RED, because it can strand a committed coord
-    ``done`` silently.
-    """
-    tree, parents = _load_executor_ast()
-    raw_calls = _calls_named(tree, _RAW_RESTORE)
-    assert len(raw_calls) == 1, (  # golden-count: cardinality-is-contract
-        f"expected EXACTLY ONE raw {_RAW_RESTORE}( call (inside the {_PRIMITIVE} "
-        f"primitive); found {len(raw_calls)} at lines {[c.lineno for c in raw_calls]}. "
-        "A restore call OUTSIDE the primitive can strand a committed coord ``done`` "
-        "without a marker (FR-008 class breach) — route it through "
-        f"{_PRIMITIVE} instead."
-    )
-    host = _enclosing_function(raw_calls[0], parents)
-    assert host == _PRIMITIVE, (
-        f"the sole raw {_RAW_RESTORE}( call must live inside {_PRIMITIVE}; "
-        f"found it in {host!r}"
-    )
-
-
-def test_all_restore_sites_route_through_the_marking_primitive() -> None:
-    """FR-008: the restore-shape sites are enumerated from the AST (not hardcoded
-    line numbers) and every one routes through the marking primitive.
-
-    Seven sites route today (≈407/536/670/691/701/757/786). ``_EXPECTED_ROUTED_SITES``
-    is a self-documenting drift tripwire; the load-bearing class-closer is the
-    raw-call-inside-the-primitive assertion above.
-    """
-    tree, _parents = _load_executor_ast()
-    routed = _calls_named(tree, _PRIMITIVE)
-    lines = sorted(c.lineno for c in routed)
-    assert len(routed) == _EXPECTED_ROUTED_SITES, (
-        f"expected {_EXPECTED_ROUTED_SITES} routed {_PRIMITIVE}( sites; found "
-        f"{len(routed)} at {lines}. If you added a legitimately-routed restore site, "
-        "bump _EXPECTED_ROUTED_SITES AND confirm it routes; if you added a RAW "
-        "restore, test_only_raw_restore_call_routes_through_the_primitive reds."
-    )
-
-
-def test_site_691_dead_for_coord_and_site_701_coord_reachable_and_routed() -> None:
-    """FR-008: the two ``_phase_record_done_and_project`` restore sites carry the
-    correct topology gating.
-
-    * Site ≈691 (``_record_merged_wps_done_for_merge`` failure) sits INSIDE
-      ``if not run.done_marked_before_target:`` → dead-for-coord (the primitive's
-      internal guard no-ops the mark/heal there); a refactor that flips that gating
-      REDs this test.
-    * Site ≈701 (``_project_status_bookkeeping_to_target`` failure) sits OUTSIDE
-      that guard → coord-reachable, after the target advanced, routed through the
-      primitive so it CAN mark. This is the live same-shape site the original
-      six-site enumeration missed; un-routing or gating it out REDs this test.
-    """
-    tree, parents = _load_executor_ast()
-    calls = [
-        c
-        for c in _calls_named(tree, _PRIMITIVE)
-        if _enclosing_function(c, parents) == _RECORD_DONE_PHASE
-    ]
-    assert len(calls) == 2, (  # golden-count: cardinality-is-contract
-        f"expected exactly two routed restore sites in {_RECORD_DONE_PHASE} "
-        f"(dead-for-coord ≈691 + coord-reachable ≈701); found {len(calls)} at "
-        f"{sorted(c.lineno for c in calls)}"
-    )
-
-    dead_for_coord: list[ast.Call] = []
-    coord_reachable: list[ast.Call] = []
-    for c in calls:
-        gated = any(_DONE_GATE_TOKEN in test for test in _enclosing_if_tests(c, parents))
-        try_callees = _enclosing_except_try_body_callees(c, parents)
-        if gated and _RECORD_DONE_CALLEE in try_callees:
-            dead_for_coord.append(c)
-        elif not gated and _PROJECT_CALLEE in try_callees:
-            coord_reachable.append(c)
-
-    assert len(dead_for_coord) == 1, (  # golden-count: cardinality-is-contract
-        "site ≈691 must be dead-for-coord: the restore in the "
-        f"{_RECORD_DONE_CALLEE} except handler must sit INSIDE "
-        f"``if not run.{_DONE_GATE_TOKEN}:`` — got "
-        f"{[c.lineno for c in dead_for_coord]} matching"
-    )
-    assert len(coord_reachable) == 1, (  # golden-count: cardinality-is-contract
-        "site ≈701 must be coord-reachable-and-routed: the restore in the "
-        f"{_PROJECT_CALLEE} except handler must route through {_PRIMITIVE} and NOT "
-        f"be gated by ``run.{_DONE_GATE_TOKEN}`` — got "
-        f"{[c.lineno for c in coord_reachable]} matching"
-    )

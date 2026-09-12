@@ -1,0 +1,2599 @@
+schema_version: test-sanitation/v1
+environments:
+- id: a361bcf57f6136dfe2fa638f9236c91c709eea2ac7040ff0d39f4df1968bbbaa
+  os: macOS-15.7.7-arm64-arm-64bit
+  runner_image: local-macos-disposable-worktree
+  cpu_class: local-arm64-cpu-count-10
+  python: 3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 17.0.0 (clang-1700.6.4.2)]
+  event: local
+  lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+  install_command: &id001
+  - uv
+  - sync
+  - --frozen
+  - --all-extras
+  cache_policy: -p no:cacheprovider
+  env:
+    HOME: '{matrix_home}'
+    NO_COLOR: '1'
+    PWHEADLESS: '1'
+    PYTEST_ADDOPTS: ''
+    PYTHONHASHSEED: 0,1,2,3,4 (separate recorded runs)
+    PYTHONPATH: '{worktree}/src'
+    SPEC_KITTY_HOME: '{matrix_home}/.spec-kitty'
+    SPEC_KITTY_RUN_QUARANTINE: '1'
+  install_state: warm external lane-c runner; identical repaired base/HEAD worktrees
+  workers: 20 x -n 0 plus 10 x -n auto --dist loadfile per candidate/revision
+  harness_patch_hash: bbf8f7c93121fd12bb37a1bfbd87f57e6a11dfb929ea69da1b4d51b7f1cf3c89
+- id: f6b731a67dbf81d79a5ea8a98917c34d5dac0ffbaf1fa6e10cab2535b81aac12
+  os: macOS-15.7.7-arm64-arm-64bit
+  runner_image: local-macos-WP03-lane-c
+  cpu_class: local-arm64-cpu-count-10
+  python: 3.11.15 (main, Mar  3 2026, 00:52:57) [Clang 17.0.0 (clang-1700.6.4.2)]
+  event: local
+  lock_hash: 5dbf66689f0048244c6d47082992e750fa3d047385f8e113d3f25f47382bcd5c
+  install_command: *id001
+  cache_policy: -p no:cacheprovider
+  env:
+    NO_COLOR: '1'
+    PWHEADLESS: '1'
+    PYTEST_ADDOPTS: ''
+    PYTHONPATH: '{head}/src'
+  install_state: warm lane-c .venv; pytest-managed test environment
+  workers: -n 0
+  harness_patch_hash: null
+dispositions:
+- candidate:
+    id: wp03-delete-2309-reaper-reaps-same-executable-orphans
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_same_executable_orphans
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_same_executable_orphans
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-skips-same-executable-daemon-from-other-home
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_skips_same_executable_daemon_from_other_home
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_skips_same_executable_daemon_from_other_home
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-reaps-other-interpreter-same-scope-daemon
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_other_interpreter_same_scope_daemon
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_other_interpreter_same_scope_daemon
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-matches-when-exe-diverges-but-argv0-is-spawn-interpreter
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_matches_when_exe_diverges_but_argv0_is_spawn_interpreter
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_matches_when_exe_diverges_but_argv0_is_spawn_interpreter
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-matches-macos-framework-rewritten-exe-and-argv0
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_matches_macos_framework_rewritten_exe_and_argv0
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_matches_macos_framework_rewritten_exe_and_argv0
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-reaps-rewritten-same-scope-daemon-without-exec-marker
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_rewritten_same_scope_daemon_without_exec_marker
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_reaps_rewritten_same_scope_daemon_without_exec_marker
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-skips-non-spawn-shaped-cmdline
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_skips_non_spawn_shaped_cmdline
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_skips_non_spawn_shaped_cmdline
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-excludes-recorded-singleton
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_excludes_recorded_singleton
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_excludes_recorded_singleton
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-reaper-dry-run-sends-no-signals
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_dry_run_sends_no_signals
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_reaper_dry_run_sends_no_signals
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''hermetic product/contract signal, not environmental: the daemon reaper kill gate contradicts its documented
+        contract — these tests fail on developer machines and CI alike (not host-dependent as the prior quarantine reason
+        claimed). Escalated / tracked in https://github.com/Priivacy-ai/spec-kitty/issues/2309; out of scope for this CI-greenness
+        mission.'''
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2309-live-stub-with-production-spawn-shape-is-reaped-on-this-host
+    members:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py::test_live_stub_with_production_spawn_shape_is_reaped_on_this_host
+    granularity: node
+    source_paths:
+    - tests/sync/test_daemon_singleton_reaper_consolidation.py
+    production_paths:
+    - src/specify_cli/sync/owner.py::reap_orphan_daemons
+    oracle: Desired daemon-reaper behavior described by a body that never executed.
+    contract_claim: '#2309 daemon-reaper product decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2309
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_daemon_singleton_reaper_consolidation.py::test_live_stub_with_production_spawn_shape_is_reaped_on_this_host
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '''POSIX spawn shape (start_new_session)'''
+      markers:
+      - fast
+      - skip
+      - skipif
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2309
+      result: Issue remains open product authority; permanent skipped pytest bodies execute zero assertions and are not protection.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2309 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2309'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2316-test-uv-tool-auto-upgrade-preserves-custom-uv-tool-dir
+    members:
+    - tests/readiness/test_upgrade_ux.py::TestRunUpgradeUxAlwaysSafe::test_uv_tool_auto_upgrade_preserves_custom_uv_tool_dir
+    granularity: node
+    source_paths:
+    - tests/readiness/test_upgrade_ux.py
+    production_paths:
+    - src/specify_cli/readiness/upgrade_ux.py::run_upgrade_ux
+    oracle: Desired uv-tool upgrade metadata preservation described by a body that never executed.
+    contract_claim: '#2316 upgrade behavior drift decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2316
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/readiness/test_upgrade_ux.py::TestRunUpgradeUxAlwaysSafe::test_uv_tool_auto_upgrade_preserves_custom_uv_tool_dir
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '"behavioral drift: UV_TOOL_DIR env no longer passed to the uv tool install subprocess (calls[0][1] is
+        None). Upgrade-domain product signal, adjudication is the upgrade owner''s call — see https://github.com/Priivacy-ai/spec-kitty/issues/2316"'
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2316
+      result: Issue remains open product authority; permanent skips execute zero assertions.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2316 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2316'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-2316-test-uv-tool-auto-upgrade-preserves-receipt-python
+    members:
+    - tests/readiness/test_upgrade_ux.py::TestRunUpgradeUxAlwaysSafe::test_uv_tool_auto_upgrade_preserves_receipt_python
+    granularity: node
+    source_paths:
+    - tests/readiness/test_upgrade_ux.py
+    production_paths:
+    - src/specify_cli/readiness/upgrade_ux.py::run_upgrade_ux
+    oracle: Desired uv-tool upgrade metadata preservation described by a body that never executed.
+    contract_claim: '#2316 upgrade behavior drift decision'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2316
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/readiness/test_upgrade_ux.py::TestRunUpgradeUxAlwaysSafe::test_uv_tool_auto_upgrade_preserves_receipt_python
+      collection_state: collected
+      outcome: skipped
+      skip_reason: '"behavioral drift: receipt --python no longer threaded into the uv tool install argv (--python <ver> suffix
+        absent). Upgrade-domain product signal, adjudication is the upgrade owner''s call — see https://github.com/Priivacy-ai/spec-kitty/issues/2316"'
+      markers:
+      - fast
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: https://github.com/Priivacy-ai/spec-kitty/issues/2316
+      result: Issue remains open product authority; permanent skips execute zero assertions.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: 'Deleted permanently skipped #2316 body; retained open issue as product authority.'
+  survivor: null
+  issue: '#2316'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-live-server-placeholder
+    members:
+    - tests/sync/test_client_integration.py::test_connect_to_server
+    granularity: node
+    source_paths:
+    - tests/sync/test_client_integration.py
+    production_paths:
+    - src/specify_cli/sync/client.py::WebSocketClient.connect
+    oracle: 'None: unconditional pytest.skip precedes every action/assertion.'
+    contract_claim: No automated live-server contract existed.
+    authority:
+    - tests/sync/test_client_integration.py (immutable base source)
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/sync/test_client_integration.py::test_connect_to_server
+      collection_state: collected
+      outcome: skipped
+      skip_reason: Integration test requires running server - use for manual testing
+      markers:
+      - asyncio
+      - fast
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: tests/sync/test_client_integration.py (immutable base source)
+      result: Manual-only recipe was stale after provision_ws_token became internal; no owned CI server route exists.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted unconditional live-server placeholder and unreachable body.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-scenario-e-permanent-xfail
+    members:
+    - tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_deleting_seed_row_and_claim_frontmatter_is_caught
+    granularity: node
+    source_paths:
+    - tests/unit/migration/test_backfill_runtime_state.py
+    production_paths:
+    - src/specify_cli/migration/backfill_runtime_state.py::verify_backfill
+    oracle: Desired failure after deleting both observable claim witnesses.
+    contract_claim: A read-only verifier cannot distinguish never-claimed from deletion of both observable witnesses.
+    authority:
+    - tests/unit/migration/test_backfill_runtime_state.py scenario-E analysis
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_deleting_seed_row_and_claim_frontmatter_is_caught
+      collection_state: collected
+      outcome: xfailed
+      skip_reason: '"KNOWN HOLE (squad finding P7, scenario E): every denominator verify_backfill owns is derived from one
+        of the two halves of the claim-slot evidence — `legacy` comes from the WP frontmatter via read_legacy_runtime, and
+        `seeded_slots` (which arms _assert_unstripped) comes from the persisted seed rows. Deleting the seed row AND the three
+        legacy claim frontmatter keys therefore removes the obligation and the guard together, and no third non-deletable
+        witness is available to a read-only verify: ''never claimed'' and ''claimed, then both halves deleted'' are indistinguishable
+        on disk. Closing this needs an independent integrity witness (e.g. an append-only log digest), which is a design change
+        beyond this fix fold — deliberately NOT bodged by making verify trust the derived status.json cache. Left strict so
+        whoever closes the hole is forced to un-xfail this test."'
+      markers:
+      - fast
+      - xfail
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: tests/unit/migration/test_backfill_runtime_state.py scenario-E analysis
+      result: Strict xfail encoded an impossible desired oracle without the independent witness its own reason requires; executable
+        companion retains the exact boundary.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=xfailed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted permanent strict xfail; kept executable current-behavior/non-vacuity characterization.
+  survivor: tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-scenario-e-executable-characterization
+    members:
+    - tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green
+    granularity: node
+    source_paths:
+    - tests/unit/migration/test_backfill_runtime_state.py
+    production_paths:
+    - src/specify_cli/migration/backfill_runtime_state.py::verify_backfill
+    oracle: Two-half deletion stays the documented ambiguity while seed-only deletion fails closed.
+    contract_claim: Scenario-E ambiguity must not widen beyond simultaneous deletion of both observable witnesses.
+    authority:
+    - tests/unit/migration/test_backfill_runtime_state.py scenario-E analysis
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: contract
+    caller_evidence:
+    - command:
+      - pytest
+      - tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green
+      result: Executable companion reaches verify_backfill twice and asserts both ambiguous and fail-closed boundaries.
+    authority_evidence:
+    - reference: scenario-E read-only witness analysis
+      result: No independent third witness exists; current behavior is the only honest executable contract.
+    causal_probe:
+      kind: controlled-fault
+      fault: Replace verify_backfill with an unconditional successful VerifyResult.
+      authority_violated: single-half seed deletion must remain fail-closed while the documented two-half ambiguity remains
+        exact
+      act_reached: true
+      intended_oracle: non-vacuity assertion requires seed-only deletion to produce ok=False
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short -p wp03_probe_plugin tests/unit/migration/test_backfill_runtime_state.py::test_scenario_e_currently_returns_a_documented_silent_green'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{probe}:{probe}/src", "WP03_CAUSAL_PROBE":
+        "verify_always_green"}'
+      raw_artifact_hash: 698c9917563544df0ba23f8d9c88a6c6c309f6b08ec22c141141748abb4a7a40
+  verdict: KEEP
+  state: terminal
+  action: Kept executable characterization; removed stale strict-xfail companion and stale doc reference.
+  survivor: null
+  issue: null
+  owner: migration maintainers
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-summary-200-under-5s
+    members:
+    - tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s
+    granularity: node
+    source_paths:
+    - tests/retrospective/test_summary_tolerance.py
+    production_paths:
+    - src/specify_cli/retrospective/summary.py::build_summary
+    oracle: 200-mission build_summary action completes in less than 5.0 seconds and returns 200 completed missions.
+    contract_claim: 'NFR-003 200-mission summary budget remains active and owned by #2342.'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2342
+    - tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s
+      collection_state: collected
+      outcome: skipped
+      skip_reason: quarantine
+      markers:
+      - fast
+      - quarantine
+      - skip
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    - environment_id: a361bcf57f6136dfe2fa638f9236c91c709eea2ac7040ff0d39f4df1968bbbaa
+      nodeid: tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 8b7da35b12e9b741beef52eb762a1fb6bf71064516825144f7028a3267c5d088
+  evidence:
+    profile: slow
+    cost_evidence:
+      identity: wp03-results.json fixed repaired-base/HEAD matrix
+      result: Base 30/30 and HEAD 30/30 passed across five seeds; non-build medians ~3.35s base and ~3.42s HEAD command wall;
+        internal 5.0s assertion blocked every run.
+    causal_probe:
+      kind: controlled-fault
+      fault: Inject a 5.1-second delay at the live build_summary action.
+      authority_violated: 'NFR-003 and issue #2342 retain the 5.0-second 200-mission budget'
+      act_reached: true
+      intended_oracle: measured build_summary action stays below 5.0 seconds
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short -p wp03_probe_plugin tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{probe}:{probe}/src", "WP03_CAUSAL_PROBE":
+        "summary_delay"}'
+      raw_artifact_hash: 4e9297d00b6280e63b1048090640181f1f2ff350facf12ef603d4f9089dbf628
+    authority_evidence:
+    - reference: '#2342'
+      result: Open owner-backed 5.0s investigation; threshold remains current.
+  verdict: KEEP
+  state: terminal
+  action: Removed invalid Tier-3 quarantine; retained the current 5.0s threshold as a blocking full-parallel gate.
+  survivor: null
+  issue: '#2342'
+  owner: '@RobertHafner'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-create-feature-target-branch-family
+    members:
+    - tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch
+    - tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing
+    - tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch
+    - tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch
+    - tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch
+    - tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag
+    granularity: family
+    source_paths:
+    - tests/agent/test_create_feature_branch.py
+    production_paths:
+    - src/specify_cli/core/mission_creation.py::create_mission_core
+    oracle: Real-git mission creation writes the current or explicit target branch to meta.json.
+    contract_claim: Mission metadata records exact current/explicit target branch across 2.x/main/master/custom/coexisting-main
+      boundaries.
+    authority:
+    - src/specify_cli/core/mission_creation.py planning_branch contract
+    - tests/agent/test_create_feature_branch_unit.py overlap comparison
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - flaky
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    - environment_id: a361bcf57f6136dfe2fa638f9236c91c709eea2ac7040ff0d39f4df1968bbbaa
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 8b7da35b12e9b741beef52eb762a1fb6bf71064516825144f7028a3267c5d088
+    equivalence:
+      production_path: create_mission_core planning_branch -> meta.json
+      oracle: meta target_branch exact equality
+      outcome: passed
+      route_role: full-parallel owner
+      cost_class: real-git integration
+      platform: cross-platform git
+      disposition: KEEP marker removed
+    divergent_dimensions: []
+  evidence:
+    profile: flake
+    base_evidence:
+      identity: wp03-results.json create-feature fixed matrix
+      result: Repaired base 30/30 and HEAD 30/30 green; NOT_REPRODUCED, never proof of non-flakiness.
+    causal_probe:
+      kind: controlled-fault
+      fault: Force create_mission_core target_branch to __wp03_fault__ after CLI branch discovery.
+      authority_violated: mission creation records current/explicit target branch in meta.json
+      act_reached: true
+      intended_oracle: meta['target_branch'] equals the real current or explicit target branch
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short -p wp03_probe_plugin tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_records_target_branch
+        tests/agent/test_create_feature_branch.py::test_create_feature_on_2x_with_main_also_existing tests/agent/test_create_feature_branch.py::test_create_feature_on_main_records_target_branch
+        tests/agent/test_create_feature_branch.py::test_create_feature_on_master_records_target_branch tests/agent/test_create_feature_branch.py::test_create_feature_on_custom_branch_records_target_branch
+        tests/agent/test_create_feature_branch.py::test_create_feature_with_explicit_target_branch_flag'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{probe}:{probe}/src", "WP03_CAUSAL_PROBE":
+        "target_branch"}'
+      raw_artifact_hash: 80280fcece2fe30293ddd86f5344e656eac6397e272436e9c66a32804bb17e37
+    overlap_evidence:
+    - left: tests/agent/test_create_feature_branch.py
+      right: tests/agent/test_create_feature_branch_unit.py
+      result: Integration family uniquely exercises real git branch discovery; mocked unit family cannot replace that boundary.
+  verdict: KEEP
+  state: terminal
+  action: Removed unauthorized file-level flaky marker; kept causal real-git target-branch family.
+  survivor: null
+  issue: null
+  owner: agent mission maintainers
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-create-feature-detached-head
+    members:
+    - tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head
+    granularity: node
+    source_paths:
+    - tests/agent/test_create_feature_branch.py
+    production_paths:
+    - src/specify_cli/core/mission_creation.py::create_mission_core
+    oracle: Real boundary invocation exits nonzero when the context guard is violated.
+    contract_claim: Real-git mission create refuses detached HEAD.
+    authority:
+    - src/specify_cli/core/mission_creation.py context guards
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - flaky
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    - environment_id: a361bcf57f6136dfe2fa638f9236c91c709eea2ac7040ff0d39f4df1968bbbaa
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 8b7da35b12e9b741beef52eb762a1fb6bf71064516825144f7028a3267c5d088
+  evidence:
+    profile: flake
+    base_evidence:
+      identity: wp03-results.json create-feature fixed matrix
+      result: Repaired base and HEAD each passed all 30 file repetitions; NOT_REPRODUCED.
+    causal_probe:
+      kind: controlled-fault
+      fault: Conceal detached HEAD by returning main from both CLI and core branch discovery.
+      authority_violated: mission create refuses detached HEAD
+      act_reached: true
+      intended_oracle: real-git detached HEAD invocation exits nonzero
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short -p wp03_probe_plugin tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{probe}:{probe}/src", "WP03_CAUSAL_PROBE":
+        "detached_head"}'
+      raw_artifact_hash: b3195d0bdb77713f2e6138f8c5f8a7b8da4ef26a9bf480b83a8b311b30ee7a74
+    overlap_evidence:
+    - left: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_detached_head
+      right: tests/agent/test_create_feature_branch_unit.py
+      result: Real git/path boundary is deeper than the mocked unit guard case and fails when the live guard is concealed.
+  verdict: KEEP
+  state: terminal
+  action: Removed unauthorized flaky marker; kept causal real-boundary guard.
+  survivor: null
+  issue: null
+  owner: agent mission maintainers
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-create-feature-worktree
+    members:
+    - tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree
+    granularity: node
+    source_paths:
+    - tests/agent/test_create_feature_branch.py
+    production_paths:
+    - src/specify_cli/core/mission_creation.py::create_mission_core
+    oracle: Real boundary invocation exits nonzero when the context guard is violated.
+    contract_claim: Mission create refuses a real .worktrees path.
+    authority:
+    - src/specify_cli/core/mission_creation.py context guards
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - flaky
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    - environment_id: a361bcf57f6136dfe2fa638f9236c91c709eea2ac7040ff0d39f4df1968bbbaa
+      nodeid: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - git_repo
+      - usefixtures
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 8b7da35b12e9b741beef52eb762a1fb6bf71064516825144f7028a3267c5d088
+  evidence:
+    profile: flake
+    base_evidence:
+      identity: wp03-results.json create-feature fixed matrix
+      result: Repaired base and HEAD each passed all 30 file repetitions; NOT_REPRODUCED.
+    causal_probe:
+      kind: controlled-fault
+      fault: Force core is_worktree_context to False for a real .worktrees path.
+      authority_violated: mission create refuses lane-worktree context
+      act_reached: true
+      intended_oracle: real-path worktree invocation exits nonzero
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short -p wp03_probe_plugin tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{probe}:{probe}/src", "WP03_CAUSAL_PROBE":
+        "worktree"}'
+      raw_artifact_hash: a7d5845e29db20647bc324bb521f13162ade557ba545b397df19564bf1978334
+    overlap_evidence:
+    - left: tests/agent/test_create_feature_branch.py::test_create_feature_rejects_worktree
+      right: tests/agent/test_create_feature_branch_unit.py
+      result: Real git/path boundary is deeper than the mocked unit guard case and fails when the live guard is concealed.
+  verdict: KEEP
+  state: terminal
+  action: Removed unauthorized flaky marker; kept causal real-boundary guard.
+  survivor: null
+  issue: null
+  owner: agent mission maintainers
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-stale-verdict-test-denominator-counts-are-recorded-and-not-the-nfr001-collapse
+    members:
+    - tests/architectural/test_verdict_name_truthfulness.py::test_denominator_counts_are_recorded_and_not_the_nfr001_collapse
+    granularity: node
+    source_paths:
+    - tests/architectural/test_verdict_name_truthfulness.py
+    production_paths: []
+    oracle: Historical branch/report name-shape assertion with no current live authority.
+    contract_claim: Deleted mission ref pr/review-verdict-write-integrity-01KZ1CGF is not a current contract.
+    authority:
+    - git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/architectural/test_verdict_name_truthfulness.py::test_denominator_counts_are_recorded_and_not_the_nfr001_collapse
+      collection_state: collected
+      outcome: skipped
+      skip_reason: historical mission ref absent
+      markers:
+      - arch_shard_2
+      - architectural
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+      result: Local and remote ref absent; no current consumer or accepted authority remains.
+    routing_evidence:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted stale historical verdict-truthfulness node and then the empty file.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-stale-verdict-test-flagship-end-to-end-test-asserts-the-non-forced-path
+    members:
+    - tests/architectural/test_verdict_name_truthfulness.py::test_flagship_end_to_end_test_asserts_the_non_forced_path
+    granularity: node
+    source_paths:
+    - tests/architectural/test_verdict_name_truthfulness.py
+    production_paths: []
+    oracle: Historical branch/report name-shape assertion with no current live authority.
+    contract_claim: Deleted mission ref pr/review-verdict-write-integrity-01KZ1CGF is not a current contract.
+    authority:
+    - git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/architectural/test_verdict_name_truthfulness.py::test_flagship_end_to_end_test_asserts_the_non_forced_path
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - arch_shard_2
+      - architectural
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+      result: Local and remote ref absent; no current consumer or accepted authority remains.
+    routing_evidence:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted stale historical verdict-truthfulness node and then the empty file.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-stale-verdict-test-refusal-named-tests-have-a-failure-assertion-or-are-disclosed
+    members:
+    - tests/architectural/test_verdict_name_truthfulness.py::test_refusal_named_tests_have_a_failure_assertion_or_are_disclosed
+    granularity: node
+    source_paths:
+    - tests/architectural/test_verdict_name_truthfulness.py
+    production_paths: []
+    oracle: Historical branch/report name-shape assertion with no current live authority.
+    contract_claim: Deleted mission ref pr/review-verdict-write-integrity-01KZ1CGF is not a current contract.
+    authority:
+    - git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/architectural/test_verdict_name_truthfulness.py::test_refusal_named_tests_have_a_failure_assertion_or_are_disclosed
+      collection_state: collected
+      outcome: skipped
+      skip_reason: historical mission ref absent
+      markers:
+      - arch_shard_2
+      - architectural
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+      result: Local and remote ref absent; no current consumer or accepted authority remains.
+    routing_evidence:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted stale historical verdict-truthfulness node and then the empty file.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-stale-verdict-test-wp10-flagship-rename-precedent-is-not-re-flagged
+    members:
+    - tests/architectural/test_verdict_name_truthfulness.py::test_wp10_flagship_rename_precedent_is_not_re_flagged
+    granularity: node
+    source_paths:
+    - tests/architectural/test_verdict_name_truthfulness.py
+    production_paths: []
+    oracle: Historical branch/report name-shape assertion with no current live authority.
+    contract_claim: Deleted mission ref pr/review-verdict-write-integrity-01KZ1CGF is not a current contract.
+    authority:
+    - git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+    duplicate_group: null
+    route_memberships:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/architectural/test_verdict_name_truthfulness.py::test_wp10_flagship_rename_precedent_is_not_re_flagged
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - arch_shard_2
+      - architectural
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: git refs + caller search for pr/review-verdict-write-integrity-01KZ1CGF
+      result: Local and remote ref absent; no current consumer or accepted authority remains.
+    routing_evidence:
+    - route_id: architectural
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/architectural/
+        markers: []
+        ignores: []
+        environment_id: 041621508d449a4ea75c1f8a7658a8f2d6477b31a4444718328201e6a33ae64c
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted stale historical verdict-truthfulness node and then the empty file.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-close-with-evidence-does-not-modify-workflow
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_close_with_evidence_does_not_modify_workflow
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_close_with_evidence_does_not_modify_workflow
+      collection_state: collected
+      outcome: skipped
+      skip_reason: historical comparison ref absent
+      markers:
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-critical-path-include-set-matches-workflow
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_critical_path_include_set_matches_workflow
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_critical_path_include_set_matches_workflow
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-decision-is-recorded
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_decision_is_recorded
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_decision_is_recorded
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-tighten-workflow-passes-large-pr-sample
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_tighten_workflow_passes_large_pr_sample
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_tighten_workflow_passes_large_pr_sample
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-validation-report-authored
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_validation_report_authored
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_validation_report_authored
+      collection_state: collected
+      outcome: passed
+      skip_reason: null
+      markers:
+      - fast
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=passed; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-delete-historical-diff-policy-test-validation-report-close-path-populated
+    members:
+    - tests/release/test_diff_coverage_policy.py::test_validation_report_close_path_populated
+    granularity: node
+    source_paths:
+    - tests/release/test_diff_coverage_policy.py
+    production_paths: []
+    oracle: Historical mission report/workflow comparison with no current release consumer.
+    contract_claim: Current coverage authority lives in tracked CI and dedicated topology/coherence tests, not a past WP03
+      validation report.
+    authority:
+    - kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+    - .github/workflows/ci-quality.yml
+    duplicate_group: null
+    route_memberships:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/release/test_diff_coverage_policy.py::test_validation_report_close_path_populated
+      collection_state: collected
+      outcome: skipped
+      skip_reason: historical comparison ref absent
+      markers:
+      - fast
+      - git_repo
+      - integration
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+  evidence:
+    profile: inert
+    authority_evidence:
+    - reference: kitty-specs/068-diff-coverage-policy/wp03-validation-report.md
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    - reference: .github/workflows/ci-quality.yml
+      result: Historical report remains archival; caller search found no current release consumer. Dedicated live coverage-policy
+        tests remain.
+    routing_evidence:
+    - route_id: full-parallel
+      role: owner
+      required: true
+      events:
+      - local
+      selector:
+        paths:
+        - tests/
+        markers: []
+        ignores:
+        - tests/sync/test_orphan_sweep.py
+        environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      result: Immutable base outcome=skipped; HEAD collection removes the node.
+  verdict: DELETE
+  state: terminal
+  action: Deleted historical diff-coverage-policy node and then the empty file; retained archival report.
+  survivor: null
+  issue: null
+  owner: null
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'
+- candidate:
+    id: wp03-keep-honest-red-2782
+    members:
+    - tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress
+    granularity: node
+    source_paths:
+    - tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py
+    production_paths:
+    - src/specify_cli/cli/commands/agent/mission_create.py::create
+    - src/specify_cli/sync
+    oracle: Live mission-create entry returns success strict JSON and routes the ingress-skip diagnostic to stderr.
+    contract_claim: 'Accepted P0 #2782 keeps exactly one blocking regression reproduction until fixed/adjudicated.'
+    authority:
+    - https://github.com/Priivacy-ai/spec-kitty/issues/2782
+    - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+    - https://github.com/Priivacy-ai/spec-kitty/issues/3184
+    duplicate_group: null
+    route_memberships:
+    - route_id: regression
+      role: owner
+      required: true
+      events:
+      - PR
+      - manual
+      - push
+      - schedule
+      selector:
+        paths:
+        - tests/
+        markers:
+        - regression
+        ignores: []
+        environment_id: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09
+    platforms:
+    - linux
+    - macos
+    - windows
+    observations:
+    - environment_id: 99fac44bf78c2c10bc1f4b7e8946bf8ec4b99ba2dbdc48a0e531d1a613c1a849
+      nodeid: tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress
+      collection_state: collected
+      outcome: failed
+      skip_reason: null
+      markers:
+      - git_repo
+      - regression
+      - skipif
+      - slow
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 169de5ef54a9f02bec9396c68423e2bc285a3c36cacb731e249500d0b7d2beb1
+    - environment_id: f6b731a67dbf81d79a5ea8a98917c34d5dac0ffbaf1fa6e10cab2535b81aac12
+      nodeid: tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress
+      collection_state: collected
+      outcome: failed
+      skip_reason: null
+      markers:
+      - git_repo
+      - regression
+      - slow
+      - unit
+      duration:
+        collection: 0.0
+        setup: 0.0
+        call: 0.0
+        cost_class: focused
+      artifact_hash: 8b7da35b12e9b741beef52eb762a1fb6bf71064516825144f7028a3267c5d088
+  evidence:
+    profile: contract
+    caller_evidence:
+    - command:
+      - '{runner}'
+      - -m
+      - pytest
+      - -q
+      - -p
+      - no:cacheprovider
+      - --tb=short
+      - tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress
+      result: Exact live CLI entry executed and failed with CHARTER_PACK_CONFIG_INVALID; no skip/xfail/quarantine/flaky/retry
+        remains.
+    authority_evidence:
+    - reference: '#2782 + accepted red-main ADR'
+      result: Open P0 requires one honestly blocking reproduction.
+    - reference: '#3184 current-state proof'
+      result: tests/regression contains exactly one test_*.py owner file and exactly this one regression-marked node; no move
+        is needed.
+    routing_evidence:
+    - route_id: regression
+      role: owner
+      required: true
+      events:
+      - PR
+      - manual
+      - push
+      - schedule
+      selector:
+        paths:
+        - tests/
+        markers:
+        - regression
+        ignores: []
+        environment_id: 8d4b0ec6f34bf221c05bf5d67d4498ab7fdaf83798f25ec6791e836d6e4d0e09
+      result: 'Blocking tracked route owns the one marked #2782 node on PR/manual/push/schedule.'
+    causal_probe:
+      kind: known-bad-live-entry
+      fault: 'Current product exits through CHARTER_PACK_CONFIG_INVALID before satisfying #2782 strict-JSON ingress-skip contract.'
+      authority_violated: 'Accepted open P0 #2782 and red-main ADR'
+      act_reached: true
+      intended_oracle: mission create succeeds, stdout parses as strict success JSON, and ingress-skip diagnostic stays on
+        stderr
+      intended_oracle_failed: true
+      command: '{runner} -m pytest -q -p no:cacheprovider --tb=short tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_create_json_strict_when_sync_skips_ingress'
+      environment: '{"NO_COLOR": "1", "PWHEADLESS": "1", "PYTEST_ADDOPTS": "", "PYTHONPATH": "{head}/src"}'
+      raw_artifact_hash: 83bbbbfbc5c0cecea39f4e52a5d0fc49ab04fed79f30e32238f18c8a9559bdfa
+  verdict: KEEP
+  state: terminal
+  action: Removed environment and backend-unreachable skip paths; retained exactly one honestly red blocking reproduction.
+  survivor: null
+  issue: '#2782; #3184 current-state terminal'
+  owner: '@RobertHafner / @Stijn'
+  expires: null
+  hic_approval: null
+  review:
+    implementer: implementer-ivan
+    independent_reviewer: pending-independent-WP03-review
+    verdict: pending
+    timestamp: '2026-08-10T12:55:47.874872+00:00'

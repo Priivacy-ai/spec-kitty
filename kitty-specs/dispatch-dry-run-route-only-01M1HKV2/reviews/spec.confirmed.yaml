@@ -1,0 +1,239 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: dispatch-dry-run-route-only-01M1HKV2
+source: reviews/spec.merged.yaml + reviews/spec-refute-1.yaml
+findings:
+- id: SPEC-GOV-001
+  lens: WP3 separability & PR-shape scope
+  severity: 4
+  title: C-002's 'separable and revertible' claim for WP3 is not achievable as written — WP2 and WP3 rewrite
+    the same lines of router.py's route()
+  evidence:
+  - artifact: spec.md § Constraints (C-002), § User Story 3 ("its own separable, revertible unit (WP3)"),
+      § Blast Radius / Files Touched (single combined router.py bullet), § Key Entities (RouterDecision.alternatives)
+  - code: src/specify_cli/invocation/router.py:304-386 (candidate aggregation, single-candidate return
+      at 343-351, routing_priority tiebreaker at 353-370, still-ambiguous raise at 372-386)
+  claim: "C-002 states WP3 (the SK-08 rerank, FR-006/FR-007) \"must land as its own commit/diff boundary...\
+    \ so it can be reverted independently\" from WP1/WP2. Given this repo's default PR shape is one PR\
+    \ per mission (charter \"Collaboration Strategy\": \"Completed mission work is opened as a DRAFT pull\
+    \ request\" — singular; sk-implement: \"One PR per mission by default\"), all three WPs land in the\
+    \ same PR, and \"reverted independently\" can only mean \"a clean `git revert <wp3-sha>` leaves WP1/WP2\
+    \ intact.\" That is not achievable given the spec's own description of the blast radius. FR-005 (WP2)\
+    \ requires threading `alternatives` out of exactly the same `candidates`/`sorted_candidates`/`top_candidates`\
+    \ values that FR-006/FR-007 (WP3) must restructure to change selection order:\n  - The `if len(candidates)\
+    \ == 1:` branch (router.py:343-351) is where WP2 must add\n    `alternatives=[]` to the `RouterDecision(...)`\
+    \ call AND where WP3 must insert the new\n    FR-007 check (a lone domain_keyword-confidence candidate\
+    \ must raise\n    `RouterAmbiguityError` instead of returning) — the same statement, touched by both\
+    \ WPs.\n  - The `routing_priority` tiebreaker block (router.py:353-370, `sorted_candidates =\n   \
+    \ sorted(candidates, key=_priority, ...)`) is where WP2 must compute the losing\n    candidates for\
+    \ `alternatives`, AND where WP3 must change the sort/filter to make\n    canonical_verb candidates\
+    \ outrank domain_keyword candidates regardless of priority\n    (FR-006) — again the same block.\n\
+    A `git revert` of a WP3 commit that edits statements WP2's commit already rewrote (to add `alternatives=...`\
+    \ to each `RouterDecision(...)` call) will conflict rather than apply cleanly whenever the two edits\
+    \ land on overlapping or adjacent lines, which the spec's own Blast Radius section all but confirms\
+    \ by listing both changes under one undifferentiated `router.py` bullet with no WP-level line split.\
+    \ The spec asserts a strong, testable property (\"can be reverted independently\") without acknowledging\
+    \ or resolving this overlap, so an implementer or reviewer could accept WP3 as \"done\" while the\
+    \ C-002 property it was supposed to satisfy is actually false — discoverable only at the moment someone\
+    \ tries to revert it.\n"
+  remediation: 'Either (a) soften C-002 to the achievable property: "WP3 lands as its own commit, distinct
+    from WP1/WP2''s commits, but is not guaranteed to be a conflict-free `git revert` target independent
+    of WP2 — reverting it may require reverting or hand-resolving WP2''s `alternatives` edits to the same
+    statements" — and drop "revertible" from the WP3 description in User Story 3 accordingly; or (b) add
+    a concrete plan-phase requirement that WP2 first extract a pure candidate-selection helper (e.g. `_select_winner(candidates)
+    -> tuple[dict, list[dict]]`) so WP3''s FR-006/FR-007 rerank logic lives in a body WP2 does not also
+    edit for `alternatives`, making independent revert actually achievable. Either way, C-002 needs to
+    state which property it is actually promising before WP3 is scoped in the tasks phase.
+
+    '
+- id: SPEC-ARCH-001
+  lens: Contracts / SK-08 rerank mechanic soundness
+  severity: 4
+  title: '`alternatives` contract promises a `confidence` field per entry, but the ROUTER_AMBIGUOUS data
+    source (`RouterAmbiguityError.candidates`) structurally lacks one'
+  evidence:
+  - artifact: spec.md § Key Entities (RouterDecision) — "Each entry carries profile_id, action, confidence,
+      and match_reason"
+  - artifact: spec.md § User Story 2 Independent Test — "assert ... alternatives array ... contains the
+      losing candidate's profile_id, action, confidence, and match_reason"
+  - artifact: spec.md § User Story 2 AC-3 / FR-009 — dry-run on a ROUTER_AMBIGUOUS request returns "alternatives
+      populated with every tied candidate"
+  - artifact: spec.md § Blast Radius / Files Touched — lists router.py, dispatch.py, executor.py, chokepoint.py,
+      and the contract doc; does not list `src/specify_cli/invocation/errors.py`
+  - code: src/specify_cli/invocation/router.py:372-385 — the final ROUTER_AMBIGUOUS raise builds each
+      candidate dict with only `profile_id`, `action`, `match_reason` (the `_confidence` key present on
+      every other candidate dict in `route()`, e.g. router.py:308-317 and :331-339, is dropped here)
+  - code: src/specify_cli/invocation/errors.py:30-40 — `RouterAmbiguityError.__init__` stores whatever
+      candidate-dict shape it is given as `self.candidates`; it does not itself add a confidence field
+  claim: 'The spec''s contract for `alternatives` (Key Entities, and the User Story 2 Independent Test)
+    states every entry — winner-adjacent or not — carries `profile_id`, `action`, `confidence`, and `match_reason`,
+    uniformly across both the normal success path and the dry-run ROUTER_AMBIGUOUS branch (User Story
+    2 AC-3 / FR-009 explicitly requires `alternatives` populated "with every tied candidate" on that branch).
+    But on that branch there is no `RouterDecision` — `route()` raises `RouterAmbiguityError` instead
+    of returning, and the only data available to build the dry-run payload is `RouterAmbiguityError.candidates`,
+    whose dict shape (router.py:376-383) omits confidence entirely. An implementer following the spec
+    literally will either (a) hit a KeyError building `alternatives` from `err.candidates`, or (b) silently
+    emit alternatives entries with no `confidence` key on the ambiguous branch, contradicting the Key
+    Entities contract and the Independent Test''s own assertion — and nothing in the spec''s Blast Radius
+    section flags that `errors.py`''s `RouterAmbiguityError` candidate shape needs to change to close
+    this gap.
+
+    '
+  remediation: 'Add `errors.py` (and the `RouterAmbiguityError.candidates` shape) to the Blast Radius
+    / Files Touched list, and add an explicit requirement (either as an FR-009 amendment or a new sub-bullet)
+    that the candidate dicts raised inside `RouterAmbiguityError` also carry a `confidence`/`_confidence`
+    key, sourced the same way the winning-candidate dicts already are in `route()`, so the dry-run ROUTER_AMBIGUOUS
+    branch can populate `alternatives` without a schema mismatch against the Key Entities contract.
+
+    '
+- id: SPEC-ARCH-002
+  lens: SK-08 rerank mechanic soundness
+  severity: 3
+  title: FR-006 says the verb tier wins "regardless of routing_priority" without scoping whether the existing
+    intra-tier priority tiebreak survives
+  evidence:
+  - artifact: spec.md § FR-006 — "a canonical-verb match to always beat a domain-keyword match regardless
+      of routing_priority"
+  - artifact: spec.md § User Story 3 AC-1 — "routing_priority no longer lets a domain-keyword candidate
+      outrank a canonical-verb candidate"
+  - code: src/specify_cli/invocation/router.py:344-370 — the existing `routing_priority` tiebreak runs
+      over the FLAT `candidates` list (verb- and keyword-tier candidates mixed together) and is also what
+      resolves ties among two verb-tier candidates today, e.g. two profiles that both match the same canonical
+      verb
+  - artifact: tests/specify_cli/invocation/test_router.py:344-366 — `test_router_priority_tiebreaker_selects_higher_priority`,
+      a canonical_verb-vs-canonical_verb priority tiebreak that must keep passing
+  claim: 'FR-006/AC-1''s phrase "regardless of routing_priority" is stated only in the cross-tier sense
+    (a lower-priority verb-tier candidate must still beat a higher-priority keyword-tier candidate) —
+    but the spec never says this explicitly, nor does it say the pre-existing, already-tested intra-tier
+    priority tiebreak (used when two verb-tier candidates compete, per `test_router_priority_tiebreaker_selects_higher_priority`)
+    is preserved unchanged. An implementer partitioning candidates into `verb_tier`/`keyword_tier` per
+    FR-006 could plausibly read "regardless of routing_priority" as "drop the routing_priority tiebreak
+    altogether for verb-tier candidates too," which would make two-verb-tier-candidate cases newly ambiguous
+    and break the cited existing test. Nothing in FR-006/FR-007 or the Blast Radius text states that `routing_priority`
+    is now scoped to break ties strictly WITHIN a tier.
+
+    '
+  remediation: 'Add one sentence to FR-006 (or a new AC) stating explicitly: "routing_priority continues
+    to break ties WITHIN a tier — e.g. two verb-tier candidates, or two keyword-tier candidates — it is
+    only removed as a way for a keyword-tier candidate to outrank a verb-tier one." Cite `test_router_priority_tiebreaker_selects_higher_priority`
+    in C-001/Blast Radius as a test that must continue to pass unmodified.
+
+    '
+- id: SPEC-ARCH-003
+  lens: SK-08 rerank mechanic soundness
+  severity: 3
+  title: FR-007 specifies only the LONE (single-candidate) keyword-tier case; the multiple-keyword-tier-candidates-no-verb-tier
+    case is unaddressed
+  evidence:
+  - artifact: spec.md § FR-007 — "a lone/weak domain-keyword-only match is ambiguous"
+  - artifact: spec.md § User Story 3 Independent Test — "if no canonical verb matched at all and only
+      one lone domain-keyword candidate exists, the router raises ROUTER_AMBIGUOUS"
+  - artifact: spec.md § User Story 3 AC-2 — "tokens match no canonical verb for any profile, but match
+      exactly one profile's domain keyword (the \"lone/weak\" case)"
+  - code: src/specify_cli/invocation/router.py:344-370 — today, when 2+ candidates exist (mixed or same
+      tier) and have distinct `routing_priority` values, the tiebreak silently auto-selects the top-priority
+      one with no ambiguity raised at all
+  claim: 'FR-007 and its AC/Independent Test are both scoped, in every instance, to "exactly one" / "lone"
+    domain-keyword candidate with zero verb-tier candidates. The spec never states what should happen
+    when there are ZERO verb-tier candidates but TWO OR MORE keyword-tier candidates (e.g. two profiles
+    whose domain keywords both match tokens, no canonical verb token present). Today that case is resolved
+    via the ordinary `routing_priority` tiebreak (auto-select if priorities differ, `ROUTER_AMBIGUOUS`
+    only if tied) — a case FR-007''s title ("lone/weak ... ambiguous, not confident") explicitly frames
+    as unwanted quiet confidence when there''s no canonical-verb backing at all, but the AC never actually
+    covers it. An implementer must guess whether this multi-keyword-tier/no-verb-tier case keeps the existing
+    priority-based auto-select (only the truly lone case becomes ambiguous) or whether it too should always
+    route to ROUTER_AMBIGUOUS regardless of priority spread, since none of it is canonical-verb-backed.
+
+    '
+  remediation: 'Add an explicit AC/FR sentence covering the "2+ keyword-tier candidates, 0 verb-tier candidates"
+    case, stating whether `routing_priority` still resolves it (status quo, scoped down from "lone" to
+    "keyword-tier-only, tie-broken by priority") or whether the fix generalizes to "no verb-tier candidate
+    present, and keyword-tier is the whole story, is always ROUTER_AMBIGUOUS regardless of priority."
+    Either answer is defensible; the spec just needs to pick one instead of leaving it to WP3''s implementer.
+
+    '
+- id: SPEC-ARCH-004
+  lens: Reflexivity
+  severity: 2
+  title: Spec does not address routing-consistency risk for an in-flight mission whose auto-routed `dispatch`
+    calls span the WP3 rerank's landing
+  evidence:
+  - artifact: spec.md § Clarifications / Decision Record 1 — acknowledges WP3 "changes selection behavior
+      on every real (Op-opening) dispatch call" but only in the context of sequencing/revertibility, not
+      consistency mid-mission
+  - artifact: spec.md § NFR-003 — addresses deploy/HITL, not routing-consistency
+  - code: 'src/specify_cli/invocation/router.py:191-198 (docstring) — "Pure function: no I/O, no network,
+      no LLM call" — route() is stateless, so its output for the same request text can differ before/after
+      WP3 merges with no signal to a caller that the rule changed'
+  claim: '`ActionRouter.route()` is a pure, stateless function re-evaluated on every `dispatch` call.
+    A currently-running spec-kitty mission that dispatches multiple WP subagents WITHOUT an explicit `--profile`
+    hint (auto-routed) across a span of time during which WP3 merges to main could see two dispatch calls
+    for similar/identical request text resolve to different profiles before and after the rerank lands
+    — this is exactly the reflexivity concern the lens flags: mission tooling changing its own routing
+    rules while missions run on it. The spec''s Decision Record 1 addresses WP3''s sequencing/revertibility
+    risk to the CODEBASE but never states whether this cross-call consistency risk was considered and
+    accepted (e.g. "WP dispatches always pass an explicit --profile hint from planning, so this risk is
+    moot in practice") or is simply out of scope.
+
+    '
+  remediation: 'Add one sentence — either to Decision Record 1 or a new Constraint — stating explicitly
+    whether in-mission auto-routed (no `--profile`) dispatch calls are exposed to this consistency risk,
+    and if so, that it is accepted as inherent to any router.py bug fix (not novel to this mission) rather
+    than left unaddressed.
+
+    '
+- id: SPEC-VERIFY-001
+  lens: writes-nothing test strength & glossary chokepoint gate correctness
+  severity: 4
+  title: SC-002's "document/line count unchanged" test is unimplementable as worded, and the naive fallback
+    a WP author would reach for is vacuous — because the glossary event log filename is keyed on invocation_id,
+    which FR-004 deliberately drops from the dry-run payload
+  evidence:
+  - artifact: spec.md § Success Criteria, SC-002 (line 211-213)
+  - artifact: spec.md § FR-004 (line 158) — dry-run payload reuses InvocationPayload's field set 'minus
+      invocation_id and close_contract'
+  - artifact: 'spec.md § Success Criteria, SC-001 (line 207-210) — contrast: kitty-ops/ uses a directory-tree
+      byte-identical snapshot, not a per-file line-count check'
+  - code: src/glossary/chokepoint.py:206-215 (_build_event_context) — mission_id = f"profile-invocation-{invocation_id}",
+      event_context.run_id = invocation_id
+  - code: src/glossary/events.py:100-113 (get_event_log_path) — path is `.kittify/events/glossary/{sanitize(mission_id)}.events.jsonl`,
+      i.e. filename is keyed on invocation_id
+  - code: src/specify_cli/invocation/executor.py:307 (_new_ulid()) — a fresh ULID is generated on every
+      invoke() call, dry-run included, so every call (dry-run or real) would target a DIFFERENT event-log
+      filename if the write ever fired
+  claim: 'SC-002 says the test asserts "the glossary event store''s document/line count is unchanged"
+    before/after N dry-run calls. But the glossary event log is not one shared, growing file the way kitty-ops/ops-index.jsonl
+    is — its path is `.kittify/events/glossary/profile-invocation-<invocation_id>.events.jsonl`, derived
+    fresh per invocation (chokepoint.py''s _build_event_context sets mission_id = f"profile-invocation-{invocation_id}",
+    and events.py''s get_event_log_path folds that mission_id straight into the filename). Since invoke()
+    mints a brand-new ULID on every call (executor.py:307, unconditionally, dry-run or not), a real (non-suppressed)
+    write from a regressed dry-run path would land in a NEW, uniquely-named file each time — never increment
+    the line count of any single pre-existing file. A test literally written to SC-002''s spec ("assert
+    line count of THE store is unchanged") has no fixed file to point at: to name the file it would need
+    the invocation_id used by that specific call, but FR-004 explicitly strips invocation_id from the
+    dry-run response payload, so the test harness cannot recover it from the call under test. The two
+    ways a WP author resolves this ambiguity are both broken: (a) pick some fixed/expected filename to
+    check the line count of — it will report "unchanged" (0 lines, file never existed) on every run regardless
+    of whether the suppression logic actually works, because a real bug writes to a *different* file,
+    not that one; or (b) sum line counts across every file already present under `.kittify/events/glossary/`
+    before/after — this only detects a regression if it happens to write into an *existing* file, but
+    the invocation-keyed naming scheme means a regressed write creates a brand-new file, which a "sum
+    existing files'' line counts" check will not include unless it re-globs the directory, at which point
+    the assertion has silently become a directory-listing check anyway (and the spec never says to do
+    that). SC-001 avoids this exact trap for kitty-ops/ by using a directory-tree byte-identical snapshot
+    (which trivially catches ANY new file regardless of its name) rather than a named-file line count
+    — but SC-002 does not apply the same technique to the glossary event store, even though both directories
+    share the same per-invocation-unique-filename architecture. As worded, an implementation that fully
+    regresses FR-003 (always writes the TermCandidateObserved event, dry-run or not) can still pass a
+    good-faith SC-002 test, which is precisely the silent-success failure mode this mission exists to
+    close.'
+  remediation: 'Rewrite SC-002 to use the same directory-level technique as SC-001: assert that `.kittify/events/glossary/`
+    contains the same set of files (by name, or by total file count if the directory is guaranteed empty
+    at test start) before and after N dry-run calls on an unrecognized-token request — i.e. "no new file
+    is created under `.kittify/events/glossary/`" — rather than "line count of the store is unchanged."
+    If a per-file line-count assertion is still wanted as a belt-and-suspenders check, the test must capture
+    the invocation_id from a call made WITHOUT --dry-run (or from the chokepoint''s return value directly)
+    to know which filename to inspect; SC-002 should say so explicitly, since FR-004 rules out getting
+    it from the dry-run payload itself.'

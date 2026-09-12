@@ -1,0 +1,74 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: arch
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: ANALYZE-ARCH-001
+    lens: plan-implements-spec (FR-010 malformed-manifest handling)
+    severity: 4
+    title: >-
+      FR-010's "matches existing precedent" claim is false against live source; WP02 has
+      no subtask that actually makes malformed manifests raise ManifestSchemaError, and a
+      new org-tier code path this mission adds can crash `next` uncaught
+    evidence:
+      - artifact: "spec.md § Edge Cases (line ~219) and FR-010 (line ~429)"
+      - artifact: "tasks.md WP02 § Implementation Notes (line ~380-384)"
+      - artifact: "tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md § T010 (line ~150-154)"
+      - code: "src/doctrine/missions/repository.py:396-412 (MissionTemplateRepository.get_expected_artifacts raises MalformedManifestError on YAML-syntax failure — fail-loud, not silent-degrade)"
+      - code: "tests/doctrine/missions/test_repository.py:415-427 (live test pinning that fail-loud behavior)"
+      - code: "src/specify_cli/runtime/resolver.py:555-576 (_load_expected_artifact_manifest calls ExpectedArtifactManifest.model_validate(config.parsed) with no try/except; no ManifestSchemaError import anywhere in this file)"
+      - code: "src/doctrine/missions/expected_artifact_manifest.py:102 (model_config = ConfigDict(extra=\"forbid\"), so a schema-invalid manifest raises bare pydantic.ValidationError from model_validate)"
+      - code: "src/specify_cli/dossier/manifest.py:104,304,340 (ManifestSchemaError is defined and raised only here, in ManifestRegistry.load_manifest — a function this mission's blast radius never calls)"
+      - code: "src/runtime/next/runtime_bridge.py:1607-1610,1642-1643 (the only exception caught around _check_cli_guards is UnregisteredMissionFamilyError; a ValidationError/MalformedManifestError from deeper in the call chain propagates uncaught into decide_next)"
+    claim: >-
+      spec.md's FR-010 and Edge Cases section assert that "YAML-syntax failures degrade to
+      'no manifest' silently... at both built-in and org tier, exactly as
+      MissionTemplateRepository.get_expected_artifacts and resolve_org_expected_artifacts
+      already do today," and that "schema failures raise ManifestSchemaError loudly...
+      matching the precedent ManifestRegistry.load_manifest already established... for both
+      built-in and org tiers." Both halves are false for the built-in tier and for the actual
+      call path this mission wires up. (1) MissionTemplateRepository.get_expected_artifacts
+      does NOT degrade silently on YAML-syntax failure — it raises MalformedManifestError
+      loudly by design (its own docstring says "Fail-loud, distinct from absence"), and this
+      is pinned by a live, passing test. Only the org-tier resolve_org_expected_artifacts
+      degrades silently; the two tiers are asymmetric, not "exactly the same... at both
+      tiers" as claimed. (2) Neither MissionTemplateRepository.get_expected_artifacts nor
+      resolve_org_expected_artifacts performs Pydantic schema validation or raises
+      ManifestSchemaError at all — that type is raised only by a sibling module
+      (specify_cli.dossier.manifest.ManifestRegistry.load_manifest) this mission's blast
+      radius does not call. resolver.py's _load_expected_artifact_manifest instead calls
+      ExpectedArtifactManifest.model_validate(...) directly with zero exception handling, so a
+      schema-invalid manifest (built-in OR org, since WP02's T010 adds the org-tier branch
+      through the same function) raises a bare, undomained pydantic.ValidationError — not
+      ManifestSchemaError — propagating uncaught through gather_artifact_presence into
+      decide_next (the only catch anywhere on that path is UnregisteredMissionFamilyError).
+      tasks.md's WP02 Implementation Notes repeats the false "already implemented by the
+      functions this WP calls through" claim verbatim as its justification for adding zero
+      subtasks to actually satisfy FR-010, and plan.md never addresses FR-010 at all in its
+      Seam/module-placement table — so the requirement is silently unimplemented end to end,
+      resting on a factual claim that contradicts live source and an existing passing test.
+      This is a new, mission-introduced crash risk specifically for the org-tier path: today
+      resolver.py has zero org-tier lookup, so this exact uncaught-ValidationError path does
+      not yet exist for org manifests; WP02's own new code creates it, at the same time the
+      spec explicitly (but incorrectly) claims it's already handled.
+    remediation: >-
+      Correct spec.md's FR-010/Edge Cases to state the true current behavior: built-in-tier
+      YAML-syntax failures raise MalformedManifestError loudly (not "unfixed #3412", it is
+      fixed and fail-loud); org-tier YAML-syntax failures degrade silently
+      (resolve_org_expected_artifacts); and neither tier currently raises ManifestSchemaError
+      for schema-invalid content — that contract lives only in
+      specify_cli.dossier.manifest.ManifestRegistry.load_manifest. Then make an explicit
+      design decision rather than asserting a false no-op: either (a) add a WP02 subtask that
+      wraps ExpectedArtifactManifest.model_validate(...) in _load_expected_artifact_manifest
+      (both the built-in and the new org-tier branch) in a try/except pydantic.ValidationError
+      and re-raises a proper ManifestSchemaError (importing it from
+      specify_cli.dossier.manifest, or promoting it to a shared location if that import
+      direction is undesirable) with an ATDD test proving it for both tiers, or (b) explicitly
+      scope FR-010 down to "malformed-manifest handling is out of scope for this mission;
+      MalformedManifestError/ValidationError propagate uncaught exactly as they do today,
+      including for the newly-added org-tier lookup" and accept that as a documented risk
+      rather than a false "already covered" claim. Also add a plan.md Seam/module-placement
+      row (or an explicit note) for FR-010 so it is not silently absent from the plan's own
+      architecture table.

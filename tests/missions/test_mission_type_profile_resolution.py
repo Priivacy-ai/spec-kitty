@@ -5,7 +5,7 @@ original Mission B WP01–WP02 folded into the proposed scope):
 
     Ship one ``governance-profile.yaml`` per mission type
     (``software-dev``, ``documentation``, ``research``, ``plan``) under
-    ``src/doctrine/missions/<type>/governance-profile.yaml``. Each
+    ``src/charter/offering/missions/<type>/governance-profile.yaml``. Each
     profile declares default selections and default activations for that
     mission type. The charter resolver reads ``meta.json mission_type``,
     picks the matching profile, and unions its declarations into the
@@ -31,12 +31,13 @@ from pathlib import Path
 
 import pytest
 
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_MISSION_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions"
+_MISSION_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions"
 _REQUIRED_MISSION_TYPES = ("software-dev", "documentation", "research", "plan")
 
 
@@ -48,7 +49,7 @@ _REQUIRED_MISSION_TYPES = ("software-dev", "documentation", "research", "plan")
 @pytest.mark.parametrize("mission_type", _REQUIRED_MISSION_TYPES)
 def test_mission_type_ships_governance_profile_yaml(mission_type: str) -> None:
     """Each canonical mission type MUST ship a
-    ``src/doctrine/missions/<type>/governance-profile.yaml`` file.
+    ``src/charter/offering/missions/<type>/governance-profile.yaml`` file.
 
     Fails today because none of the four files exist. Mission B WP06
     creates them with mission-type-appropriate default selections.
@@ -72,7 +73,7 @@ def test_mission_type_ships_governance_profile_yaml(mission_type: str) -> None:
 
 @pytest.mark.parametrize("mission_type", _REQUIRED_MISSION_TYPES)
 def test_load_mission_type_profile_returns_mission_type_profile(mission_type: str) -> None:
-    """``charter.mission_type_profiles._load_mission_type_profile(mission_type)`` MUST
+    """``charter.activation.mission_type_profiles._load_mission_type_profile(mission_type)`` MUST
     return the profile for that mission type — not None, not a fallback.
 
     Fails today on ImportError. Mission B WP06 introduces the loader at
@@ -84,14 +85,14 @@ def test_load_mission_type_profile_returns_mission_type_profile(mission_type: st
         # as the module-internal ``_load_mission_type_profile`` — NOT called by
         # ``resolve_mission_type_context`` itself (which reads the repository
         # directly), but still live as the backing helper for
-        # ``charter.action_grain.scan_builtin_cross_grain_duplicates`` (the
+        # ``charter.activation.action_grain.scan_builtin_cross_grain_duplicates`` (the
         # IC-11 built-in dup-scan).
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             _load_mission_type_profile,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles._load_mission_type_profile`. "
+            "Could not import `charter.activation.mission_type_profiles._load_mission_type_profile`. "
             "WP03 keeps the profile loader as the module-internal helper backing "
             "`resolve_mission_type_context`.\n"
             f"Underlying ImportError: {exc!r}"
@@ -165,12 +166,12 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     Fails today on ImportError or because no documentation profile exists.
     """
     try:
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "Could not import `charter.activation.mission_type_profiles.resolve_mission_type_context`. "
             "WP03 introduces the unified resolver that reads meta.json's "
             "mission_type and dispatches to the matching profile.\n"
             f"Underlying ImportError: {exc!r}"
@@ -179,6 +180,11 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     repo_root = tmp_path
     _git_init_minimal(repo_root)
     _write_minimal_charter(repo_root)
+    # WP04 fail-closed follow-up: resolve_mission_type_context()'s action-slot
+    # resolution validates against the project's activated mission types; a
+    # bare charter.md with no `.kittify/config.yaml` never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo_root)
 
     feature_dir = repo_root / "kitty-specs" / "documentation-mission-001"
     feature_dir.mkdir(parents=True)
@@ -219,12 +225,12 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     message naming the unknown mission_type.
     """
     try:
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "Could not import `charter.activation.mission_type_profiles.resolve_mission_type_context`. "
             "WP03 introduces the unified resolver.\n"
             f"Underlying ImportError: {exc!r}"
         )

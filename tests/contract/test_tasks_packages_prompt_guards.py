@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TASKS_PACKAGES_PROMPT = (
-    REPO_ROOT / "src/doctrine/missions/mission-steps/software-dev/tasks-packages/prompt.md"
+    REPO_ROOT / "packs/built-in/missions/mission-steps/software-dev/tasks-packages/prompt.md"
 )
 
 # Marker that identifies a WP prompt frontmatter template block (vs a wps.yaml example block)

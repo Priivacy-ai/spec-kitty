@@ -8,14 +8,36 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from specify_cli.status.models import NON_DISPLAY_LANES, Lane, StatusEvent, StatusSnapshot
+from specify_cli.post_merge.review_artifact_consistency import (
+    find_rejected_review_artifact_conflicts,
+)
+from specify_cli.review.artifacts import ReviewCycleArtifact
+from specify_cli.status.models import (
+    NON_DISPLAY_LANES,
+    InnerStateChanged,
+    Lane,
+    ReviewOverride,
+    ReviewResult,
+    StatusEvent,
+    StatusSnapshot,
+    WPInnerStateDelta,
+)
 from specify_cli.status.reducer import (
     SNAPSHOT_FILENAME,
+    ReviewResultLookup,
+    event_sourced_review_result,
     materialize,
     materialize_to_json,
     reduce,
+    review_result_from_state,
 )
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from tests.reliability.fixtures import (
+    MissionFixture,
+    WorkPackageSpec,
+    create_mission_fixture,
+    write_work_package,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -33,6 +55,7 @@ def _make_event(
     execution_mode: str = "worktree",
     reason: str | None = None,
     review_ref: str | None = None,
+    review_result: ReviewResult | None = None,
 ) -> StatusEvent:
     """Helper to build StatusEvent with sensible defaults."""
     return StatusEvent(
@@ -47,7 +70,30 @@ def _make_event(
         execution_mode=execution_mode,
         reason=reason,
         review_ref=review_ref,
+        review_result=review_result,
     )
+
+
+def _write_review_cycle_artifact(
+    artifact_dir: Path,
+    *,
+    wp_id: str = "WP01",
+    mission_slug: str = "034-feature-name",
+    cycle_number: int,
+    verdict: str,
+) -> Path:
+    """Write a real ``review-cycle-N.md`` artifact (WP07 T029 fixtures)."""
+    artifact = ReviewCycleArtifact(
+        cycle_number=cycle_number,
+        wp_id=wp_id,
+        mission_slug=mission_slug,
+        reviewer_agent="reviewer-renata",
+        reviewed_at="2026-02-08T12:00:00+00:00",
+        body=f"# Review\n\nVerdict: {verdict}\n",
+    )
+    path = artifact_dir / f"review-cycle-{cycle_number}.md"
+    artifact.write(path)
+    return path
 
 
 class TestReduceEmpty:
@@ -430,7 +476,7 @@ class TestByteIdenticalOutput:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
+        with patch("kernel.clock.now_utc_iso", return_value=fixed_time):
             snapshot_a = reduce(events)
             snapshot_b = reduce(events)
 
@@ -700,3 +746,535 @@ class TestMaterializeGitClean:
             capture_output=True, text=True,
         )
         assert result.stdout.strip() == "", f"Unexpected dirty files: {result.stdout}"
+
+
+def _in_review_exit_events(
+    *,
+    review_result: ReviewResult | None,
+    target: Lane = Lane.APPROVED,
+    force: bool = False,
+    reason: str | None = None,
+) -> list[StatusEvent]:
+    """Build a planned->claimed->in_review->target event chain for WP01.
+
+    The final hop is the ONLY transition class that writes the new
+    ``review_result`` slot (from_lane == IN_REVIEW) — see
+    ``reducer._wp_state_from_event``'s docstring.
+    """
+    return [
+        _make_event(
+            event_id="01HXYZ00000000000000000A1",
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+            at="2026-02-08T10:00:00Z",
+        ),
+        _make_event(
+            event_id="01HXYZ00000000000000000A2",
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_REVIEW,
+            at="2026-02-08T11:00:00Z",
+        ),
+        _make_event(
+            event_id="01HXYZ00000000000000000A3",
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=target,
+            at="2026-02-08T12:00:00Z",
+            actor="reviewer-a",
+            force=force,
+            reason=reason,
+            review_result=review_result,
+        ),
+    ]
+
+
+class TestReviewResultSlot:
+    """T025/T026 (WP07) — the reducer's new ``review_result`` slot."""
+
+    def test_approved_review_result_populates_slot(self) -> None:
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="approved", reference="review-cycle://m/WP01/review-cycle-1.md"
+        )
+        snapshot = reduce(_in_review_exit_events(review_result=rr, target=Lane.APPROVED))
+        state = snapshot.work_packages["WP01"]
+        assert "review_result" in state
+        assert state["review_result"] == rr.to_dict()
+
+    def test_changes_requested_review_result_populates_slot_identically(self) -> None:
+        """Edge case (T025): a rejection populates the slot the same way as an approval."""
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="changes_requested", reference="feedback://m/WP01/review-cycle-1.md"
+        )
+        snapshot = reduce(_in_review_exit_events(review_result=rr, target=Lane.IN_PROGRESS))
+        state = snapshot.work_packages["WP01"]
+        assert "review_result" in state
+        assert state["review_result"] == rr.to_dict()
+
+    def test_slot_absent_for_never_reviewed_wp(self) -> None:
+        """T027: a WP that never exits in_review carries no review_result key at all."""
+        events = [
+            _make_event(
+                event_id="01A", wp_id="WP01",
+                from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, at="2026-02-08T10:00:00Z",
+            ),
+            _make_event(
+                event_id="01B", wp_id="WP01",
+                from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, at="2026-02-08T11:00:00Z",
+            ),
+        ]
+        snapshot = reduce(events)
+        assert "review_result" not in snapshot.work_packages["WP01"]
+
+    def test_slot_carried_forward_after_unrelated_transition(self) -> None:
+        """Once set, a later transition NOT from in_review must not erase it (sticky)."""
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="approved", reference="review-cycle://m/WP01/review-cycle-1.md"
+        )
+        events = _in_review_exit_events(review_result=rr, target=Lane.DONE)
+        events.append(
+            _make_event(
+                event_id="01HXYZ00000000000000000A4",
+                wp_id="WP01",
+                from_lane=Lane.DONE,
+                to_lane=Lane.BLOCKED,
+                at="2026-02-08T13:00:00Z",
+                actor="ops",
+                force=True,
+                reason="unrelated block, unforced FSM edge",
+            )
+        )
+        snapshot = reduce(events)
+        state = snapshot.work_packages["WP01"]
+        assert state["lane"] == "blocked"
+        assert state["review_result"] == rr.to_dict()
+
+    def test_forced_in_review_exit_with_no_review_result_records_null(self) -> None:
+        """T028: a --force in_review exit with no ReviewResult records an
+        explicit ``None`` — present in the snapshot, distinct from absent."""
+        events = _in_review_exit_events(
+            review_result=None,
+            target=Lane.PLANNED,
+            force=True,
+            reason="operator override, no review performed",
+        )
+        snapshot = reduce(events)
+        state = snapshot.work_packages["WP01"]
+        assert "review_result" in state
+        assert state["review_result"] is None
+
+    def test_single_hop_in_progress_to_approved_with_review_result_populates_slot(
+        self,
+    ) -> None:
+        """Reviewer finding: emit applies no ``from_lane`` filter, so a
+        single-hop ``in_progress -> approved`` (a legal edge per
+        ``InProgressState.allowed_targets``, e.g. the external
+        ``orchestrator_api`` ``transition`` ingress) carrying evidence AND a
+        populated ``ReviewResult`` is constructible without ever passing
+        through ``in_review``. A trigger keyed solely on
+        ``from_lane == IN_REVIEW`` would silently drop this verdict -- the
+        slot must be populated regardless of which edge carried it."""
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="approved", reference="review-cycle://m/WP01/review-cycle-1.md"
+        )
+        events = [
+            _make_event(
+                event_id="01HXYZ00000000000000000D1", wp_id="WP01",
+                from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, at="2026-02-08T10:00:00Z",
+            ),
+            _make_event(
+                event_id="01HXYZ00000000000000000D2", wp_id="WP01",
+                from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, at="2026-02-08T11:00:00Z",
+            ),
+            _make_event(
+                event_id="01HXYZ00000000000000000D3", wp_id="WP01",
+                from_lane=Lane.IN_PROGRESS, to_lane=Lane.APPROVED, at="2026-02-08T12:00:00Z",
+                actor="reviewer-a", review_result=rr,
+            ),
+        ]
+        snapshot = reduce(events)
+        state = snapshot.work_packages["WP01"]
+        assert state["lane"] == "approved"
+        assert "review_result" in state
+        assert state["review_result"] == rr.to_dict()
+
+    def test_single_hop_in_progress_to_approved_overrides_stale_carried_forward_verdict(
+        self,
+    ) -> None:
+        """Reviewer finding: a prior in_review cycle's carried-forward
+        ``changes_requested`` must NOT survive a later single-hop
+        ``in_progress -> approved`` that carries its OWN, new ``review_result``
+        -- the new event's verdict wins, never the stale carry-forward."""
+        stale = ReviewResult(
+            reviewer="old", verdict="changes_requested", reference="feedback://m/WP01/review-cycle-1.md"
+        )
+        fresh = ReviewResult(
+            reviewer="reviewer-a", verdict="approved", reference="review-cycle://m/WP01/review-cycle-2.md"
+        )
+        events = _in_review_exit_events(review_result=stale, target=Lane.IN_PROGRESS)
+        events.append(
+            _make_event(
+                event_id="01HXYZ00000000000000000E1", wp_id="WP01",
+                from_lane=Lane.IN_PROGRESS, to_lane=Lane.APPROVED, at="2026-02-08T13:00:00Z",
+                actor="reviewer-a", review_result=fresh,
+            )
+        )
+        snapshot = reduce(events)
+        state = snapshot.work_packages["WP01"]
+        assert state["lane"] == "approved"
+        assert state["review_result"] == fresh.to_dict()
+        assert state["review_result"] != stale.to_dict()
+
+
+class TestReviewResultPrecedence:
+    """T026 (WP07) — ``review_result`` and ``review`` (arbiter override) never collapse."""
+
+    def test_both_slots_populated_independently(self) -> None:
+        """An override recorded after a standing rejection: both facts survive,
+        neither erases the other (T026's precedence rule)."""
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="changes_requested", reference="feedback://m/WP01/review-cycle-1.md"
+        )
+        events = _in_review_exit_events(review_result=rr, target=Lane.IN_PROGRESS)
+        override = ReviewOverride(
+            at="2026-02-08T13:00:00Z", actor="arbiter-a", wp_id="WP01", reason="ship anyway"
+        )
+        annotation = InnerStateChanged(
+            event_id="01HXYZ00000000000000000B1",
+            wp_id="WP01",
+            at="2026-02-08T13:00:00Z",
+            actor="arbiter-a",
+            delta=WPInnerStateDelta(review=override),
+        )
+        snapshot = reduce(events, [annotation])
+        state = snapshot.work_packages["WP01"]
+        assert state["review_result"] == rr.to_dict()
+        assert state["review"] == override.to_dict()
+
+    def test_review_result_alone_unaffected_by_absent_override(self) -> None:
+        """Edge case: the single-slot-populated case is unchanged by T026's addition."""
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="approved", reference="review-cycle://m/WP01/review-cycle-1.md"
+        )
+        snapshot = reduce(_in_review_exit_events(review_result=rr, target=Lane.APPROVED))
+        state = snapshot.work_packages["WP01"]
+        assert state["review_result"] == rr.to_dict()
+        assert "review" not in state
+
+
+class TestEventSourcedReviewResultReader:
+    """T027/T028 (WP07) — ``review_result_from_state`` / ``event_sourced_review_result``."""
+
+    def test_lookup_from_state_slot_absent(self) -> None:
+        lookup = review_result_from_state({"lane": "in_progress"})
+        assert lookup == ReviewResultLookup(slot_present=False, result=None)
+
+    def test_lookup_from_state_slot_null(self) -> None:
+        lookup = review_result_from_state({"lane": "planned", "review_result": None})
+        assert lookup == ReviewResultLookup(slot_present=True, result=None)
+
+    def test_lookup_from_state_slot_populated(self) -> None:
+        rr = ReviewResult(reviewer="r", verdict="approved", reference="review-cycle://m/WP01/1.md")
+        lookup = review_result_from_state({"lane": "approved", "review_result": rr.to_dict()})
+        assert lookup == ReviewResultLookup(slot_present=True, result=rr)
+
+    def test_lookup_from_state_malformed_slot_fails_closed(self) -> None:
+        """A slot value that is not a mapping (or missing required fields) is
+        treated as ``slot_present=True, result=None`` — fail-closed, not a crash."""
+        lookup = review_result_from_state({"lane": "approved", "review_result": "not-a-mapping"})
+        assert lookup == ReviewResultLookup(slot_present=True, result=None)
+
+        lookup_missing_fields = review_result_from_state(
+            {"lane": "approved", "review_result": {"reviewer": "r"}}
+        )
+        assert lookup_missing_fields == ReviewResultLookup(slot_present=True, result=None)
+
+    def test_event_sourced_review_result_migrated_wp(self, tmp_path: Path) -> None:
+        """A migrated mission (slot populated) reads its verdict from the
+        snapshot without touching any frontmatter fallback path at all."""
+        feature_dir = tmp_path / "kitty-specs" / "069-migrated"
+        feature_dir.mkdir(parents=True)
+        rr = ReviewResult(reviewer="r", verdict="approved", reference="review-cycle://m/WP01/1.md")
+        for event in _in_review_exit_events(review_result=rr, target=Lane.APPROVED):
+            append_event(feature_dir, event)
+
+        lookup = event_sourced_review_result(feature_dir, "WP01")
+
+        assert lookup.slot_present is True
+        assert lookup.result == rr
+
+    def test_event_sourced_review_result_never_reviewed_wp_slot_absent(
+        self, tmp_path: Path
+    ) -> None:
+        """T027 (synthetic): a WP with no in_review exit -> slot absent (fallback
+        applies at the CALLER, e.g. find_rejected_review_artifact_conflicts)."""
+        feature_dir = tmp_path / "kitty-specs" / "069-unreviewed"
+        feature_dir.mkdir(parents=True)
+        append_event(
+            feature_dir,
+            _make_event(
+                event_id="01A", wp_id="WP01",
+                from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, at="2026-02-08T10:00:00Z",
+            ),
+        )
+
+        lookup = event_sourced_review_result(feature_dir, "WP01")
+
+        assert lookup == ReviewResultLookup(slot_present=False, result=None)
+
+    def test_event_sourced_review_result_coord_primary_partition_slot_absent(
+        self, tmp_path: Path
+    ) -> None:
+        """T027 DoD (#3220 fold): a coord-topology mission's PRIMARY-partition
+        checkout has no reduced entry for a WP whose lane transitions live on
+        the coordination branch instead -- slot-absent, the un-migrated shape
+        T027 exists to handle. The reader is never gated on ``status_phase``;
+        the synthetic ``meta.json`` below omits it only to preserve that
+        framing, matching :func:`test_event_sourced_review_result_never_reviewed_wp_slot_absent`'s
+        pattern.
+
+        Landing-pass fold, #3220: this test used to read this repository's
+        OWN, live, un-migrated ``kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/meta.json``
+        as a "not only a synthetic one" fixture. That mission was later
+        migrated (it now carries a ``status_phase`` key), so the live
+        precondition silently stopped holding and the test went red for a
+        reason unrelated to the reader it exists to cover. The synthetic
+        fixture here reproduces the same shape deterministically: a WP that
+        was created and moved through a lane transition (so it is not simply
+        absent from history) but has no reduced entry in THIS checkout's own
+        event log, exactly what a coord-topology mission's primary partition
+        looks like for a WP whose authoritative transitions live on the
+        coordination branch.
+        """
+        feature_dir = tmp_path / "kitty-specs" / "069-coord-primary"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta = {"mission_slug": "069-coord-primary", "topology": "coord"}
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        assert "status_phase" not in meta
+
+        append_event(
+            feature_dir,
+            _make_event(
+                event_id="01A", wp_id="WP07",
+                from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, at="2026-02-08T10:00:00Z",
+            ),
+        )
+
+        lookup = event_sourced_review_result(feature_dir, "WP99")
+
+        # WP99 never appears in this checkout's event log at all -- the
+        # coord-primary shape: its authoritative status.events.jsonl lives on
+        # the coordination branch, not here, so this checkout's own reduced
+        # snapshot has no entry for it. Slot-absent, and NOT gated on the
+        # (absent) status_phase key above.
+        assert lookup == ReviewResultLookup(slot_present=False, result=None)
+
+    def test_event_sourced_review_result_fails_closed_on_corrupted_event_log(
+        self, tmp_path: Path
+    ) -> None:
+        """T027: an unreadable event log must not crash the reader — fail-closed
+        to slot-absent, consistent with the module's declared polarity."""
+        feature_dir = tmp_path / "kitty-specs" / "069-corrupted"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "status.events.jsonl").write_text("{not valid json\n", encoding="utf-8")
+
+        lookup = event_sourced_review_result(feature_dir, "WP01")
+
+        assert lookup == ReviewResultLookup(slot_present=False, result=None)
+
+
+def _append_mission_events(mission: MissionFixture, events: list[StatusEvent]) -> None:
+    """Re-stamp each event's mission identity onto ``mission`` and append it.
+
+    ``_in_review_exit_events``/``_make_event`` default to a fixed
+    ``mission_slug`` for the plain-reducer tests above; the gate-level tests
+    below need each event to carry the SAME fixture mission's identity so
+    ``find_rejected_review_artifact_conflicts``' partition resolution (keyed
+    off ``feature_dir.name``) matches. Centralizing the re-stamp here (rather
+    than repeating the ``StatusEvent(...)`` reconstruction per test) is the
+    Sonar S1192 response for this module.
+    """
+    for event in events:
+        append_event(
+            mission.mission_dir,
+            StatusEvent(
+                event_id=event.event_id,
+                mission_slug=mission.mission_slug,
+                mission_id=mission.mission_id,
+                wp_id=event.wp_id,
+                from_lane=event.from_lane,
+                to_lane=event.to_lane,
+                at=event.at,
+                actor=event.actor,
+                force=event.force,
+                execution_mode=event.execution_mode,
+                reason=event.reason,
+                review_result=event.review_result,
+            ),
+        )
+
+
+class TestFindRejectedReviewArtifactConflictsEventSourced:
+    """T029 (WP07) — the merge/lane gate consults the event-sourced answer too,
+    with the event winning on disagreement (FR-001)."""
+
+    def test_event_approved_overrides_frontmatter_rejected(self, tmp_path: Path) -> None:
+        mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
+        write_work_package(mission, WorkPackageSpec(lane="approved"))
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="approved",
+            reference="review-cycle://034-verdict-seam/WP01/review-cycle-2.md",
+        )
+        _append_mission_events(mission, _in_review_exit_events(review_result=rr, target=Lane.APPROVED))
+        artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        _write_review_cycle_artifact(
+            artifact_dir, wp_id="WP01", mission_slug=mission.mission_slug,
+            cycle_number=2, verdict="rejected",
+        )
+
+        findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+        assert findings == []
+
+    def test_event_changes_requested_overrides_frontmatter_approved(
+        self, tmp_path: Path
+    ) -> None:
+        """The reverse disagreement (T029): event says changes_requested, the
+        frontmatter's latest artifact reads approved -- the gate refuses."""
+        mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
+        write_work_package(mission, WorkPackageSpec(lane="approved"))
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="changes_requested",
+            reference="feedback://034-verdict-seam/WP01/review-cycle-2.md",
+        )
+        _append_mission_events(mission, _in_review_exit_events(review_result=rr, target=Lane.APPROVED))
+        artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        _write_review_cycle_artifact(
+            artifact_dir, wp_id="WP01", mission_slug=mission.mission_slug,
+            cycle_number=2, verdict="approved",
+        )
+
+        findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+        assert len(findings) == 1
+        assert findings[0].wp_id == "WP01"
+        assert findings[0].verdict == "changes_requested"
+
+    def test_forced_null_review_result_yields_no_findings(
+        self, tmp_path: Path
+    ) -> None:
+        """T028's edge case, at the gate -- REPOINTED by WP05
+        (verdict-seam-write-unification-01KZ9Q35, T028/FR-013/D-PLAN-8): a
+        forced transition with no ``ReviewResult`` used to defer to the
+        gate's (then-active) frontmatter-based check. That check is now
+        retired outright: the pure-event gate never reads
+        ``review-cycle-N.md`` frontmatter at all, and G2
+        (contracts/verdict-authority-read.md) requires a damaged/absent
+        event slot to read as "no block", never a fabricated rejection
+        sourced from frontmatter. A rejected on-disk artifact is still
+        written here to prove it is genuinely never consulted -- if it
+        were, this test would fail the OTHER way (a spurious finding)."""
+        mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
+        write_work_package(mission, WorkPackageSpec(lane="approved"))
+        _append_mission_events(
+            mission,
+            _in_review_exit_events(
+                review_result=None, target=Lane.APPROVED, force=True, reason="forced, no review"
+            ),
+        )
+        artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        _write_review_cycle_artifact(
+            artifact_dir, wp_id="WP01", mission_slug=mission.mission_slug,
+            cycle_number=2, verdict="rejected",
+        )
+
+        findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+        assert findings == [], (
+            "G2: a damaged (slot-present, result=None) event-sourced verdict "
+            "must never fall back to reading frontmatter -- fail-closed-safe "
+            "means 'no block', not a fabricated rejection"
+        )
+
+    def test_absent_event_sourced_verdict_yields_no_findings(
+        self, tmp_path: Path
+    ) -> None:
+        """REPOINTED by WP05 (verdict-seam-write-unification-01KZ9Q35,
+        T028/FR-013/D-PLAN-8): this pinned the pre-existing
+        frontmatter-only fallback path (T027's slot-absent case). That
+        fallback is now retired -- the pure-event gate never reads
+        ``review-cycle-N.md`` frontmatter, so a WP with no ``review_result``
+        ever emitted produces NO finding, regardless of what a stray
+        on-disk artifact says (G2: absent means 'no block')."""
+        mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
+        write_work_package(mission, WorkPackageSpec(lane="approved"))
+        append_event(mission.mission_dir, StatusEvent(
+            event_id="01KQKV85APPROVED000000001",
+            mission_slug=mission.mission_slug,
+            mission_id=mission.mission_id,
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-02-08T12:00:00Z",
+            actor="reviewer-a",
+            force=False,
+            execution_mode="worktree",
+        ))
+        artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        _write_review_cycle_artifact(
+            artifact_dir, wp_id="WP01", mission_slug=mission.mission_slug,
+            cycle_number=2, verdict="rejected",
+        )
+
+        findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+        assert findings == [], (
+            "G2: an absent event-sourced verdict must never fall back to "
+            "reading frontmatter -- fail-closed-safe means 'no block'"
+        )
+
+    def test_arbiter_override_clears_gate_over_changes_requested_review_result(
+        self, tmp_path: Path
+    ) -> None:
+        """T026's precedence rule, exercised at the gate: an arbiter override
+        clears the gate over a ``review_result`` of ``changes_requested`` --
+        without erasing that ``review_result`` value (asserted separately via
+        the reducer-level ``TestReviewResultPrecedence`` above)."""
+        mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
+        write_work_package(mission, WorkPackageSpec(lane="approved"))
+        rr = ReviewResult(
+            reviewer="reviewer-a", verdict="changes_requested",
+            reference="feedback://034-verdict-seam/WP01/review-cycle-2.md",
+        )
+        _append_mission_events(mission, _in_review_exit_events(review_result=rr, target=Lane.APPROVED))
+        override = ReviewOverride(
+            at="2026-02-08T13:00:00Z", actor="arbiter-a", wp_id="WP01", reason="ship anyway"
+        )
+        append_annotations_atomic_verified(
+            mission.mission_dir,
+            [
+                InnerStateChanged(
+                    event_id="01HXYZ000000000000000000C1",
+                    wp_id="WP01",
+                    at="2026-02-08T13:00:00Z",
+                    actor="arbiter-a",
+                    delta=WPInnerStateDelta(review=override),
+                )
+            ],
+        )
+        artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        _write_review_cycle_artifact(
+            artifact_dir, wp_id="WP01", mission_slug=mission.mission_slug,
+            cycle_number=2, verdict="rejected",
+        )
+
+        findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+        assert findings == []

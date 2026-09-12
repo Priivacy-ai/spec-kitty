@@ -1,0 +1,88 @@
+# review-findings/v1 — pre-merge squad, contract lens (R1). Report-only phase:
+# HEAD does not move and nothing outside reviews/ changes as a result of this file.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+profile: reviewer-renata
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PR-CONTRACT-001
+    lens: Contract vs implementation — guard read symmetry
+    severity: 2
+    title: "The four wired guards read the new bare-prose fact via .get(key, ()) while every sibling fact in the same guards uses strict status_facts[key] indexing"
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_cores.py:542,564,588,605 (bare_prose_requirement_failures — .get(..., ()))"
+      - code: "src/runtime/next/runtime_bridge_cores.py:546,571,593,610,612 (sibling facts — requirement_mapping_failures, occurrence_gate_failures, wp_dependency_records — bare subscript)"
+      - artifact: "plan.md, FR-002's code sketch / PLAN-ARCH-001 (this plan-phase finding is the origin of the .get() choice)"
+    claim: >
+      Every one of the four guards this mission wired
+      (`_evaluate_tasks_packages_guard`, `_evaluate_tasks_finalize_guard`,
+      `_evaluate_composed_tasks_packages_guard`, `_evaluate_composed_tasks_terminal_guard`)
+      reads `snapshot.status_facts.get("bare_prose_requirement_failures", ())` — a
+      degrading read — while every sibling fact in the same guards
+      (`requirement_mapping_failures`, `occurrence_gate_failures`,
+      `wp_dependency_records`) is read via a bare, strict `status_facts["key"]`
+      subscript that raises `KeyError` if the key is absent. If any snapshot
+      construction path ever omitted `bare_prose_requirement_failures`, the guard would
+      silently degrade to "no bare-prose failures" rather than raising — a silent-success
+      vector inside the exact mission built to eliminate silent success. This is a
+      deliberate choice, per plan.md PLAN-ARCH-001 (the `.get()`-degrades-gracefully
+      option was picked explicitly over teaching every snapshot-construction helper
+      about the new key), and is currently dormant: every production constructor
+      (`runtime_bridge_io.py:846`) and the shared test helper
+      (`tests/runtime/test_bridge_cores.py:245`) already populate the key by default.
+    remediation: >
+      Tighten the four reads to strict `status_facts["bare_prose_requirement_failures"]`
+      indexing to match the sibling facts, now that every constructor populates the key
+      — closing the silent-success vector even though it is currently dormant.
+  - id: PR-CONTRACT-002
+    lens: Contract vs implementation — undisclosed scope reduction
+    severity: 2
+    title: "map-requirements --json returns success/exit 0 even when bare_prose_requirement_ids is non-empty, but spec.md SC-001 states the command blocks"
+    evidence:
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py:431-462"
+      - artifact: "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md § SC-001"
+    claim: >
+      `map-requirements --json` surfaces `bare_prose_requirement_ids` in its JSON
+      payload but still returns `"result": "success"` and exit code 0 even when that
+      list is non-empty — it never fails the command. `spec.md`'s SC-001 states, without
+      qualification, that the issue's repro spec.md "blocks `finalize-tasks`,
+      `map-requirements`, and `spec-kitty next`'s tasks-boundary decision, all naming
+      FR-001/FR-002 explicitly" — grouping all three surfaces as blocking, which is not
+      what the shipped code does for `map-requirements`. This is an undisclosed scope
+      reduction: `map-requirements` is a mapping-registration command, and surfacing
+      without failing is defensible design, but the spec's own success criterion
+      overclaims what it does.
+    remediation: >
+      Correct SC-001 to state accurately what each surface does: `finalize-tasks` and
+      `spec-kitty next` block; `map-requirements` surfaces
+      `bare_prose_requirement_ids` in its JSON payload without failing. Add a
+      Clarifications entry disclosing the distinction explicitly, matching the rigor the
+      mission already applies to its other deliberate narrowing (the Constraints-heading
+      blind spot). Do not change the code — the surfacing-not-blocking design for a
+      mapping-registration command is correct as shipped.
+  - id: PR-CONTRACT-003
+    lens: Contract vs implementation — golden envelope harness gap
+    severity: 1
+    title: "The golden JSON error-surface harness never exercises the bare-prose failure path"
+    evidence:
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract.py"
+      - code: "tests/fixtures/tasks_cli/json/envelopes.json"
+    claim: >
+      The golden JSON error-surface harness (contract-pinning fixture + test) has no
+      entry exercising the new bare-prose-requirement failure path. This is a real gap
+      in that harness's coverage, but it is pre-existing (the harness's shape and scope
+      were not introduced or modified by this mission's diff) — this mission neither
+      created nor widened the gap.
+    remediation: >
+      Accept as pre-existing. Belongs to its own issue against the golden envelope
+      harness's coverage, not a fix inside this mission.
+# Three findings above (C1/C2/C3). Additional verification performed but not rising to
+# a finding, recorded here as evidence this lens genuinely ran the check:
+verification_summary: >
+  The byte-contract update (tests/fixtures/tasks_cli/json/byte_contracts.json) is
+  code-driven, not golden-fitted: all three re-pins preserve the fixture's shape and
+  flip only assertions, each honestly named and citing its authority (the operator
+  ruling / DIRECTIVE_041). No case of tuning a golden fixture to match code output
+  without a corresponding, honestly-recorded behavior change was found.

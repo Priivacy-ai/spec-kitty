@@ -1,5 +1,6 @@
 {
   "created_at": "2026-03-20T13:20:31.673605+00:00",
+  "flattened": false,
   "friendly_name": "State Architecture Cleanup Phase 2",
   "mission_id": "01KN2371WVZGV7TH7WMR2CN9Q0",
   "mission_number": 54,
@@ -9,5 +10,6 @@
   "source_description": "Implement remaining state-architecture cleanup identified by the 007 Obsidian evidence vault audit refresh (2026-03-20). Covers active-mission fallback removal, dead code deletion, atomic write extension, constitution Git policy enforcement, acceptance deduplication, legacy_bridge hardening, and vault note updates.",
   "status_phase": "1",
   "target_branch": "2.x",
+  "topology": "single_branch",
   "vcs": "git"
 }

@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from specify_cli.cli.commands import charter_bundle
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -104,7 +104,7 @@ def _create_minimal_feature_with_lanes(tmp_path: Path) -> tuple[Path, Path]:
     # Status event log
     from ulid import ULID
 
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     event = StatusEvent(
         event_id=str(ULID()),
         mission_slug=_FEATURE_SLUG,
@@ -286,7 +286,7 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
             to_lane=Lane.DONE,
-            at=datetime.now(UTC).isoformat(),
+            at=now_utc_iso(),
             actor="test-agent",
             force=True,
             execution_mode="direct_repo",

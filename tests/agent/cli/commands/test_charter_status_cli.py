@@ -64,15 +64,49 @@ charter:
 
 
 def _write_governance_yaml(repo_root: Path) -> None:
-    path = repo_root / ".kittify" / "charter" / "governance.yaml"
+    """Write the ``governance:`` section into the consolidated ``charter.yaml``.
+
+    IC-04 (#2773) retired the standalone ``.kittify/charter/governance.yaml``:
+    ``load_governance_config`` now reads the hand-authored ``governance:``
+    section directly off ``charter.yaml`` (``charter.activation.schemas.CharterYaml``).
+    The governance references live at ``governance.charter.offering.governance_references``.
+    """
+    path = repo_root / ".kittify" / "charter" / "charter.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         """\
-doctrine:
-  governance_references:
-    - spec/constitution.md
-    - docs/missing-governance.md
+schema_version: '2.0.0'
+governance:
+  doctrine:
+    governance_references:
+      - spec/constitution.md
+      - docs/missing-governance.md
 """,
+        encoding="utf-8",
+    )
+
+
+def _seed_complete_bundle(repo_root: Path) -> None:
+    """Materialize the authoritative ``charter.yaml`` so the #2773 fail-closed
+    preflight (``_raise_if_bundle_incomplete``) passes and the real-run
+    synthesize path is reached.
+
+    Mirrors ``_seed_complete_bundle`` in
+    ``tests/agent/cli/commands/test_charter_synthesize_cli.py``:
+    ``first_missing_bundle_file`` is a pure existence check over
+    ``BUNDLE_CONTENT_HASH_FILES == ("charter.yaml",)``, so seeding this one
+    file at the fixed path is sufficient. It is independent of the config
+    ``charter:`` key, which this test intentionally keeps in the inline
+    ``synthesis_inputs`` shape so ``url_list`` stays configured.
+    """
+    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml.parent.mkdir(parents=True, exist_ok=True)
+    charter_yaml.write_text(
+        "schema_version: '2.0.0'\n"
+        "governance: {}\n"
+        "directives: {}\n"
+        "metadata:\n"
+        "  bundle_schema_version: 2\n",
         encoding="utf-8",
     )
 
@@ -134,6 +168,7 @@ class TestCharterStatus:
     ) -> None:
         _write_interview_answers(tmp_path)
         _write_url_config(tmp_path)
+        _seed_complete_bundle(tmp_path)
         _write_generated_directive(tmp_path, VALID_DIRECTIVE_BODY)
 
         with patch(
@@ -196,7 +231,16 @@ class TestCharterStatus:
 
         assert status_result.exit_code == 0, status_result.output
         data = json.loads(status_result.output)
-        assert data["charter_sync"]["available"] is False
+        # FR-005 (charter-pack-usage-journey WP03): ``_collect_charter_sync_status``
+        # now keys presence on the authoritative ``charter.yaml`` (seeded by
+        # ``_seed_complete_bundle`` above) via the CLI sibling resolver, not the
+        # display-only ``charter.md`` this fixture never writes -- so this
+        # collector correctly reports ``available: True`` here. It never calls
+        # ``ensure_charter_bundle_fresh`` (read-only per its own docstring /
+        # FR-010), so the patched ``side_effect`` above does not affect this
+        # field; it existed to isolate `status` from that write path, not to
+        # force an "unavailable" charter_sync result.
+        assert data["charter_sync"]["available"] is True
         assert data["synthesis"]["generation_state"] == "promoted"
         assert data["synthesis"]["manifest"]["state"] == "valid"
         assert data["synthesis"]["generated_inputs"]["counts"]["directive"] == 1

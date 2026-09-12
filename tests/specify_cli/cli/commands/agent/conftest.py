@@ -33,7 +33,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from specify_cli.core.env import SYNC_DISABLE_ENV_VARS
+from specify_cli.core.env import PRE_REVIEW_GATE_SKIP_ENV_VAR
 
 
 @pytest.fixture(autouse=True)
@@ -52,15 +52,15 @@ def _portable_cli_render_env() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Unset the sync-disable toggles the pre-review gate reuses, per test (#2794).
+    """Unset the pre-review gate opt-out (and retired toggles), per test (#2794, #3980).
 
-    The pre-review regression gate reuses the sync layer's process-wide opt-outs
-    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` / ``SPEC_KITTY_SYNC_DISABLE`` (see
-    the canonical ``core.env.SYNC_DISABLE_ENV_VARS``). In the whole-tree
+    The pre-review regression gate's process-wide opt-out is its own name,
+    ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` (#3980 — it no longer reads the
+    sync-disable vocabulary). In the whole-tree
     parallel run (``-n auto --dist loadfile``) one of those vars can be present in
     the xdist worker — leaked mid-run from a sibling test or daemon path — which
     silently *skips* the gate and reds the gate-observability tests that assert it
-    RUNS (issue #2794). Unsetting both toggles before every test in this package
+    RUNS (issue #2794). Unsetting them before every test in this package
     makes those tests worker- and order-independent, and neutralises the
     ``monkeypatch.setenv`` "restore-to-a-leaked-value" perpetuation.
 
@@ -68,5 +68,8 @@ def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> No
     themselves inside the test body (after this fixture runs), so they are
     unaffected. No production behaviour changes — this only isolates the test env.
     """
-    for _name in SYNC_DISABLE_ENV_VARS:
+    monkeypatch.delenv(PRE_REVIEW_GATE_SKIP_ENV_VAR, raising=False)
+    # Harmless residue guard: the retired toggles no longer skip the gate,
+    # but a leaked value still trips unrelated readers — clear them too.
+    for _name in ("SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"):
         monkeypatch.delenv(_name, raising=False)

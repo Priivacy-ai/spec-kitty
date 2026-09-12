@@ -1,0 +1,22 @@
+{
+  "_purpose": "FR-004 (#3115) capture provenance. A capture with no provenance is a recollection; this sidecar is what makes tests/cli/commands/fixtures/render_width_3115/capture_width80.txt re-derivable rather than a fixture nobody can regenerate (mission verification-trust-3115-01KYVYWM, T010).",
+  "fixture": "capture_width80.txt",
+  "reproduction_script_status": "FROZEN (issue #5/#114): reproduction_script drove specify_cli.cli.commands.sync.app ('sync status'), which was deleted along with the sync transport. The script below is kept verbatim as the historical record of how this byte-for-byte capture was produced -- it cannot be re-run against current source. The capture itself remains a valid, re-derivation-independent fixture for the fold-overflow assertions in test_render_fold_not_repairable_3115.py.",
+  "command": "typer.testing.CliRunner().invoke(specify_cli.cli.commands.sync.app, [\"status\"]) against a journal seeded exactly like tests/cli/commands/test_sync_status_per_project_3030.py::_seed_contaminated_store() (CONSENTED='aaaaaaaa-0000-0000-0000-000000000001' consent-granted with 7 events, SILENT='bbbbbbbb-0000-0000-0000-000000000002' with 4 events and no consent record at all, OPTED_OUT='cccccccc-0000-0000-0000-000000000003' consent-denied with 2 events, plus one anonymous identity-unresolved event) -- captured via result.output, no seam fixture applied (console.size left at its natural, unpinned default).",
+  "reproduction_script": "Historical-only: the retired transport generator was removed with the transport. The byte-for-byte capture and its assertions remain valid; a future regeneration must use a non-retired fixture seam.",
+  "commit": "bb2020fea9",
+  "captured_at_worktree_head": "9bddb14705ff524f484a78614d20b6c2fe25f122",
+  "captured_at_worktree_head_note": "the mission's stated base commit (bb2020fea9, spec.md 'Base commit') is an ancestor of this worktree's HEAD; the code paths that determine this capture's bytes (rich.console.Console.size's is_dumb_terminal branch, and sync.py's _per_project_store_table with overflow=\"fold\") are unchanged between bb2020fea9 and this HEAD -- WP01/WP02 added a new opt-in conftest fixture, they did not edit sync.py or console.py's rendering mechanics (C-001 forbids that src/ change). No seam fixture is active in this capture (it was produced outside pytest, so tests/conftest.py's autouse _plain_cli_console_seam never ran), which is the condition this capture is FOR.",
+  "env": {
+    "TERM": "dumb",
+    "FORCE_COLOR": "1",
+    "TTY_COMPATIBLE": null,
+    "COLUMNS": null
+  },
+  "env_note": "TTY_COMPATIBLE and COLUMNS were explicitly unset (os.environ.pop), not merely absent from the invoking shell -- so is_terminal is driven only by FORCE_COLOR, matching the mission's documented falsifier (FR-001).",
+  "observed_console_size": {
+    "width": 80,
+    "height": 25
+  },
+  "observed_console_size_note": "rich.console.Console.size, read immediately before and after CliRunner.invoke() on the same `specify_cli.cli.console.console` singleton `sync status` prints through. Identical before/after: (80, 25) both times, produced by Console.size's `if self.is_dumb_terminal: return ConsoleDimensions(80, 25)` branch (COLUMNS is never consulted once that branch fires, per C-012)."
+}

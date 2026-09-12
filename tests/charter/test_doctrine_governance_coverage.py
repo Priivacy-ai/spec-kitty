@@ -12,15 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from charter import context
-from charter.pack_manager import _resolve_kind, _resolve_org_layer_dir
+from charter.activation import context
+from charter.activation.pack_manager import _resolve_kind, _resolve_org_layer_dir
 
 pytestmark = pytest.mark.fast
 
 
 def test_existing_org_roots_swallows_resolver_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     """A raising ``resolve_org_roots`` yields ``[]`` (best-effort fast path)."""
-    import doctrine.drg.org_pack_config as cfg
+    import charter.offering.drg.org_pack_config as cfg
 
     def _boom(_repo_root: Path) -> list[Path]:
         raise RuntimeError("config corrupt")
@@ -31,7 +31,7 @@ def test_existing_org_roots_swallows_resolver_exception(monkeypatch: pytest.Monk
 
 def test_existing_org_roots_swallows_import_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """A missing ``resolve_org_roots`` symbol (ImportError) yields ``[]``."""
-    import doctrine.drg.org_pack_config as cfg
+    import charter.offering.drg.org_pack_config as cfg
 
     monkeypatch.delattr(cfg, "resolve_org_roots", raising=True)
     assert context._existing_org_roots(Path("/nonexistent-repo")) == []

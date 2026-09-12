@@ -8,15 +8,15 @@ Wiring (R-011-D, Contracts C3.2/C3.3, C1.5)
 This is the live caller that finally wires the WP10 plan/commit engine and the
 WP11 scoped cascade engine into the CLI surface:
 
-* ``--cascade`` is parsed through :meth:`charter.cascade.CascadeScope.parse`
+* ``--cascade`` is parsed through :meth:`charter.activation.cascade.CascadeScope.parse`
   (WP11) into a real scope value object — it is **never** collapsed to a bool
   (Contract C3.3). Absence of ``--cascade`` routes through
-  :func:`charter.cascade.referenced_but_not_cascaded` so the operator is warned
+  :func:`charter.activation.cascade.referenced_but_not_cascaded` so the operator is warned
   about referenced-but-skipped artifacts (FR-013).
-* In-scope cascade targets (:func:`charter.cascade.cascade_activation_targets`)
-  are activated through the same :class:`~charter.pack_manager.CharterPackManager`
+* In-scope cascade targets (:func:`charter.activation.cascade.cascade_activation_targets`)
+  are activated through the same :class:`~charter.activation.pack_manager.CharterPackManager`
   seam as the direct activation, and rendered per kind (FR-014).
-* :class:`charter.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
   a clean exit-1 with its diagnostic code + remediation, before any mutation
   (FR-035 fail-closed, C1.5).
 """
@@ -31,26 +31,35 @@ import typer
 from rich.console import Console
 from specify_cli.cli.console import console
 
-from charter.cascade import (
+from charter.activation.cascade import (
     CascadeScope,
     cascade_activation_targets,
     referenced_but_not_cascaded,
 )
-from charter.catalog import resolve_doctrine_root
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import (
+from charter.drg import DRGLoadError
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.drg_activation import load_org_drg
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.pack_context import CharterPackConfigError, PackContext
-from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.project_registration import (
+    commit_project_registration,
+    plan_project_registration,
+)
 
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from specify_cli.cli.commands.charter._layer_roots import (
+    resolve_layer_roots,
+    resolve_org_root_chain,
+)
 
-__all__ = ["activate_cmd", "run_resynthesize_pipeline"]
+__all__ = ["activate_cmd", "run_full_synthesize"]
 
 RESYNTHESIZE_HELP = (
     "Eagerly refresh the derived bundle/DRG after this activation via the "
@@ -58,6 +67,29 @@ RESYNTHESIZE_HELP = (
     "`charter synthesize` use) -- reconciles the freshness signal to fresh "
     "immediately. Default: off -- activation stays a fast config-only write "
     "and the signal reports stale until a later reconcile (NFR-001)."
+)
+
+#: FR-009 -- the ONE shared definition of the kind-filtered-node label,
+#: consumed by :func:`_render_kind_filtered_line` below (this WP's call site)
+#: and, in later WPs of this mission, by `_render_no_cascade_warning`
+#: (WP03) and `deactivate.py`'s `_render_cascade_deactivation` (WP04) --
+#: never re-coined at any of those call sites (Sonar S1192). Styled `[dim]`
+#: like the existing `Skipped (out of scope)` line, but with distinct
+#: literal text so the two remain grep-distinguishable (FR-008): a
+#: structurally non-activatable kind (`template`/`asset`, C-001) must never
+#: be mistaken for a scope-excluded one. Never phrased as a warning/error/
+#: failure (FR-003) -- issue #3705 is a silent-drop bug, not a failure.
+KIND_FILTERED_LABEL = "[dim]Not cascaded[/dim]: {kind_token}/{config_id} (kind not charter-activatable)"
+
+#: FR-004 -- the explicit zero-activatable-targets message. Printed once,
+#: never per-node, when the cascade resolved zero activatable targets AND at
+#: least one referenced node was specifically kind-filtered (never for a
+#: source with zero referenced nodes at all, and never for a pure
+#: scope-narrowing case -- see the exact trigger condition in
+#: `_render_cascade_activation` below).
+CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE = (
+    "[yellow]Cascade resolved zero activatable targets[/yellow] "
+    "(every referenced node was kind-filtered; see the lines above)."
 )
 
 
@@ -87,24 +119,32 @@ def _source_urn(
     kind: str,
     artifact_id: str,
     layer_roots: dict[str, Path] | None,
+    org_roots: list[Path] | None = None,
 ) -> str | None:
     """Resolve the DRG source URN for ``(kind, config-stem artifact_id)``.
 
     Returns ``None`` when the kind has no DRG artifact-node representation
     (``mission-type``) or the artifact has no resolvable DRG node — cascade is a
     no-op in those cases rather than an error.
+
+    ``org_roots`` (T008/T009, mission ``cascade-org-inert-01M07E9P``): the
+    full declaration-ordered org-pack chain, additive to ``layer_roots``'s
+    single-pack-only ``roots["org"]`` — so a direct-activation target that
+    lives only in org pack 2..N still resolves, not just pack 1's.
     """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        return resolve_artifact_urn(
+        resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
             doctrine_root=resolve_doctrine_root(),
+            org_roots=org_roots,
             layer_roots=layer_roots,
         )
+        return resolved
     except UnknownArtifactIdError:
         return None
 
@@ -114,6 +154,7 @@ def _drg_id_to_config_id(
     drg_id: str,
     doctrine_root: Path,
     layer_roots: dict[str, Path] | None,
+    org_roots: list[Path] | None = None,
 ) -> str:
     """Map a cascade-reported DRG bare ID back to its config-stem ID.
 
@@ -121,15 +162,37 @@ def _drg_id_to_config_id(
     activation lists use config-stem IDs (e.g.
     ``001-architectural-integrity-standard``). Falls back to the DRG ID when no
     config stem resolves (so rendering never crashes on an orphan node).
+
+    ``org_roots`` (T008/T009): the full declaration-ordered org-pack chain —
+    see :func:`specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain`
+    for why this is threaded as a separate parameter rather than widened into
+    ``layer_roots``. Without it, a cascade-reported ID that only resolves
+    through org pack 2..N fell back to the raw DRG ID here (pack 1 was the
+    only pack ``layer_roots["org"]`` could ever carry).
     """
     try:
-        return resolve_config_id(
+        resolved: str = resolve_config_id(
             f"{kind_value}:{drg_id}",
             doctrine_root=doctrine_root,
+            org_roots=org_roots,
             layer_roots=layer_roots,
         )
+        return resolved
     except (UnknownArtifactIdError, ValueError):
         return drg_id
+
+
+def _render_kind_filtered_line(kind_token: str, config_id: str) -> None:
+    """Render one line for a kind-filtered (structurally non-activatable) node.
+
+    FR-009: the single shared rendering helper -- WP03's
+    ``_render_no_cascade_warning`` extension and WP04's
+    ``deactivate._render_cascade_deactivation`` both call this same helper
+    (importing it from this module) rather than each re-coining the wording
+    (Sonar S1192). This WP (WP02) is the first call site, wired into
+    :func:`_render_cascade_activation` below.
+    """
+    console.print(KIND_FILTERED_LABEL.format(kind_token=kind_token, config_id=config_id))
 
 
 def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> None:
@@ -143,28 +206,42 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if kind != "mission-type":
         return
 
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415  # boundary: lazy import intentionally not facaded (PLC0415; boundary-invisible)
-        MissionTypeRepository,
-    )
-
     from specify_cli.charter_activate import (  # noqa: PLC0415
         emit_step_removal_warnings,
         find_removed_steps,
         scan_inflight_missions,
     )
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+    )
 
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+            UnknownMissionTypeError,
             resolve_mission_type_context,
         )
 
         current_seq: list[str] = resolve_mission_type_context(
             repo_root, mission_type=artifact_id
         ).action_sequence
-    except Exception:  # noqa: BLE001 — type not yet activated or unknown
+    except UnknownMissionTypeError:
+        # FR-009: not yet activated (or no resolvable profile) -- there is no
+        # previous state to compare against, so "no steps were removed" is
+        # correct here, not a silent degrade. Any OTHER resolution failure --
+        # e.g. WP06's MissionTypeEmptyActionSequenceError, raised when a
+        # previously-active non-built-in type's action sequence cannot be
+        # resolved at all -- MUST surface rather than being folded into this
+        # same "no previous state" branch (spec.md Edge Cases: "must surface
+        # that resolution failure rather than silently treating 'cannot
+        # resolve' as 'no steps were removed'"). The bare `except Exception`
+        # this replaces used to swallow that case too.
         current_seq = []
 
-    mt = MissionTypeRepository.default().get(artifact_id)
+    # FR-009: the layered roster (built-in -> org -> project), not the
+    # built-in-only MissionTypeRepository.default() -- a non-built-in type's
+    # incoming (about-to-be-activated) action sequence was previously always
+    # invisible here, so its removed steps were never detected.
+    mt = resolve_layered_roster(repo_root).get(artifact_id)
     # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
     # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
     # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
@@ -174,6 +251,76 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if removed:
         step_warnings = scan_inflight_missions(removed, repo_root / KITTY_SPECS_DIR)
         emit_step_removal_warnings(step_warnings, console)
+
+
+def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: Path) -> None:
+    """FR-001 preflight: refuse activation of an empty-action-sequence mission type."""
+    if kind != "mission-type":
+        return
+    from charter.activation.mission_type_profiles import validate_activatable_mission_type  # noqa: PLC0415
+
+    validate_activatable_mission_type(artifact_id, repo_root=repo_root)
+
+
+def _activate_cascade_target(
+    manager: CharterPackManager,
+    ctx_project: ProjectContext,
+    kind_token: str,
+    config_id: str,
+    layer_roots: dict[str, Path] | None,
+    org_roots: list[Path] | None,
+) -> None:
+    """Activate one cascade target, trying each org root in the chain in turn.
+
+    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`CharterPackManager.activate`
+    validates artifact availability through its own ``layer_roots["org"]``
+    single-``Path`` slot (``charter/pack_manager.py`` -- not owned by this WP;
+    its ``dict[str, Path]`` contract is load-bearing for ``charter list
+    --all-layers``, T013, so it cannot be widened there). A cascade target
+    that the T008 org-roots chain correctly resolved (DRG visibility + ID
+    mapping) to live in org pack 2..N would otherwise still fail here with
+    "Unknown <kind> ID", because ``manager.activate``'s own availability scan
+    only ever sees pack 1 through ``layer_roots``. This substitutes each
+    candidate org root from the chain, in declaration order, for
+    ``layer_roots["org"]`` and retries, so a chain artifact still activates
+    without widening ``CharterPackManager.activate``'s signature. When
+    ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
+    exactly one attempt is made with the original *layer_roots* -- byte-for-
+    byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
+
+    R2-002 (pr-correctness.findings.yaml): when every candidate fails, the
+    raised error aggregates every candidate's failure reason rather than
+    surfacing only the last one. With a single candidate (the common
+    no-org-pack / single-org-pack case) this is still byte-identical to
+    raising that one exception directly -- aggregation only changes the
+    multi-candidate "none of them worked" diagnostic, never the control
+    flow or the success path.
+    """
+    candidate_layer_roots: list[dict[str, Path] | None] = (
+        [{**(layer_roots or {}), "org": root} for root in org_roots]
+        if org_roots
+        else [layer_roots]
+    )
+    failures: list[ValueError] = []
+    for candidate in candidate_layer_roots:
+        try:
+            manager.activate(
+                ctx_project,
+                kind_token,
+                config_id,
+                cascade=False,
+                layer_roots=candidate,
+            )
+            return
+        except ValueError as exc:
+            failures.append(exc)
+    if len(failures) == 1:
+        raise failures[-1]
+    joined = "; ".join(f"org root {i + 1}/{len(failures)}: {exc}" for i, exc in enumerate(failures))
+    raise ValueError(
+        f"No candidate org root could activate {kind_token}:{config_id} "
+        f"({len(failures)} candidates tried): {joined}"
+    ) from failures[-1]
 
 
 def _render_cascade_activation(
@@ -190,10 +337,23 @@ def _render_cascade_activation(
     only the kinds the scope selects, and activates each in-scope target through
     the same activation seam. Skipped-by-scope kinds are reported so the operator
     sees exactly what the explicit scope excluded.
-    """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
 
-    graph = load_validated_graph(repo_root)
+    T009 (mission ``cascade-org-inert-01M07E9P``): threads the full,
+    declaration-ordered org-pack chain into both the DRG load (so
+    ``requires``/``suggests`` edges into/out of ANY configured org pack are
+    visible to the cascade walk, not just none) and the DRG-ID-to-config-ID
+    mapping below (so an org-pack-2..N target resolves to its real config-stem
+    ID, not the raw DRG ID as a lossy fallback). Previously this call carried
+    NO org roots at all.
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+
+    org_roots = resolve_org_root_chain(repo_root)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
     result = cascade_activation_targets(graph, source_urn, scope)
     doctrine_root = resolve_doctrine_root()
 
@@ -203,15 +363,11 @@ def _render_cascade_activation(
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
             config_id = _drg_id_to_config_id(
-                kind_value, cascade_drg_id, doctrine_root, layer_roots
+                kind_value, cascade_drg_id, doctrine_root, layer_roots, org_roots
             )
             try:
-                manager.activate(
-                    ctx_project,
-                    kind_token,
-                    config_id,
-                    cascade=False,
-                    layer_roots=layer_roots,
+                _activate_cascade_target(
+                    manager, ctx_project, kind_token, config_id, layer_roots, org_roots
                 )
             except ValueError as exc:
                 console.print(
@@ -227,17 +383,50 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
             config_id = _drg_id_to_config_id(
-                kind_value, skipped_id, doctrine_root, layer_roots
+                kind_value, skipped_id, doctrine_root, layer_roots, org_roots
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
             )
 
+    # FR-003/FR-008 (issue #3705): render the kind-filtered nodes WP01's
+    # shared `_referenced_artifacts` seam collected instead of silently
+    # dropping them -- resolving each bare DRG id to its config-stem id
+    # FIRST, the same call the `activated`/`skipped_by_scope` loops above
+    # already make (an org-pack-2..N node's bare id and config-stem id can
+    # differ; every other line in this function already prints the
+    # operator-facing config-stem id).
+    for kind_value in sorted(result.not_cascaded_kind_filtered):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
+            config_id = _drg_id_to_config_id(
+                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            )
+            _render_kind_filtered_line(kind_token, config_id)
+
+    # FR-004: fires ONLY when the cascade resolved zero activatable targets
+    # AND at least one referenced node was specifically kind-filtered --
+    # never for a source with zero referenced nodes at all, and never when any
+    # referenced node was scope-narrowed. The `not result.skipped_by_scope`
+    # clause covers both the pure scope-narrowing case (every referenced node
+    # is activatable-kind but excluded by a narrow --cascade <scope>) AND the
+    # mixed case (some scope-narrowed, some kind-filtered): in either the
+    # `Skipped (out of scope)` lines above already tell the full story (SC-007),
+    # and the "every referenced node was kind-filtered" summary would be a
+    # falsehood the moment a scope-skipped node exists. Deliberately NOT the
+    # broader "zero landed in `activated`" condition.
+    if (
+        not result.activated
+        and not result.skipped_by_scope
+        and result.not_cascaded_kind_filtered
+    ):
+        console.print(CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE)
+
 
 def _render_tension_warnings(repo_root: Path) -> None:
     """Surface unreconciled tension findings as activate-time warnings (FR-010).
 
-    Calls the SAME scan :func:`charter.consistency_check.scan_unreconciled_tensions`
+    Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
     that ``spec-kitty charter pack consistency-check`` uses (single canonical
     authority, contracts/tension-finding.md SC-001) so this warning and that
     JSON surface can never render a tension pair differently.
@@ -259,7 +448,7 @@ def _render_tension_warnings(repo_root: Path) -> None:
     surface (``ConsistencyReport.verification_errors``), which every project
     can run explicitly on demand.
     """
-    from charter.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
+    from charter.activation.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
 
     try:
         scan_ctx = ProjectContext.from_repo(repo_root)
@@ -281,10 +470,21 @@ def _render_no_cascade_warning(
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
 ) -> None:
-    """Warn about referenced-but-not-cascaded artifacts (FR-013, Contract C3.2)."""
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    """Warn about referenced-but-not-cascaded artifacts (FR-013, Contract C3.2).
 
-    graph = load_validated_graph(repo_root)
+    T009: threads the full org-pack chain into the DRG load and the ID
+    mapping below, same rationale as ``_render_cascade_activation`` — an
+    org-pack ``requires``/``suggests`` edge is invisible to this warning
+    unless the DRG it walks actually contains org-pack nodes (FR-001 AC5).
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+
+    org_roots = resolve_org_root_chain(repo_root)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return
@@ -293,17 +493,50 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
             config_id = _drg_id_to_config_id(
-                kind_value, skipped_drg_id, doctrine_root, layer_roots
+                kind_value, skipped_drg_id, doctrine_root, layer_roots, org_roots
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
                 f"was not activated (no --cascade)."
             )
-    console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
+    # FR-005a: gated on `report.skipped` specifically (not the broader
+    # `has_skipped`) -- `recovery_hint` literally says "to activate the
+    # referenced artifacts", which is only true of `skipped` entries.
+    # Printing it for a source whose ONLY referenced nodes are kind-filtered
+    # would be exactly the misleading "--cascade would fix this" recovery
+    # hint FR-005's FAILS-if condition forbids for the per-node line -- this
+    # extends the same guarantee to the summary Hint line. Pre-existing
+    # behavior for every previously-reachable case (skipped non-empty) is
+    # unchanged: this branch was unreachable before this WP (has_skipped was
+    # `any(self.skipped.values())` alone, so reaching here already implied
+    # `report.skipped` was non-empty).
+    if report.skipped:
+        console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
+
+    # FR-005 (issue #3705): render the kind-filtered nodes WP01's shared
+    # `_referenced_artifacts` seam collected instead of silently dropping
+    # them, one render path over from `_render_cascade_activation` above --
+    # via the SAME shared helper (FR-009) so the wording is identical and
+    # never re-coined here. Never suggests `--cascade` as a recovery path:
+    # re-running with `--cascade` would NOT activate an asset/template.
+    # Resolves each bare DRG id to its config-stem id first, the same call
+    # the `report.skipped` loop above already makes.
+    for kind_value in sorted(report.not_cascaded_kind_filtered):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
+            config_id = _drg_id_to_config_id(
+                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            )
+            _render_kind_filtered_line(kind_token, config_id)
 
 
-def run_resynthesize_pipeline(repo_root: Path) -> None:
-    """Eagerly refresh the derived bundle/DRG via the EXISTING synthesize pipeline (FR-007).
+def run_full_synthesize(repo_root: Path) -> None:
+    """Eagerly refresh the derived bundle/DRG via the EXISTING full-synthesize pipeline (FR-007).
+
+    FR-013 naming footgun fix: this function calls the FULL ``charter
+    synthesize`` pipeline (the same one ``spec-kitty charter synthesize``
+    runs), not the bounded ``resynthesize_pipeline`` module -- its previous
+    name (``run_resynthesize_pipeline``) misleadingly suggested the latter.
 
     ``--resynthesize`` opts into the SAME production entry points
     ``spec-kitty charter generate`` uses (recompiles ``references.yaml`` from
@@ -325,6 +558,13 @@ def run_resynthesize_pipeline(repo_root: Path) -> None:
     to the declared default value -- so every parameter is passed explicitly
     here with its production default; never rely on the bare function
     signature default when calling a Typer command body in-process.
+    ``prune=False`` is REQUIRED here (WP05, #3270 sentinel-prune regression):
+    WP03 added ``--prune`` to ``charter_synthesize``; an in-process caller
+    that omits it would receive the truthy ``OptionInfo`` sentinel instead
+    of the declared ``False`` default and silently prune the overlay on
+    every activation/deactivation. ``synthesize.py``'s ``_coerce_cli_bool``
+    is a belt-and-braces guard for this same footgun -- this explicit
+    keyword is the authoritative fix.
 
     Imports are deliberately local: this whole call graph (evidence
     collection, doctrine service construction, git staging) is expensive and
@@ -348,6 +588,7 @@ def run_resynthesize_pipeline(repo_root: Path) -> None:
         _synthesize(
             adapter="generated",
             dry_run=False,
+            prune=False,
             json_output=False,
             skip_code_evidence=False,
             skip_corpus=False,
@@ -405,10 +646,41 @@ def activate_cmd(
 
     # FR-008: in-flight step-removal warnings (generalized — no inline
     # `kind == "mission-type"` branch in the command flow).
-    _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    #
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): this reaches the layered mission-type
+    # roster (``resolve_layered_roster`` -> ``resolve_layered_mission_types``
+    # -> ``scan_mission_types_dir``), which loud-fails BY DESIGN (WP03,
+    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
+    # built-in, org, or project ``mission_types/`` layer. Pre-fix this call
+    # had no exception boundary at all, so that loud-fail surfaced as a raw,
+    # uncaught traceback instead of the clean, operator-readable
+    # ``typer.Exit(1)`` every other failure mode in this command already
+    # gets. Same catch shape as ``manager.activate()`` below: a bare
+    # ``except ValueError`` also catches ``pydantic.ValidationError`` (the
+    # schema-validation failure mode the same resolver chain documents as a
+    # separate ``Raises`` entry) because ``pydantic.ValidationError``
+    # subclasses ``ValueError`` in the pinned pydantic version — no second
+    # import, no second error-handling style.
+    try:
+        _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    try:
+        _validate_mission_type_activatable(kind, artifact_id, repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     manager = CharterPackManager()
     try:
+        registration = plan_project_registration(repo_root)
+        if resynthesize:
+            from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
+
+            preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph)
         result = manager.activate(
             ctx_project,
             kind,
@@ -416,13 +688,14 @@ def activate_cmd(
             cascade=scope is not None,
             layer_roots=layer_roots,
         )
-    except ValueError as exc:
+    except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    commit_project_registration(registration)
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
-    for warn in result.warnings:
+    for warn in (*registration.warnings, *result.warnings):
         console.print(f"[yellow]Warning[/yellow]: {warn}")
 
     # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
@@ -434,7 +707,7 @@ def activate_cmd(
     # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
     # merged DRG (pack_manager's own cascade is deferred — the live wiring is
     # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
-    source_urn = _source_urn(kind, artifact_id, layer_roots)
+    source_urn = _source_urn(kind, artifact_id, layer_roots, resolve_org_root_chain(repo_root))
     if source_urn is not None:
         if scope is None:
             _render_no_cascade_warning(source_urn, repo_root, layer_roots)
@@ -446,4 +719,4 @@ def activate_cmd(
     # FR-007: opt-in eager refresh, run AFTER cascade so it reconciles the
     # complete post-activation config state -- not just the direct target.
     if resynthesize:
-        run_resynthesize_pipeline(repo_root)
+        run_full_synthesize(repo_root)

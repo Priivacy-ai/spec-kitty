@@ -1,0 +1,16 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      FR-004 now cites runtime_bridge.py:348-354 (DecisionGitLog construction
+      failure logging a WARNING then falling back to a plain emitter without
+      raising — read directly, lines 348-354 are exactly logger.warning(...)
+      followed by `return emitter`, a genuine degrade-and-continue precedent);
+      the old 2239/2249/2268 citation is fully removed from spec.md (2239 and
+      2249, read directly, each precede a `raise`/`raise MissionRuntimeError`,
+      and 2268 is an unrelated sync-emitter seed-failure log), and SC-002's
+      cross-reference to FR-004 carries no line numbers of its own to go stale.

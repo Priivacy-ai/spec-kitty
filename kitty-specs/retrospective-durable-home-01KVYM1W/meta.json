@@ -27,7 +27,7 @@
   "slug": "retrospective-durable-home-01KVYM1W",
   "status_phase": "1",
   "target_branch": "fix/3.2.3-coord-surface-regressions",
-  "topology": "flat",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-06-25T20:59:11.206878+00:00"
 }

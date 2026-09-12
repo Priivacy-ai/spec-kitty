@@ -38,18 +38,19 @@ def get_version() -> str:
     """Get spec-kitty version with smart fallback strategy.
 
     Priority:
-    1. importlib.metadata (standard for installed packages)
+    1. importlib.metadata for the resolved CLI package name
     2. pyproject.toml (fallback for editable installs)
     3. "0.0.0-dev" (last resort if both fail)
 
     Returns:
         Version string
     """
-    # Try importlib.metadata first (best practice)
     try:
         from importlib.metadata import version as get_metadata_version
 
-        return get_metadata_version("spec-kitty-cli")
+        from specify_cli.distribution.package_name import resolve_cli_package_name
+
+        return get_metadata_version(resolve_cli_package_name())
     except Exception:  # noqa: S110
         pass
 

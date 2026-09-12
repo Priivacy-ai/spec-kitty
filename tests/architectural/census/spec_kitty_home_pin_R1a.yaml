@@ -1,0 +1,16 @@
+header:
+  generated_by: tests/architectural/_home_pin_scan.py
+  regeneration_command: python -m tests.architectural._home_pin_scan --root tests
+    --frozen-at-sha <sha> --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt
+  frozen_at_sha: 4212bb3a9958ace38c672c2ff72cc41d6f5bf169
+  owed_to: '#3121'
+  fragility_note: 'Generated, never hand-edited. `frozen_at_sha` and `owed_to` are
+    HEADER SCALARS, not row columns, and there is no `reason` column: rationale that
+    would be a per-row reason belongs here. Direction is mechanised by the separate
+    baseline artefact, never by this file. Rows exempted by `E` are NOT rows of this
+    census -- they are hashed into the baseline''s `exempt_set_sha256`, because with
+    `E` inside the census `census u E` is a no-op union and `discovered == census
+    u E` degenerates to `discovered == census`. KNOWN-FRAGILE ROWS: not supplied to
+    this generator call, so this census makes no claim about them; `main()` passes
+    `fragility_register(root)`.'
+rows: []

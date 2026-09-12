@@ -9,7 +9,6 @@ remediation). One-way import: this module never imports the command shim.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +16,7 @@ import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
+from specify_cli.core.env import is_interactive
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
@@ -39,6 +39,9 @@ from specify_cli.status import REVIEWER_SELF_APPROVAL
 
 if TYPE_CHECKING:
     from specify_cli.merge.push_preflight import TargetBranchSyncStatus
+    from specify_cli.post_merge.review_artifact_consistency import (
+        ReviewArtifactFinding,
+    )
 
 _PUSH_PREFLIGHT_EXPORTS = {
     "TargetBranchRefreshStatus",
@@ -358,18 +361,108 @@ def _enforce_canonical_status_history(
     raise typer.Exit(1)
 
 
+def _record_review_artifact_skip_evidence(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    findings: list[ReviewArtifactFinding],
+    note: str,
+) -> None:
+    """Record a ``--skip-review-artifact-check`` bypass as durable evidence.
+
+    WP01 (#2959) escape hatch: an operator skip is NEVER silent. For every WP the
+    gate would have blocked, emit a complete :class:`ReviewOverride` carrying the
+    operator ``note`` as the reason into the append-only status log — the SAME
+    override annotation the gate honors, so the bypass is auditable exactly like an
+    ordinary review override. ``feature_dir`` here is already the coord-aware
+    ``STATUS_STATE`` surface the merge flow resolved, so the override lands where
+    the gate reads it (the partition-correctness this WP also fixes on the write
+    side of :func:`_persist_review_artifact_override`).
+    """
+    from kernel.clock import now_utc_stamp
+
+    from specify_cli.coordination.status_transition import (
+        emit_inner_state_changed_transactional,
+    )
+    from specify_cli.merge.done_bookkeeping import _resolve_merge_actor
+    from specify_cli.status import ReviewOverride, WPInnerStateDelta
+
+    actor = _resolve_merge_actor(repo_root)
+    timestamp = now_utc_stamp()
+    console.print(
+        "[yellow]⚠️  Review-artifact consistency gate BYPASSED via "
+        "--skip-review-artifact-check.[/yellow]"
+    )
+    console.print(f"    Reason (recorded as override evidence): {note}")
+    for finding in findings:
+        wp_id = finding.wp_id
+        console.print(f"    - {wp_id}: skip recorded as override evidence")
+        # #2959 durability (squad architect-alphonso): the escape hatch advertises
+        # "durable override evidence", so the skip record must be COMMITTED, not
+        # merely written. The gate runs at a clean preflight point BEFORE any
+        # merge-state or branch-integration git mutation, so committing the coord
+        # STATUS surface here is safe. Use the commit-durable sibling
+        # (emit_inner_state_changed_transactional, the same #2939 seam a lane hop
+        # uses): on coord it rides a BookkeepingTransaction committed on the
+        # coordination ref, so the evidence survives even if the merge aborts
+        # downstream; on a coord-less topology it delegates to the untouched
+        # partition-agnostic emit (no-op parity).
+        emit_inner_state_changed_transactional(
+            feature_dir,
+            wp_id,
+            WPInnerStateDelta(
+                review=ReviewOverride(
+                    at=timestamp, actor=actor, wp_id=wp_id, reason=note
+                )
+            ),
+            actor=actor,
+            mission_slug=mission_slug,
+            at=timestamp,
+            repo_root=repo_root,
+        )
+
+
 def _enforce_review_artifact_consistency(
     *,
     repo_root: Path,
     feature_dir: Path,
     mission_slug: str,
     wp_ids: list[str],
+    skip_review_artifact_check: bool = False,
+    skip_note: str | None = None,
 ) -> None:
-    """Block terminal signoff when the latest review artifact is rejected."""
+    """Block terminal signoff when the latest review artifact is rejected.
+
+    FR-001 (WP07/T030, traced not assumed): this function consumes
+    ``run_review_artifact_consistency_preflight``'s ``ReviewArtifactPreflightResult``
+    opaquely (``.passed`` / ``.findings`` / the diagnostic dicts it renders below)
+    and performs no independent frontmatter re-parse of its own. The event-sourced
+    ``review_result`` reducer slot T029 wired into the gate therefore reaches this
+    call site automatically — no additional code change is needed here.
+
+    WP01 (#2959) escape hatch: when ``skip_review_artifact_check`` is set the gate
+    does NOT raise. Instead the skip is recorded as durable ``ReviewOverride``
+    evidence (:func:`_record_review_artifact_skip_evidence`) carrying ``skip_note``
+    — a bypass that is auditable, never silent. ``skip_note`` is guaranteed
+    non-empty by the CLI boundary; the belt-and-suspenders fallback below keeps the
+    evidence honest if a programmatic caller forgets it.
+    """
     preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
     if preflight.passed:
         return
     findings = list(preflight.findings)
+
+    if skip_review_artifact_check:
+        _record_review_artifact_skip_evidence(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            findings=findings,
+            note=(skip_note or "").strip()
+            or "review-artifact gate skipped via --skip-review-artifact-check",
+        )
+        return
 
     console.print("[red]Error:[/red] Review artifact consistency gate failed.")
     for finding in findings:
@@ -407,6 +500,65 @@ def _enforce_review_artifact_consistency(
     raise typer.Exit(1)
 
 
+def _latest_actor_for_transition(
+    feature_dir: Path, wp_id: str, to_lane: str
+) -> str | None:
+    """Return the actor on WP's most recent transition into *to_lane*.
+
+    Scans the raw event log rather than the reduced snapshot, because the
+    snapshot's ``actor`` slot is overwritten on every transition -- it can
+    only ever tell us who did the LATEST transition of any kind, never who
+    specifically claimed/implemented versus who specifically approved.
+    Returns ``None`` when the log is absent/unreadable or no matching,
+    actor-bearing transition exists for this WP.
+    """
+    events_path = feature_dir / _STATUS_EVENTS_FILENAME
+    if not events_path.exists():
+        return None
+    try:
+        raw_lines = events_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    latest_key: tuple[str, str] = ("", "")
+    latest_actor: str | None = None
+    for raw_line in raw_lines:
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("wp_id") != wp_id or event.get("to_lane") != to_lane:
+            continue
+        actor = event.get("actor")
+        if not actor or not str(actor).strip():
+            continue
+        key = (str(event.get("at") or ""), str(event.get("event_id") or ""))
+        if key >= latest_key:
+            latest_key = key
+            latest_actor = str(actor).strip()
+    return latest_actor
+
+
+def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
+    """True when WP's latest approval actor positively differs from its
+    latest implementation actor (#2412-adjacent field report, item #9).
+
+    ``force_count`` alone cannot distinguish "reviewer used --force to bypass
+    an unrelated gate false-positive" from "no independent review happened" --
+    both increment the same counter. This checks the one thing that actually
+    answers the question: did a different identity log the approving
+    transition than the one that most recently claimed/implemented the WP?
+    Returns False (never suppress) when either actor is missing/unknown --
+    absence of evidence is not evidence of an independent review.
+    """
+    implementer = _latest_actor_for_transition(feature_dir, wp_id, "in_progress")
+    reviewer = _latest_actor_for_transition(feature_dir, wp_id, "approved")
+    if not implementer or not reviewer:
+        return False
+    return implementer != reviewer
+
+
 def _collect_force_count_warnings(
     feature_dir: Path,
     wp_set: set[str],
@@ -415,7 +567,10 @@ def _collect_force_count_warnings(
     """Append force_count>=2 warnings from ``status.json`` (WP05 split helper).
 
     Behavior-preserving extraction of the status-snapshot scan formerly inlined
-    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15).
+    in ``_collect_hollow_review_warnings`` (FR-005, keeps CC <= 15) -- plus one
+    additive guard (item #9): a WP whose approving actor is positively
+    confirmed distinct from its implementing actor is not a hollow review,
+    even with a high force_count, so it is not warned about here.
     """
     status_path = feature_dir / _STATUS_FILENAME
     if not status_path.exists():
@@ -435,7 +590,7 @@ def _collect_force_count_warnings(
             force_count = int(wp_state.get("force_count", 0))
         except (TypeError, ValueError):
             force_count = 0
-        if force_count >= 2:
+        if force_count >= 2 and not _independent_reviewer_confirmed(feature_dir, wp_id):
             warnings.setdefault(wp_id, []).append(f"force_count={force_count}")
 
 
@@ -509,7 +664,7 @@ def _warn_or_confirm_hollow_reviews(
     console.print("These WPs may have been approved by the implementing agent, not an independent reviewer.")
     console.print("Consider re-reviewing before merge.\n")
 
-    if assume_yes or not sys.stdin.isatty():
+    if assume_yes or not is_interactive():
         console.print("[yellow]Proceeding without interactive confirmation.[/yellow]")
         return
 

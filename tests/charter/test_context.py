@@ -11,18 +11,18 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import (
+from charter.activation.context import (
     CharterContextResult,
+    _ActionDoctrineBundle,
     _build_doctrine_service,
     _bundle_root_for_json,
-    _load_project_directives,
     _project_charter_json_block,
     _project_directive_entries,
-    _relative_json_path,
-    _render_bootstrap,
+    _render_bootstrap_text,
     build_charter_context,
     build_charter_context_json,
 )
+from charter.activation.context_json import _load_project_directives, _relative_json_path
 
 pytestmark = pytest.mark.fast
 
@@ -112,12 +112,20 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     # References are read from charter.yaml's ``catalog.references`` (#2773), not
     # the retired references.yaml — writing charter.yaml here exercises that path.
     (charter_dir / "charter.yaml").write_text(_CHARTER_YAML, encoding="utf-8")
+    # No ``charter:`` pointer is written to config.yaml here, so PackContext
+    # reads activation directly from config.yaml (legacy/un-migrated path).
+    # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority)
+    # does not hard-fail on a genuinely absent key.
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 def _write_graph_fixture(tmp_path: Path) -> None:
     from io import StringIO
 
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
     yaml = YAML(typ="safe")
@@ -151,7 +159,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -164,9 +172,9 @@ class TestBuildContextV2:
         # ``merge_layers`` would concatenate it into duplicate edges. Replacing
         # ``load_validated_graph`` yields the fixture graph exactly once.
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),  # fixture may not pass full validation
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
             return build_charter_context(
                 tmp_path,
@@ -204,9 +212,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             # First load: depth=None -> state decides -> 2 (bootstrap)
             first = build_charter_context(tmp_path, action="implement", depth=None, mark_loaded=True)
@@ -222,6 +230,49 @@ class TestBuildContextV2:
         result = self._call(tmp_path, action="custom-action")
         assert result.mode == "compact"
         assert result.first_load is False
+
+    def test_json_undeclared_action_with_resolved_type_returns_compact(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2 companion (WP02, #3596, ADR
+        2026-08-21-1-charter-gate-predicate-inversion, squad S3).
+
+        Isolates the predicate from type-resolution: ``mission_type`` DOES
+        resolve (``software-dev``, matching ``_MINIMAL_GRAPH_YAML``'s only
+        node ``action:software-dev/implement``) but the requested action
+        (``custom-action``) has no declared ``action:software-dev/custom-action``
+        node. The result must still be ``compact`` — proving the gate is
+        node-URN membership, not merely "did a type resolve". Exercises the
+        ``--json`` entry point (``build_charter_context_json``), the sibling
+        surface to ``test_non_bootstrap_action_returns_compact`` above (which
+        pins the same invariant on the plain-text entry point) — keep BOTH
+        green; this is a companion, not a replacement.
+        """
+        _setup_fixture_repo(tmp_path)
+
+        from io import StringIO
+
+        from charter.offering.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        with (
+            patch(
+                "charter.activation._drg_helpers.load_validated_graph",
+                return_value=mock_graph,
+            ),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+        ):
+            payload = build_charter_context_json(
+                tmp_path, action="custom-action", mission_type="software-dev"
+            )
+
+        assert payload["mode"] == "compact"
+        assert payload["directives"] == []
 
     def test_compact_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
         """Compact context preserves declared supporting governance docs."""
@@ -293,9 +344,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
                 tmp_path,
@@ -348,7 +399,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -357,10 +408,10 @@ class TestBuildContextV2:
         with (
             # WP05 (#2680): patch the merged-graph seam, not per-file load_graph,
             # so the sharded fragment layout does not duplicate the fixture.
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mark_loaded=False,
@@ -388,6 +439,8 @@ class TestBuildContextV2:
         )
         (tmp_path / ".kittify" / "config.yaml").write_text(
             textwrap.dedent(f"""\
+                mission_type_activations:
+                  - software-dev
                 doctrine:
                   org:
                     packs:
@@ -431,17 +484,17 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
         mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mark_loaded=False,
@@ -483,25 +536,42 @@ class TestBuildContextV2:
         assert result.depth == 1
 
     def test_depth_3_includes_extended_sections(self, tmp_path: Path) -> None:
-        """depth >= 3 renders styleguide and toolguide extended sections."""
+        """depth >= 3 renders styleguide and toolguide sections."""
         result = self._call(tmp_path, depth=3)
         assert "Styleguides:" in result.text
         assert "Toolguides:" in result.text
 
-    def test_depth_2_omits_extended_sections(self, tmp_path: Path) -> None:
-        """depth=2 does NOT render extended sections."""
+    def test_depth_2_renders_extended_sections(self, tmp_path: Path) -> None:
+        """WP11 (T059): the retired ``_EXTENDED_CONTEXT_DEPTH`` gate no longer
+        drops styleguides/toolguides at the bootstrap depth (d=2). ``depth`` is
+        now purely the DRG hop cap, not a render-verbosity tier, so every
+        delivered kind renders on the bootstrap load.
+        """
         result = self._call(tmp_path, depth=2)
-        assert "Styleguides:" not in result.text
-        assert "Toolguides:" not in result.text
+        assert "Styleguides:" in result.text
+        assert "Toolguides:" in result.text
 
     def test_missing_charter_file(self, tmp_path: Path) -> None:
-        """When charter.md is missing, returns mode='missing'."""
+        """When NEITHER charter.yaml nor charter.md exists, returns mode='missing'.
+
+        FR-005 (charter-pack-usage-journey WP03): the presence gate is now an
+        OR across the authoritative ``charter.yaml`` and the legacy
+        ``charter.md`` -- "missing" only when the charter is truly absent on
+        both surfaces. A strict charter.yaml-only gate was tried first and
+        regressed a wide swath of the existing suite whose fixtures seed only
+        ``charter.md`` (verified via a full ``-k charter`` sweep, 26
+        failures); the OR form still satisfies SC-002 (survives ``charter.md``
+        deletion, see ``test_charter_md_deletion_survives_with_charter_yaml_present``)
+        without breaking those charter.md-only fixtures (see
+        ``test_charter_yaml_absence_does_not_regress_charter_md_only_bootstrap``).
+        """
         _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
         (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -512,14 +582,81 @@ class TestBuildContextV2:
             return mock_graph
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
         assert result.mode == "missing"
         assert "Charter file not found" in result.text
+
+    def test_charter_yaml_absence_does_not_regress_charter_md_only_bootstrap(
+        self, tmp_path: Path
+    ) -> None:
+        """Backward-compat pin: charter.md present, charter.yaml absent still renders.
+
+        This is the shape a large swath of the pre-existing suite seeds
+        (charter.md-only fixtures that predate charter.yaml). The OR presence
+        gate must not regress this to mode='missing'.
+        """
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
+
+        from io import StringIO
+
+        from charter.offering.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert result.mode == "bootstrap"
+        assert "Charter file not found" not in result.text
+
+    def test_charter_md_deletion_survives_with_charter_yaml_present(self, tmp_path: Path) -> None:
+        """FR-005/SC-002: deleting charter.md alone must not flip mode='missing'.
+
+        charter.yaml is the authority; charter.md is a display-only prose
+        companion. With charter.yaml still present, the bootstrap render must
+        gracefully degrade (no policy summary) rather than dead-ending.
+        """
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
+
+        from io import StringIO
+
+        from charter.offering.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert result.mode == "bootstrap"
+        assert "Charter file not found" not in result.text
+        assert "No explicit policy summary section found in charter.md." in result.text
 
     def test_references_count(self, tmp_path: Path) -> None:
         """references_count reflects filtered references."""
@@ -536,9 +673,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
@@ -583,7 +720,7 @@ class TestBuildContextV2:
             encoding="utf-8",
         )
 
-        from charter.sync import SyncResult
+        from charter.activation.sync import SyncResult
 
         sync_result = SyncResult(
             synced=False,
@@ -592,15 +729,28 @@ class TestBuildContextV2:
             extraction_mode="",
             canonical_root=tmp_path,
         )
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             payload = build_charter_context_json(tmp_path, action="plan", depth=1)
 
         assert payload["directives"] == []
-        assert [entry["id"] for entry in payload["all_directives"]] == ["DIR-001", "DIR-002"]
+        # WP01 (#3728) made project-local directives ADDITIVE: DIR-001/DIR-002
+        # now UNION onto the resolved catalog base instead of replacing it, so
+        # they are the appended tail and every base id survives (SC-001). The
+        # retired pre-#3728 replace behaviour asserted equality to just the two
+        # locals — do NOT restore it.
+        all_ids = [entry["id"] for entry in payload["all_directives"]]
+        assert all_ids[-2:] == ["DIR-001", "DIR-002"]
+        assert len(all_ids) > 2  # base preserved, not collapsed to the two locals
+        assert payload["directives_source"] == "catalog_fallback+project_local"
+        # FR-006 (charter-pack-usage-journey WP03): present/path/bytes key on
+        # the authoritative charter.yaml; charter.md's own presence/path are
+        # the secondary display fields.
         assert payload["project_charter"] == {
             "present": True,
-            "path": ".kittify/charter/charter.md",
-            "bytes": (charter_dir / "charter.md").stat().st_size,
+            "path": ".kittify/charter/charter.yaml",
+            "bytes": (charter_dir / "charter.yaml").stat().st_size,
+            "charter_md_present": True,
+            "charter_md_path": ".kittify/charter/charter.md",
             "hash": "sha256:testhash",
             "source_path": ".kittify/charter/charter.md",
             "bundle_schema_version": 2,
@@ -608,25 +758,35 @@ class TestBuildContextV2:
         }
 
     def test_json_project_charter_metadata_fallbacks(self, tmp_path: Path) -> None:
-        """Project-charter JSON metadata degrades to explicit presence facts."""
+        """Project-charter JSON metadata degrades to explicit presence facts.
+
+        FR-006: the producer keys ``present``/``path``/``bytes`` on the
+        authoritative ``charter.yaml`` (SC-002 -- survives ``charter.md``
+        deletion); ``charter.md`` itself is reported via the secondary
+        ``charter_md_present``/``charter_md_path`` fields.
+        """
         assert _relative_json_path(Path("/outside/charter.md"), tmp_path) == "/outside/charter.md"
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
             assert _bundle_root_for_json(tmp_path) == tmp_path
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=None):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None):
             assert _bundle_root_for_json(tmp_path) == tmp_path
 
         missing = _project_charter_json_block(tmp_path)
         assert missing == {
             "present": False,
-            "path": ".kittify/charter/charter.md",
+            "path": ".kittify/charter/charter.yaml",
+            "charter_md_present": False,
+            "charter_md_path": ".kittify/charter/charter.md",
         }
 
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
-        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
-        from charter.sync import SyncResult
+        # charter.yaml present, charter.md absent -- the FR-006 flip: present
+        # is already True here, before charter.md ever exists.
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+        from charter.activation.sync import SyncResult
 
         sync_result = SyncResult(
             synced=False,
@@ -636,21 +796,30 @@ class TestBuildContextV2:
             canonical_root=tmp_path,
         )
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             no_metadata = _project_charter_json_block(tmp_path)
         assert no_metadata["present"] is True
-        assert no_metadata["bytes"] == 10
+        assert no_metadata["charter_md_present"] is False
+        assert no_metadata["bytes"] == (charter_dir / "charter.yaml").stat().st_size
         assert "hash" not in no_metadata
+
+        # charter.md reappearing only moves the secondary display fields.
+        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            with_md = _project_charter_json_block(tmp_path)
+        assert with_md["present"] is True
+        assert with_md["charter_md_present"] is True
+        assert with_md["charter_md_path"] == ".kittify/charter/charter.md"
 
         metadata = charter_dir / "metadata.yaml"
         metadata.write_text("[not-a-mapping]\n", encoding="utf-8")
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             non_mapping = _project_charter_json_block(tmp_path)
         assert "hash" not in non_mapping
 
         with (
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result),
-            patch("charter.context.YAML") as yaml_cls,
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result),
+            patch("charter.activation.context.YAML") as yaml_cls,
         ):
             yaml_cls.side_effect = ValueError("bad yaml")
             unreadable = _project_charter_json_block(tmp_path)
@@ -659,12 +828,12 @@ class TestBuildContextV2:
     def test_project_directive_entries_fallbacks(self, tmp_path: Path) -> None:
         """Directive JSON keeps IDs when optional loaders are unavailable."""
         with (
-            patch("charter.sync.load_directives_config", side_effect=RuntimeError("no config")),
+            patch("charter.activation.sync.load_directives_config", side_effect=RuntimeError("no config")),
             patch(
-                "charter.resolver.resolve_project_governance",
+                "charter.activation.resolver.resolve_project_governance",
                 return_value=SimpleNamespace(directives=["DIRECTIVE_001"]),
             ),
-            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIRECTIVE_001", "source": "builtin"}
@@ -673,11 +842,11 @@ class TestBuildContextV2:
         directive = SimpleNamespace(id="DIR-LOCAL", title="Local", description="")
         with (
             patch(
-                "charter.sync.load_directives_config",
+                "charter.activation.sync.load_directives_config",
                 return_value=SimpleNamespace(directives=[directive]),
             ),
-            patch("charter.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
-            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
+            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIR-LOCAL", "source": "project", "title": "Local"}
@@ -693,15 +862,15 @@ class TestBuildContextV2:
         )
         with (
             patch(
-                "charter.sync.load_directives_config",
+                "charter.activation.sync.load_directives_config",
                 return_value=SimpleNamespace(directives=[]),
             ),
             patch(
-                "charter.resolver.resolve_project_governance",
+                "charter.activation.resolver.resolve_project_governance",
                 return_value=SimpleNamespace(directives=["DIRECTIVE_002"]),
             ),
             patch(
-                "charter.context._build_doctrine_service",
+                "charter.activation.context._build_doctrine_service",
                 return_value=SimpleNamespace(directives=repo),
             ),
         ):
@@ -719,7 +888,7 @@ class TestBuildContextV2:
         local = SimpleNamespace(id="DIR-LOCAL")
 
         with patch(
-            "charter.resolver.resolve_project_governance",
+            "charter.activation.resolver.resolve_project_governance",
             side_effect=RuntimeError("no resolver"),
         ):
             local_by_id, directive_ids = _load_project_directives(
@@ -776,7 +945,7 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
     """
     from io import StringIO
 
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
     _setup_fixture_repo(tmp_path)  # governance.yaml: template_set=software-dev-default
@@ -793,9 +962,9 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
     with (
         # WP05 (#2680): patch the merged-graph seam, not per-file load_graph, so
         # the sharded fragment layout does not duplicate the fixture on merge.
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
             tmp_path,
@@ -812,12 +981,88 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
 
 
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
-    text = _render_bootstrap(Path("/nonexistent/charter.md"), [], [])
+    # WP13 (T072): the test-only ``_render_bootstrap`` dead render path was
+    # deleted; its fallback-label behaviour lives on the live renderer
+    # ``_render_bootstrap_text``, which this assertion now targets.
+    bundle = _ActionDoctrineBundle(
+        mission="software-dev",
+        directive_ids=[],
+        tactic_ids=[],
+        styleguide_ids=[],
+        toolguide_ids=[],
+        procedure_ids=[],
+        asset_ids=[],
+        service=_ProcedureOnlyService(),
+    )
+
+    text = _render_bootstrap_text(
+        charter_path=Path("/nonexistent/charter.md"),
+        action="implement",
+        summary=[],
+        doctrine_bundle=bundle,
+        references=[],
+    )
 
     assert "Policy Summary:" in text
     assert "No explicit policy summary section found in charter.md." in text
     assert "Reference Docs:" in text
     assert "No references manifest found." in text
+
+
+class _StubRepo:
+    """A repository that resolves nothing -- exercises the bare-id fallback."""
+
+    def get(self, _artifact_id: str) -> None:
+        return None
+
+
+class _ProcedureOnlyService:
+    """A doctrine service exposing only ``procedures`` (no ``assets`` attr).
+
+    Mirrors the WP10 base: the asset repository/service wiring (WP04/WP05) is
+    not on this lane, so the renderer must emit asset ids without a repository
+    (``getattr(service, "assets", None)`` → ``None`` → bare-id fallback), while
+    procedures resolve through ``service.procedures``.
+    """
+
+    directives = _StubRepo()
+    tactics = _StubRepo()
+    styleguides = _StubRepo()
+    toolguides = _StubRepo()
+    procedures = _StubRepo()
+
+
+def test_render_emits_every_kind_the_bundle_resolves() -> None:
+    """FR-009/B-2: every id the bundle resolves reaches the rendered output.
+
+    Asserted on the RENDERED text, not the bundle: the procedure and asset ids
+    the bundle carries must appear under their own headings. WP11 (T059)
+    retired the ``_EXTENDED_CONTEXT_DEPTH`` render gate, so these kinds now
+    render on the bootstrap load unconditionally rather than only at depth>=3.
+    """
+    bundle = _ActionDoctrineBundle(
+        mission="software-dev",
+        directive_ids=[],
+        tactic_ids=[],
+        styleguide_ids=[],
+        toolguide_ids=[],
+        procedure_ids=["onboard-external-agent-to-pack"],
+        asset_ids=["common-docs-structural-lint"],
+        service=_ProcedureOnlyService(),
+    )
+
+    text = _render_bootstrap_text(
+        charter_path=Path("/nonexistent/charter.md"),
+        action="implement",
+        summary=[],
+        doctrine_bundle=bundle,
+        references=[],
+    )
+
+    assert "Procedures:" in text
+    assert "onboard-external-agent-to-pack" in text
+    assert "Assets:" in text
+    assert "common-docs-structural-lint" in text
 
 
 # ---------------------------------------------------------------------------
@@ -927,25 +1172,35 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     calls: dict[str, object] = {}
 
     class StubDoctrineService:
-        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+        def __init__(
+            self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
+        ) -> None:
             calls["built_in_root"] = built_in_root
             calls["project_root"] = project_root
             calls["active_languages"] = active_languages
 
     built_in_root = tmp_path / "shipped-doctrine"
     built_in_root.mkdir()
-    project_root = tmp_path / "src" / "doctrine"
+    project_root = tmp_path / "src" / "charter" / "offering"
     project_root.mkdir(parents=True)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
-    monkeypatch.setattr("charter.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
-    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.activation.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
+    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)
 
     assert isinstance(service, StubDoctrineService)
+    # Relocation (WP02, mission doctrine-built-in-seam-consolidation-01KYW3TX):
+    # _build_doctrine_service no longer passes a built_in_root kwarg at all --
+    # each repository self-resolves the flattened built-in tier via
+    # built_in_dir(kind) (packs/built-in/<kind>). Pointing at
+    # resolve_doctrine_root() post-relocation would yield the emptied
+    # src/charter/offering/<kind>/built-in and silently load nothing. The stub's
+    # built_in_root default (None) surfaces the same recorded value as before
+    # the kwarg was dropped. The project-root overlay wiring is unchanged.
     assert calls == {
-        "built_in_root": built_in_root,
+        "built_in_root": None,
         "project_root": project_root,
         "active_languages": ["python", "typescript"],
     }
@@ -965,12 +1220,14 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     """
     from ruamel.yaml import YAML
 
-    from charter.interview import apply_answer_overrides, default_interview, write_interview_answers
+    from charter.activation.interview import apply_answer_overrides, default_interview, write_interview_answers
 
     calls: dict[str, object] = {}
 
     class StubDoctrineService:
-        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+        def __init__(
+            self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
+        ) -> None:
             calls["active_languages"] = active_languages
 
     built_in_root = tmp_path / "shipped-doctrine"
@@ -1005,8 +1262,8 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
             handle,
         )
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
-    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)
 

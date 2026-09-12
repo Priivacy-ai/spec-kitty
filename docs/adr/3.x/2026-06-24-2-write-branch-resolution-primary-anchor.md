@@ -1,6 +1,7 @@
 ---
 title: 'ADR: Write-Branch Resolution Anchors `meta.json` on the PRIMARY Surface (Write-Surface
   Twin)'
+description: 'Write-branch resolvers read `meta.json` from the repository-root checkout under every topology, so commits land on the mission Target Ref, not the protected Primary Branch.'
 status: Accepted
 date: '2026-06-24'
 ---
@@ -85,7 +86,7 @@ ratchet so the recurring N+1 cannot return silently.
    status-class write lands (C-002 status leniency preserved).
 
 4. **The boundary is a default-deny ratchet, not a manual denylist.** The FR-010
-   architectural ratchet (`tests/architectural/test_gate_read_literal_ban.py`) keeps its
+   architectural ratchet support (`tests/architectural/_gate_read_callshape.py`) keeps its
    pinned, contract-cited surface set AND adds a **coverage-derived** read arm that walks
    every function in the CLI command packages and flags ANY topology-routed
    planning-artifact join — so a NEW planning-lifecycle command that re-reads
@@ -141,4 +142,4 @@ ratchet so the recurring N+1 cannot return silently.
 - Mission spec: `kitty-specs/gate-read-surface-completion-01KVW9B0/spec.md`
 - Seam + ratchet contract: `kitty-specs/gate-read-surface-completion-01KVW9B0/contracts/gate-read-seam.md`
 - Canonical seams: [`src/specify_cli/missions/_read_path_resolver.py`](../../../src/specify_cli/missions/_read_path_resolver.py) (`primary_feature_dir_for_mission`, `resolve_planning_read_dir`), [`src/specify_cli/core/paths.py`](../../../src/specify_cli/core/paths.py) (`get_feature_target_branch`, `resolve_merge_target_branch`), [`src/specify_cli/core/git_ops.py`](../../../src/specify_cli/core/git_ops.py) (`resolve_target_branch`)
-- Ratchet (default-deny enforcement): [`tests/architectural/test_gate_read_literal_ban.py`](../../../tests/architectural/test_gate_read_literal_ban.py)
+- Ratchet support (default-deny enforcement): [`tests/architectural/_gate_read_callshape.py`](../../../tests/architectural/_gate_read_callshape.py)

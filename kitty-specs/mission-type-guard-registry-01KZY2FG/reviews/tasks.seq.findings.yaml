@@ -1,0 +1,45 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: TASKS-SEQ-001
+    lens: chokepoints
+    severity: 3
+    title: Chokepoints section omits the enforced SonarCloud Quality Gate, a third shared aggregate-diff CI gate spanning both WPs' new code
+    evidence:
+      - artifact: "tasks.md § Chokepoints (shared CI gates — not optional to skip, per plan.md's Gate Set)"
+      - code: ".github/workflows/ci-quality.yml:3999"
+      - code: ".github/workflows/ci-quality.yml:4011"
+      - artifact: ".kittify/charter/charter.md § Sonar Expectations (\"Every new branch/helper needs tests in the same PR... Sonar's project gate is dominated by new-code coverage\")"
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T007 (local diff-cover check named explicitly, no Sonar-coverage equivalent)"
+      - artifact: "tasks/WP02-doctor-mission-type-command.md § T012 (verification steps list pytest/timing/mypy/ruff/terminology-guard, no Sonar-coverage equivalent)"
+    claim: >
+      tasks.md's Chokepoints section names exactly two shared CI gates that "run against the
+      PR's aggregate diff" where "a regression from either WP can fail the whole PR": the
+      golden CLI-surface contract test and the diff-coverage critical-path gate. It omits a
+      third gate of the identical class: the SonarCloud Quality Gate
+      (.github/workflows/ci-quality.yml:4011, step name "[ENFORCED] SonarCloud Quality Gate",
+      fed by the "[ENFORCED] SonarCloud Scan" step at line 3999 which aggregates every job's
+      coverage-*.xml, including both WP01's src/runtime/next/* new branches and WP02's new
+      ~300-line _mission_type_audit.py classifier). Because both WPs land in one PR (per the
+      PR Shape section), a new-code coverage or maintainability shortfall in either WP's new
+      branches -- e.g. WP02's 6-way classify_mission_type state machine or WP01's
+      _evaluate_plan_guards 5-way chain -- can fail this gate for the whole PR, exactly the
+      same aggregate-diff / either-WP-can-fail-the-whole-PR risk the two named chokepoints
+      describe. Unlike the diff-coverage gate, which WP01's T007 explicitly instructs verifying
+      locally before push, neither WP01's T007 nor WP02's T012 verification steps mention
+      checking Sonar-equivalent new-code coverage locally, so an implementer following the WP
+      prompts exactly could pass both named chokepoints and still trip the unnamed Sonar gate,
+      discovering the failure only in CI.
+    remediation: >
+      Add a third bullet to tasks.md's Chokepoints section naming the SonarCloud Quality Gate
+      (ci-quality.yml's "[ENFORCED] SonarCloud Quality Gate" step, fed by "[ENFORCED] SonarCloud
+      Scan") as a shared, aggregate-diff, whole-PR gate alongside the two already named. Add a
+      one-line reminder to WP01 T007 and WP02 T012's verification steps to eyeball new-code
+      coverage on the new branches/helpers each WP adds (mirroring the charter's own Sonar
+      Expectations guidance and the diff-cover local-check pattern already present in WP01 T007),
+      so a shortfall is caught locally rather than first surfacing as a CI failure on the shared
+      PR.

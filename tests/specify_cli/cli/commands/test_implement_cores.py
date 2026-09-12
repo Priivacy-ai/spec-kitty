@@ -22,12 +22,10 @@ from specify_cli.cli.commands.implement_cores import (
     GitPort,
     PlanningArtifactStagingPlan,
     _committed_meta_mapping,
-    _drop_vcs_lock_only_meta,
-    _exclude_coord_owned,
+    _drop_if,
     _feature_dir_status_entries,
     _files_changed_vs_ref,
-    _is_vcs_lock_only_meta_diff,
-    _parse_meta_mapping,
+    _is_self_write_only_diff,
     _parse_porcelain_entries,
     _placement_coord_filter,
     _PorcelainEntry,
@@ -37,7 +35,10 @@ from specify_cli.cli.commands.implement_cores import (
     resolve_planning_artifact_staging,
     resolve_precondition_ref,
 )
+from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.vcs_lock import is_vcs_lock_only_change
 from specify_cli.core.errors import PlacementResolutionRequired
+from specify_cli.coordination.coherence import is_status_state_path
 from mission_runtime import CommitTarget
 
 pytestmark = [pytest.mark.unit]
@@ -153,32 +154,104 @@ class TestFeatureDirStatusEntries:
         entries = _feature_dir_status_entries(tmp_path, feature_dir)
         assert entries == []
 
+    def test_dossier_snapshot_churn_is_dropped(self) -> None:
+        """FIX-M2-08: a live-dirty dossier snapshot (D1 EXCLUDE policy --
+        ``contracts/dossier-snapshot-ownership.md``: "No staging, no
+        committing... The file is just a file") must never surface as a
+        status entry -- neither ``_structural_entries`` /
+        ``detect_structural_planning_changes`` nor ``_status_paths_for_commit``
+        (via ``resolve_planning_artifact_staging``) may treat a fire-and-
+        forget dossier-sync re-save as something that blocks the
+        implement-claim precheck. Mirrors the SAME glob ``agent tasks
+        move-task``'s own preflight already strips
+        (``tasks_shared.py::_strip_runtime_state_lines``,
+        ``tasks_parsing_validation.py``)."""
+        fake = _FakeGitPort(
+            porcelain=(
+                " M kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n"
+                " M kitty-specs/m/tasks.md\n"
+            )
+        )
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == [_PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False)]
+
+    def test_deleted_dossier_snapshot_is_not_structural_either(self) -> None:
+        """A deleted dossier snapshot must not trip the #1598 structural
+        fail-closed guard -- it is "just a file", not a planning artifact
+        whose loss the coordination branch needs to reconcile."""
+        fake = _FakeGitPort(porcelain=" D kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n")
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == []
+
 
 # ---------------------------------------------------------------------------
-# _exclude_coord_owned / _status_paths_for_commit
+# _drop_if (WP14 / IC-07d generic filter)
 # ---------------------------------------------------------------------------
 
 
-class TestExcludeCoordOwned:
+class TestDropIf:
+    """The ONE generic claim-time exclusion filter every retired sibling
+    (``_drop_vcs_lock_only_meta`` / ``_drop_runtime_frontmatter_only_wp`` +
+    its ``_is_wp_filename`` twin / ``_exclude_coord_owned``) now routes
+    through -- see :class:`TestStatusPathsForCommit` and
+    :class:`TestIsSelfWriteOnlyDiff` for the migrated predicate-level
+    coverage."""
+
+    def test_keeps_every_path_when_predicate_never_matches(self) -> None:
+        paths = ["a.md", "b.md"]
+        assert _drop_if(paths, lambda _p: False) == paths
+
+    def test_drops_every_path_when_predicate_always_matches(self) -> None:
+        assert _drop_if(["a.md", "b.md"], lambda _p: True) == []
+
+    def test_drops_only_the_paths_the_predicate_flags(self) -> None:
+        kept = _drop_if(["a.md", "b.md", "c.md"], lambda p: p == "b.md")
+        assert kept == ["a.md", "c.md"]
+
+    def test_preserves_input_order(self) -> None:
+        kept = _drop_if(["z.md", "a.md", "m.md"], lambda _p: False)
+        assert kept == ["z.md", "a.md", "m.md"]
+
+
+# ---------------------------------------------------------------------------
+# _status_paths_for_commit (retired ``_exclude_coord_owned`` onto _drop_if +
+# the owner-exposed ``is_status_state_path`` leg, WP14 / IC-07d)
+# ---------------------------------------------------------------------------
+
+
+class TestStatusPathsForCommit:
     def test_no_coord_branch_keeps_all_paths(self) -> None:
-        paths = ["kitty-specs/m/status.json", "kitty-specs/m/tasks.md"]
-        assert _exclude_coord_owned(paths, None) == paths
-
-    def test_coord_branch_drops_status_files_only(self) -> None:
-        paths = ["kitty-specs/m/status.events.jsonl", "kitty-specs/m/status.json", "kitty-specs/m/tasks.md"]
-        kept = _exclude_coord_owned(paths, "kitty/mission-m-AAAA1111")
-        assert kept == ["kitty-specs/m/tasks.md"]
-
-    def test_status_paths_for_commit_wraps_exclude(self) -> None:
         entries = [
             _PorcelainEntry(xy=" M", path="kitty-specs/m/status.json", is_structural=False),
             _PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False),
         ]
-        assert _status_paths_for_commit(entries, "kitty/mission-m-AAAA1111") == ["kitty-specs/m/tasks.md"]
         assert set(_status_paths_for_commit(entries, None)) == {
             "kitty-specs/m/status.json",
             "kitty-specs/m/tasks.md",
         }
+
+    def test_coord_branch_drops_status_files_only(self) -> None:
+        entries = [
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/status.events.jsonl", is_structural=False),
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/status.json", is_structural=False),
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False),
+        ]
+        kept = _status_paths_for_commit(entries, "kitty/mission-m-AAAA1111")
+        assert kept == ["kitty-specs/m/tasks.md"]
+
+    def test_routes_through_drop_if_and_the_owner_status_state_leg(self) -> None:
+        """The narrow ``is_status_state_path`` leg (not the broader
+        ``is_coord_residue_churn``/``is_toolchain_generated_churn`` union) is
+        the predicate consulted -- a coord-residue-but-non-status kind
+        (``issue-matrix.md``) survives the drop."""
+        entries = [
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/issue-matrix.md", is_structural=False),
+            _PorcelainEntry(xy=" M", path="kitty-specs/m/status.json", is_structural=False),
+        ]
+        assert _status_paths_for_commit(entries, "kitty/mission-m-AAAA1111") == ["kitty-specs/m/issue-matrix.md"]
+        assert _drop_if(
+            [e.path for e in entries], is_status_state_path
+        ) == ["kitty-specs/m/issue-matrix.md"]
 
 
 # ---------------------------------------------------------------------------
@@ -187,11 +260,19 @@ class TestExcludeCoordOwned:
 
 
 class TestIsVcsLockOnlyMetaDiff:
+    """WP03 / T016: the retired ``implement_cores._is_vcs_lock_only_meta_diff``
+    comparator is routed onto the single canonical
+    :func:`kernel.vcs_lock.is_vcs_lock_only_change` (FR-006). The kernel adopts
+    the sentinel (absent != present-but-null) semantics; it also returns
+    ``True`` on an EMPTY diff (two identical mappings -- the empty set of
+    differences is trivially a subset of the lock fields), unlike the retired
+    predicate's ``bool(changed_keys) and ...`` shape."""
+
     @pytest.mark.parametrize(
         ("committed", "working", "expected"),
         [
-            (None, {}, False),
-            ({}, {}, False),
+            (None, {}, True),
+            ({}, {}, True),
             ({"vcs": "git"}, {"vcs": "git", "vcs_locked_at": "t0"}, True),
             ({"friendly_name": "a"}, {"friendly_name": "b"}, False),
             (
@@ -207,21 +288,33 @@ class TestIsVcsLockOnlyMetaDiff:
         ],
     )
     def test_truth_table(self, committed: dict[str, str] | None, working: dict[str, str], expected: bool) -> None:
-        assert _is_vcs_lock_only_meta_diff(committed, working) is expected
+        assert is_vcs_lock_only_change(committed, working) is expected
 
 
-class TestParseMetaMapping:
+class TestDecodeMetaRouting:
+    """WP03 / T016: the retired ``implement_cores._parse_meta_mapping`` blob
+    parser is routed onto the kernel L1 :func:`kernel.meta_decode.decode_meta`
+    authority (FR-003). Malformed content now fails loud (``on_malformed=
+    "raise"``) instead of the former silent ``None`` -- the ``"none"`` policy
+        preserves a caller that deliberately wants the absorbed sentinel."""
+
     def test_valid_object(self) -> None:
-        assert _parse_meta_mapping(b'{"vcs": "git"}') == {"vcs": "git"}
+        assert decode_meta(b'{"vcs": "git"}') == {"vcs": "git"}
 
-    def test_non_object_json_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"[1, 2, 3]") is None
+    def test_non_object_json_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"[1, 2, 3]")
+        assert decode_meta(b"[1, 2, 3]", on_malformed="none") is None
 
-    def test_invalid_json_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"not json") is None
+    def test_invalid_json_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"not json")
+        assert decode_meta(b"not json", on_malformed="none") is None
 
-    def test_bad_encoding_returns_none(self) -> None:
-        assert _parse_meta_mapping(b"\xff\xfe\x00") is None
+    def test_bad_encoding_raises(self) -> None:
+        with pytest.raises(MetaDecodeError):
+            decode_meta(b"\xff\xfe\x00")
+        assert decode_meta(b"\xff\xfe\x00", on_malformed="none") is None
 
 
 class TestCommittedMetaMapping:
@@ -240,46 +333,94 @@ class TestCommittedMetaMapping:
         assert fake.show_calls == [(tmp_path, "HEAD", "p")]
 
 
-class TestDropVcsLockOnlyMeta:
-    def _meta_repo(self, tmp_path: Path, *, committed: bytes, working: bytes) -> tuple[Path, str]:
+class TestIsSelfWriteOnlyDiff:
+    """WP14 / IC-07d: the merged predicate behind the retired
+    ``_drop_vcs_lock_only_meta`` / ``_drop_runtime_frontmatter_only_wp``
+    twins, consumed via :func:`_drop_if`. The ``auto_commit`` gate is now the
+    CALLER's responsibility (:func:`resolve_planning_artifact_staging`
+    applies :func:`_drop_if` only when ``not auto_commit`` -- see
+    ``TestResolvePlanningArtifactStaging`` / ``test_implement_vcs_lock_claim.py``
+    / ``test_implement_runtime_frontmatter_claim.py`` for that NFR-001
+    no-op-under-auto_commit=True coverage), so this predicate is exercised
+    directly, unconditionally.
+    """
+
+    def _meta_repo(self, tmp_path: Path, *, working: bytes) -> tuple[Path, str]:
         meta_rel = "kitty-specs/m/meta.json"
         meta_path = tmp_path / meta_rel
         meta_path.parent.mkdir(parents=True)
         meta_path.write_bytes(working)
         return tmp_path, meta_rel
 
-    def test_noop_when_auto_commit_true(self, tmp_path: Path) -> None:
-        paths = ["kitty-specs/m/meta.json"]
-        kept = _drop_vcs_lock_only_meta(tmp_path, paths, None, auto_commit=True, git=_FakeGitPort())
-        assert kept == paths
-
     def test_drops_lock_only_meta_diff(self, tmp_path: Path) -> None:
         repo_root, meta_rel = self._meta_repo(
             tmp_path,
-            committed=b'{"friendly_name": "a"}',
             working=b'{"friendly_name": "a", "vcs": "git", "vcs_locked_at": "t0"}',
         )
         fake = _FakeGitPort(blobs={("HEAD", meta_rel): b'{"friendly_name": "a"}'})
-        kept = _drop_vcs_lock_only_meta(repo_root, [meta_rel], None, auto_commit=False, git=fake)
-        assert kept == []
+        assert _is_self_write_only_diff(repo_root, meta_rel, None, git=fake) is True
+        assert _drop_if([meta_rel], lambda p: _is_self_write_only_diff(repo_root, p, None, git=fake)) == []
 
     def test_keeps_non_lock_meta_diff(self, tmp_path: Path) -> None:
         repo_root, meta_rel = self._meta_repo(
             tmp_path,
-            committed=b'{"friendly_name": "a"}',
             working=b'{"friendly_name": "b"}',
         )
         fake = _FakeGitPort(blobs={("HEAD", meta_rel): b'{"friendly_name": "a"}'})
-        kept = _drop_vcs_lock_only_meta(repo_root, [meta_rel], None, auto_commit=False, git=fake)
-        assert kept == [meta_rel]
+        assert _is_self_write_only_diff(repo_root, meta_rel, None, git=fake) is False
+        assert _drop_if([meta_rel], lambda p: _is_self_write_only_diff(repo_root, p, None, git=fake)) == [meta_rel]
 
-    def test_keeps_non_meta_paths_untouched(self, tmp_path: Path) -> None:
-        kept = _drop_vcs_lock_only_meta(tmp_path, ["kitty-specs/m/tasks.md"], None, auto_commit=False, git=_FakeGitPort())
-        assert kept == ["kitty-specs/m/tasks.md"]
+    def test_keeps_non_meta_non_wp_paths_untouched(self, tmp_path: Path) -> None:
+        assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/tasks.md", None, git=_FakeGitPort()) is False
 
-    def test_missing_meta_source_is_kept_defensively(self, tmp_path: Path) -> None:
-        kept = _drop_vcs_lock_only_meta(tmp_path, ["kitty-specs/m/meta.json"], None, auto_commit=False, git=_FakeGitPort())
-        assert kept == ["kitty-specs/m/meta.json"]
+    def test_missing_meta_source_is_not_dropped_defensively(self, tmp_path: Path) -> None:
+        assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/meta.json", None, git=_FakeGitPort()) is False
+
+    def test_drops_runtime_frontmatter_only_wp_diff(self, tmp_path: Path) -> None:
+        wp_rel = "kitty-specs/m/tasks/WP01.md"
+        wp_path = tmp_path / wp_rel
+        wp_path.parent.mkdir(parents=True)
+        wp_path.write_text(
+            "---\nwork_package_id: WP01\nshell_pid: 4242\n---\n# WP01\nbody\n",
+            encoding="utf-8",
+        )
+        committed = b"---\nwork_package_id: WP01\n---\n# WP01\nbody\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is True
+
+    def test_keeps_wp_diff_with_a_non_runtime_frontmatter_key_change(self, tmp_path: Path) -> None:
+        wp_rel = "kitty-specs/m/tasks/WP01.md"
+        wp_path = tmp_path / wp_rel
+        wp_path.parent.mkdir(parents=True)
+        wp_path.write_text(
+            "---\nwork_package_id: WP01\ntitle: renamed\n---\n# WP01\nbody\n",
+            encoding="utf-8",
+        )
+        committed = b"---\nwork_package_id: WP01\ntitle: original\n---\n# WP01\nbody\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is False
+
+    def test_keeps_wp_diff_with_a_body_change(self, tmp_path: Path) -> None:
+        wp_rel = "kitty-specs/m/tasks/WP01.md"
+        wp_path = tmp_path / wp_rel
+        wp_path.parent.mkdir(parents=True)
+        wp_path.write_text(
+            "---\nwork_package_id: WP01\nshell_pid: 4242\n---\n# WP01\nnew body\n",
+            encoding="utf-8",
+        )
+        committed = b"---\nwork_package_id: WP01\n---\n# WP01\nold body\n"
+        fake = _FakeGitPort(blobs={("HEAD", wp_rel): committed})
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=fake) is False
+
+    def test_missing_wp_source_is_not_dropped_defensively(self, tmp_path: Path) -> None:
+        assert _is_self_write_only_diff(tmp_path, "kitty-specs/m/tasks/WP01.md", None, git=_FakeGitPort()) is False
+
+    def test_missing_committed_blob_is_not_dropped_defensively(self, tmp_path: Path) -> None:
+        wp_rel = "kitty-specs/m/tasks/WP02.md"
+        wp_path = tmp_path / wp_rel
+        wp_path.parent.mkdir(parents=True)
+        wp_path.write_text("---\nwork_package_id: WP02\n---\n# WP02\n", encoding="utf-8")
+        assert _is_self_write_only_diff(tmp_path, wp_rel, None, git=_FakeGitPort()) is False
 
 
 class TestResolvePreconditionRef:
@@ -439,9 +580,9 @@ class TestResolvePlanningArtifactStaging:
 
     def test_dirty_coord_kind_file_still_resolves_to_coord_ref(self, tmp_path: Path) -> None:
         """NFR-002 coord non-regression: a genuinely-dirty COORD-partition
-        artifact (``issue-matrix.md`` -- not one of the ``COORD_OWNED_STATUS_FILES``
-        excluded earlier in the pipeline) is still diffed against and staged
-        for the coordination ref, exactly as before the fix."""
+        artifact (``issue-matrix.md`` -- not ``MissionArtifactKind.STATUS_STATE``,
+        the narrow kind excluded earlier in the pipeline) is still diffed against
+        and staged for the coordination ref, exactly as before the fix."""
         artifact_dir = tmp_path / "kitty-specs" / "m"
         artifact_dir.mkdir(parents=True)
         (artifact_dir / "issue-matrix.md").write_bytes(b"# issues v2")
@@ -484,6 +625,78 @@ class TestResolvePlanningArtifactStaging:
             auto_commit=True,
             git=fake,
         )
+        assert plan.files_to_commit == []
+
+    def test_dirty_dossier_snapshot_does_not_poison_the_planning_commit_refusal(self, tmp_path: Path) -> None:
+        """FIX-M2-08 regression: reproduces
+        ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence`` on a coord
+        mission. ``spec.md``/``plan.md``/``tasks.md``/``lanes.json`` are ALREADY
+        committed on the primary (target) branch -- clean in ``git status`` --
+        but a dossier-sync re-save between the last commit and this claim
+        (e.g. by the immediately-preceding ``finalize-tasks``, D1 EXCLUDE:
+        "No staging, no committing... The file is just a file") left the
+        dossier snapshot locally modified. Before the fix this single
+        self-bookkeeping diff populated ``status_paths_to_commit``, which
+        gates ``implement.py``'s "Planning artifacts not committed" fail-closed
+        refusal -- dragging every OTHER (already-committed, undirty) planning
+        artifact into that same printed refusal via ``files_to_commit``'s
+        unconditional ``extra_file_paths`` leg. After the fix, the dossier
+        snapshot never enters ``status_paths_to_commit`` (so the refusal never
+        fires) and never enters ``files_to_commit`` either (so implement's own
+        auto-commit path can never commit it -- the same D1 violation
+        FIX-M2-05 closed in ``mission_finalize.py``, now also closed here)."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        artifact_dir.mkdir(parents=True)
+        # Already committed, byte-identical to HEAD -- these must NOT be
+        # treated as needing a commit.
+        for name, content in (
+            ("spec.md", b"# spec"),
+            ("plan.md", b"# plan"),
+            ("tasks.md", b"# tasks"),
+        ):
+            (artifact_dir / name).write_bytes(content)
+        dossier_dir = artifact_dir / ".kittify" / "dossiers" / "m"
+        dossier_dir.mkdir(parents=True)
+        dossier_path = dossier_dir / "snapshot-latest.json"
+        dossier_path.write_bytes(b'{"snapshot_id": "new"}')
+
+        coord_ref = "kitty/mission-m-AAAA1111"
+        fake = _FakeGitPort(
+            # Only the dossier snapshot is live-dirty; the other planning
+            # artifacts are clean on disk (no porcelain entry for them).
+            porcelain=" M kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json\n",
+            blobs={
+                ("HEAD", "kitty-specs/m/spec.md"): b"# spec",
+                ("HEAD", "kitty-specs/m/plan.md"): b"# plan",
+                ("HEAD", "kitty-specs/m/tasks.md"): b"# tasks",
+                # The coordination branch has never seen any of these
+                # (planning artifacts are PRIMARY-partition, committed to the
+                # primary/target branch only) -- absent blobs everywhere on
+                # coord_ref.
+            },
+        )
+        plan = resolve_planning_artifact_staging(
+            tmp_path,
+            artifact_dir,
+            coord_ref,
+            [
+                "kitty-specs/m/spec.md",
+                "kitty-specs/m/plan.md",
+                "kitty-specs/m/tasks.md",
+                "kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json",
+            ],
+            auto_commit=False,
+            git=fake,
+        )
+        # The refusal-gating field: must be empty, or implement.py prints
+        # "Planning artifacts not committed" and exits 1 even though nothing
+        # genuinely uncommitted exists.
+        assert plan.status_paths_to_commit == []
+        # The dossier snapshot must never become an auto-commit candidate
+        # either (D1: it is never staged/committed by any producer).
+        assert "kitty-specs/m/.kittify/dossiers/m/snapshot-latest.json" not in plan.files_to_commit
+        # The already-committed, byte-identical primary artifacts correctly
+        # drop out too (idempotency guard, INV-5) -- nothing needs staging.
         assert plan.files_to_commit == []
 
 

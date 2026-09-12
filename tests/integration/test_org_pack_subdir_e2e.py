@@ -229,15 +229,10 @@ def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     )
 
 
-def test_fetch_pack_wrong_subdir_zero_count(
+def test_fetch_pack_wrong_subdir_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """FR-007 / SC-003: fetch_pack with a wrong subdir reports artifacts_written == 0.
-
-    The source fetch succeeds (writes to local_path), but the effective root
-    (local_path / "nonexistent-subdir") doesn't exist → _count_artifacts returns
-    {} → sum({}.values()) == 0.  artifacts_written must still be int, not a dict.
-    """
+    """A configured effective root with no artifacts must not replace last-good."""
     from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
     from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
 
@@ -258,15 +253,13 @@ def test_fetch_pack_wrong_subdir_zero_count(
 
     result = fetch_pack(pack, repo_root)
 
-    assert result.ok, f"Expected fetch to succeed, got errors={result.errors!r}"
+    assert result.ok is False
     assert isinstance(result.artifacts_written, int), (
-        f"FR-007/SC-003: artifacts_written must be int even for wrong subdir, "
+        f"artifacts_written must be int even for wrong subdir, "
         f"got {type(result.artifacts_written)!r}: {result.artifacts_written!r}"
     )
-    assert result.artifacts_written == 0, (
-        f"FR-007/SC-003: wrong subdir → effective root missing → 0 artifacts, "
-        f"got {result.artifacts_written!r}"
-    )
+    assert any("nonexistent-subdir" in error for error in result.errors)
+    assert not local_path.exists()
 
 
 def test_config_schema_contract_documents_subdir() -> None:
@@ -301,3 +294,53 @@ def test_config_schema_contract_documents_subdir() -> None:
     form_b = forms[1]
     assert "subdir" in form_b["properties"], "Form B must document subdir"
     assert form_b["additionalProperties"] is False
+
+
+def test_config_schema_accepts_every_runtime_source_type() -> None:
+    """Public config schema and runtime source-type contract cannot drift."""
+    from typing import get_args
+
+    import yaml as _yaml
+    from jsonschema import Draft202012Validator
+
+    from charter.offering.drg.org_pack_config import SourceType
+
+    repo_root = Path(__file__).resolve().parents[2]
+    schema_path = (
+        repo_root
+        / "kitty-specs"
+        / "layered-doctrine-org-layer-01KRNPEE"
+        / "contracts"
+        / "config-schema.yaml"
+    )
+    schema = _yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    forms = schema["properties"]["doctrine"]["properties"]["org"]["oneOf"]
+    runtime_types = set(get_args(SourceType))
+    form_a_types = set(
+        forms[0]["properties"]["packs"]["items"]["properties"]["source_type"][
+            "enum"
+        ]
+    )
+    form_b_types = set(forms[1]["properties"]["source_type"]["enum"])
+
+    assert form_a_types == runtime_types
+    assert form_b_types == runtime_types
+    Draft202012Validator(schema).validate(
+        {
+            "doctrine": {
+                "org": {
+                    "packs": [
+                        {
+                            "name": "release-doctrine",
+                            "local_path": "/opt/doctrine/release",
+                            "source_type": "artifactory",
+                            "url": (
+                                "https://jfrog.example.com/artifactory/"
+                                "doctrine-local/release.tar.gz"
+                            ),
+                        }
+                    ]
+                }
+            }
+        }
+    )

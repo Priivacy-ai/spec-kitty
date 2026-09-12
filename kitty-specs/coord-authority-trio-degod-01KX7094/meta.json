@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "48970f94f7799a68806300c7ee25d725bde7a5a2",
-  "coordination_branch": "kitty/mission-coord-authority-trio-degod-01KX7094",
   "created_at": "2026-07-10T21:52:30.175324+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Coord-Authority Trio Degod",
   "mission_id": "01KX7094EYXKC6EJZC9XZCADS3",
   "mission_number": 173,
@@ -14,5 +13,5 @@
   "slug": "coord-authority-trio-degod-01KX7094",
   "status_phase": "1",
   "target_branch": "feat/coord-authority-trio-degod",
-  "topology": "coord"
+  "topology": "lanes"
 }

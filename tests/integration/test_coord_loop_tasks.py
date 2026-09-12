@@ -206,11 +206,13 @@ class TestListTasksRoutesToPrimary:
         coord husk, which carries no ``tasks/`` directory.  The command
         exited 1 with "Tasks directory not found: <husk>/tasks".
 
-        After WP03, tasks/ is read from PRIMARY via
-        ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)``.  The STATUS
-        leg stays on the coord-aware ``resolve_feature_dir_for_mission``,
-        mocked here to return the coord husk directly (to avoid the
-        ``resolve_action_context`` call against the fixture git repo).
+        After WP03, tasks/ is read from PRIMARY via the kind-aware
+        ``placement_seam(...).read_dir(WORK_PACKAGE_TASK)``, while the STATUS
+        leg reads ``placement_seam(...).read_dir(STATUS_STATE)`` — the coord
+        husk.  Both legs go through the SAME seam, so neither is stubbed: the
+        un-stubbed git fixture routes them apart on its own, and the per-leg
+        split is proven purely by the returned domain values below (WP01 from
+        the PRIMARY ``tasks/``; lane ``in_progress`` from the COORD events).
 
         Coord events are replaced with valid parseable events (see
         ``_set_coord_in_progress_events``) so the reducer produces WP01 at
@@ -227,24 +229,20 @@ class TestListTasksRoutesToPrimary:
         # Replace coord events with valid parseable events: WP01 → in_progress.
         _set_coord_in_progress_events(ctx)
 
-        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg now routes
-        # through the kind-aware ``placement_seam(...).read_dir(STATUS_STATE)``
-        # seam (a module-scope import in ``tasks.py``) instead of the retired
-        # kind-blind ``resolve_feature_dir_for_mission``. Stub the seam itself.
-        mock_seam = MagicMock()
-        mock_seam.read_dir.return_value = ctx.coord_feature_dir
-
+        # read-surface-ssot-closeout WP08 / FR-001: BOTH the tasks/ leg and the
+        # STATUS leg now route through the SAME kind-aware
+        # ``placement_seam(...).read_dir(<kind>)`` in ``tasks.py``. A kind-BLIND
+        # seam stub (a single ``read_dir.return_value``) therefore no longer
+        # isolates the STATUS leg — it drags the tasks/ read onto the coord husk
+        # too, reproducing the very "Tasks directory not found" failure this test
+        # exists to forbid. The seam is left UN-stubbed: the real fixture routes
+        # ``WORK_PACKAGE_TASK`` → primary and ``STATUS_STATE`` → coord husk, so the
+        # per-leg split is exercised inside production code (NFR-004).
         runner = CliRunner()
-        with (
-            setup_mocked_env(
-                ctx.repo,
-                mission_slug=ctx.slug,
-                workspace_resolution=None,
-            ),
-            patch(
-                "specify_cli.cli.commands.agent.tasks.placement_seam",
-                return_value=mock_seam,
-            ),
+        with setup_mocked_env(
+            ctx.repo,
+            mission_slug=ctx.slug,
+            workspace_resolution=None,
         ):
             result = runner.invoke(
                 app, ["list-tasks", "--mission", ctx.slug, "--json"]

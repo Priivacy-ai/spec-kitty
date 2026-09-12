@@ -1,0 +1,129 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: SPEC-ARCH-001
+    lens: INV-2 resolution fidelity / migrations
+    severity: 4
+    title: FR-001 rewrite algorithm never addresses the existing per-process mtime cache, which is keyed on the wrong file for the new resolution
+    evidence:
+      - artifact: "spec.md FR-001 (the (a)-(d) algorithm description) and FR-003 (requires `clear_activation_cache` stay in `__all__` with a real caller)"
+      - code: "src/charter/offering/spdd_reasons/activation.py:51-93 — `_cache: dict[str, tuple[int, bool]]` keyed on `str(charter_yaml_path.resolve())` with staleness detected via `charter_yaml_path.stat().st_mtime_ns`, where `charter_yaml_path = repo_root / '.kittify' / 'charter' / 'charter.yaml'` is a hardcoded path"
+      - code: "src/charter/activation/pack_context.py:207-286 — `PackContext.from_config` performs no caching at all; every call re-reads `.kittify/config.yaml` (and, when pointed, the target `charter.yaml`) fresh via `_load_config`/`_load_charter_activation_source`"
+    claim: >
+      FR-001's described algorithm (load config.yaml; follow the charter: pointer if present;
+      else read config.yaml directly; apply three-state semantics) says nothing about the
+      function's existing per-process cache, and FR-003 implies the cache mechanism itself
+      (`clear_activation_cache`) survives the rewrite. But the current cache key is hardcoded to
+      `.kittify/charter/charter.yaml`'s mtime — the OLD single-file assumption. Under the new
+      two-file (INV-2) resolution: (a) in the legacy no-pointer shape, the authoritative file is
+      `.kittify/config.yaml` itself, which the cache never inspects at all, so any edit to
+      config.yaml's own `activated_*` keys between two calls in the same process would be served
+      a stale cached answer; (b) even in the pointer-present shape (this repo's own case), the
+      cache still never observes `.kittify/config.yaml`'s own mtime, so re-pointing or deleting the
+      `charter:` key between calls would not invalidate the cache. This reproduces a
+      same-process variant of exactly the split-brain/staleness defect class this mission exists
+      to close, and it directly contradicts NFR-001 ("no new silent-success path"). It is not
+      covered by FR-005 (malformed-config handling), by the Edge Cases section, or by FR-002's
+      parity test, which (per its own description) compares single-shot fixture results and would
+      not exercise a same-process, two-call, file-mutated-in-between scenario where the divergence
+      would actually surface.
+    remediation: >
+      Add an explicit sub-requirement under FR-001 (or a plan-phase note it points to) that either
+      (a) specifies the new cache-key composition precisely — e.g. a tuple of
+      (`.kittify/config.yaml`'s mtime, the resolved-pointer path's mtime or `None`) so both files'
+      staleness is observed — or (b) explicitly retires per-process caching for this function
+      (matching `PackContext.from_config`'s always-fresh semantics) and states the performance
+      rationale against the `<50ms typical` budget in `contracts/activation.md`. Add a parity-test
+      or unit-test case (FR-002 scope) that calls the function twice in one process with
+      `.kittify/config.yaml` mutated between calls and asserts the second call reflects the
+      mutation.
+  - id: SPEC-ARCH-002
+    lens: INV-2 resolution fidelity
+    severity: 4
+    title: FR-006's re-derivation source (pack_context.activated_directives) feeds a truthiness check at delivery_table.py:238 that cannot distinguish "None" (all built-ins) from an explicit empty activated set, silently reproducing the split-brain bug class inside the fix
+    evidence:
+      - artifact: "spec.md FR-006 (\"must instead be derived from pack_context.activated_directives/activated_tactics/activated_paradigms\") and the Edge Cases bullet on empty activated_* for the org-required union (Decision Record 2 Scenario 3)"
+      - code: "src/charter/activation/context_renderers/delivery_table.py:238 — `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives: continue` (a Python truthiness check on `project_directives`, currently a plain `set[str]`)"
+      - code: "src/charter/activation/pack_context.py:150-157 — `activated_directives: frozenset[str] | None` is explicitly three-state: `None` = \"all built-ins available\" (should mean: do not restrict), `frozenset()` (present, empty) = \"nothing activated\" (should mean: block all), non-empty = explicit allowlist"
+    claim: >
+      FR-006 requires `project_directives` (consumed at `delivery_table.py:238`'s directive
+      exclusion filter) to be re-derived from `pack_context.activated_directives`. That
+      per-kind field is three-state (`None` / `frozenset()` / non-empty), but the consuming
+      check at `delivery_table.py:238` only tests Python truthiness of `project_directives` — both
+      `None` and an empty `frozenset()`/`set()` are falsy and take the SAME branch ("do not
+      filter — deliver everything DRG-reached"). If FR-006 is implemented by naively assigning
+      the three-state `pack_context.activated_directives` into this same variable/parameter
+      (coerced to a plain `set`), a project with an explicit `activated_directives: []` ("nothing
+      activated," a real, named three-state value per FR-001(d) and PackContext's own contract)
+      would silently deliver ALL DRG-reached directives instead of NONE — the opposite of
+      "nothing activated." This is a genuine three-state-semantics collapse sitting directly in
+      the code path FR-006 targets. The spec's own Edge Cases bullet addresses a *different*
+      empty-activated_* conflation (the org-required UNION step must still run on an empty set,
+      Scenario 3) but never addresses this separate truthiness collapse in the EXCLUSION filter
+      itself, and neither FR-007 nor FR-008's named scenarios exercise an explicit
+      `activated_directives: []` case (FR-007 uses a non-empty stale `selected_directives` set;
+      FR-008 uses this repo's own dogfood shape, which has non-empty `activated_*`) — so no named
+      test in this spec would catch a regression here.
+    remediation: >
+      Add an explicit note to FR-006 (or the plan it feeds) requiring the re-derivation to
+      preserve the three-state distinction through `delivery_table.py:238`'s consuming check —
+      e.g. change the guard from `project_directives and artifact_id not in project_directives`
+      to an explicit `project_directives is not None and artifact_id not in project_directives`
+      (with `project_directives` carrying `None`/`set()`/`{ids}` instead of always a plain set),
+      or an equivalent sentinel that keeps "all built-ins" and "explicit empty" distinguishable
+      at the point of use. Add a red-first test: an explicitly-empty `activated_directives: []`
+      project, with a DRG-reachable directive, must deliver ZERO directives from the exclusion
+      filter (distinct from FR-007/FR-008's existing scenarios, neither of which covers this
+      empty-activated_* exclusion case).
+  - id: SPEC-ARCH-003
+    lens: INV-2 resolution fidelity
+    severity: 2
+    title: Spec's description of "the real activation authority" omits the separate activated_kinds coarse gate consulted by the DRG activation filter
+    evidence:
+      - artifact: "spec.md Summary and Decision Record 1 (\"PackContext.from_config ... is the real, current activation authority\"; the algorithm at FR-001 checks only the three per-kind lists)"
+      - code: "src/charter/activation/drg_activation.py:433 — `_node_is_activated` step 2: `if plural not in pack_context.activated_kinds: return False` — a coarse per-KIND gate applied BEFORE the per-artifact-ID gate FR-001 replicates"
+      - code: "src/charter/activation/compiler.py:153-226 — `_resolve_config_activated_roots` (the function `compile_charter`'s docstring actually cites as the config.activated_* authority) does NOT consult `pack_context.activated_kinds` at all, so this omission does not create a fidelity gap against `compile_charter` specifically"
+    claim: >
+      `PackContext` carries a second, independent activation dimension — `activated_kinds` (a
+      coarse "is this whole artifact KIND on" gate, e.g. `activated_kinds: ["directives"]` would
+      exclude ALL paradigms/tactics regardless of what `activated_paradigms`/`activated_tactics`
+      list) — that is consulted by the DRG activation filter (`_node_is_activated`,
+      `drg_activation.py:433`, which Decision Record 2 itself cites as "correct" gating behavior
+      for `filter_graph_by_activation`) but is NEVER mentioned in FR-001's four-step algorithm or
+      in Decision Record 1's "what Option A actually requires" enumeration. Independently
+      verified this specific omission does NOT create an actual divergence for `is_spdd_reasons_active`
+      itself: `compile_charter`'s own config-activated-ids resolution
+      (`_resolve_config_activated_roots`) likewise never consults `activated_kinds`, so FR-001's
+      per-ID-only algorithm is faithful to the authority the spec's Summary actually cites. This
+      is filed as a documentation-completeness nit, not a correctness defect: a future reader (or
+      a later mission extending this fix) could reasonably assume the FR-001 algorithm is the
+      *complete* activation picture and try to "fix" it to also honor `activated_kinds`, which
+      would then diverge from `compile_charter`'s real behavior in the opposite direction.
+    remediation: >
+      Add one sentence to Decision Record 1 (or a code comment in the rewritten
+      `is_spdd_reasons_active`) stating explicitly that `activated_kinds` is a deliberately
+      out-of-scope, separate activation dimension not consulted here, because `compile_charter`'s
+      own `activated_*`-authority resolution (`_resolve_config_activated_roots`) does not consult
+      it either — so a future reader does not "fix" this into a new divergence.
+  - id: SPEC-ARCH-004
+    lens: INV-2 resolution fidelity (nit)
+    severity: 1
+    title: Decision Record 1 says the rewrite uses "only stdlib YAML parsing" but the codebase's actual parser for both files is the third-party ruamel.yaml, not the standard library
+    evidence:
+      - artifact: "spec.md Decision Record 1: \"only stdlib YAML parsing of the two files, mirroring the 'narrow compat read' idiom the module already uses\""
+      - code: "src/charter/offering/spdd_reasons/activation.py:197 — `yaml = YAML(typ=\"safe\")` (ruamel.yaml)"
+      - code: "src/charter/activation/pack_context.py:32,294-298 — `from ruamel.yaml import YAML`; `_yaml_loader()` constructs a `ruamel.yaml.YAML()` round-trip parser"
+    claim: >
+      Python's standard library has no built-in YAML support at all; both the existing
+      `activation.py` module and `PackContext`'s config/charter.yaml readers use the third-party
+      `ruamel.yaml` package. "Stdlib YAML parsing" is imprecise — a reader could take it to mean
+      the rewrite should avoid a third-party dependency the rest of the module (and the file
+      it's parsing) already depends on, which would be a wrong constraint.
+    remediation: >
+      Reword to "raw YAML parsing (ruamel.yaml, matching the module's existing dependency)" or
+      similar, so the constraint being expressed (no `charter.activation` Python-class imports,
+      not "no third-party libraries") is unambiguous.

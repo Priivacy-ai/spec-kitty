@@ -1,0 +1,146 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+mission: design-phase-orchestrator-api-01M1HE6M
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reasoning: >
+      Re-derived directly against the checkout. plan.md § (g) (line ~447-450)
+      states verbatim: "No lint/type/test debt was found directly IN the three
+      functions being extracted" naming `_pair_previous_lifecycle_record`
+      among them. That function (next_cmd.py:333-429) contains
+      `phase=phase,  # type: ignore[arg-type]` at next_cmd.py:425 (one line
+      off the finding's cited 424, immaterial) inside its
+      `write_paired_completion(...)` call — a live, real type-suppression
+      inside the exact function the plan claims is debt-free. The claim as
+      stated is directly contradicted by the cited code.
+
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reasoning: >
+      Confirmed against .github/workflows/ci-quality.yml: the "[ENFORCED]
+      Check Contextive glossary files are up-to-date" step is at line 851,
+      and its path filter (lines 863-866) matches on 'src/specify_cli/**'
+      among others. This mission touches next_cmd.py, orchestrator_api/
+      commands.py, envelope.py, and a new src/runtime/next/ module — but the
+      CLI-layer files are under src/specify_cli/**, so the CHANGED array will
+      be non-empty and the check step actually executes (expected to pass
+      trivially). plan.md § (e) item 10 says the gate "does NOT apply,"
+      conflating "runs and passes trivially" with "does not run" — the same
+      distinction items 4/5 correctly draw for jobs that are scoped to paths
+      this mission never touches at all. The mischaracterization is real.
+
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reasoning: >
+      Grepped plan.md for C-001 through C-005: C-001 and C-005 are cited by
+      ID repeatedly (lines 55-56, 307, 336, 582-620, 641, 652, 689); C-002 and
+      C-003 never appear by ID anywhere in plan.md. spec.md confirms C-002
+      ("no server-side analysis reasoning") and C-003 ("OriginFlow-bounded
+      decision-verb scope") are real, in-scope constraints. plan.md's WP04 row
+      describes check-prerequisites/record-analysis as thin shims over the
+      existing mission_check_prerequisites.py/mission_record_analysis.py
+      service layer (consistent with C-002's substance) and WP05's row names
+      the OriginFlow guard (consistent with C-003's substance) without ever
+      citing either ID. The traceability gap is real, if minor (severity 1
+      is appropriate and the finding does not overstate it as a violation).
+
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reasoning: >
+      Fully re-derived. ci-quality.yml:1414 (fast-tests-next) and :2757
+      (integration-tests-next) both run pytest scoped to exactly
+      `tests/next/ tests/specify_cli/next/ tests/runtime/` with
+      `--cov=src/runtime/next` (lines 1433, 2798). The diff-coverage job
+      (job def at :3308, critical-path step at :3358) lists
+      'src/runtime/next/*' as a critical_paths entry (:3391) enforced at
+      `--fail-under=90` (:3424), and `diff-coverage` is a required member of
+      `quality-gate.needs` (:4276-4281) — a hard-blocking gate. plan.md's
+      Gate Set (§ e) never mentions "diff-coverage" or "critical path"
+      anywhere (grep confirms zero hits), despite explicitly and correctly
+      excluding two adjacent coverage gates (kernel, mission-loader) as
+      inapplicable — this one silently omitted rather than excluded.
+      Separately, plan.md § (a) confirms WP02's new module is
+      `src/runtime/next/next_invocation_lifecycle.py` (falls inside the
+      critical-path entry), and Gate Set item 3 proposes the shared
+      regression test at `tests/specify_cli/cli/commands/
+      test_next_invocation_lifecycle_seam.py` — outside the three paths
+      fast-tests-next/integration-tests-next scan. The job that DOES scan
+      `tests/specify_cli/cli/commands` (slow-tests, :3046) uses
+      `--cov=specify_cli --cov=charter --cov=doctrine` (:3062) — never
+      `src/runtime/next` — confirmed verbatim. So no job produces
+      `--cov=src/runtime/next` coverage data collected from that proposed
+      test location, meaning the new module's changed lines would show as
+      uncovered against the enforced 90% floor purely from file placement.
+      `tests/specify_cli/next/` is confirmed to already hold
+      test_runtime_bridge.py and test_runtime_bridge_dispatch.py, the cited
+      precedent. Every citation checks out; the claim is concrete and
+      correct.
+
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reasoning: >
+      Verified orchestrator_api/commands.py's import block (lines 32-66):
+      zero imports from runtime.next today. Verified src/runtime/next/
+      decision.py:33 imports specify_cli.mission_metadata.
+      mission_identity_fields, decision.py:188 imports
+      specify_cli.mission_v1.events.read_events, and runtime_bridge.py:319
+      imports specify_cli.mission_metadata.resolve_mission_identity — all
+      three are runtime.next → specify_cli.*, the reverse of the new edge
+      WP08 introduces (orchestrator_api/commands.py → runtime.next). Verified
+      next_cmd.py already imports runtime.next directly at lines 51, 67, 195,
+      817, 984 (line 1002 is a call site of an already-imported module, not
+      itself an import — a trivial slip in the finding's citation list that
+      doesn't affect the substance). Grepped plan.md for any citation of
+      next_cmd.py's existing runtime.next imports as precedent for this
+      direction: none found. The plan's cited precedents genuinely support
+      the seam module's own outward imports (a different, already-settled
+      question) but not the orchestrator_api→runtime.next edge they are
+      offered near/for; the real on-point precedent exists uncited. The one
+      imprecision — the citations sit in the 4th of 5 bullets in § (a) rather
+      than literally the "final" bullet — is a location nit, not a
+      misquote of any code citation, and doesn't undermine the claim.
+
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reasoning: >
+      Confirmed ci-quality.yml:943 — "[ENFORCED] Validate patch() target
+      strings (closes #394)" — runs `scripts/check_patch_targets.py`, a real
+      script (confirmed present and doing exactly what its name says: import
+      + attribute-resolution validation of unittest.mock.patch target
+      strings). This step sits in the same lint job as TID251 (:886), Bandit
+      (:917), and pip-audit (:941) — exactly as the finding describes. Plan
+      item 13 states this gate is "unconfirmed" and "no dedicated named gate
+      found," having searched only tests/architectural/ and pyproject.toml —
+      missing the workflow-level step entirely. The claim is accurate and the
+      gate is real and enforced.
+
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reasoning: >
+      Confirmed plan.md § (j) point 2 (lines ~526-528) reads: "The WP08-
+      adjacent implementer decides between (a) and (b)... This plan does not
+      pre-decide between them — that is an implementation-detail call for
+      WP04" — naming WP08 and WP04 as the decider for the identical NFR-004
+      mechanism-choice decision in the same paragraph. The WP Breakdown table
+      confirms WP04 owns FR-004/FR-005 "including the NFR-004
+      artifact-verification mechanism (j)" while WP08 owns FR-013
+      answer-decision, an unrelated verb. The internal inconsistency is real
+      and exactly as described.
+
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reasoning: >
+      Confirmed plan.md § (a) names exact signatures for the three extracted
+      seam functions (pair_previous_lifecycle_record, emit_mission_next_
+      invoked, write_issuance_lifecycle_record), but grepping the whole plan
+      for "fixture"/"helper" shows the shared SC-008 test fixture/helper is
+      only ever referred to generically ("the same shared fixture/helper," §
+      Parallel Work Analysis, Integration tests paragraph; also referenced at
+      Gate Set item 3) — its own call signature, its "caller under test"
+      parameter shape, and what state/file it reads to verify each of the
+      three side effects are never named anywhere in plan.md. This is a real
+      concreteness gap exactly as claimed, plausibly causing WP02 to build
+      test scaffolding WP08 cannot cleanly extend.

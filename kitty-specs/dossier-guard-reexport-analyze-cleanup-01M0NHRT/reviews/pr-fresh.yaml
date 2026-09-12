@@ -1,0 +1,70 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: pr-fresh-001
+    lens: fresh
+    severity: 2
+    title: >-
+      PathRelativizationError's message re-embeds the raw absolute path this
+      mission exists to stop leaking, and it reaches two operator-visible,
+      CI-log-printed surfaces
+    evidence:
+      - code: "src/specify_cli/analysis_report.py:189-199"
+      - code: "src/specify_cli/analysis_report.py:555-571"
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:404-406"
+      - code: "src/specify_cli/cli/commands/agent/workflow.py:950-989"
+    claim: >-
+      `_relativize_or_raise` (analysis_report.py:189) raises
+      `PathRelativizationError(f"Cannot record {path} relative to governing
+      root {governing_root}: {exc}")` — both `path` and `governing_root` are
+      the raw, unrelativized (typically absolute, e.g. `/home/<user>/...`)
+      arguments. Reproduced directly: calling `write_analysis_report` with a
+      `repo_root` that doesn't contain `feature_dir` raises exactly
+      `PathRelativizationError: Cannot record /tmp/tmp.../kitty-specs/sample-01KS/spec.md
+      relative to governing root /tmp/tmp.../unrelated: ...` — the full
+      absolute path is in the exception string. This propagates through two
+      real call sites, both new/changed by this same mission: (1)
+      `mission_record_analysis.py`'s pre-existing top-level `except Exception
+      as e:` (line 404) does `_emit_json({_PAYLOAD_KEY_ERROR: str(e), ...})`
+      or `console.print(f"{_RED_ERROR_PREFIX}{e}")` — this is the `record-analysis`
+      CLI's own stdout/`--json` error surface, printed to GitHub Actions logs
+      on a public-repo CI run; and (2) `check_analysis_report_current` (the
+      `NEVER-raise` freshness gate this same diff added the try/except for,
+      analysis_report.py:562-571) instead sets
+      `reason=f"path_relativization_failed: {exc}"` on the returned
+      `AnalysisFreshness`, and `workflow.py`'s `_require_current_analysis_report`
+      — the gate that blocks `implement` until `/spec-kitty.analyze` is fresh,
+      invoked far more often than the write path — falls into its final
+      `else` branch and does `print(f"  Reason: {analysis_freshness.reason}")`
+      (workflow.py:988-989), putting the same absolute path on stdout on
+      every blocked `implement` attempt. This mission's entire premise (per
+      the CHANGELOG entry and the ledger SK-63 motivation) is that a
+      contributor's local checkout path leaking `/home/<user>/...` onto a
+      public surface is itself the defect being fixed for the *committed
+      analysis-report.md file*; this new exception type reintroduces the same
+      leaked value through the console/CI-log surface instead, on precisely
+      the failure path NFR-002 was designed to make loud rather than silent.
+      Severity is capped at 2 because (a) the failure condition itself is
+      narrow (repo_root not containing feature_dir, or a symlink escaping the
+      governing root — an edge case, not the common path) and (b) the
+      codebase already has an established, unrelated precedent of embedding
+      absolute paths in error text elsewhere in this same file (e.g.
+      `write_analysis_report`'s pre-existing `f"Required artifact missing:
+      {required_path}"`), so this is consistent with existing practice rather
+      than a novel departure — but it is a genuine class-of-defect match to
+      the mission's own stated problem, on a code path this PR wrote.
+    remediation: >-
+      In `_relativize_or_raise`, build the exception message from a
+      leak-safe representation — e.g. `path.name` plus the artifact key, or a
+      best-effort `os.path.relpath` fallback (which does not require the
+      subpath relation `relative_to` demands) — rather than interpolating the
+      raw `path`/`governing_root` objects; or explicitly document in the
+      docstring/CHANGELOG that this failure path is exempted from the
+      committed-file leak guarantee and is expected to appear in local/CI
+      console output, so a future contributor doesn't assume the whole class
+      of "local path in an operator-visible surface" is closed by this
+      mission.

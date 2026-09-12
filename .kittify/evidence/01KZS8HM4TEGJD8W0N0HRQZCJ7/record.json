@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZS8HM4TEGJD8W0N0HRQZCJ7",
+  "completed_at": "2026-08-11T22:26:55.833905+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp05-authoritative-20-final.xml"
+}

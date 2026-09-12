@@ -9,6 +9,8 @@ Mission: charter-doctrine-mission-type-configuration-01KSWJVX
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -18,6 +20,25 @@ from specify_cli.cli.commands.doctrine import app
 runner = CliRunner()
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def _write_org_mission_type_yaml(
+    org_root: Path,
+    mission_type_id: str,
+    *,
+    action_sequence: list[str],
+) -> None:
+    """Write a minimal org-layer mission-type YAML (CL-005 flat layout)."""
+    mt_dir = org_root / "mission_types"
+    mt_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "schema_version: 1",
+        f"id: {mission_type_id}",
+        f"display_name: {mission_type_id.title()}",
+        "action_sequence:",
+        *(f"  - {step}" for step in action_sequence),
+    ]
+    (mt_dir / f"{mission_type_id}.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +107,7 @@ def test_mission_type_list_json_is_valid() -> None:
 
     # Output must be parseable JSON.
     try:
-        data = json.loads(result.output.strip())
+        data = json.loads(result.stdout.strip())
     except json.JSONDecodeError as exc:
         pytest.fail(f"JSON output is not valid JSON: {exc}\n\nOutput:\n{result.output}")
 
@@ -100,7 +121,7 @@ def test_mission_type_list_json_has_required_keys() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     assert isinstance(data, list)
 
     for item in data:
@@ -115,7 +136,7 @@ def test_mission_type_list_json_contains_built_in_software_dev() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     assert isinstance(data, list)
 
     sw_dev = next((item for item in data if item["id"] == "software-dev"), None)
@@ -130,7 +151,7 @@ def test_mission_type_list_json_all_built_in_types() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     ids = {item["id"] for item in data}
     expected = {"software-dev", "documentation", "research", "plan"}
     assert expected <= ids, (
@@ -167,9 +188,57 @@ def test_mission_type_list_json_source_layers_canonical() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     canonical_layers = {"built-in", "org", "project"}
     for item in data:
         assert item["source_layer"] in canonical_layers, (
             f"Non-canonical source_layer {item['source_layer']!r} in item {item!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# FR-008 (WP07/T018) -- doctrine mission-type list implements its own
+# already-documented built-in -> org -> project layering, instead of only
+# ever calling the built-in-only collector.
+# ---------------------------------------------------------------------------
+
+
+def test_mission_type_list_includes_registered_org_type_regardless_of_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-008: an org-layer type appears with its real layer even when it is
+    merely *registered* (not activated) -- a true all-layers roster listing,
+    not an activation-scoped one (this command's own docstring already
+    promises built-in -> org -> project layering; pre-fix, ``rows`` only
+    ever comes from ``_collect_built_in_mission_types()``, so an org-only id
+    is simply absent from the output, not mislabeled).
+    """
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
+
+    from charter.activation.pack_context import PackContext
+
+    org_root = tmp_path / "org-pack"
+    _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
+    pack_context = PackContext(
+        activated_kinds=frozenset(),
+        activated_mission_types=frozenset(),  # deliberately NOT activated
+        pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+        org_pack_names=("org-pack",),
+        repo_root=tmp_path,
+    )
+    monkeypatch.chdir(tmp_path)
+    MissionTypeRepository.cache_clear()
+    try:
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
+            result = runner.invoke(app, ["mission-type", "list", "--json"])
+    finally:
+        MissionTypeRepository.cache_clear()
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.stdout.strip())
+    ids = {item["id"] for item in data}
+    assert "qa" in ids, f"org-registered 'qa' missing from listing: {data!r}"
+    qa_row = next(item for item in data if item["id"] == "qa")
+    assert qa_row["source_layer"] == "org"
+    # Built-in types are still present -- listing is additive, not a swap.
+    assert {"software-dev", "documentation", "research", "plan"} <= ids

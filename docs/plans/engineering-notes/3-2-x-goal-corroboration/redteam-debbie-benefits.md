@@ -1,7 +1,7 @@
 ---
 title: 'RED TEAM — Debugger Debbie: Refuting the 3.2.x Benefit / ROI Claims'
 description: Debugger Debbie's red-team refutation (dialectic antithesis) of the 3.2.x benefit and ROI claims, read-only at 3.2.0.
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # RED TEAM — Debugger Debbie: Refuting the 3.2.x Benefit / ROI Claims

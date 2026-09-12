@@ -1,0 +1,15 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "gh pr view 3707 --json files confirms tests/charter/test_mission_type_profiles.py is in PR #3707's file list, contradicting spec.md's non-goals bullet claim that #3701/PR#3707 'touches a different package tier (doctrine/, not charter/ or specify_cli/)', while the sibling #3703/PR#3708 bullet does flag its shared-test-file overlap — a real, verified methodological inconsistency."
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "plan_activation (activation_engine.py:193) and commit_plan (:358, docstring lines 36-43 on no-filesystem-discovery confirmed verbatim) live in activation_engine.py, and the literal commit_plan call site is in pack_manager.py (CharterPackManager.activate, def at :572, call at :643 vs. finding's cited :641) — neither file is one of C-007's named two-file blast radius (activate.py, mission_type_profiles.py), so C-003's named call sites do contradict C-007 as claimed; only a trivial 2-line citation offset, not material to the claim."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "_write_org_pack_config(repo_root, *, packs, activated_mission_types) at tests/charter/test_mission_type_profiles.py:846 is confirmed, and all 8 call sites (905,927,975,1023,1053,1096,1139,1180) populate activated_mission_types alongside packs for the same type, and the project_root fixture in test_charter_activate_commands_core.py:40-55 pre-seeds mission_type_activations: [software-dev] exactly as claimed; spec.md's Edge Cases/SC-004 state the natural-path requirement only in general prose, never naming this helper or its parameter shape, so the gap is real and not already covered."

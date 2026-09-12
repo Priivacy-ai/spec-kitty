@@ -105,7 +105,9 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert report_dict["summary"]["missions_updated"] == 1
     result = report.missions[0]
     assert result.status == "updated"
-    assert result.quarantined_rows == 1
+    # The DecisionPoint mirror row plus the dropped duplicate-event_id row: both
+    # leave the log, so both must be quarantined rather than merely hashed.
+    assert result.quarantined_rows == 2
     meta = _read_json(mission / "meta.json")
     assert meta["mission_id"] == deterministic_ulid(
         json.dumps(
@@ -200,6 +202,148 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
             "row_count": 1,
         },
     )
+
+
+def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
+    tmp_path: Path,
+) -> None:
+    """#3066 (FR-015): the mutating repair MUST NOT quarantine a legacy
+    ``WPStatusChanged`` lane transition emitted by the mission's own writer
+    (top-level ``wp_id`` / ``from_lane`` / ``to_lane``).
+
+    Before the fix the repair quarantined that row and — because a preserved
+    retrospective row keeps the log non-empty, so the #2376 all-dropped backstop
+    never trips — *succeeded* while regenerating a **zero-WP** ``status.json``: a
+    silent, data-destroying repair. After the fix the typed lane row is passed
+    through, canonicalized to a flat lane event, and folded back into
+    ``status.json`` (the WP is retained). TeamSpace replay envelopes (lane
+    fields under ``payload``) and ``DecisionPoint*`` mirrors MUST stay
+    quarantined regardless.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-legacy-typed"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-legacy-typed",
+            "friendly_name": "Legacy Typed",
+            "mission": "software-dev",
+            "slug": "042-legacy-typed",
+            "target_branch": "main",
+        },
+    )
+    # The mission's own WPStatusChanged writer shape: event_type PLUS top-level
+    # wp_id/from_lane/to_lane. This is the canonical-writer row that #3066 ate.
+    legacy_typed_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "event_type": "WPStatusChanged",
+        "execution_mode": "worktree",
+        "from_lane": "in_progress",
+        "mission_slug": "042-legacy-typed",
+        "to_lane": "in_review",
+        "wp_id": "WP01",
+    }
+    # TeamSpace replay envelope: same event_type, but lane fields nested under
+    # payload (top level is aggregate_id/aggregate_type). MUST stay quarantined.
+    teamspace_envelope_row = {
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "WPStatusChanged",
+        "payload": {
+            "from_lane": "in_progress",
+            "to_lane": "in_review",
+            "wp_id": "WP01",
+        },
+    }
+    # Decision-Moment mirror: a different event_type. MUST stay quarantined.
+    decision_point_row = {
+        "at": "2026-01-01T00:00:02+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    # Preserved retrospective lifecycle row: keeps the canonical log non-empty so
+    # the #2376 all-dropped backstop does NOT trip and mask the real #3066 defect
+    # (a *successful* repair that silently regenerates a zero-WP status.json).
+    retrospective_row = {
+        "at": "2026-01-01T00:00:03+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGU",
+        "type": "RetrospectiveCaptured",
+        "payload": {"mission_slug": "042-legacy-typed"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(
+            json.dumps(row, sort_keys=True)
+            for row in (
+                legacy_typed_row,
+                teamspace_envelope_row,
+                decision_point_row,
+                retrospective_row,
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status == "updated"
+
+    # status.json RETAINS the WP — the zero-WP regeneration is the #3066 defect.
+    status = _read_json(mission / "status.json")
+    work_packages = cast(dict[str, object], status["work_packages"])
+    assert set(work_packages) == {"WP01"}
+    status_summary = cast(dict[str, object], status["summary"])
+    assert status_summary["in_review"] == 1
+
+    # The legacy typed lane row survived, canonicalized to a flat lane event; the
+    # preserved retrospective row is kept untouched.
+    rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    lane_rows = [row for row in rows if row.get("wp_id") == "WP01"]
+    assert len(lane_rows) == 1
+    canonical = lane_rows[0]
+    assert canonical["from_lane"] == "in_progress"
+    assert canonical["to_lane"] == "in_review"
+    # The typed discriminator is stripped by the _build_canonical_row allowlist.
+    assert "event_type" not in canonical
+    assert retrospective_row in rows
+
+    # Only the TeamSpace envelope and the DecisionPoint mirror stay quarantined;
+    # the canonical-writer WPStatusChanged shape does NOT.
+    assert result.quarantined_rows == 2
+    quarantine = (
+        repo
+        / ".kittify"
+        / "migrations"
+        / "mission-state"
+        / "quarantine"
+        / report.run_id
+        / "042-legacy-typed"
+        / "status.events.jsonl"
+    )
+    quarantine_rows = [
+        json.loads(line)
+        for line in quarantine.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
+    assert quarantined_event_ids == {
+        "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
+        "01KQHRB8GCFJAX7HM4ZY52AQGT",  # DecisionPointOpened mirror
+    }
+    assert "01KQHRB8GCFJAX7HM4ZY52AQGR" not in quarantined_event_ids
 
 
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
@@ -945,3 +1089,217 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
             assert ".." not in str(path.relative_to(repo)), (
                 f"Escaped path found: {path}"
             )
+
+
+def test_repair_preserves_review_result_on_in_review_transitions(tmp_path: Path) -> None:
+    """``review_result`` must survive the canonical rebuild (#3003 corpus regression).
+
+    ``review_result`` is a first-class ``StatusEvent`` field and a hard FSM guard
+    input: every transition out of ``in_review`` is rejected without it. Dropping
+    it during repair silently converts valid history into events the reducer can
+    no longer validate.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-reviewed"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Reviewed",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-reviewed",
+            "mission_type": "software-dev",
+            "slug": "001-reviewed",
+            "target_branch": "main",
+        },
+    )
+    review_result = {
+        "reference": "APPROVE: all criteria met",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved",
+    }
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "codex",
+                "at": "2026-01-01T00:00:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "in_review",
+                "mission_id": mission_id,
+                "mission_slug": "001-reviewed",
+                "policy_metadata": None,
+                "reason": None,
+                "review_ref": "APPROVE: all criteria met",
+                "review_result": review_result,
+                "evidence": None,
+                "to_lane": "approved",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    repair_repo(repo)
+
+    rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 1
+    assert rows[0].get("review_result") == review_result
+
+
+def test_canonical_row_allowlist_covers_every_status_event_field() -> None:
+    """``_build_canonical_row`` is a closed allowlist over ``StatusEvent``.
+
+    Any field added to the model but not to the allowlist is dropped silently,
+    with no error, no action string and no quarantine (#3003). This gate makes
+    that failure mode impossible to reintroduce unnoticed.
+    """
+    from dataclasses import fields
+
+    from specify_cli.migration.mission_state import _build_canonical_row
+    from specify_cli.status.models import StatusEvent
+
+    row = {
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "mission_slug": "001-x",
+        "wp_id": "WP01",
+        "from_lane": "in_review",
+        "to_lane": "approved",
+        "at": "2026-01-01T00:00:00+00:00",
+        "actor": "codex",
+        "force": False,
+        "execution_mode": "worktree",
+    }
+    canonical = _build_canonical_row(row, "01KQHRB8GCFJAX7HM4ZY52AQGR")
+
+    assert {f.name for f in fields(StatusEvent)} <= set(canonical)
+
+
+def test_repair_orders_lifecycle_rows_by_timestamp_not_to_the_top(tmp_path: Path) -> None:
+    """Rows carrying ``timestamp`` (not ``at``) must not be hoisted to the head.
+
+    Lifecycle rows use a ``timestamp`` envelope. Sorting solely on ``at`` maps
+    them all to ``""``, which reorders an append-only log (#3003).
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-ordered"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Ordered",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-ordered",
+            "mission_type": "software-dev",
+            "slug": "001-ordered",
+            "target_branch": "main",
+        },
+    )
+    lane_row = {
+        "actor": "codex",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "planned",
+        "mission_id": mission_id,
+        "mission_slug": "001-ordered",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
+    }
+    lifecycle_row = {
+        "aggregate_id": "001-ordered",
+        "aggregate_type": "Mission",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
+        "event_type": "WPCreated",
+        "payload": {"mission_slug": "001-ordered"},
+        "timestamp": "2026-06-01T00:00:00Z",
+    }
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(lane_row, sort_keys=True) + "\n" + json.dumps(lifecycle_row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    repair_repo(repo)
+
+    rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    # The lifecycle row is chronologically later; it must stay last.
+    assert [r.get("event_type", "lane") for r in rows] == ["lane", "WPCreated"]
+
+
+def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None:
+    """A dropped duplicate ``event_id`` row must be quarantined, not just hashed.
+
+    Divergent duplicates would otherwise be deleted from an append-only log with
+    only a sha256 left as evidence (#3003).
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-dup"
+    mission.mkdir(parents=True)
+    mission_id = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Dup",
+            "mission_id": mission_id,
+            "mission_number": 1,
+            "mission_slug": "001-dup",
+            "mission_type": "software-dev",
+            "slug": "001-dup",
+            "target_branch": "main",
+        },
+    )
+
+    def _row(reason: str) -> str:
+        return json.dumps(
+            {
+                "actor": "codex",
+                "at": "2026-01-01T00:00:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "planned",
+                "mission_id": mission_id,
+                "mission_slug": "001-dup",
+                "reason": reason,
+                "to_lane": "claimed",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+
+    # Second row shares the event_id but DIVERGES in payload.
+    (mission / "status.events.jsonl").write_text(
+        _row("original") + "\n" + _row("divergent") + "\n", encoding="utf-8"
+    )
+
+    repair_repo(repo)
+
+    rows = [
+        line
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 1
+
+    quarantined = list((repo / ".kittify" / "migrations" / "mission-state" / "quarantine").rglob("*"))
+    quarantined_text = "\n".join(p.read_text(encoding="utf-8") for p in quarantined if p.is_file())
+    assert "divergent" in quarantined_text

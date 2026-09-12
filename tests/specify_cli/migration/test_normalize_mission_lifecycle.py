@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -28,7 +27,7 @@ def _write_meta(
 ) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "created_at": created_at or datetime.now(UTC).isoformat(),
+        "created_at": created_at or now_utc_iso(),
         "friendly_name": feature_dir.name,
         "mission_number": mission_number,
         "mission_slug": feature_dir.name,
@@ -59,7 +58,7 @@ def _write_task(feature_dir: Path, *, lane: str = "in_progress") -> None:
 
 
 def _append_event(feature_dir: Path, *, lane: str = "claimed") -> None:
-    at = datetime.now(UTC).isoformat()
+    at = now_utc_iso()
     append_event(
         feature_dir,
         StatusEvent(
@@ -101,12 +100,8 @@ def test_normalize_repo_repairs_legacy_mission_and_is_idempotent(tmp_path: Path)
     _write_meta(feature_dir, mission_id=None, mission_number="041")
     _write_task(feature_dir, lane="for_review")
 
-    with patch(
-        "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-        return_value=None,
-    ):
-        first = normalize_repo(tmp_path, dry_run=False)
-        second = normalize_repo(tmp_path, dry_run=True)
+    first = normalize_repo(tmp_path, dry_run=False)
+    second = normalize_repo(tmp_path, dry_run=True)
 
     assert first[0].status == "normalized"
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
@@ -131,6 +126,31 @@ def test_normalize_repo_skips_missing_meta_with_warning(tmp_path: Path) -> None:
     assert "meta.json missing" in results[0].warnings[0]
 
 
+def test_normalize_repo_backfills_wp_mission_id_when_only_mission_id_was_missing(
+    tmp_path: Path,
+) -> None:
+    """Regression: a plain ``mission_id`` backfill (action == "wrote",
+    ``number_coerced`` False since ``mission_number`` is already an ``int``) must
+    still refresh ``meta`` from disk before ``_normalize_event_log`` reads it, or
+    the newly-minted ``mission_id`` never reaches ``backfill_wp_ids`` and WP
+    frontmatter is left without it.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "044-missing-id-only"
+    (tmp_path / ".kittify").mkdir()
+    _write_meta(feature_dir, mission_id=None, mission_number=44)
+    _write_task(feature_dir)
+
+    results = normalize_repo(tmp_path, dry_run=False)
+
+    assert results[0].status == "normalized"
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mission_id = meta["mission_id"]
+    assert mission_id
+
+    wp_frontmatter = (feature_dir / "tasks" / "WP01-test.md").read_text(encoding="utf-8")
+    assert mission_id in wp_frontmatter
+
+
 def test_normalize_repo_reports_identity_errors_per_mission(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "043-bad-number"
     (tmp_path / ".kittify").mkdir()
@@ -153,11 +173,7 @@ def test_normalize_repo_detects_already_current_repo_as_skipped(tmp_path: Path) 
     generate_progress_json(feature_dir, derived_dir)
     generate_lifecycle_json(feature_dir, derived_dir)
 
-    with patch(
-        "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-        return_value=None,
-    ):
-        results = normalize_repo(tmp_path, dry_run=True)
+    results = normalize_repo(tmp_path, dry_run=True)
 
     assert results[0].status == "skipped"
     assert results[0].lifecycle_state == "recently_completed"

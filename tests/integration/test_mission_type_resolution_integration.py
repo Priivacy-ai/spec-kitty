@@ -17,7 +17,7 @@ pins three acceptance criteria end-to-end:
   a checkable positive assertion rather than a vibe.
 
 WP03 wired the live action-grain union into ``bundle.governance`` itself
-(lazily, via :func:`charter.action_grain.aggregate_action_grain` — covering
+(lazily, via :func:`charter.activation.action_grain.aggregate_action_grain` — covering
 EVERY action the mission type ships). WP05 reconciled
 ``_resolve_union_from_mission`` onto that single source (C-002 / FR-006): it
 used to independently re-union ``load_action_index`` over the type's own
@@ -33,13 +33,14 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
 from charter.resolution import ResolutionTier
 from specify_cli.runtime.resolver import resolve_configured_template
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration]
 
@@ -157,6 +158,11 @@ def _stage_mission(repo_root: Path, mission_type: str) -> Path:
         json.dumps({"mission_type": mission_type, "mission_slug": mission_slug}),
         encoding="utf-8",
     )
+    # WP04 fail-closed follow-up: resolve_mission_type_context() validates
+    # against the project's activated mission types. This helper stages a
+    # bare tmp_path project with no `.kittify/config.yaml` at all (never ran
+    # `spec-kitty init`), so provision the same default charter surface here.
+    provision_test_charter(repo_root)
     return feature_dir
 
 
@@ -276,6 +282,7 @@ def test_software_development_mission_resolves_exact_configured_templates(
 
 def _assert_domain_mission_resolves_authored_templates(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     mission_type: str,
     expected_template_set: dict[str, str],
 ) -> None:
@@ -283,6 +290,7 @@ def _assert_domain_mission_resolves_authored_templates(
     stage a real mission of *mission_type*, resolve its bundle, and confirm
     every authored artifact_key/template_file pair resolves to a real,
     readable, package-default-tier template file."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
     feature_dir = _stage_mission(tmp_path, mission_type)
     bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
@@ -295,12 +303,15 @@ def _assert_domain_mission_resolves_authored_templates(
         assert result.path.read_bytes()
 
 
-def test_research_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_research_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (WP03, C-003/C-010): a real research mission resolves its
     authored ``spec``/``plan`` templates to the research-vocabulary files, at the
     package-default tier — the creatability proof for the ``research`` type."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "research",
         {
             "spec": "research-spec-template.md",
@@ -309,7 +320,9 @@ def test_research_mission_resolves_authored_templates(tmp_path: Path) -> None:
     )
 
 
-def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_documentation_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (mission-step-creatability-01KXQA6R WP02, reconciled by
     WP05, C-003/C-010): a real documentation mission resolves its authored
     ``spec``/``plan`` templates to the documentation-vocabulary files, at the
@@ -317,6 +330,7 @@ def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> No
     type, mirroring ``test_research_mission_resolves_authored_templates``."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "documentation",
         {
             "spec": "documentation-spec-template.md",
@@ -325,7 +339,9 @@ def test_documentation_mission_resolves_authored_templates(tmp_path: Path) -> No
     )
 
 
-def test_plan_mission_resolves_authored_templates(tmp_path: Path) -> None:
+def test_plan_mission_resolves_authored_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """S-C Concern B (mission-step-creatability-01KXQA6R WP04, reconciled by
     WP05, C-003/C-010): a real plan mission resolves its authored
     ``spec``/``plan`` templates to the plan-vocabulary files, at the
@@ -333,6 +349,7 @@ def test_plan_mission_resolves_authored_templates(tmp_path: Path) -> None:
     mirroring ``test_research_mission_resolves_authored_templates``."""
     _assert_domain_mission_resolves_authored_templates(
         tmp_path,
+        monkeypatch,
         "plan",
         {
             "spec": "plan-spec-skeleton.md",

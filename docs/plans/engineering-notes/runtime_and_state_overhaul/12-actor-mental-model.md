@@ -1,7 +1,7 @@
 ---
 title: '12 — Actor Mental Model: Self · Purpose · Environment'
 description: 'Actor mental model (abstraction level-up) for the runtime and state overhaul: stepping up from context plumbing to ask what an actor is across self, purpose, environment.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun.md
@@ -138,6 +138,7 @@ What each actor needs, where it comes from, and **how well spec-kitty provides i
 | **External System** | a *service identity* + auth scope | a *narrow contract* (sync this, track that, host the ref) | only the **data handed to it** through an Anti-Corruption Layer |
 
 ### The architectural punchline
+
 For a **human operator**, the three senses are mostly *self-supplied*. For an **LLM agent**, **all
 three senses are injected** — it has no independent perception; per ADR 2026-03-09-1 *"prompts do not
 discover context, commands do."*
@@ -173,6 +174,7 @@ exactly the `ActionContext` we resolved to harden. The mental model and the plum
   state** (though related — it may *project* relevant mission/WP state into what the actor perceives). The #1619 work.
 
 ### Relationship sentences
+
 1. The **Charter** selects **AgentProfiles** and provides **action-scoped governance**.
 2. A **MissionRun** assigns a step to an **Actor** via a **governed invocation** (profile × action ×
    governance-context), bounded by the **Charter**; the **Activity Ledger** records the pursuit as MissionRun state.

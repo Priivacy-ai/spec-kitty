@@ -61,8 +61,8 @@ def test_spec_commit_unprotected(tmp_path: Path) -> None:
     assert "committed" in result.output.lower() or "✓" in result.output
 
 
-def test_spec_commit_protected_materialises(tmp_path: Path) -> None:
-    """Protected primary → commit_for_mission called (materializes coord worktree)."""
+def test_spec_commit_protected_calls_commit_for_mission(tmp_path: Path) -> None:
+    """Protected primary → commit_for_mission called."""
     from specify_cli.coordination.commit_router import CommitRouterResult
     from specify_cli.git.protection_policy import ProtectionPolicy
 

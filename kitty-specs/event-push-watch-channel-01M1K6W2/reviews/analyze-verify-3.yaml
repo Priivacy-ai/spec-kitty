@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: analyze
+results:
+  - id: ANALYZE-FRESH2-001
+    status: resolved
+    reason: NFR-002 now attributes poll-interval ownership to the core's tail_events() poll_interval parameter (defaulting to DEFAULT_POLL_INTERVAL_SECONDS in tail_reader.py) and states the CLI shell has no poll-interval flag or loop of its own, mirroring FR-011/NFR-001's corrected framing while leaving the title, 100ms-1000ms bound, and rationale unchanged, and a fresh sweep of spec.md/plan.md/WP01/WP03/tracer-approach.md found no remaining poll/sleep/loop ownership mismatch.

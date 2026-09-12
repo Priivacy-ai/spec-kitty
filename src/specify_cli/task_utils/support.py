@@ -7,10 +7,12 @@ import re
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
+from kernel.clock import now_utc_stamp
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -24,14 +26,24 @@ if TYPE_CHECKING:
 
 LANES: tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): the format itself is now defined once
+# on the door (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT); this module keeps its
+# pre-existing local name via the import-as above so call sites are untouched.
+# FR-010 (WP11): this module's own ``now_utc()`` below is a stamp-string
+# producer with a different signature (``-> str``) than the door's
+# datetime-returning ``kernel.clock.now_utc()`` (``-> datetime``) -- same
+# name, distinct contract (C-003). Its body now delegates to the door's
+# ``now_utc_stamp()`` (defined as exactly ``DEFAULT_CLOCK.now().strftime(
+# UTC_SECOND_TIMESTAMP_FORMAT)``) rather than reading the wall clock directly,
+# so this module's pre-existing local name/signature stay untouched for
+# callers while the actual clock read routes through the door.
 
 
 class TaskCliError(RuntimeError):
     """Raised when task operations cannot be completed safely."""
 
 
-def find_repo_root(start: Path | None = None) -> Path:
+def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Path:
     """Find the MAIN repository root, even when inside a worktree.
 
     This function correctly handles git worktrees by detecting when .git is a
@@ -40,6 +52,14 @@ def find_repo_root(start: Path | None = None) -> Path:
 
     Args:
         start: Starting directory for search (defaults to cwd)
+        stop: Last directory examined by the walk-up. Production callers keep
+            the unbounded default (``None``), which walks all the way to the
+            filesystem root. Tests pass an explicit *stop* because nothing
+            above a test's own temp tree is under test control — on a shared
+            machine or under parallel test workers, a sibling test can leave
+            a stray ``.git``/``.kittify`` in a shared ancestor, which would
+            otherwise flip this walk's verdict non-deterministically (same
+            class of bug as #130/#139's ``_find_project_root``).
 
     Returns:
         Path to the main repository root
@@ -48,24 +68,26 @@ def find_repo_root(start: Path | None = None) -> Path:
         TaskCliError: If repository root cannot be found
     """
     current = (start or Path.cwd()).resolve()
+    boundary = stop.resolve() if stop is not None else None
 
-    detected_root = locate_project_root(current)
+    detected_root = locate_project_root(current, stop=stop)
     if detected_root is not None:
-        # cast: follow_imports=skip erases get_main_repo_root's -> Path signature
-        # at this specify_cli.* boundary; type-only, no behaviour change.
-        return cast(Path, get_main_repo_root(detected_root))
+        return get_main_repo_root(detected_root)
 
     # Fallback: support plain git repositories that do not contain .kittify yet.
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
-        if git_path.is_dir():
-            return cast(Path, get_main_repo_root(candidate))
+        if git_path.is_dir() and (git_path / "HEAD").is_file():
+            return get_main_repo_root(candidate)
 
         if git_path.is_file():
-            resolved = cast(Path, get_main_repo_root(candidate))
+            resolved = get_main_repo_root(candidate)
             if resolved != candidate:
                 return resolved
+
+        if boundary is not None and candidate == boundary:
+            break
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
@@ -106,7 +128,7 @@ def ensure_lane(value: str) -> str:
 
 
 def now_utc() -> str:
-    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    return now_utc_stamp()
 
 
 def git_status_lines(repo_root: Path) -> list[str]:
@@ -175,24 +197,34 @@ def delete_scalar(frontmatter: str, key: str) -> str:
 
 
 def set_scalar(frontmatter: str, key: str, value: str) -> str:
-    """Replace or insert a scalar value while preserving trailing comments."""
+    """Replace an EXISTING scalar value while preserving trailing comments.
+
+    FR-006 (mission upgrade-atomicity-recovery, WP08): the append-on-miss
+    branch is RETIRED. This writer once appended ``key: value`` inline when the
+    key was absent -- the latent mechanism behind the #3372 duplicate
+    ``review_feedback`` key (invalid-YAML dual-write). The symbol is retained
+    because ``task_utils/__init__.py`` and ``cli/commands/agent/workflow.py``
+    re-export it, but it now FAILS CLOSED on a miss: an absent key raises
+    :class:`TaskCliError` rather than materialising a new inline key, so no path
+    can re-introduce the dual-key. The canonical review path stores a
+    ``review-cycle://`` pointer on the event log, never an inline frontmatter
+    key.
+
+    Raises:
+        TaskCliError: When *key* is not already present in *frontmatter*
+            (the retired append-on-miss path).
+    """
     match = match_frontmatter_line(frontmatter, key)
-    replacement_line = f'{key}: "{value}"'
-    if match:
-        prefix = match.group(1)
-        comment = match.group(3)
-        comment_suffix = f"{comment}" if comment else ""
-        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
-
-    insertion = f"{replacement_line}\n"
-    history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
-    if history_match:
-        idx = history_match.start()
-        return frontmatter[:idx] + insertion + frontmatter[idx:]
-
-    if frontmatter and not frontmatter.endswith("\n"):
-        frontmatter += "\n"
-    return frontmatter + insertion
+    if match is None:
+        raise TaskCliError(
+            f"set_scalar refuses to append a new inline '{key}' frontmatter key "
+            f"(FR-006: the append-on-miss writer is retired to prevent the #3372 "
+            f"duplicate-key regression). It may only update an existing key."
+        )
+    prefix = match.group(1)
+    comment = match.group(3)
+    comment_suffix = f"{comment}" if comment else ""
+    return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
 
 
 def split_frontmatter(text: str) -> tuple[str, str, str]:
@@ -528,29 +560,39 @@ class WorkPackage:
         return str(view.resolved.lane)
 
 
-def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
+def locate_work_package(
+    repo_root: Path, feature: str, wp_id: str, *, effective_root: Path | None = None,
+) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
-    Always uses main repo's kitty-specs/ regardless of current directory.
-    Main branch is authoritative for planning artifacts.
+    Uses the canonical planning partition unless an owned effective_root is
+    supplied. Explicit placement keeps both documents and status in that checkout.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    from mission_runtime import MissionArtifactKind
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.coordination import resolve_status_surface
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
     from specify_cli.status import reconstruct_wp_view
 
     # Always use main repo's kitty-specs - it's the source of truth.
     # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to the
     # primary checkout under coord topology (coord husk carries STATUS only).
+    # read-side-placement-seam-migration WP07: routed through
+    # ``placement_seam`` (fail-loud on a deleted-coord mismatch, NFR-002)
+    # instead of the kind-blind ``resolve_planning_read_dir``.
     main_root = get_main_repo_root(repo_root)
-    feature_path = resolve_planning_read_dir(
-        main_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    placement = placement_seam(
+        main_root, feature, **effective_root_kwargs(effective_root),
     )
-    status_dir = resolve_status_surface(main_root, feature).parent
+    feature_path = placement.read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    status_dir = (
+        placement.read_dir(MissionArtifactKind.STATUS_STATE)
+        if effective_root is not None else resolve_status_surface(main_root, feature).parent
+    )
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

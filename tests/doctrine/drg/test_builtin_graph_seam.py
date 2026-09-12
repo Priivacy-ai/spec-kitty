@@ -2,7 +2,7 @@
 
 ``load_built_in_graph`` / ``built_in_graph_source`` are the single accessor
 every source reader of the shipped DRG must route through. Routing every reader
-to the *directory* is what let WP05 delete the ``src/doctrine/graph.yaml``
+to the *directory* is what let WP05 delete the ``src/charter/offering/graph.yaml``
 monolith and flip all consumers to ``*.graph.yaml`` fragments with no
 call-site edits — this test locks in the post-flip sharded layout.
 """
@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 
 def test_source_points_at_doctrine_root_directory() -> None:
@@ -28,7 +28,9 @@ def test_source_points_at_doctrine_root_directory() -> None:
     source = built_in_graph_source()
 
     assert source.is_dir()
-    assert source.name == "doctrine"
+    # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+    # the seam now yields the ``packs/built-in/`` pack directory, not ``src/doctrine``.
+    assert source.name == "built-in"
     # Post-flip sharded layout (WP05): the monolith is retired; the built-in DRG
     # ships as per-kind ``*.graph.yaml`` fragments the seam merges on load.
     assert not (source / "graph.yaml").exists()

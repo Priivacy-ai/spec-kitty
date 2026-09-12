@@ -6,7 +6,7 @@ JSON round-trips, and response model construction.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from kernel.clock import UTC, datetime
 
 import pytest
 from pydantic import ValidationError

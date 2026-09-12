@@ -1,4 +1,4 @@
-"""Tests for the DDR-011 scoring helpers in doctrine.agent_profiles.repository.
+"""Tests for the DDR-011 scoring helpers in charter.offering.agent_profiles.repository.
 
 These tests target the pure scoring functions directly so that mutations on
 return values (1.0 vs 0.0), threshold comparisons (≤ vs <), and weight
@@ -12,8 +12,8 @@ Patterns applied:
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile, Role, SpecializationContext, TaskContext
-from doctrine.agent_profiles.repository import (
+from charter.offering.agent_profiles.profile import AgentProfile, Role, SpecializationContext, TaskContext
+from charter.offering.agent_profiles.repository import (
     _complexity_adjustment,
     _exact_id_signal,
     _file_pattern_signal,

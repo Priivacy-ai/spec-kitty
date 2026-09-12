@@ -93,31 +93,25 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     """Return the PRIMARY-checkout mission feature dir for identity/meta reads.
 
     Mission identity (``mission_id``, ``coordination_branch``, stored topology)
-    is persisted ONLY on the primary checkout's ``meta.json``. Under coordination
-    topology the topology-aware resolver (``candidate_feature_dir_for_mission``)
-    returns the coordination worktree once it is materialized — whose mission dir
-    has NO ``meta.json`` — so reading identity there found nothing and fell back
-    to the bare slug, yielding an empty ``mid8`` and a malformed
-    ``kitty/mission-<slug>-`` coord branch (#2091). Anchor on the topology-BLIND
-    :func:`primary_feature_dir_for_mission`, mirroring
-    :func:`_mission_routes_through_coordination` (``runtime_bridge.py``) and the
-    canonical precedent in ``core/paths.py`` (the same bug-class fixed for the
-    merge target): the coord-aware resolver fail-closes for a
-    materialized-but-empty coord worktree, so it must not gate primary-anchored
-    identity reads.
+    is persisted ONLY on the primary checkout's ``meta.json``. A KIND-BLIND
+    resolver (``candidate_feature_dir_for_mission``) genuinely CAN return the
+    coordination worktree once it is materialized under coordination topology
+    — whose mission dir has NO ``meta.json`` — so reading identity there found
+    nothing and fell back to the bare slug, yielding an empty ``mid8`` and a
+    malformed ``kitty/mission-<slug>-`` coord branch (#2091). Anchor on the
+    topology-BLIND ``PRIMARY_METADATA`` leg of the kind-aware placement seam,
+    mirroring :func:`_mission_routes_through_coordination` (``runtime_bridge.py``)
+    and the canonical precedent in ``core/paths.py`` (the same bug-class fixed
+    for the merge target): the kind-aware seam CANNOT land on a
+    materialized-but-empty coord worktree here — for a PRIMARY-partition kind
+    the decision layer short-circuits to the primary anchor for every topology
+    and coord state, before any coord probe (read-side-seam-primary-primitive-
+    closure-01KYKMMT WP07, T032 — FR-004/FR-015).
     """
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
+    from mission_runtime import MissionArtifactKind, placement_seam
 
-    # WP05/FR-005: route through _canonicalize_primary_read_handle. The local
-    # annotation re-narrows the specify_cli.* import from Any back to Path --
-    # the project's follow_imports = "skip" mypy override for specify_cli.*
-    # (pyproject.toml) means a cross-package call is otherwise seen as Any.
-    result: Path = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    result: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     return result
 

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 import contextlib
 import logging
 import os
-from datetime import UTC, datetime
+from kernel.clock import UTC, parse_iso
 from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -14,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from specify_cli.status.wp_view import WPView
 
-from specify_cli.dashboard.charter_path import resolve_project_charter_path
+from specify_cli.dashboard.charter_path import resolve_project_charter_presence
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
@@ -192,7 +193,7 @@ def _parse_created_at(value: object) -> float | None:
         raw = f"{raw[:-1]}+00:00"
 
     try:
-        parsed = datetime.fromisoformat(raw)
+        parsed = parse_iso(raw)
     except ValueError:
         return None
 
@@ -211,8 +212,65 @@ def _coerce_sort_mission_number(value: object) -> int | None:
     return None
 
 
-def _feature_recency_sort_key(feature: dict[str, Any]) -> tuple[bool, float, bool, str, bool, int, str]:
-    """Sort dashboard selector rows newest-first with deterministic legacy fallbacks."""
+# Higher priority = sorted first (list uses reverse=True).
+_MISSION_STATUS_PRIORITY: dict[str, int] = {"active": 3, "planned": 2, "done": 1, "draft": 0}
+
+
+def _derive_mission_status(kanban_stats: dict[str, Any], meta_data: dict[str, Any] | None = None) -> str:
+    """Derive mission lifecycle status from WP lane counts and lifecycle markers.
+
+    Returns one of ``"active"``, ``"planned"``, ``"done"``, or ``"draft"``.
+
+    - ``"active"``  — WPs in flight, OR all WPs terminal but mission not yet accepted
+    - ``"planned"`` — no WP is active and planned work remains
+    - ``"done"``    — all WPs terminal AND ``accepted_at`` is set in meta.json
+    - ``"draft"``   — no WPs yet, or the event log is unreadable
+    """
+    if kanban_stats.get("error") or not kanban_stats.get("total", 0):
+        return "draft"
+    if kanban_stats.get("doing", 0) or kanban_stats.get("for_review", 0) or kanban_stats.get("approved", 0):
+        return "active"
+    if kanban_stats.get("planned", 0):
+        return "planned"
+    # All WPs terminal — only "done" once the operator has accepted the mission
+    if meta_data and not meta_data.get("accepted_at"):
+        return "active"
+    return "done"
+
+
+def _derive_next_action(meta_data: dict[str, Any], kanban_stats: dict[str, Any]) -> str | None:
+    """Derive the next operator action from mission lifecycle markers in meta.json.
+
+    spec-kitty merge writes ``baseline_merge_commit``; spec-kitty accept writes
+    ``accepted_at``.  Together they let the dashboard surface what's still needed
+    without calling the decision engine.
+    """
+    if not isinstance(meta_data, dict):
+        return None
+    if meta_data.get("accepted_at"):
+        return None
+    slug = meta_data.get("mission_slug") or meta_data.get("slug")
+    if not isinstance(slug, str):
+        return None
+    try:
+        slug = assert_safe_path_segment(slug)
+    except ValueError:
+        return None
+    if meta_data.get("baseline_merge_commit"):
+        return f"Run /spec-kitty.review, then: spec-kitty accept --mission {slug}"
+    if not kanban_stats.get("error") and kanban_stats.get("total", 0) > 0:
+        in_flight = kanban_stats.get("doing", 0) + kanban_stats.get("for_review", 0) + kanban_stats.get("approved", 0) + kanban_stats.get("planned", 0)
+        if in_flight == 0 and kanban_stats.get("done", 0) > 0:
+            return f"Run: spec-kitty merge --mission {slug}"
+    return None
+
+
+def _feature_recency_sort_key(feature: dict[str, Any]) -> tuple[int, bool, float, bool, str, bool, int, str]:
+    """Sort selector rows: active first, then planned, then done/draft; newest-first within each bucket."""
+    status = feature.get("mission_status", "draft")
+    status_priority = _MISSION_STATUS_PRIORITY.get(status, 0)
+
+
     meta = feature.get("meta")
     if not isinstance(meta, dict):
         meta = {}
@@ -223,6 +281,7 @@ def _feature_recency_sort_key(feature: dict[str, Any]) -> tuple[bool, float, boo
     mission_number = _coerce_sort_mission_number(meta.get("mission_number"))
 
     return (
+        status_priority,
         created_at is not None,
         created_at if created_at is not None else float("-inf"),
         bool(mission_id_key),
@@ -264,9 +323,20 @@ def get_feature_artifacts(
 
     Charter status is project-level. If project_dir is omitted, we fall back
     to feature_dir.parent.parent for compatibility with older call sites.
+
+    FR-003 (#3150): the "charter" artifact's presence/mtime/size signal is
+    keyed on ``resolve_project_charter_presence``, which prefers
+    ``charter.yaml`` (the C-001 resolving authority) so the dashboard's "no
+    charter" UI signal survives ``charter.md`` deletion, and falls back to
+    ``charter.md`` when ``charter.yaml`` has not been compiled yet -- so a
+    ``charter.md``-only project that never ran ``charter sync``/compile still
+    reports a charter (landing-fold fix; do not narrow this back to a
+    yaml-only signal). This is a presence probe only -- the prose body itself
+    is served elsewhere (``dashboard/handlers/api.py`` ``handle_charter``) via
+    the md-keyed ``resolve_project_charter_path``.
     """
     project_root = project_dir if project_dir is not None else feature_dir.parent.parent
-    charter_path = resolve_project_charter_path(project_root)
+    charter_path = resolve_project_charter_presence(project_root)
 
     charter_info = _get_artifact_info(charter_path) if charter_path is not None else {"exists": False, "mtime": None, "size": None}
 
@@ -855,6 +925,8 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                 "artifacts": artifacts,
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
+                "mission_status": _derive_mission_status(kanban_stats, meta_data),
+                "next_action": _derive_next_action(meta_data or {}, kanban_stats),
                 "meta": meta_data or {},
                 "worktree": worktree,
             }

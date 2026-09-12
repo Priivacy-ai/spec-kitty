@@ -26,6 +26,14 @@ enforcement (FR-009, contracts/C-GUARD-1, NFR-004):
 
 Spec source: FR-009, NFR-004, contracts/C-GUARD-1; ticket #1355; ADR
 ``docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md``.
+
+coord-write-placement-closure-01KYCF83 WP06 (T028 / FR-001) adds a fourth
+guarantee: every ``target=CommitTarget(...)`` (or ``CommitTarget(ref=...)``
+built standalone) construction, anywhere in ``src/``, is seam-derived. This
+file reuses the SAME whole-tree scanner and AST grammar
+``test_no_write_side_rederivation.py`` defines (never a second, divergent
+implementation) so the C-GUARD-1 import-boundary perspective and the
+placement-enforcement gate agree on one detector.
 """
 
 from __future__ import annotations
@@ -34,6 +42,14 @@ import ast
 from pathlib import Path
 
 import pytest
+
+from tests.architectural._placement_whole_tree_scan import is_sanctioned
+from tests.architectural._placement_whole_tree_scan import iter_src_modules as _iter_placement_modules
+from tests.architectural._placement_whole_tree_scan import rel_path as _placement_rel_path
+from tests.architectural.test_no_write_side_rederivation import (
+    _CHECKOUT_GRAMMAR_ALLOW_LIST,
+    _scan_checkout_grammar,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -51,6 +67,7 @@ _SRC_ROOT = _REPO_ROOT / "src"
 # surface is locked down to the blessed set below.
 _COMMIT_GUARD_MODULE = "specify_cli.core.commit_guard"
 _DECISION_SYMBOL = "evaluate"
+_SAFE_COMMIT_MODULE = "specify_cli.git.commit_helpers"
 _BLESSED_EVALUATE_IMPORTERS: frozenset[str] = frozenset(
     {
         # The C-GUARD-1 facade: runs evaluate on every safe_commit() path.
@@ -106,43 +123,186 @@ def _rel(path: Path) -> str:
     return path.relative_to(_REPO_ROOT).as_posix()
 
 
-def _module_imports_evaluate(path: Path) -> bool:
-    """True iff ``path`` imports ``evaluate`` from ``core.commit_guard``.
+def _dotted_name(node: ast.expr) -> str | None:
+    parts: list[str] = []
+    current: ast.expr = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
 
-    Catches both ``from ... import evaluate`` and the
-    ``from ... import evaluate as evaluate_commit_guard`` alias form.
-    """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+def _source_imports_or_calls_evaluate(source: str) -> bool:
+    """Detect direct and module-aliased access to commit-guard ``evaluate``."""
+    tree = ast.parse(source)
+    module_aliases: set[str] = set()
+    decision_aliases: set[str] = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom):
+        if isinstance(node, ast.ImportFrom):
+            if node.module == _COMMIT_GUARD_MODULE:
+                decision_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name in {_DECISION_SYMBOL, "*"}
+                )
+            elif node.module == "specify_cli.core":
+                module_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "commit_guard"
+                )
+        elif isinstance(node, ast.Import):
+            module_aliases.update(
+                alias.asname
+                for alias in node.names
+                if alias.name == _COMMIT_GUARD_MODULE and alias.asname
+            )
+    if decision_aliases:
+        return True
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
             continue
-        if node.module != _COMMIT_GUARD_MODULE:
+        dotted = _dotted_name(node)
+        if dotted is None:
             continue
-        for alias in node.names:
-            if alias.name == _DECISION_SYMBOL:
-                return True
+        if dotted == f"{_COMMIT_GUARD_MODULE}.{_DECISION_SYMBOL}":
+            return True
+        prefix, _, symbol = dotted.rpartition(".")
+        if symbol == _DECISION_SYMBOL and prefix in module_aliases:
+            return True
+    return False
+
+
+def _module_imports_evaluate(path: Path) -> bool:
+    return _source_imports_or_calls_evaluate(path.read_text(encoding="utf-8"))
+
+
+def _safe_commit_import_aliases(tree: ast.Module) -> tuple[set[str], set[str]]:
+    module_aliases: set[str] = set()
+    safe_commit_aliases: set[str] = {"safe_commit"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module == _SAFE_COMMIT_MODULE:
+                safe_commit_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "safe_commit"
+                )
+            elif node.module == "specify_cli.git":
+                module_aliases.update(
+                    alias.asname or alias.name
+                    for alias in node.names
+                    if alias.name == "commit_helpers"
+                )
+        elif isinstance(node, ast.Import):
+            module_aliases.update(
+                alias.asname
+                for alias in node.names
+                if alias.name == _SAFE_COMMIT_MODULE and alias.asname
+            )
+    return module_aliases, safe_commit_aliases
+
+
+def _is_safe_commit_ref(
+    expr: ast.expr, module_aliases: set[str], safe_commit_aliases: set[str]
+) -> bool:
+    dotted = _dotted_name(expr)
+    if dotted in safe_commit_aliases:
+        return True
+    if dotted == f"{_SAFE_COMMIT_MODULE}.safe_commit":
+        return True
+    if dotted is None:
+        return False
+    prefix, _, symbol = dotted.rpartition(".")
+    return symbol == "safe_commit" and prefix in module_aliases
+
+
+def _propagate_safe_commit_rebindings(
+    tree: ast.Module, module_aliases: set[str], safe_commit_aliases: set[str]
+) -> None:
+    def is_ref(expr: ast.expr) -> bool:
+        return _is_safe_commit_ref(expr, module_aliases, safe_commit_aliases)
+
+    while True:
+        rebound: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and is_ref(node.value):
+                rebound.update(
+                    target.id for target in node.targets if isinstance(target, ast.Name)
+                )
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.value is not None
+                and is_ref(node.value)
+            ):
+                rebound.add(node.target.id)
+        rebound -= safe_commit_aliases
+        if not rebound:
+            break
+        safe_commit_aliases |= rebound
+
+
+def _source_calls_safe_commit_destination_ref(source: str) -> bool:
+    """Detect direct, module-aliased, and rebound legacy ``safe_commit`` calls."""
+    tree = ast.parse(source)
+    module_aliases, safe_commit_aliases = _safe_commit_import_aliases(tree)
+    _propagate_safe_commit_rebindings(tree, module_aliases, safe_commit_aliases)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not any(kw.arg == "destination_ref" for kw in node.keywords):
+            continue
+        if _is_safe_commit_ref(node.func, module_aliases, safe_commit_aliases):
+            return True
     return False
 
 
 def _safe_commit_destination_ref_call_sites(path: Path) -> bool:
     """True iff ``path`` calls ``safe_commit(..., destination_ref=...)``.
 
-    Only direct ``safe_commit`` calls are inspected; calls to other functions
-    that happen to take a ``destination_ref`` keyword (e.g.
-    ``BookkeepingTransaction.acquire``) are deliberately ignored.
+    Direct imports, aliases, and module-qualified calls are inspected; other
+    functions that take ``destination_ref`` remain out of scope.
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if (
-            isinstance(func, ast.Name)
-            and func.id == "safe_commit"
-            and any(kw.arg == "destination_ref" for kw in node.keywords)
-        ):
-            return True
-    return False
+    return _source_calls_safe_commit_destination_ref(path.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from specify_cli.core.commit_guard import evaluate as decide\ndecide(None)",
+        "import specify_cli.core.commit_guard as guard\nguard.evaluate(None)",
+        "from specify_cli.core import commit_guard as guard\nguard.evaluate(None)",
+        "import specify_cli.core.commit_guard\nspecify_cli.core.commit_guard.evaluate(None)",
+        "import specify_cli.core.commit_guard as guard\n"
+        "decide = guard.evaluate\ndecide(None)",
+    ],
+)
+def test_evaluate_scanner_rejects_every_supported_import_shape(source: str) -> None:
+    assert _source_imports_or_calls_evaluate(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import specify_cli.git.commit_helpers as commits\n"
+        "commits.safe_commit(repo, destination_ref='main')",
+        "from specify_cli.git import commit_helpers as commits\n"
+        "commits.safe_commit(repo, destination_ref='main')",
+        "from specify_cli.git.commit_helpers import safe_commit as commit\n"
+        "commit(repo, destination_ref='main')",
+        "import specify_cli.git.commit_helpers as commits\n"
+        "commit = commits.safe_commit\ncommit(repo, destination_ref='main')",
+        "from specify_cli.git.commit_helpers import safe_commit as commit\n"
+        "rebound = commit\nrebound(repo, destination_ref='main')",
+    ],
+)
+def test_safe_commit_scanner_rejects_attribute_and_alias_forms(source: str) -> None:
+    assert _source_calls_safe_commit_destination_ref(source)
 
 
 def test_evaluate_has_exactly_the_blessed_importers() -> None:
@@ -224,4 +384,39 @@ def test_safe_commit_destination_ref_shim_is_allowlisted() -> None:
         f"{sorted(stale)}. Remove them from "
         "_ALLOWLISTED_DESTINATION_REF_SAFE_COMMIT_SITES — the shim is one "
         "caller closer to deletion."
+    )
+
+
+def test_safe_commit_target_argument_is_seam_derived() -> None:
+    """WP06 / T028 / FR-001: every ``target=CommitTarget(...)`` construction is
+    seam-derived, not checkout-derived.
+
+    Reuses the SHARED whole-tree scanner (``_placement_whole_tree_scan``) and
+    the shared AST grammar (``test_no_write_side_rederivation._scan_checkout_grammar``
+    + its ``_CHECKOUT_GRAMMAR_ALLOW_LIST``) — this is a companion assertion
+    from the C-GUARD-1 import-boundary file's perspective, not a second,
+    divergent detector. A ``CommitTarget(...)``/``safe_commit(...,
+    destination_ref=...)`` construction that is neither seam-derived nor
+    allow-listed is exactly the split-brain root C-GUARD-1 and the placement
+    seam both exist to close.
+    """
+    offenders: list[str] = []
+    for module in _iter_placement_modules():
+        rel = _placement_rel_path(module)
+        if is_sanctioned(rel):
+            continue
+        source = module.read_text(encoding="utf-8")
+        for finding in _scan_checkout_grammar(source, module):
+            if finding.as_allow_key() in _CHECKOUT_GRAMMAR_ALLOW_LIST:
+                continue
+            offenders.append(
+                f"{rel}:{finding.lineno} {finding.callee}(...) constructs a ref "
+                "from a non-seam-derived expression — route it through "
+                "placement_seam(...).write_target(kind) or allow-list it in "
+                "test_no_write_side_rederivation.py with a tracked rationale"
+            )
+
+    assert not offenders, (
+        "safe_commit(target=CommitTarget(...)) construction not seam-derived "
+        "(WP06 / T028 / FR-001). Offenders:\n" + "\n".join(offenders)
     )

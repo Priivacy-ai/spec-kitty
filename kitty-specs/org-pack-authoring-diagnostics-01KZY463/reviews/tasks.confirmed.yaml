@@ -1,0 +1,183 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-DECOMP-001
+    lens: one-PR-shape honesty
+    severity: 2
+    title: "WP01's PR Shape note miscounts the aggregate diff's helper functions and touched files"
+    evidence:
+      - artifact: "WP01 § PR Shape (mission-level note)"
+      - artifact: "WP02 § Subtask T006 (Implementation — widen `_scan_files`'s recursion condition)"
+      - artifact: "WP03 § Subtask T010 (Implementation — `_check_profile_skipped_diagnostics` + call site)"
+      - artifact: "WP04 § Subtask T018 (Implementation — the helper, the signature change, and both call sites)"
+      - artifact: "wps.yaml § owned_files (all four WPs)"
+    claim: >
+      WP01's "PR Shape" note asserts the aggregate diff is "three narrow,
+      independently-reasoned validator diagnostics — each a small new helper function plus
+      one call site" and that "total touched-file count is eight non-test files across
+      four WPs." Neither figure matches what WP02/WP03/WP04 actually specify. FR-003
+      (WP02/T006) adds no new helper function and no new call site at all — it is a
+      one-clause condition widening inside the pre-existing `_scan_files` helper. Only
+      FR-002 and FR-004 add a new helper plus call site — two, not three. The union of all
+      `owned_files` across all four WPs is 9 files total: 5 non-test, 4 test — not "eight
+      non-test files." plan.md's own file-by-file "Source Code" breakdown likewise lists
+      5 non-test files, not 8. Because the actual footprint is smaller and simpler than
+      claimed, this does not overturn the one-PR recommendation — if anything it
+      strengthens it — but the note's arithmetic doesn't survive a cross-check.
+    remediation: >
+      Correct WP01's PR Shape note: state that FR-003 is a one-clause condition widening
+      inside an existing helper with no new function/call site, that only FR-002 and FR-004
+      add a new helper each (two total), and that the touched-file count is 5 non-test files
+      / 9 files total including tests. The corrected numbers support the same "one PR, as
+      planned" conclusion — only the arithmetic changes.
+
+  - id: TASKS-DECOMP-002
+    lens: concrete enough to implement without re-deriving the plan
+    severity: 2
+    title: "WP03 and WP04 drop the explicit ruff/mypy quality-gate item WP02's Definition of Done carries, and neither operationalizes plan.md's Complexity Tracking follow-up check"
+    evidence:
+      - artifact: "WP02 § Definition of Done"
+      - artifact: "WP03 § Subtask T010 Validation (present) vs. WP03 § Definition of Done (absent)"
+      - artifact: "WP04 § Subtask T018 Validation (absent) and WP04 § Definition of Done (absent)"
+      - artifact: "plan.md § Complexity Tracking (plan.md:718-727)"
+    claim: >
+      WP02's Definition of Done explicitly requires ruff + mypy --strict with zero new
+      suppressions on the touched file. WP03 states the same requirement only at the
+      subtask-Validation level, not in its top-level Definition of Done. WP04 has no
+      ruff/mypy mention anywhere despite calling itself the mission's highest-surface-area
+      WP. plan.md's Complexity Tracking section anticipates re-measuring `validate_pack()`'s
+      complexity once the two new helper calls are wired in and recording the result
+      retroactively if it moves materially closer to the ceiling — no WP after WP02
+      operationalizes that commitment.
+    remediation: >
+      Add the same ruff/mypy zero-new-suppressions line to WP03's and WP04's top-level
+      Definition of Done checklists, and add a step to WP04's T018 validation instructing
+      the implementer to re-measure `validate_pack()`'s complexity and, if it has moved
+      materially closer to the ceiling, record that in plan.md's Complexity Tracking section.
+
+  - id: TASKS-DECOMP-003
+    lens: concrete enough to implement without re-deriving the plan
+    severity: 1
+    title: "WP04's cited anchor line numbers for the DRG-validation call site will have drifted by the time WP04 lands"
+    evidence:
+      - artifact: "WP04 § Subtask T018 step 3"
+      - code: "src/specify_cli/doctrine/pack_validator.py:387-392"
+    claim: >
+      WP04/T018 step 3 cites `:389-392` for the existing `_validate_drg` call — accurate
+      against `main`'s current tip, but WP03 lands first in the same lane and inserts its
+      own call site immediately above that location, shifting it before WP04 implements.
+      The prose anchor ("immediately after the existing `_validate_drg` call") is
+      self-correcting, so this does not risk a wrong edit, but the absolute line citation
+      will be stale when actually used.
+    remediation: >
+      Drop the absolute line numbers from WP04/T018 step 3 and rely on the already-present
+      structural anchor, or note explicitly that `:389-392` is a `main`-tip reference taken
+      before WP02/WP03 land and will have shifted by WP04's implementation time.
+
+  - id: TASKS-SEQ-001
+    lens: write-scope-vs-open-prs
+    severity: 3
+    title: "plan.md/WP04's open-PR write-scope check is stale: understates PR #2719's overlap and omits 7 CHANGELOG.md overlaps"
+    evidence:
+      - artifact: "plan.md § Chokepoint, 'Open-PR write-scope check' subsection (lines ~593-612)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Risks, 'Open-PR collision — doctrine.py' bullet (lines ~434-449)"
+      - code: "gh pr list --state open --json number,title,files (run 2026-08-14) — PR #2719 also touches tests/cli/test_doctrine_org_commands.py (+206/-0)"
+      - code: "same gh pr list output — docs/changelog/CHANGELOG.md touched by PRs #3383, #3379, #3378, #3332, #3293, #2890, #2492, #2239 (all additive), none enumerated"
+    claim: >
+      plan.md's "re-verified directly (2026-08-14)" open-PR check and WP04's Risks section
+      both understate the real overlap. PR #2719 also touches
+      tests/cli/test_doctrine_org_commands.py (+206 lines) — a WP04-owned file that WP04's
+      own AC-7(a)/AC-7(b) subtasks add new tests to — a materially different, higher-risk
+      overlap than the doctrine.py call-site edit that is discussed. Separately,
+      docs/changelog/CHANGELOG.md (also WP04-owned) is concurrently touched by eight other
+      open PRs, none enumerated. The core claim — no open PR touches pack_validator.py or
+      pack_assembler.py — still holds under a fresh check, so the chokepoint-file risk
+      assessment itself is not undermined, but the "two overlaps, both only doctrine.py" /
+      "no other overlap" framing a reviewer relies on for WP04's merge-conflict exposure is
+      inaccurate as written.
+    remediation: >
+      Update plan.md's "Open-PR write-scope check" subsection and WP04's Risks bullet to:
+      (a) add PR #2719's second touched file (test_doctrine_org_commands.py, +206/-0) as a
+      distinct co-edit risk, since WP04 adds its own new test functions to the same file —
+      flag that landing order with #2719 may require a rebase inside that file, not just
+      doctrine.py; (b) enumerate the CHANGELOG.md overlaps (all purely additive, low-risk,
+      but currently undisclosed); (c) keep the still-correct statement that no open PR
+      touches pack_validator.py or pack_assembler.py.
+
+  - id: TASKS-VERIFY-001
+    lens: isolated-base-branch-checkout-mechanics
+    severity: 3
+    title: "WP03/WP04 name the correct RED-check concept (separate ref/worktree of planning_base_branch) but never give a runnable command"
+    evidence:
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md § Reviewer Guidance (first bullet)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Reviewer Guidance (first bullet)"
+      - artifact: "plan.md § Per-FR ATDD Sequencing (C-011), 'Practical consequence for Lane B's sequencing' paragraph"
+      - code: "grep -rn 'git worktree|git show|git checkout|git stash|git -C' kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/*.md kitty-specs/org-pack-authoring-diagnostics-01KZY463/plan.md → no hit in any WP; one unrelated hit in plan.md:569"
+    claim: >
+      Both WP03 and WP04 correctly get the *concept* right (no regression of PLAN-V4-001):
+      both say the RED check must be against a separate ref/worktree checkout of
+      `planning_base_branch`, with only that WP's own new test id(s) applied on top. But
+      neither WP file, nor plan.md's own "Practical consequence" paragraph they both cite
+      back to, gives an actual command sequence — no `git worktree add`, no `git show
+      <ref>:<path>`, no equivalent mechanism. The harder operational step (isolating one new
+      test function while excluding others already committed to the same file) is left
+      completely unspecified. An implementer/reviewer following only what's written would
+      have to invent the mechanics from scratch — exactly the kind of gap the C-011
+      regression this plan already caught once (PLAN-V4-001) shows is easy to get wrong
+      under this pressure.
+    remediation: >
+      Add a concrete, copy-pasteable command block to WP03's and WP04's Reviewer Guidance
+      sections (and to plan.md's "Practical consequence" paragraph): `git worktree add
+      /tmp/pbb-check main`, then either extract just the new test function's diff hunk via
+      `git show <this-WP's-test-commit-sha> -- <test file>` and `git apply` it into the
+      worktree's copy, or manually copy only the new test function's body into the
+      worktree's pre-mission copy of the file; run `cd /tmp/pbb-check && uv run pytest
+      <file> -k <new_test_id> -q`, confirm RED, then `git worktree remove /tmp/pbb-check`.
+
+  - id: TASKS-VERIFY-002
+    lens: per-ac-test-strategy
+    severity: 3
+    title: "FR-002's AC-4 ('reuses the real function, not a hand-rolled heuristic') has no named test in WP03 — DoD downgrades it to a manual code-review confirmation"
+    evidence:
+      - artifact: "spec.md FR-002 AC-4 (lines 331-334): '... verified by test asserting the same function is called or the same dataclass shape is surfaced'"
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md § Definition of Done: 'AC-4 ... is true by construction'"
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md subtasks T008-T013 (no subtask patches/mocks AgentProfileRepository.skipped_profiles or asserts a call/shape)"
+    claim: >
+      spec.md's AC-4 requires this be closed by a test, not by inspection. WP03's Definition
+      of Done instead treats AC-4 as satisfied "by construction" via manual review — none of
+      T008-T013 add a call-assertion or dataclass-shape test. WP04's analogous ACs (AC-6,
+      AC-7(a)) are explicitly implemented as mock/patch-based parameter-value assertions,
+      with WP04's own text insisting "the existing test still passes" is "necessary but
+      insufficient evidence" — WP03 applies the weaker standard to AC-4 that WP04 explicitly
+      rejects for its own parallel ACs. T009's behavioral test is reasonable indirect
+      evidence but is not the call/shape assertion the spec text names.
+    remediation: >
+      Add a small assertion to WP03 (extend T010's validation or add a short T010a) using
+      `unittest.mock.patch("doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles")`
+      to assert `_check_profile_skipped_diagnostics` actually calls `.skipped_profiles()` —
+      mirroring WP04's T016/T017(a) technique — and update the Definition of Done bullet
+      from "true by construction" to point at that test.
+
+  - id: TASKS-VERIFY-003
+    lens: per-ac-test-strategy
+    severity: 2
+    title: "FR-004's AC-4 requires ok-is-False AND exit-code-1 be tested; WP04's T014 only exercises ok-is-False (never invokes the CLI for AC-1's fixture)"
+    evidence:
+      - artifact: "spec.md FR-004 AC-4 (lines 471-475): 'falsifiable in a test asserting `ok is False` and exit code `1` for AC-1's fixture'"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Subtask T014, step 1 (no CliRunner/runner.invoke, no exit-code assertion)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Definition of Done: 'AC-4 ... falsifiable via T014's test'"
+    claim: >
+      T014 calls `validate_pack()` directly and asserts `result.ok is False`; it never
+      invokes the `pack_validate` CLI via CliRunner, so the exit-code-1 half of AC-4 is
+      never actually exercised for AC-1's fixture. The DoD claims AC-4 (including "exit code
+      1") is "falsifiable via T014's test," which overstates coverage. Low practical risk
+      (the ok→exit-code mapping is pre-existing, unmodified code) but the DoD claim is
+      inaccurate about what the test covers.
+    remediation: >
+      Either add a short CliRunner-based assertion to T014 invoking `pack_validate` against
+      AC-1's fixture and asserting `result.exit_code == 1`, or correct the Definition of
+      Done bullet to state that exit code 1 follows from the unchanged ok→exit-code mapping
+      rather than being independently tested here.

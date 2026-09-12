@@ -1,0 +1,129 @@
+{
+  "mission_slug": "read-side-placement-seam-migration-01KYHP67",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Classify every bypass call site",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (approved) authored the classification ledger docs/development/read-side-seam-classification.md: every production bypass call site classified \u2014 72 migrate-fail-loud + 16 stay-lenient + 2 sanction-infra, per-site kind and rationale. Reviewer verified the ledger is the single authority all later WPs were cross-checked against.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer paula-patterns (WP02 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Migrate fail-loud-appropriate reads to the seam",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP04/WP05/WP06/WP07 (all approved) routed every ledger fail-loud site through placement_seam(...).read_dir(kind) with the ledger-prescribed MissionArtifactKind. Per-WP reviews confirmed site-for-site conformance: WP05 13/13 merge+lanes sites; WP06 4 sites (PRIMARY_METADATA/LANE_STATE/STATUS_STATE/WORK_PACKAGE_TASK); WP07 the core/context/workspace/plan/misc cluster incl. mission_record_analysis.py=SPEC and doctrine_synthesizer=STATUS_STATE. No ledger site missed, no non-cluster site touched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03-WP07 reviews)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Sanction resolution infrastructure",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved) asserts the three read-primitive authority modules (_read_path_resolver.py, coordination/surface_resolver.py, mission_runtime/write_target_degrade.py) as sanctioned rather than silently skipped; test_read_sanctioned_modules_have_real_findings_that_would_otherwise_red proves each carries a real bypass call that would red the ratchet (non-vacuity).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP08 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Keep diagnostic/audit paths lenient by design",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (approved) left every ledger stay-lenient site on the lenient resolver with its existing catch/degrade (dashboard/scanner, dossier/api, retrospective/summary, status/aggregate); WP07 preserved manifest.py (AST-pinned). WP08 records all 16 as content-descriptor allow-list entries with per-entry rationale. Reviewers independently confirmed none was converted to fail-loud.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP06/WP07/WP08 reviews)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Structural read-side arch gate",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved) added tests/architectural/test_no_read_side_bypass.py \u2014 whole-tree AST gate reding on any direct kind-blind/lenient read in a non-sanctioned src/ module, reusing the shared _placement_whole_tree_scan.scan_scope(). 26 passed, exit 0. Bite test: planted candidate_feature_dir_for_mission / resolve_planning_read_dir calls red; a prose/docstring mention stays green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP08 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Shrink-only allow-list with staleness twin-guard",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved) keys the allow-list by (rel_path, qualname, token_line) composite via _ratchet_keys.resolve_descriptor \u2014 no bare-path blanket (C-003) \u2014 with a parametrized descriptor_still_live twin-guard using exactly-one + key-equal semantics (explicitly rejecting the '>=1 match' hole), so a routed/dead entry reds until deleted. Count pinned at ==16.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP08 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Fix repair_lane_mismatch frontmatter corruption (#2921)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (approved) fixed repair_lane_mismatch feeding raw frontmatter text into build_document's padding slot (commit 8863d7691); repaired documents round-trip byte-clean. Closes #2921 (issue-matrix verdict: fixed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP01 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Route _mission_id to the PRIMARY leg (#2966 part-1 remainder)",
+      "proof_type": "automated_test",
+      "evidence": "WP09 (approved) routed backfill_runtime_state._mission_id to read meta.json from the PRIMARY read_dir leg (commit aae140e8f) \u2014 the #2966 part-1 remainder folded here per C-004. Remaining #2966 parts 2/3/4 stay deferred-with-followup in the issue matrix.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP09 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "No audit-path regressions",
+      "proof_type": "automated_test",
+      "evidence": "No audit-path regressions: every ledger stay-lenient diagnostic/audit reader (doctor, dashboard, status aggregation, dossier, retrospective summary) was preserved lenient and re-verified by the WP06 ATDD suite tests/specify_cli/test_read_seam_leniency.py (10 passed), which pins deleted-coord leniency alongside the fail-loud migrations.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP06 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Behavior-preserving for healthy case",
+      "proof_type": "automated_test",
+      "evidence": "Behavior-preserving in the healthy case: each migration WP proved red-first that only genuinely coord-partition sites change behavior \u2014 WP07's 12-test suite fails exactly 1 pre-migration (the STATUS_STATE site) with a discriminating-negative test pinning LANE_STATE stays primary-anchored on a deleted-coord mission; WP05/WP06 reviews confirmed identical resolved dirs for PRIMARY-partition kinds.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP05-WP07 reviews)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Single scanner authority",
+      "proof_type": "automated_test",
+      "evidence": "Single scanner authority: test_read_and_write_gates_share_the_same_scan_scope proves runtime identity (_whole_tree_scan_scope is _placement_whole_tree_scan.scan_scope) AND AST-checks the write gate still imports scan_scope from the shared module \u2014 one read-specific filter composed on top, no forked tree walk. Write gate re-run green (27 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP08 review)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Gate bite + non-vacuity",
+      "proof_type": "automated_test",
+      "evidence": "Gate bite + non-vacuity: planted synthetic bypasses red, prose mention stays green, all 3 sanctions proven to carry real findings, and every allow-list entry proven live by the staleness twin-guard. Post-mission campsite pass additionally closed 3 mission-introduced stale-ratchet regressions + 8 stale mock seams, each classified against the true mission base d0a5bacf7 (branch cleanup/read-side-arch-ratchet, reviewer-approved).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP08 + campsite reviews)",
+      "verified_at": "2026-07-27T12:00:00Z",
+      "notes": "Verified via the per-WP independent review cycle (implement=sonnet / review=opus); all 9 WPs approved."
+    }
+  ],
+  "negative_invariants": []
+}

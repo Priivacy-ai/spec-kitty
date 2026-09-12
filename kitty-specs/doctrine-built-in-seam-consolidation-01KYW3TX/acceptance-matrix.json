@@ -1,0 +1,129 @@
+{
+  "mission_slug": "doctrine-built-in-seam-consolidation-01KYW3TX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 c6e8737c4: built_in_dir+built_in_root authorities; approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:04.231652+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/02/03/05: all readers routed through seam incl. variable-indirected joins; SC-001 confirmed.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:07.788694+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 cdcc9144a dropped param+_built_in_dir; WP07 ae4f52d9f migrated 16 callers; approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:11.206863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/04: PackRootNotFound on missing root; no empty-set fallback; approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:14.607828+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/04: computed complement from artifact_kinds SSOT; BuiltInContentDirNotAvailable; #3091-marked.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:18.001555+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/03: dual-reads removed; CWD-walk retired (NFR-001 delta documented); approved.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:21.430829+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07: org-pack collision asserts DoctrineLayerCollisionWarning; glossary-gate from packs/built-in.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:24.948067+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07: false-green profile-inheritance fixed (18 real profiles); residual readers repointed.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:28.343824+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 3bf2d0592: resolver.py operator strings repointed to packs/built-in/<kind>/.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:31.912891+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 788d99d8e: activation vocab unified; live glossary-pack drift fixed+e2e-proven.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:35.453349+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 1dc9243fb: context.py shim retired; __all__ byte-identical; RETAIN-set preserved.",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:39.138570+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 91c3e1e19: 18 YAMLs swept; graph identity fresh before/after (NFR-001).",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-07-31T20:34:42.593754+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

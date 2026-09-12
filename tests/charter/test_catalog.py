@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import _load_yaml_id_catalog, load_doctrine_catalog
+from charter.activation.catalog import _load_yaml_id_catalog, load_doctrine_catalog
 
 pytestmark = pytest.mark.fast
 
@@ -46,7 +46,7 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
     yaml.default_flow_style = False
 
     fixtures = {
-        Path("styleguides/built-in/python.styleguide.yaml"): {
+        Path("styleguides/python.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-style",
             "title": "Python Style",
@@ -54,31 +54,31 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
             "applies_to_languages": ["python"],
             "principles": ["Use Python idioms"],
         },
-        Path("styleguides/built-in/generic.styleguide.yaml"): {
+        Path("styleguides/generic.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "generic-style",
             "title": "Generic Style",
             "scope": "code",
             "principles": ["Be clear"],
         },
-        Path("toolguides/built-in/python.toolguide.yaml"): {
+        Path("toolguides/python.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-toolguide",
             "tool": "pytest",
             "title": "Python Toolguide",
-            "guide_path": "src/doctrine/toolguides/built-in/python.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/python.md",
             "summary": "Python checks",
             "applies_to_languages": ["python"],
         },
-        Path("toolguides/built-in/generic.toolguide.yaml"): {
+        Path("toolguides/generic.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "generic-toolguide",
             "tool": "git",
             "title": "Generic Toolguide",
-            "guide_path": "src/doctrine/toolguides/built-in/generic.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/generic.md",
             "summary": "Generic checks",
         },
-        Path("agent_profiles/built-in/python.agent.yaml"): {
+        Path("agent_profiles/python.agent.yaml"): {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
             "roles": ["implementer"],
@@ -86,7 +86,7 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
             "applies_to_languages": ["python"],
             "specialization": {"primary-focus": "python"},
         },
-        Path("agent_profiles/built-in/generic.agent.yaml"): {
+        Path("agent_profiles/generic.agent.yaml"): {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
             "roles": ["implementer"],
@@ -105,7 +105,12 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
+    # resolved per-kind via ``built_in_dir`` (mission
+    # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
+    # tmp root's flat per-kind directories.
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     catalog = load_doctrine_catalog(active_languages=["typescript"])
 
@@ -125,7 +130,7 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     yaml.default_flow_style = False
 
     fixtures = {
-        Path("styleguides/built-in/python.styleguide.yaml"): {
+        Path("styleguides/python.styleguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-style",
             "title": "Python Style",
@@ -133,16 +138,16 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
             "applies_to_languages": ["python"],
             "principles": ["Use Python idioms"],
         },
-        Path("toolguides/built-in/python.toolguide.yaml"): {
+        Path("toolguides/python.toolguide.yaml"): {
             "schema_version": "1.0",
             "id": "python-toolguide",
             "tool": "pytest",
             "title": "Python Toolguide",
-            "guide_path": "src/doctrine/toolguides/built-in/python.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/python.md",
             "summary": "Python checks",
             "applies_to_languages": ["python"],
         },
-        Path("agent_profiles/built-in/python.agent.yaml"): {
+        Path("agent_profiles/python.agent.yaml"): {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
             "roles": ["implementer"],
@@ -162,7 +167,12 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
+    # resolved per-kind via ``built_in_dir`` (mission
+    # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
+    # tmp root's flat per-kind directories.
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     catalog = load_doctrine_catalog()
 
@@ -171,26 +181,38 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert "python-pedro" in catalog.agent_profiles
 
 
-def test_load_yaml_id_catalog_scans_proposed_when_requested(tmp_path: Path) -> None:
+def test_load_yaml_id_catalog_scans_flat_directory_only(tmp_path: Path) -> None:
+    """Built-in content dirs are flat (WP02): a nested ``built-in/`` or
+    ``_proposed/`` subdirectory is never traversed -- the pre-relocation
+    dual-read fallback for that nested pre-move shape was removed in mission
+    doctrine-built-in-seam-consolidation-01KYW3TX (WP02). This also guards
+    against reintroducing that dual-read.
+    """
     doctrine_dir = tmp_path / "styleguides"
-    built_in_dir = doctrine_dir / "built-in"
-    proposed_dir = doctrine_dir / "_proposed"
-    built_in_dir.mkdir(parents=True)
-    proposed_dir.mkdir(parents=True)
+    nested_built_in = doctrine_dir / "built-in"
+    nested_proposed = doctrine_dir / "_proposed"
+    nested_built_in.mkdir(parents=True)
+    nested_proposed.mkdir(parents=True)
 
     yaml = YAML()
     yaml.default_flow_style = False
-    with (built_in_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
+    with (doctrine_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
         yaml.dump(
             {"schema_version": "1.0", "id": "shipped-style", "title": "Shipped", "scope": "code"},
             handle,
         )
-    with (proposed_dir / "proposed.styleguide.yaml").open("w", encoding="utf-8") as handle:
+    # Content placed in the (now-inert) nested subdirectories must NOT surface.
+    with (nested_built_in / "ignored.styleguide.yaml").open("w", encoding="utf-8") as handle:
         yaml.dump(
-            {"schema_version": "1.0", "id": "proposed-style", "title": "Proposed", "scope": "code"},
+            {"schema_version": "1.0", "id": "nested-built-in-style", "title": "Nested", "scope": "code"},
+            handle,
+        )
+    with (nested_proposed / "ignored.styleguide.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump(
+            {"schema_version": "1.0", "id": "nested-proposed-style", "title": "Nested Proposed", "scope": "code"},
             handle,
         )
 
     ids = _load_yaml_id_catalog(doctrine_dir, "*.styleguide.yaml", include_proposed=True)
 
-    assert ids == {"shipped-style", "proposed-style"}
+    assert ids == {"shipped-style"}

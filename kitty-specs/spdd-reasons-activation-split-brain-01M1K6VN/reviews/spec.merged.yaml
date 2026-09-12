@@ -1,0 +1,387 @@
+# review-merged/v1 — R2 mechanical merge of all R1 lens-group findings.
+schema: review-merged/v1
+phase: spec
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+source_files:
+  - reviews/spec-gov.findings.yaml
+  - reviews/spec-arch.findings.yaml
+  - reviews/spec-verify.findings.yaml
+dedup_note: >
+  No duplicates found across the three lens groups — all 10 findings address distinct
+  topics (gov: Non-Goals carve-out completeness, glossary/doc contradiction, NFR-002 file
+  list scope; arch: cache-key fidelity, three-state truthiness collapse, activated_kinds
+  omission, wording nit; verify: FR-004 falsifiability, FR-010 test-rewrite scope, User
+  Story 1 wording precision). Kept verbatim, original ids, no renumbering.
+findings:
+  - id: SPEC-GOV-001
+    lens: Decision Record fidelity (mission-derived)
+    severity: 4
+    title: Non-Goals carve-out names only one other selected_* consumer and misses a third, materially-activation-decision reader in resolver.py
+    evidence:
+      - artifact: "spec.md § Non-Goals / Out of Scope, last bullet (lines ~420-426): \"A general audit of every other consumer of governance.charter.selected_* ... beyond the two named in the issue and confirmed here ... load_governance_config/DoctrineSelectionConfig have other, non-activation-decision consumers (e.g. rendering the charter-level 'Global Selections' block in _render_selection_block) ... is not touched by this mission.\""
+      - artifact: "spec.md § Decision Record 2 (lines 139-209) — the spec's own methodology for this exact question (fold-in vs. carve-out), applied thoroughly to action_doctrine_bundle.py but never re-applied to resolver.py"
+      - code: "src/charter/activation/resolver.py:673-676 and 716-732 (_resolve_directive_base): when doctrine.selected_directives (the same stale governance.charter.selected_* section) is non-empty, it is returned verbatim as the resolved directive set, source=\"charter\" — PackContext.from_config(repo_root).activated_directives is consulted ONLY when selected_directives is empty. This does not merely exclude/under-seed like the two documented consumers; it can fully replace activated_* with a stale snapshot."
+      - code: "src/charter/activation/resolver.py:831-832 (resolve_project_governance): `selected_paradigms = list(doctrine.selected_paradigms)` — paradigms have NO activated_* fallback at all; the field is unconditionally sourced from the stale authored section."
+      - code: "src/charter/activation/resolver.py:594-595 — GovernanceResolution's own docstring: \"Resolved governance activation result.\" (the function's output is self-described as an activation result, not a selection-display artifact)."
+      - code: "src/runtime/next/prompt_builder.py:428-437 (_legacy_governance_context) — calls resolve_project_governance(repo_root) and renders \"Governance: ... Directives: ...\" directly into agent-facing bootstrap text when the primary charter-context path raises or is in \"missing\" mode."
+      - code: "src/charter/activation/context_json.py:141-262 (_load_project_directives_with_source / _project_directive_entries_with_source) — resolve_project_governance's `directives` and `directives_source` feed the `--json` charter-context payload's `all_directives`/`directives_source` keys, i.e. exactly the machine-consumable governance-panel surface the issue's own \"Impact\" paragraph names (\"Downstream consumers that render governance state (e.g. a doctrine/charter panel)\")."
+      - code: "src/charter/activation/compact.py:292-315 (_resolve_governance_summary) and src/specify_cli/runtime/doctor.py:129-145 (check_governance_resolution) — two further callers of resolve_project_governance rendering its paradigms/directives into agent- and operator-facing output."
+    claim: >
+      The mission-derived lens requires verifying the Non-Goals carve-out against real code, not
+      the spec's own summary of it. Decision Record 2 does this rigorously for
+      action_doctrine_bundle.py (reads the module in full, distinguishes the legitimate
+      org-required-union role from the illegitimate activation-gating role, and folds in only
+      the latter). The Non-Goals section does NOT apply the same rigor to the other
+      consumers of the identical governance.charter.selected_* section: it names exactly one
+      (_render_selection_block, verified independently in this review to be display-only,
+      additive text under "Global Selections" — that part of the carve-out holds up) and then
+      asserts, without evidence, that this is the complete remaining set
+      ("beyond the two named in the issue and confirmed here"). It is not. `resolve_project_governance`
+      in `charter/activation/resolver.py` reads the same stale section for what its own class
+      (`GovernanceResolution`) is docstring-labeled an "activation result," prioritizes the stale
+      `selected_directives` over `activated_directives` outright when non-empty (no
+      exclusion-only or under-seeding softness — a full override), sources `paradigms`
+      from `selected_paradigms` with zero activated_* fallback path at all, and its output is
+      consumed by four real surfaces: the runtime prompt builder's legacy governance fallback
+      (agent-facing bootstrap text), the `--json` charter-context payload's `all_directives`
+      field (the exact downstream-panel scenario the issue's own Impact paragraph describes),
+      the compact governance summary, and the `doctor` governance-resolution check. This is
+      squarely inside the issue's own "and anything else currently reading selected_* for
+      activation decisions" clause and is not a display-only case like `_render_selection_block`.
+      Because the spec's FR-006/FR-007/FR-008 only fix `action_doctrine_bundle.py`, and FR-001
+      only fixes `is_spdd_reasons_active`, this consumer survives the mission unfixed and
+      un-mentioned — the PR will close #3838 while leaving a third, code-verified instance of
+      the same defect class live, including in the one surface (the JSON governance payload)
+      the issue explicitly cites as the impact case.
+    remediation: >
+      Before tasks/plan phase: apply Decision Record 2's own methodology to
+      `resolve_project_governance`/`_resolve_directive_base` — read `resolver.py` in full,
+      determine whether its `selected_*`-first priority (directives) and `selected_*`-only
+      sourcing (paradigms) are activation decisions (they are, per the evidence above) or a
+      legitimately separate concept, and either (a) fold in a Decision Record 3 + FR that
+      re-derives `_resolve_directive_base`'s base set and `resolve_project_governance`'s
+      paradigms from `activated_*` the same way FR-006 does for `action_doctrine_bundle.py`
+      (with `selected_*` retained only as an additive project-local layer, mirroring the
+      existing "union onto the base, never replace" pattern already used for
+      `directives_cfg.directives`), or (b) if the operator explicitly decides this resolver is
+      out of scope for this issue, add an explicit, evidenced Non-Goals bullet naming it (not a
+      silent omission) with the reasoning for exclusion — per the mission's own binding
+      standing order against deferring found-in-scope defects to a follow-up without a stated
+      reason.
+
+  - id: SPEC-GOV-002
+    lens: Terminology
+    severity: 3
+    title: Spec does not reconcile with the canonical "Global Selection" glossary entry, which currently defines selected_<kind> as itself the activation mechanism
+    evidence:
+      - artifact: "docs/context/charter.md frontmatter: doc_status: active, updated: '2026-08-28' (current, not a stale historical snapshot)"
+      - artifact: "docs/context/charter.md § Charter-Mediated Selection (~lines 256-266): \"the project / org charter is the sole authority that decides which doctrine artifacts apply to a given mission run ... runtime asks charter for the activated set rather than reaching into doctrine directly.\""
+      - artifact: "docs/context/charter.md § Global Selection (~lines 268-276): \"Selection mode in which the charter declares an artifact is *always* active for every WP prompt regardless of action or mission type. Expressed via selected_<kind>: [<id>, ...] on the project charter ...\" — Status: canonical, Applicable to: 2.x"
+      - artifact: "docs/context/charter.md § selected_<kind> / required_<kind> (~lines 378-386): defines the field-naming convention purely in terms of Global Selection, with no mention of activated_<kind> or PackContext anywhere in the document"
+      - artifact: "spec.md § Summary (lines 8-25) and Key Entities (lines 384-392): asserts activated_* is \"the real, current activation authority\" and that selected_* is \"explicitly retired as an activation source ... but still read for activation by is_spdd_reasons_active (the bug)\", citing only compiler.py's own docstring as authority"
+      - artifact: "spec.md FR-009 (line 358): the only doc-update requirement, scoped to kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md and contracts/charter-context.md — does not mention docs/context/charter.md"
+    claim: >
+      The repo's canonical, actively-maintained glossary document (`docs/context/charter.md`,
+      self-described as "The canonical Terminology-Canon entry for the governing charter
+      term"; every relevant entry marked Status: canonical) currently defines
+      `selected_<kind>` as ITSELF the mechanism by which "the charter declares an artifact is
+      *always* active" (Global Selection), and its sibling "Charter-Mediated Selection" entry
+      states the charter is "the sole authority that decides which doctrine artifacts apply."
+      `activated_<kind>` / `PackContext` do not appear anywhere in this document. This directly
+      contradicts the spec's foundational premise (sourced only from `compile_charter`'s code
+      docstring) that `selected_*` is retired as an activation source in favor of
+      `activated_*`. Whichever side is correct in shipped behavior, the charter's own
+      Documentation Structure standing order states "a doc/code disagreement is a doc defect"
+      and DIRECTIVE_048 (version-governance) requires citing the current canonical version of a
+      versioned artifact — the spec cites only the code docstring and never surfaces or
+      reconciles this actively-maintained, contradicting canonical glossary page, and FR-009's
+      doc-update scope does not include it. Left as-is, this mission will ship code whose
+      correct new behavior is flatly contradicted by the still-"canonical," recently-updated
+      glossary that a future reader (human or agent, including one following DIRECTIVE_049
+      self-introduction guidance) would consult to understand what "selected" vs. "activated"
+      means in this codebase.
+    remediation: >
+      Add an FR (or extend FR-009) requiring `docs/context/charter.md`'s "Global Selection,"
+      "Charter-Mediated Selection," and "selected_<kind> / required_<kind>" entries to be
+      updated to state the corrected, current activation authority (`activated_<kind>` via
+      `PackContext`/INV-2 resolution), with `selected_<kind>` reclassified in the glossary as
+      the authoring/interview-record concept the compiler docstring already describes it as —
+      and add (or update) an `activated_<kind>` glossary entry so the concept this mission
+      makes authoritative has a canonical definition at all. Flag the drift explicitly rather
+      than silently picking code over docs, per AGENTS.md's own "if the charter and this file
+      ever disagree ... flag the drift instead of picking silently" rule (the same principle
+      applied here to docs/context vs. code).
+
+  - id: SPEC-GOV-003
+    lens: Scope
+    severity: 2
+    title: NFR-002's edited-module list names four modules no FR actually specifies editing
+    evidence:
+      - artifact: "spec.md NFR-002 (line 366): \"tests/architectural/test_no_dead_symbols.py must pass for every module this mission edits (activation.py, compiler.py, bootstrap_text.py, action_doctrine_bundle.py, org_pack_discovery.py, sync.py, template_renderer.py)\""
+      - artifact: "spec.md FR-001..FR-010 (lines 350-359): FR-001/FR-003/FR-005 edit only activation.py; FR-006 edits only action_doctrine_bundle.py; FR-004 only requires verifying call sites (bootstrap_text.py:332, apply_spdd_blocks_for_project, command_renderer.py, asset_generator.py), not editing them; FR-009 edits two contracts/*.md docs, not src; no FR names compiler.py, org_pack_discovery.py, sync.py, or template_renderer.py as an edit target"
+    claim: >
+      NFR-002 lists seven src modules as "edited by this mission," but the FR table commits
+      only two src modules to an actual edit (activation.py, action_doctrine_bundle.py). The
+      other five (compiler.py, bootstrap_text.py, org_pack_discovery.py, sync.py,
+      template_renderer.py) appear in NFR-002's gate list but in no FR's stated change. This
+      looks like the readiness probe's broader "blast radius" list (which explicitly named
+      these as candidate edit targets, not confirmed ones) carried into NFR-002 without being
+      pared to what Decision Records 1/2 actually settled on editing. A plan/tasks-phase agent
+      following the FR table alone would not touch these five files; one reading NFR-002 as a
+      literal edit manifest could unnecessarily open them looking for a change to make,
+      or conversely worry the dead-code gate is unsatisfiable for files it never touches (the
+      gate is vacuously satisfied for an unedited file, but the spec doesn't say so).
+    remediation: >
+      Trim NFR-002's file list to the modules the FR table actually commits to editing
+      (activation.py, action_doctrine_bundle.py), or, if plan-phase design is expected to touch
+      any of the other five (e.g. threading a new re-derivation helper through
+      org_pack_discovery.py), say so explicitly in the relevant FR (most likely FR-006) rather
+      than only in the NFR's gate list — so the touched-file set is stated once, unambiguously,
+      in the requirements that drive the change, not inferred from the gate that checks it.
+  - id: SPEC-ARCH-001
+    lens: INV-2 resolution fidelity / migrations
+    severity: 4
+    title: FR-001 rewrite algorithm never addresses the existing per-process mtime cache, which is keyed on the wrong file for the new resolution
+    evidence:
+      - artifact: "spec.md FR-001 (the (a)-(d) algorithm description) and FR-003 (requires `clear_activation_cache` stay in `__all__` with a real caller)"
+      - code: "src/charter/offering/spdd_reasons/activation.py:51-93 — `_cache: dict[str, tuple[int, bool]]` keyed on `str(charter_yaml_path.resolve())` with staleness detected via `charter_yaml_path.stat().st_mtime_ns`, where `charter_yaml_path = repo_root / '.kittify' / 'charter' / 'charter.yaml'` is a hardcoded path"
+      - code: "src/charter/activation/pack_context.py:207-286 — `PackContext.from_config` performs no caching at all; every call re-reads `.kittify/config.yaml` (and, when pointed, the target `charter.yaml`) fresh via `_load_config`/`_load_charter_activation_source`"
+    claim: >
+      FR-001's described algorithm (load config.yaml; follow the charter: pointer if present;
+      else read config.yaml directly; apply three-state semantics) says nothing about the
+      function's existing per-process cache, and FR-003 implies the cache mechanism itself
+      (`clear_activation_cache`) survives the rewrite. But the current cache key is hardcoded to
+      `.kittify/charter/charter.yaml`'s mtime — the OLD single-file assumption. Under the new
+      two-file (INV-2) resolution: (a) in the legacy no-pointer shape, the authoritative file is
+      `.kittify/config.yaml` itself, which the cache never inspects at all, so any edit to
+      config.yaml's own `activated_*` keys between two calls in the same process would be served
+      a stale cached answer; (b) even in the pointer-present shape (this repo's own case), the
+      cache still never observes `.kittify/config.yaml`'s own mtime, so re-pointing or deleting the
+      `charter:` key between calls would not invalidate the cache. This reproduces a
+      same-process variant of exactly the split-brain/staleness defect class this mission exists
+      to close, and it directly contradicts NFR-001 ("no new silent-success path"). It is not
+      covered by FR-005 (malformed-config handling), by the Edge Cases section, or by FR-002's
+      parity test, which (per its own description) compares single-shot fixture results and would
+      not exercise a same-process, two-call, file-mutated-in-between scenario where the divergence
+      would actually surface.
+    remediation: >
+      Add an explicit sub-requirement under FR-001 (or a plan-phase note it points to) that either
+      (a) specifies the new cache-key composition precisely — e.g. a tuple of
+      (`.kittify/config.yaml`'s mtime, the resolved-pointer path's mtime or `None`) so both files'
+      staleness is observed — or (b) explicitly retires per-process caching for this function
+      (matching `PackContext.from_config`'s always-fresh semantics) and states the performance
+      rationale against the `<50ms typical` budget in `contracts/activation.md`. Add a parity-test
+      or unit-test case (FR-002 scope) that calls the function twice in one process with
+      `.kittify/config.yaml` mutated between calls and asserts the second call reflects the
+      mutation.
+  - id: SPEC-ARCH-002
+    lens: INV-2 resolution fidelity
+    severity: 4
+    title: FR-006's re-derivation source (pack_context.activated_directives) feeds a truthiness check at delivery_table.py:238 that cannot distinguish "None" (all built-ins) from an explicit empty activated set, silently reproducing the split-brain bug class inside the fix
+    evidence:
+      - artifact: "spec.md FR-006 (\"must instead be derived from pack_context.activated_directives/activated_tactics/activated_paradigms\") and the Edge Cases bullet on empty activated_* for the org-required union (Decision Record 2 Scenario 3)"
+      - code: "src/charter/activation/context_renderers/delivery_table.py:238 — `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives: continue` (a Python truthiness check on `project_directives`, currently a plain `set[str]`)"
+      - code: "src/charter/activation/pack_context.py:150-157 — `activated_directives: frozenset[str] | None` is explicitly three-state: `None` = \"all built-ins available\" (should mean: do not restrict), `frozenset()` (present, empty) = \"nothing activated\" (should mean: block all), non-empty = explicit allowlist"
+    claim: >
+      FR-006 requires `project_directives` (consumed at `delivery_table.py:238`'s directive
+      exclusion filter) to be re-derived from `pack_context.activated_directives`. That
+      per-kind field is three-state (`None` / `frozenset()` / non-empty), but the consuming
+      check at `delivery_table.py:238` only tests Python truthiness of `project_directives` — both
+      `None` and an empty `frozenset()`/`set()` are falsy and take the SAME branch ("do not
+      filter — deliver everything DRG-reached"). If FR-006 is implemented by naively assigning
+      the three-state `pack_context.activated_directives` into this same variable/parameter
+      (coerced to a plain `set`), a project with an explicit `activated_directives: []` ("nothing
+      activated," a real, named three-state value per FR-001(d) and PackContext's own contract)
+      would silently deliver ALL DRG-reached directives instead of NONE — the opposite of
+      "nothing activated." This is a genuine three-state-semantics collapse sitting directly in
+      the code path FR-006 targets. The spec's own Edge Cases bullet addresses a *different*
+      empty-activated_* conflation (the org-required UNION step must still run on an empty set,
+      Scenario 3) but never addresses this separate truthiness collapse in the EXCLUSION filter
+      itself, and neither FR-007 nor FR-008's named scenarios exercise an explicit
+      `activated_directives: []` case (FR-007 uses a non-empty stale `selected_directives` set;
+      FR-008 uses this repo's own dogfood shape, which has non-empty `activated_*`) — so no named
+      test in this spec would catch a regression here.
+    remediation: >
+      Add an explicit note to FR-006 (or the plan it feeds) requiring the re-derivation to
+      preserve the three-state distinction through `delivery_table.py:238`'s consuming check —
+      e.g. change the guard from `project_directives and artifact_id not in project_directives`
+      to an explicit `project_directives is not None and artifact_id not in project_directives`
+      (with `project_directives` carrying `None`/`set()`/`{ids}` instead of always a plain set),
+      or an equivalent sentinel that keeps "all built-ins" and "explicit empty" distinguishable
+      at the point of use. Add a red-first test: an explicitly-empty `activated_directives: []`
+      project, with a DRG-reachable directive, must deliver ZERO directives from the exclusion
+      filter (distinct from FR-007/FR-008's existing scenarios, neither of which covers this
+      empty-activated_* exclusion case).
+  - id: SPEC-ARCH-003
+    lens: INV-2 resolution fidelity
+    severity: 2
+    title: Spec's description of "the real activation authority" omits the separate activated_kinds coarse gate consulted by the DRG activation filter
+    evidence:
+      - artifact: "spec.md Summary and Decision Record 1 (\"PackContext.from_config ... is the real, current activation authority\"; the algorithm at FR-001 checks only the three per-kind lists)"
+      - code: "src/charter/activation/drg_activation.py:433 — `_node_is_activated` step 2: `if plural not in pack_context.activated_kinds: return False` — a coarse per-KIND gate applied BEFORE the per-artifact-ID gate FR-001 replicates"
+      - code: "src/charter/activation/compiler.py:153-226 — `_resolve_config_activated_roots` (the function `compile_charter`'s docstring actually cites as the config.activated_* authority) does NOT consult `pack_context.activated_kinds` at all, so this omission does not create a fidelity gap against `compile_charter` specifically"
+    claim: >
+      `PackContext` carries a second, independent activation dimension — `activated_kinds` (a
+      coarse "is this whole artifact KIND on" gate, e.g. `activated_kinds: ["directives"]` would
+      exclude ALL paradigms/tactics regardless of what `activated_paradigms`/`activated_tactics`
+      list) — that is consulted by the DRG activation filter (`_node_is_activated`,
+      `drg_activation.py:433`, which Decision Record 2 itself cites as "correct" gating behavior
+      for `filter_graph_by_activation`) but is NEVER mentioned in FR-001's four-step algorithm or
+      in Decision Record 1's "what Option A actually requires" enumeration. Independently
+      verified this specific omission does NOT create an actual divergence for `is_spdd_reasons_active`
+      itself: `compile_charter`'s own config-activated-ids resolution
+      (`_resolve_config_activated_roots`) likewise never consults `activated_kinds`, so FR-001's
+      per-ID-only algorithm is faithful to the authority the spec's Summary actually cites. This
+      is filed as a documentation-completeness nit, not a correctness defect: a future reader (or
+      a later mission extending this fix) could reasonably assume the FR-001 algorithm is the
+      *complete* activation picture and try to "fix" it to also honor `activated_kinds`, which
+      would then diverge from `compile_charter`'s real behavior in the opposite direction.
+    remediation: >
+      Add one sentence to Decision Record 1 (or a code comment in the rewritten
+      `is_spdd_reasons_active`) stating explicitly that `activated_kinds` is a deliberately
+      out-of-scope, separate activation dimension not consulted here, because `compile_charter`'s
+      own `activated_*`-authority resolution (`_resolve_config_activated_roots`) does not consult
+      it either — so a future reader does not "fix" this into a new divergence.
+  - id: SPEC-ARCH-004
+    lens: INV-2 resolution fidelity (nit)
+    severity: 1
+    title: Decision Record 1 says the rewrite uses "only stdlib YAML parsing" but the codebase's actual parser for both files is the third-party ruamel.yaml, not the standard library
+    evidence:
+      - artifact: "spec.md Decision Record 1: \"only stdlib YAML parsing of the two files, mirroring the 'narrow compat read' idiom the module already uses\""
+      - code: "src/charter/offering/spdd_reasons/activation.py:197 — `yaml = YAML(typ=\"safe\")` (ruamel.yaml)"
+      - code: "src/charter/activation/pack_context.py:32,294-298 — `from ruamel.yaml import YAML`; `_yaml_loader()` constructs a `ruamel.yaml.YAML()` round-trip parser"
+    claim: >
+      Python's standard library has no built-in YAML support at all; both the existing
+      `activation.py` module and `PackContext`'s config/charter.yaml readers use the third-party
+      `ruamel.yaml` package. "Stdlib YAML parsing" is imprecise — a reader could take it to mean
+      the rewrite should avoid a third-party dependency the rest of the module (and the file
+      it's parsing) already depends on, which would be a wrong constraint.
+    remediation: >
+      Reword to "raw YAML parsing (ruamel.yaml, matching the module's existing dependency)" or
+      similar, so the constraint being expressed (no `charter.activation` Python-class imports,
+      not "no third-party libraries") is unambiguous.
+  - id: SPEC-VERIFY-001
+    lens: "MISSION-DERIVED LENS 1 — silent-success carve-out honesty (FR-004 falsifiability)"
+    severity: 4
+    title: "FR-004's call-site-reachability clause has no acceptance criterion, and the answer it defers to 'implementation time' is already determinable now"
+    evidence:
+      - artifact: "spec.md § FR-004 (Requirements table) and § Edge Cases (first bullet, '.kittify/config.yaml is entirely absent')"
+      - code: "src/specify_cli/cli/commands/init.py:910 (install_skills_for_agent(project_path, agent_key, agent_skills, ...) — called from spec-kitty init)"
+      - code: "src/specify_cli/skills/installer.py:236 (install_skills_for_agent) -> src/specify_cli/skills/command_installer.py:260 (_render_command_skill) -> :265 render_skill(..., repo_root=repo_root) -> src/specify_cli/skills/command_renderer.py:441-443 (apply_spdd_blocks_for_project(raw_text, repo_root))"
+      - code: "src/specify_cli/cli/commands/init.py:1220-1227 (_save_vcs_config / save_agent_config, which write .kittify/config.yaml, execute AFTER the skills-install block at line 910 within the same init() function)"
+    claim: >
+      FR-004 requires the implementer to "verify at the real call sites (bootstrap_text.py:332,
+      apply_spdd_blocks_for_project, command_renderer.py, asset_generator.py) whether any of
+      them can be reached before .kittify/config.yaml exists on disk ... recording the finding
+      either way" — but the FR names no concrete acceptance criterion for what "recording the
+      finding" must produce (a code comment? a test? a PR-body note?), nor any criterion for
+      what changes if the finding is "yes, reachable." Reading the actual call graph, the
+      answer is already determinable without any implementation-time investigation: in
+      spec-kitty init() (src/specify_cli/cli/commands/init.py), install_skills_for_agent(
+      project_path, ...) at line 910 renders command/skill templates through
+      command_renderer.py's apply_spdd_blocks_for_project(raw_text, repo_root) — and this call
+      happens strictly before save_agent_config(project_path, agent_config) at line 1227, the
+      call that actually writes .kittify/config.yaml. So command_renderer.py's call site IS
+      reached before .kittify/config.yaml exists on disk, on every spec-kitty init run. The
+      spec had the material to settle this now (as it did for the other Decision Records) but
+      instead relocated an answerable factual question into the FR text with "recording the
+      finding either way" as the only deliverable — leaving a WP with no way to know whether
+      it is "done": a WP could satisfy the letter of FR-004 by writing nothing more than a
+      one-line comment, or by adding an elaborate new test, and neither would be wrong per the
+      FR as written. (Separately, the actual behavioral answer for this specific call path is
+      benign — pre-fix, the old is_spdd_reasons_active also returns False at this point because
+      .kittify/charter/ does not exist yet either, so the FR-004 pin does not regress this path
+      — but the spec does not state this, which is exactly the verification FR-004 asks for and
+      does not require to be recorded in a checkable form.)
+    remediation: >
+      Either (a) resolve the call-site question in the spec now, the same way Decision Records
+      1 and 2 resolved their open questions — state explicitly that command_renderer.py's and
+      asset_generator.py's call sites ARE reached before .kittify/config.yaml exists during
+      `spec-kitty init`, that this is safe because the pre-fix function already returns False in
+      that state (byte-for-byte parity preserved), and drop the "verify at implementation time"
+      language; or (b) if the investigation is deliberately left for implementation, give FR-004
+      a concrete, falsifiable acceptance criterion — e.g. "a code comment naming which call
+      sites are reachable pre-config.yaml, plus a regression test asserting
+      apply_spdd_blocks_for_project(text, repo_root) strips REASONS blocks when repo_root has no
+      .kittify/config.yaml, run through at least one of command_renderer.py/asset_generator.py's
+      real entry points" — so a reviewer can check RED-then-GREEN against a defined "done."
+
+  - id: SPEC-VERIFY-002
+    lens: "MISSION-DERIVED LENS 2 — ATDD/red-first shape (C-011), FR-010"
+    severity: 4
+    title: "FR-010's 'kept vs. flipped' assertion-level triage framing understates the actual required work: most affected tests need a fixture-construction rewrite, not a boolean flip, and the spec gives no per-test guidance"
+    evidence:
+      - artifact: "spec.md § FR-010 (Requirements table)"
+      - code: "tests/charter/test_charter_context_spdd_reasons.py:36-53 (_write_governance/_write_directives helpers write ONLY .kittify/charter/charter.yaml's governance:/directives: sections; neither ever writes .kittify/config.yaml)"
+      - code: "tests/charter/test_charter_context_spdd_reasons.py:128-176 (TestActivation::test_paradigm_selected_returns_true, test_only_tactic_fill_returns_true, test_only_tactic_review_returns_true, test_only_directive_038_returns_true, test_directive_038_via_directives_yaml — all assert is_spdd_reasons_active(tmp_path) is True using only the charter.yaml governance/directives fixture, with no .kittify/config.yaml present in tmp_path)"
+      - code: "tests/charter/test_charter_context_spdd_reasons.py:365-379 (TestParadigmRoundTrip::test_paradigm_in_governance_activates_pack) and :413-484 (TestSelectedTacticsRoundTrip::test_tactic_only_selection_round_trips_to_governance_and_activates) — both build a PackContext/GovernanceConfig in memory then persist the result into charter.yaml's governance: section via save_charter_yaml, never into .kittify/config.yaml, then assert on is_spdd_reasons_active(tmp_path)"
+      - code: "tests/charter/test_activate_resolves_no_answers_edit.py:194-249 (TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active) — reconstructs a GovernanceConfig from interview.selected_*/compiled fields and writes it to tmp_path/.kittify/charter/charter.yaml via save_charter_yaml; tmp_path never receives a .kittify/config.yaml, then asserts is_spdd_reasons_active(tmp_path) is True"
+    claim: >
+      FR-010 characterizes the required change as an assertion-level triage: "assertions whose
+      intent survives ... are kept, updated only where their literal mechanics changed;
+      assertions that encode the bug itself ... are flipped." Reading all three files' actual
+      fixture-construction code shows this materially understates the work for at least 8
+      test methods across two of the three files (TestActivation's 5 True-asserting cases,
+      TestParadigmRoundTrip, TestSelectedTacticsRoundTrip, and
+      TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active): every one
+      of these builds its fixture by writing ONLY .kittify/charter/charter.yaml's governance:/
+      directives: sections (via save_charter_yaml or the local _write_governance/
+      _write_directives helpers) and never writes a .kittify/config.yaml at all. Under FR-001's
+      rewrite, is_spdd_reasons_active no longer reads charter.yaml's governance:/directives:
+      sections under its own steam — it reads .kittify/config.yaml (or, via a charter: pointer,
+      the pointed charter.yaml's top-level activated_* keys). Since none of these fixtures
+      write .kittify/config.yaml, every one of them would, under the new implementation, hit
+      FR-004's absent-config-file path and return False unconditionally — which is not "flip
+      the assertion from True to False" in any way that preserves the test's *intent* (each of
+      these tests exists to prove a specific selector — a paradigm, a tactic, DIRECTIVE_038 —
+      activates the pack); a bare True->False flip would silently stop testing activation via
+      any real selector at all. What each of these actually needs is a full rewrite of its
+      fixture-construction mechanism (write .kittify/config.yaml's activated_paradigms/
+      activated_directives/activated_tactics, optionally via a charter: pointer, instead of
+      charter.yaml's governance:/directives: sections) so the test still exercises the selector
+      it is named for. FR-010 gives no per-file, per-test guidance distinguishing this "rewrite
+      the fixture mechanism" bucket from its own "kept, mechanics-updated" and "flipped"
+      buckets — a WP implementer following FR-010's literal text (find assertions, decide
+      kept-vs-flipped) has no way to discover, without independently re-deriving this same
+      audit, that ~8 of these tests need a bigger structural change than either bucket
+      describes. Two implementers following FR-010 as written could reasonably disagree about
+      whether TestParadigmRoundTrip and TestSelectedTacticsRoundTrip should be rewritten,
+      deleted as now-redundant with the FR-002 parity test, or merged into it — none of those
+      outcomes is ruled in or out by the spec.
+    remediation: >
+      Add a third, explicit bucket to FR-010 — "assertions whose fixture-construction mechanism
+      is now obsolete and must be rewritten to write .kittify/config.yaml's activated_* keys
+      instead of charter.yaml's governance:/directives: sections, while preserving the
+      selector-under-test" — and name the specific tests that fall into it (at minimum
+      TestActivation's five True-asserting cases, TestParadigmRoundTrip,
+      TestSelectedTacticsRoundTrip in test_charter_context_spdd_reasons.py, and
+      TestSpddActivationDoesNotFlip::test_config_sourced_compile_keeps_spdd_active in
+      test_activate_resolves_no_answers_edit.py), so a WP can commit a red-first version of
+      each rewritten fixture (red against the OLD is_spdd_reasons_active reading the new
+      config.yaml-only fixture, green after FR-001) and a reviewer can verify RED-then-GREEN on
+      the intended commit without re-deriving which tests needed what.
+
+  - id: SPEC-VERIFY-003
+    lens: "MISSION-DERIVED LENS 1 — silent-success carve-out honesty (internal consistency)"
+    severity: 2
+    title: "User Story 1's 'agree ... in every case' framing is imprecise given FR-004's documented carve-out"
+    evidence:
+      - artifact: "spec.md § User Story 1 ('I want is_spdd_reasons_active(repo_root) to agree with the compiler's real activated_* authority in every case ...')"
+      - artifact: "spec.md § FR-004 and § Edge Cases (absent .kittify/config.yaml bullet) — the explicit, deliberate divergence from PackContext.from_config for the absent-config-file case"
+    claim: >
+      User Story 1's narrative motivation states the goal as agreement "in every case," but
+      FR-004 explicitly carves out one case (absent .kittify/config.yaml) where the rewritten
+      function's answer is pinned to False regardless of what a literal PackContext.from_config
+      parity read would produce (which would be True, per PackContext's documented
+      absent-key-means-all-built-ins-active default). The FR-004/Edge-Cases text does
+      reconcile this by naming it a "deliberate, evidence-based carve-out," so the spec is not
+      self-contradicting once read in full — but the User Story's own framing, read on its own
+      (as an FR-writing WP agent working FR-by-FR might), overstates the guarantee the mission
+      actually delivers. This is a wording-precision gap, not a behavioral ambiguity.
+    remediation: >
+      Qualify User Story 1's "in every case" phrase with a forward pointer to FR-004's
+      documented exception (e.g. "... in every case where a charter has been provisioned (see
+      FR-004 for the one deliberate exception)"), so a reader of the User Story section alone
+      is not misled about the scope of the parity guarantee.
+
+# If you have no findings, write: findings: []

@@ -18,19 +18,16 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.atomic import atomic_write
+from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.missions._read_path_resolver import (
-    resolve_planning_read_dir,
-)
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
@@ -80,27 +77,22 @@ def verify_workspace_toplevel(workspace_path: Path) -> WorkspaceResolutionError 
     Last-line defense for workspace paths arriving from other resolver
     lineages (#1833 R4). Returns a structured error on mismatch or git
     failure, ``None`` when the path is the toplevel of its own working tree.
+
+    The toplevel probe is delegated to the unified
+    :func:`~kernel.git_topology.git_toplevel` primitive (mission
+    write-path-integrity-01KZZD69 WP01, #3373); the primitive's typed failure is
+    mapped to this site's ``git-toplevel`` structured error, preserving the
+    is-worktree assertion contract.
     """
-    result = subprocess.run(
-        ["git", "-C", str(workspace_path), "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
+    try:
+        actual_toplevel = git_toplevel(workspace_path)
+    except GitTopologyError as exc:
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
-            detail=f"git rev-parse --show-toplevel failed: {result.stderr.strip()}.",
+            detail=f"git rev-parse --show-toplevel failed: {exc}.",
         )
-    actual_toplevel = Path(result.stdout.strip())
-    try:
-        same = actual_toplevel.resolve() == workspace_path.resolve()
-    except OSError:
-        same = False
-    if not same:
+    if actual_toplevel != workspace_path.resolve():
         return WorkspaceResolutionError(
             workspace_path=workspace_path,
             failed_check="git-toplevel",
@@ -478,8 +470,12 @@ def resolve_active_wp_for_branch(
         MissionArtifactKind.STATUS_STATE
     )
     # PRIMARY leg (C-001): tasks/ WP-frontmatter always lives in the primary checkout.
-    planning_dir = resolve_planning_read_dir(
-        repo_root, context.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
+    # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
+    # WORK_PACKAGE_TASK is PRIMARY-partition, so resolution is behavior-identical
+    # to the prior resolver — the seam's fail-loud arm (NFR-002) is not reachable.
+    planning_dir = placement_seam(repo_root, context.mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
     lane_wp_ids = _context_lane_wp_ids(context)
 
@@ -625,7 +621,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
         planning_score, code_score = score_execution_mode_signals(raw_content, list(metadata.owned_files))
         try:
             inferred_mode = infer_execution_mode(raw_content, list(metadata.owned_files))
-            execution_mode = ExecutionMode(inferred_mode)
+            execution_mode = WorkProductKind(inferred_mode)
         except Exception as exc:  # pragma: no cover - defensive; covered by tests via monkeypatch
             raise ValueError(
                 "Could not classify execution_mode for legacy work package "
@@ -648,7 +644,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
             )
     else:
         try:
-            execution_mode = ExecutionMode(raw_mode)
+            execution_mode = WorkProductKind(raw_mode)
         except ValueError as exc:
             raise ValueError(f"Invalid execution_mode {raw_mode!r} for {metadata.work_package_id} in mission {mission_slug}.") from exc
         normalized_meta = normalized_meta.update(execution_mode=str(execution_mode))
@@ -676,8 +672,12 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    tasks_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK through
+    # the seam authority instead of the kind-blind ``resolve_planning_read_dir``.
+    # WORK_PACKAGE_TASK is PRIMARY-partition, so this is behavior-identical to
+    # the prior resolver — no fail-loud arm is reachable here.
+    tasks_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     ) / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
@@ -727,7 +727,10 @@ def get_normalized_wp(
             raise error
         raise ValueError(
             f"Work package {wp_id} was not found under "
-            f"{resolve_planning_read_dir(repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
+            # read-side-placement-seam-migration WP07: named via the seam
+            # authority (WORK_PACKAGE_TASK, PRIMARY-partition — no fail-loud
+            # arm reachable) instead of ``resolve_planning_read_dir``.
+            f"{placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / 'tasks'}"
         )
     return entry
 
@@ -736,6 +739,9 @@ def resolve_workspace_for_wp(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
+    *,
+    write_intent: bool = False,
+    current_cwd: Path | None = None,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
 
@@ -746,11 +752,52 @@ def resolve_workspace_for_wp(
     4. `lanes.json` lane mapping for code_change
 
     The returned path may not exist yet; callers can inspect `.exists`.
+
+    Seam-B checkout-identity (write-path-integrity WP03, #3128 / FR-005). This is
+    the single WP-mutation chokepoint that ``implement`` and ``review`` both
+    funnel through. It is invoked ~20 times as a pure read vehicle, so the
+    checkout-identity refusal keys on **explicit write-intent, never action-name**
+    (C-007): only the true ``implement`` / ``review`` WP-write call sites pass
+    ``write_intent=True``. When set, and the resolved workspace is a real lane
+    worktree the invoking checkout does not own, this raises
+    :class:`~mission_runtime.checkout_identity.CheckoutIdentityError` (a distinct
+    exception NOT subclassing ``ActionContextError``). Reads (``write_intent``
+    left ``False``), planning writes resolving to the primary checkout, and the
+    mission's own worktrees are never refused. The comparison is pure-path — no
+    git subprocess is invoked (NFR-004). ``current_cwd`` defaults to the process
+    CWD; it is injectable for tests.
+    """
+    resolved = _resolve_workspace_for_wp_impl(repo_root, mission_slug, wp_id)
+    if write_intent:
+        from mission_runtime import enforce_checkout_identity
+        from specify_cli.core.paths import get_main_repo_root
+
+        enforce_checkout_identity(
+            current_cwd=current_cwd if current_cwd is not None else Path.cwd(),
+            workspace_path=resolved.worktree_path,
+            primary_root=get_main_repo_root(repo_root),
+            resolution_kind=resolved.resolution_kind,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+        )
+    return resolved
+
+
+def _resolve_workspace_for_wp_impl(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+) -> ResolvedWorkspace:
+    """Resolve the ResolvedWorkspace for a WP (pure resolution, no identity gate).
+
+    The Seam-B checkout-identity refusal is layered on by the public
+    :func:`resolve_workspace_for_wp` wrapper so every one of this function's
+    early-return arms is gated identically without duplicating the check.
     """
     normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
-    execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)
+    execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
 
-    if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         # planning_artifact WPs are first-class lane-owned entities assigned to
         # "lane-planning".  That lane resolves to the main repository checkout.
         # We still call create_planning_workspace() for the path, but we now
@@ -766,9 +813,13 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
+        # read-side-placement-seam-migration WP07: named via the seam
+        # authority instead of the kind-blind ``resolve_planning_read_dir``;
+        # behavior-identical since LANE_STATE is PRIMARY-partition (no
+        # fail-loud arm reachable here).
         lane_wp_ids: list[str] = []
-        lanes_read_dir = resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+        lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.LANE_STATE
         )
         lanes_manifest = read_lanes_json(lanes_read_dir)
         if lanes_manifest is not None:
@@ -808,8 +859,12 @@ def resolve_workspace_for_wp(
         )
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: named via the seam authority
+    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
+    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
+    # reachable here).
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
@@ -874,8 +929,12 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
             return candidate
 
     # lanes.json is a PRIMARY-partition artifact (LANE_STATE kind).
-    lanes_read_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    # read-side-placement-seam-migration WP07: named via the seam authority
+    # instead of the kind-blind ``resolve_planning_read_dir``; behavior-
+    # identical since LANE_STATE is PRIMARY-partition (no fail-loud arm
+    # reachable here).
+    lanes_read_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     from specify_cli.lanes.persistence import read_lanes_json
 

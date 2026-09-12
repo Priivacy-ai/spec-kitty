@@ -31,8 +31,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import CharterContextResult, build_charter_context
-from doctrine.drg.models import DRGGraph
+from charter.activation.context import CharterContextResult, build_charter_context
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = pytest.mark.fast
 
@@ -96,7 +96,14 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = _ORG_PAC
     kittify.mkdir(parents=True, exist_ok=True)
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump(
-            {"doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}}},
+            {
+                # WP04 (C-A1): PackContext.from_config fail-closes without
+                # this key. Every test in this module resolves the
+                # "software-dev" mission type, unrelated to the org∪project
+                # activation-union semantics under test.
+                "mission_type_activations": ["software-dev"],
+                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+            },
             fh,
         )
 
@@ -109,10 +116,10 @@ def _load_mock_graph() -> DRGGraph:
 def _build_bootstrap_context(repo_root: Path) -> CharterContextResult:
     mock_graph = _load_mock_graph()
     with (
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=repo_root),
-        patch("doctrine.drg.validator.assert_valid"),
-        patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.offering.drg.validator.assert_valid"),
+        patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         return build_charter_context(
             repo_root, action="implement", depth=2, mark_loaded=False,

@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "mission_slug": "charter-delivery-finish-context-degod-01KYT4BY",
+  "mission_id": "01KYT4BYQ3BZRGD10A9CN5Y0T1",
+  "mission_branch": "kitty/mission-charter-delivery-finish-context-degod-01KYT4BY",
+  "target_branch": "feat/charter-delivery-finish-context-degod",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/context_renderers/fetch_stanza.py",
+        "tests/charter/test_fetch_stanza_normalization.py",
+        "tests/specify_cli/next/test_wp_prompt_governance_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/dispatch.py",
+        "src/specify_cli/invocation/empty_charter.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/router.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py",
+        "tests/specify_cli/invocation/test_empty_charter_fallback.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/compact.py",
+        "src/doctrine/assets/built-in/charter_scaffold_minimal.yml",
+        "src/doctrine/assets/built-in/charter_scaffold_minimal.yml.asset.yaml",
+        "tests/charter/test_empty_charter_governance_agreement.py",
+        "tests/doctrine/test_charter_scaffold_asset.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/charter_md_parsing.py",
+        "src/charter/context_renderers/artifact_bodies.py",
+        "src/charter/context_renderers/catalog_diagnosis.py",
+        "src/charter/context_renderers/profile_sections.py",
+        "src/charter/context_renderers/reference_pointers.py",
+        "src/charter/context_renderers/token_budget.py",
+        "src/charter/context_state.py",
+        "tests/charter/test_context_leaf_seams.py",
+        "tests/charter/test_context_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/context_renderers/activation_block.py",
+        "src/charter/context_renderers/bootstrap_text.py",
+        "src/charter/context_renderers/compact_governance.py",
+        "src/charter/context_renderers/selection_block.py",
+        "src/charter/context_renderers/template_include.py",
+        "tests/charter/test_context_render_seams.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/action_doctrine_bundle.py",
+        "src/charter/context.py",
+        "src/charter/context_json.py",
+        "src/charter/doctrine_service_builder.py",
+        "src/charter/org_pack_discovery.py",
+        "src/charter/profile_resolution.py",
+        "tests/charter/test_context_decomposition_completion.py",
+        "tests/charter/test_context_service_seams.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-30T19:56:08.830057+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1f5a35a9c99f643c1c938ef09eb9b90b68da60ed"
+}

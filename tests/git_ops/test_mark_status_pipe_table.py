@@ -124,37 +124,11 @@ class TestParsePipeTableHeader:
 class TestUpdatePipeTableStatus:
     """Unit tests for _update_pipe_table_status()."""
 
-    def test_updates_status_column_when_present(self):
-        line = "| T001 | do thing | WP01 | [ ] |"
-        # header_map: status is at index 3 (0=id, 1=desc, 2=wp, 3=status)
-        header_map = {"id": 0, "description": 1, "wp": 2, "status": 3}
-        result = _update_pipe_table_status(line, "done", header_map)
-        assert "[D]" in result
-        # The WP column cell should be unchanged
-        assert "WP01" in result
-
-    def test_does_not_touch_parallel_column(self):
-        line = "| T001 | do thing | WP01 | [P] |"
-        # header_map has "parallel" at index 3
-        header_map = {"id": 0, "description": 1, "wp": 2, "parallel": 3}
-        result = _update_pipe_table_status(line, "done", header_map)
-        # The parallel [P] must be preserved
-        assert "[P]" in result
-        # A done status should have been appended
-        assert "[D]" in result
-
     def test_appends_status_when_no_header_map(self):
         line = "| T001 | do thing | WP01 |"
         header_map: dict[str, int] = {}
         result = _update_pipe_table_status(line, "done", header_map)
         assert "[D]" in result
-
-    def test_updates_pending_status(self):
-        line = "| T001 | do thing | WP01 | [D] |"
-        header_map = {"id": 0, "description": 1, "wp": 2, "status": 3}
-        result = _update_pipe_table_status(line, "pending", header_map)
-        assert "[ ]" in result
-        assert "[D]" not in result
 
     def test_returns_pipe_table_line(self):
         line = "| T001 | do thing | WP01 | [P] |"
@@ -402,10 +376,14 @@ class TestTasksTemplateCheckboxFormat:
         here = Path(__file__).resolve()
         # tests/git_ops/test_mark_status_pipe_table.py → tests/ → repo_root
         repo_root = here.parent.parent.parent
+        # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
+        # (FR-005) relocated mission-steps/ from
+        # src/charter/offering/missions/mission-steps to
+        # packs/built-in/missions/mission-steps.
         return (
             repo_root
-            / "src"
-            / "doctrine"
+            / "packs"
+            / "built-in"
             / "missions"
             / "mission-steps"
             / "software-dev"

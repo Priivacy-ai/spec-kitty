@@ -12,10 +12,10 @@ from typing import Any
 
 import pytest
 
-from charter._doctrine_paths import resolve_project_root
-from charter.compiler import _default_doctrine_service
-from charter.context import _build_doctrine_service
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation.compiler import _default_doctrine_service
+from charter.activation.context import _build_doctrine_service
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 
 
 pytestmark = [pytest.mark.unit]
@@ -53,7 +53,7 @@ def synthesis_request() -> SynthesisRequest:
     }
     drg_snapshot: dict[str, Any] = {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",
@@ -75,9 +75,25 @@ def synthesis_request() -> SynthesisRequest:
 
 
 def _project_directive_ids(service: Any) -> set[str]:
+    """Return PROJECT_-prefixed directive ids visible on *service*.
+
+    *service* is either the raw ``charter.offering.service.DoctrineService``
+    returned by ``charter.activation.context._build_doctrine_service`` (``.directives``
+    is the repository itself, with ``.list_all()``) or, since WP03
+    (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011),
+    ``charter.activation.compiler._default_doctrine_service``'s activation-aware
+    ``charter.activation.resolver.DoctrineService`` wrapper (``.directives`` is a
+    gated, filtered ``dict`` with no ``.list_all()``). The wrapper's
+    ``raw_repository(kind)`` accessor (FR-002 Option A) is the sanctioned
+    way to reach the raw repository either way, so this helper prefers it
+    when present and falls back to plain attribute access for the raw
+    (unwrapped) service.
+    """
+    raw_repository = getattr(service, "raw_repository", None)
+    directives_repo = raw_repository("directives") if callable(raw_repository) else service.directives
     return {
         directive.id
-        for directive in service.directives.list_all()
+        for directive in directives_repo.list_all()
         if directive.id.startswith("PROJECT_")
     }
 
@@ -100,6 +116,19 @@ def test_compiler_service_reflects_project_directives_after_synthesis(
     synthesis_request: SynthesisRequest,
     adapter: FixtureAdapter,
 ) -> None:
+    # ``_default_doctrine_service`` routes through
+    # ``build_activation_aware_doctrine_service``, which calls
+    # ``PackContext.from_config(tmp_path)`` whenever a repo_root is supplied.
+    # ``mission_type_activations`` is provisioned so that call (WP04, C-A1:
+    # the provisioned charter is the sole activation authority for mission
+    # types) does not hard-fail on a genuinely absent key -- unrelated to
+    # this test's own subject (post-synthesis project-directive visibility).
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
     before_ids = _project_directive_ids(_default_doctrine_service(tmp_path))
     assert before_ids == set()
 

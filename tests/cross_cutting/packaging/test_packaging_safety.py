@@ -65,12 +65,27 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
 
     known_prefixes = (
         "specify_cli/",
+        # "doctrine/" retained defensively: no wheel content lands under this
+        # top-level directory prefix anymore (charter-code-topology-01M152G1,
+        # S5) -- the former src/doctrine package relocated to
+        # src/charter/offering/ (S2a), so doctrine content ships under
+        # "charter/offering/" below. The bare src/doctrine.py CR-06
+        # deprecation-shim module (not a directory) IS force-included in the
+        # wheel so `import doctrine` keeps working for installed consumers, so
+        # "doctrine.py" is a known packaged file.
         "doctrine/",
+        "doctrine.py",
         "charter/",
         "kernel/",
         "glossary/",
         "mission_runtime/",
         "runtime/",
+        # Built-in doctrine data relocated to a top-level packs/built-in pack root,
+        # force-included in the wheel as a site-packages sibling of ``charter``
+        # (mission relocate-builtin-doctrine-packs). Scoped to ``packs/built-in/``:
+        # only the PUBLIC product doctrine ships. Maintainer-only org packs such as
+        # ``packs/internal/`` must never appear in the wheel.
+        "packs/built-in/",
     )
 
     with zipfile.ZipFile(wheel_path) as zf:
@@ -80,6 +95,53 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         assert any(file_path.startswith(p) for p in known_prefixes), (
             f"File outside known package directories: {file_path}"
         )
+
+    # Explicit boundary: the internal (maintainer-only) org pack must not ship.
+    leaked_internal = [f for f in all_files if f.startswith("packs/internal/")]
+    assert not leaked_internal, (
+        "Maintainer-only packs/internal/ leaked into the consumer wheel: "
+        f"{leaked_internal}"
+    )
+
+
+@pytest.mark.slow
+def test_wheel_excludes_build_only_files(build_artifacts: dict[str, Path]) -> None:
+    """Build-tooling files must never ship inside the runtime wheel (#3163).
+
+    ``src/kernel/pyproject.toml`` is dormant packaging metadata for the
+    planned standalone ``spec-kitty-kernel`` wheel (never imported at
+    runtime) -- before the root pyproject.toml's wheel ``exclude`` list
+    covered it, it landed in every ``spec-kitty-cli`` consumer's
+    site-packages as pure packaging debris.
+
+    Historical note (charter-code-topology-01M152G1, S5): the sibling
+    dormant ``spec-kitty-doctrine`` wheel groundwork this test used to guard
+    (``src/charter/offering/hatch_build.py`` + ``.../pyproject.toml``, née
+    ``src/charter/offering/hatch_build.py`` + ``.../pyproject.toml``) was DELETED
+    outright per MAP-BUILD rather than merely excluded -- it was never built
+    or published by any CI job. The two doctrine keys below stay in the
+    checked set as an inert regression guard (they can only ever be
+    vacuously satisfied now that the source files are gone); the live
+    invariant this gate still enforces is the ``kernel/pyproject.toml`` key.
+    """
+    wheel_path = build_artifacts["wheel"]
+
+    with zipfile.ZipFile(wheel_path) as zf:
+        all_files = set(zf.namelist())
+
+    offending = sorted(
+        name
+        for name in all_files
+        if name
+        in {
+            "doctrine/hatch_build.py",
+            "doctrine/pyproject.toml",
+            "charter/offering/hatch_build.py",
+            "charter/offering/pyproject.toml",
+            "kernel/pyproject.toml",
+        }
+    )
+    assert not offending, f"Build-only files leaked into the runtime wheel: {offending}"
 
 
 @pytest.mark.slow

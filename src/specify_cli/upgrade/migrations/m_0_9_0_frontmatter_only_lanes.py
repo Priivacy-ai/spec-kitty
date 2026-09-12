@@ -6,6 +6,7 @@ import re
 import shutil
 from pathlib import Path
 
+from ..autocommit import record_upgrade_mutation
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -145,9 +146,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         total_skipped = 0
 
         for feature_dir, location_label in features_found:
-            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(
-                feature_dir, location_label, dry_run
-            )
+            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(feature_dir, location_label, dry_run)
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
             errors.extend(feature_errors)
@@ -239,6 +238,8 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                     if dry_run:
                         changes.append(f"  Would move: {lane}/{md_file.name} → tasks/{md_file.name}")
                     else:
+                        record_upgrade_mutation(md_file, target, is_move=True)
+
                         # Read and update content
                         content = md_file.read_text(encoding="utf-8-sig")
                         updated_content = self._ensure_lane_in_frontmatter(content, lane)

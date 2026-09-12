@@ -48,8 +48,8 @@ PLANNING_WORKFLOW_TEMPLATES: list[str] = [
 
 _PROMPT_STEPS_DIR = (
     Path(__file__).parent.parent.parent
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"
@@ -380,8 +380,8 @@ def test_analyze_template_persists_analysis_report() -> None:
     """analyze.md must persist durable proof before implementation."""
     content = (
         _REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "mission-steps"
         / "software-dev"
@@ -393,11 +393,18 @@ def test_analyze_template_persists_analysis_report() -> None:
     assert "Should all of these findings be addressed before moving on to implementation?" in content
 
 
-def test_tasks_template_offers_optional_analyze_quality_gate() -> None:
-    """tasks.md must offer analyze as optional QC before implement-review."""
+def test_tasks_template_requires_analyze_before_implementation() -> None:
+    """tasks.md must present analyze as the required pre-implementation gate.
+
+    The Step 10 handoff was reworded from an "optional quality control gate"
+    to a required readiness prerequisite (2bd38fca6): the implement gate
+    refuses to claim a WP without ``analysis-report.md``
+    (``analysis_report_required``), so describing analyze as optional misled
+    operators into hitting the gate error.
+    """
     content = _template_content("tasks")
     assert "/spec-kitty-implement-review" in content
-    assert "Optional quality control gate before implementation" in content
+    assert "Required pre-implementation gate" in content
     assert "/spec-kitty.analyze" in content
 
 

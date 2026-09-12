@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.directives.repository import DirectiveRepository
-from doctrine.tactics.repository import TacticRepository
+from charter.offering.directives.repository import DirectiveRepository
+from charter.offering.tactics.repository import TacticRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -395,7 +395,7 @@ class TestDoctrineLayerCollisionWarning:
     """Collision warnings surface higher-layer override of lower-layer artifacts (MEDIUM-1)."""
 
     def test_org_shadows_builtin_emits_warning(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -426,7 +426,7 @@ class TestDoctrineLayerCollisionWarning:
         assert "field" in msg
 
     def test_project_shadows_org_emits_warning(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -459,7 +459,7 @@ class TestDoctrineLayerCollisionWarning:
         assert any("org" in m and "builtin" in m for m in messages)
 
     def test_project_shadows_builtin_when_no_org(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         project = tmp_path / "project"
@@ -482,7 +482,7 @@ class TestDoctrineLayerCollisionWarning:
         assert any("project" in m and "builtin" in m for m in messages)
 
     def test_no_warning_when_no_collision(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -511,7 +511,7 @@ class TestDoctrineLayerCollisionWarning:
 
     def test_collision_warning_reports_field_count(self, tmp_path: Path) -> None:
         """The warning message includes how many fields were replaced and inherited."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -546,3 +546,93 @@ def warnings_capture():
     with _stdlib_warnings.catch_warnings(record=True) as captured:
         _stdlib_warnings.simplefilter("always")
         yield captured
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — direct unit tests for _apply_overlay_file / _merge_overlay_item /
+# _insert_overlay_item, extracted from _apply_overlay_layer to keep its
+# cognitive complexity within the ruff C901 limit (15).
+# ---------------------------------------------------------------------------
+
+
+class TestApplyOverlayFileDirect:
+    def test_apply_overlay_file_records_skip_on_missing_id(self, tmp_path: Path) -> None:
+        shipped = tmp_path / "built-in"
+        _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
+        repo = DirectiveRepository(built_in_dir=shipped)
+
+        org = tmp_path / "org"
+        org.mkdir()
+        no_id_file = org / "noid.directive.yaml"
+        yaml = YAML()
+        yaml.dump({"schema_version": "1.0", "title": "No id"}, no_id_file)
+
+        with pytest.warns(UserWarning, match="no id"):
+            repo._apply_overlay_file(
+                no_id_file, "org", yaml_parser=YAML(typ="safe"), built_in=repo._items
+            )
+
+    def test_apply_overlay_file_records_skip_on_invalid_yaml(self, tmp_path: Path) -> None:
+        shipped = tmp_path / "built-in"
+        _write_directive(shipped, "001.directive.yaml", _directive_data("DIRECTIVE_001"))
+        repo = DirectiveRepository(built_in_dir=shipped)
+
+        org = tmp_path / "org"
+        org.mkdir()
+        bad_file = org / "bad.directive.yaml"
+        bad_file.write_text("not: valid: yaml: [")
+
+        with pytest.warns(UserWarning, match="Skipping invalid"):
+            repo._apply_overlay_file(
+                bad_file, "org", yaml_parser=YAML(typ="safe"), built_in=repo._items
+            )
+
+
+class TestMergeAndInsertOverlayItemDirect:
+    def test_merge_overlay_item_scope_filtered_excludes_merged_result(
+        self, tmp_path: Path
+    ) -> None:
+        """The merge branch's scope-filtered path: an org override that
+        narrows a built-in tactic to a non-active language must exclude the
+        merged result (recorded in ``_scope_filtered_ids``), leaving the
+        built-in item's provenance untouched."""
+        shipped = tmp_path / "built-in"
+        _write_tactic(shipped, "my-tactic.tactic.yaml", _tactic_data("my-tactic"))
+        repo = TacticRepository(built_in_dir=shipped, active_languages=["java"])
+        assert repo.get("my-tactic") is not None
+
+        override_data = _tactic_data("my-tactic", applies_to_languages=["python"])
+        repo._merge_overlay_item(
+            "my-tactic",
+            override_data,
+            shipped / "my-tactic.tactic.yaml",
+            repo._items,
+            "org",
+        )
+
+        assert "my-tactic" in repo._scope_filtered_ids
+        assert repo.get_provenance("my-tactic") == "builtin"
+
+    def test_insert_overlay_item_scope_filtered_excludes_new_item(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "built-in"
+        _write_tactic(shipped, "base.tactic.yaml", _tactic_data("base"))
+        repo = TacticRepository(built_in_dir=shipped, active_languages=["java"])
+
+        new_data = _tactic_data("python-only", applies_to_languages=["python"])
+        repo._insert_overlay_item(new_data, shipped / "python-only.tactic.yaml", "org")
+
+        assert repo.get("python-only") is None
+        assert "python-only" in repo._scope_filtered_ids
+
+    def test_insert_overlay_item_adds_included_new_item(self, tmp_path: Path) -> None:
+        shipped = tmp_path / "built-in"
+        _write_tactic(shipped, "base.tactic.yaml", _tactic_data("base"))
+        repo = TacticRepository(built_in_dir=shipped)
+
+        new_data = _tactic_data("newcomer")
+        repo._insert_overlay_item(new_data, shipped / "newcomer.tactic.yaml", "org")
+
+        assert repo.get("newcomer") is not None
+        assert repo.get_provenance("newcomer") == "org"

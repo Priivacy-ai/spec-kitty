@@ -60,7 +60,16 @@ POLICY_TABLE: dict[tuple[ModeOfWork, EventKind], ProjectionRule] = {
 }
 
 
-_DEFAULT_RULE = ProjectionRule(project=True, include_request_text=True, include_evidence_ref=True)
+#: The fallback for a ``(mode, event)`` pair with no row. Projects NOTHING.
+#:
+#: It used to be ``ProjectionRule(True, True, True)`` — the most permissive rule in
+#: the table — so a pair the policy had never been asked about disclosed the request
+#: body by default. The table is exhaustive for the enums as declared (pinned by
+#: ``test_policy_table_covers_all_16_pairs``), which means this arm is reachable only
+#: by adding an enum member without a row: a change whose author has, by definition,
+#: not decided what may be disclosed for it. The unasked question now answers "not
+#: this" (#3030 FR-025 census — a lookup default is a guard too).
+_NO_POLICY_RULE = ProjectionRule(project=False, include_request_text=False, include_evidence_ref=False)
 
 
 def resolve_projection(
@@ -69,12 +78,14 @@ def resolve_projection(
 ) -> ProjectionRule:
     """Return the projection rule for (mode, event).
 
-    ``mode is None`` (pre-mission records) → treated as TASK_EXECUTION to preserve
-    pre-WP06 unconditional projection behaviour for legacy records.
+    ``mode is None`` (pre-mission records, and every completed event) → treated as
+    TASK_EXECUTION to preserve pre-WP06 unconditional projection behaviour for
+    legacy records. Absence is a known, decided case — not the unknown one below.
 
-    Unknown ``(mode, event)`` pair → falls back to ``_DEFAULT_RULE`` (project all).
-    The table is exhaustive for the enums as defined; this path is only hit if
-    a future EventKind is added before the table is extended.
+    A ``(mode, event)`` pair with no row → :data:`_NO_POLICY_RULE` (project
+    nothing). The table is exhaustive for the enums as defined; this path is only
+    reachable if a future enum member is added before the table is extended, and an
+    undecided disclosure question is not answered "disclose".
     """
     effective_mode = mode if mode is not None else ModeOfWork.TASK_EXECUTION
-    return POLICY_TABLE.get((effective_mode, event), _DEFAULT_RULE)
+    return POLICY_TABLE.get((effective_mode, event), _NO_POLICY_RULE)

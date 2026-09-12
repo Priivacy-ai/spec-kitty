@@ -315,11 +315,6 @@ class TestShouldBlock:
         result = should_block(Strictness.MAX, [high_conflict])
         assert result is True
 
-    def test_max_blocks_any_conflict(self, low_conflict):
-        """MAX mode blocks if ANY conflict exists."""
-        result = should_block(Strictness.MAX, [low_conflict])
-        assert result is True
-
     @pytest.mark.parametrize(
         "strictness,has_low,has_medium,has_high,expected_block",
         [

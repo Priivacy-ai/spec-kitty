@@ -1,0 +1,96 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      Campsite-clean section now cites evaluate_path_conventions as ~38-39 lines
+      (summary_core.py:110-148, verified live: def at 110, next def at 151, i.e.
+      39 lines) and _print_acceptance_summary as ~29-31 lines (accept.py:453-483,
+      verified live: def at 453, if-block through 481, blank lines to 483/next def
+      at 484), matching the corrected measured values and explicitly noting both
+      are larger than the earlier estimate while still under the complexity ceiling.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >-
+      WP2 'Dedup print removal' now cites accept.py:476-481 for the
+      if summary.optional_missing: block; verified live the if-block spans
+      exactly lines 476-481 (console.print call through the trailing
+      console.print()).
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      The false 'zero kernel coupling' claim is corrected in all three locations
+      checked: Summary (lines 21-24, notes acceptance/__init__.py already imports
+      two kernel utilities), Constitution Check (lines 58-60), and the "Which
+      seam" section (lines 90-98, explicitly quoting kernel.clock.now_utc_stamp
+      at :10 and kernel.paths.to_posix at :14) — verified live against
+      src/specify_cli/acceptance/__init__.py: line 10 is
+      `from kernel.clock import now_utc_stamp`, line 14 is
+      `from kernel.paths import to_posix`, and both are live call sites at
+      line 205 (to_posix) and line 1367 (now_utc_stamp).
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      NFR-003 now appears explicitly in WP3's Covers list (plan.md lines
+      553-560), naming the new format_errors() prose and widened --lenient
+      help string as governed by it and citing
+      tests/architectural/test_no_legacy_terminology.py, which exists in the
+      live repo at that path.
+  - id: PLAN-ARCH-003
+    status: resolved
+    reason: >-
+      WP3's design (plan.md lines 519-533) now explicitly states format_errors()
+      gets NO new parameter, reasoning from the grep-confirmed two call sites
+      (both strict-only) that a boolean parameter would be a compile-time-constant
+      dead branch; the new wording is added unconditionally to the existing
+      trailing prose instead — the vacuous parameter is dropped, not merely
+      re-described.
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: >-
+      WP2's Token normalization section (plan.md lines 428-449) now normalizes
+      both sides relative to feature_dir (slash-stripped) via the
+      _normalize_path_token helper (verified live at
+      src/specify_cli/validators/paths.py:128) rather than basename-only
+      matching, closing the collision risk spec.md's own suggested form was
+      meant to avoid.
+  - id: PLAN-ARCH-005
+    status: resolved
+    reason: >-
+      WP2's Propagation mechanism (plan.md lines 458-470) now explicitly pins
+      that the dedup mutation fires ONLY inside the if strict_metadata: branch,
+      never unconditionally, matching spec.md's Acceptance Scenario 1 strict-mode
+      scoping; a third revert-test case (lines 502-507) asserts optional_missing
+      is left untouched in lenient mode, pinning the choice with a test.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      WP1's root cause and fix direction (plan.md lines 328-373) now explicitly
+      cover both paths.py:207 (missing_paths.append) and the sibling :208
+      (warnings.append), computing one resolved string reused in both calls;
+      the revert test (lines 377-387) now asserts on .warnings/rendered
+      format_errors()/format_warnings() output in addition to
+      .missing_paths/.suggestions; the former false "Baseline honesty" claim
+      that format_errors()/format_warnings() consume missing_paths is gone —
+      the plan now correctly states (lines 369-371) that those methods consume
+      warnings/suggestions, not missing_paths, matching the live code at
+      paths.py:44-78 (format_warnings/format_errors iterate self.warnings and
+      self.suggestions only) and :207-208 (both appends verified present and
+      unmodified pre-fix).
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      Coverage floors section now cites ci-quality.yml:3349-3372 for the
+      critical_paths=( ... ) array; verified live the array's opening line is
+      3349 (`critical_paths=(`) and its closing paren is at line 3372,
+      matching the plan's corrected citation exactly.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >-
+      Gate set section now cites ci-quality.yml:510 for
+      src/specify_cli/validators/** in the governance filter group; verified
+      live line 510 is exactly `- 'src/specify_cli/validators/**'` (line 509
+      is the adjacent contracts/** entry as the finding described).

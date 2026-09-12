@@ -1,0 +1,149 @@
+{
+  "mission_slug": "charter-synthesize-reconciliation-01KZJQN6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 reconcile graph overlay; test_synthesize_reconcile.py + committed node_preservation (opus-approved b91bdd872)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:03:53.371703+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 preserve nodes+edges atomically; test_synthesize_reconcile.py (b91bdd872)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:03:55.278038+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 preserve-and-warn default + --prune lists deletions; test_synthesize_cli_reconcile.py (1edc99ce2)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:03:57.188334+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 reconcile manifest via _rewrite_manifest; test_synthesize_reconcile.py version-skew (b91bdd872)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:03:59.149239+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP05 fix at shared library seam; test_synthesize_reconcile.py + test_activate_preserve.py (b91bdd872,809be8246)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:01.084962+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 report merged-overlay conflicts not crash; test_synthesize_conflict_routing.py (a7cda6682)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:02.977590+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP03 corrupt overlay fails closed at library seam + CLI; test_synthesize_reconcile.py + test_synthesize_cli_reconcile.py (b91bdd872,1edc99ce2)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:04.837099+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 non-destructive boundary heal clears synthesized_drg stale; test_boundary_heal.py (2356e8d48)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:06.701200+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 library seam mode + ReconciliationDelta envelope; test_synthesize_reconcile.py (b91bdd872)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:08.594981+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 dry-run reports reconciliation delta writes nothing; test_synthesize_cli_reconcile.py (1edc99ce2)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:10.487755+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 references-parity auto-refresh (manifest-coherent, honors #2772); test_boundary_heal.py real-e2e (57a3eb0fe,5083f548e)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:12.360584+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 emit charter-relevant edges from evidence, no fabrication; test_edge_wiring.py (28b350967)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:14.240635+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 rename run_resynthesize_pipeline->run_full_synthesize; test_activate_preserve.py (809be8246)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:16.176791+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02+WP03 conflict/refusal messaging reuses typed conflict shape; test_synthesize_conflict_routing.py + test_synthesize_cli_reconcile.py (a7cda6682,1edc99ce2)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-08-10T08:04:18.072842+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

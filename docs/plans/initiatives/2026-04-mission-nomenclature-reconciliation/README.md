@@ -85,7 +85,7 @@ Tasks:
 
 Representative files:
 - `docs/context/orchestration.md`
-- `docs/context/doctrine.md`
+- `docs/context/charter.md`
 - `docs/context/identity.md`
 - `glossary/historical-terms.md`
 - `docs/2x/runtime-and-missions.md`

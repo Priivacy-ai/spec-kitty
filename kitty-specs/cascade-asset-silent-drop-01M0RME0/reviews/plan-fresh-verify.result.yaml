@@ -1,0 +1,52 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+mission: cascade-asset-silent-drop-01M0RME0
+round: 2
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    notes: >
+      plan.md §12 WP-A bullet (lines ~626-658) now spells out all three call sites
+      explicitly: `cascade_activation_targets` unpacks `activatable, kind_filtered =
+      _referenced_artifacts(...)` unqualified (it populates the real field this WP), while
+      `referenced_but_not_cascaded` and `deactivation_plan` unpack `activatable, _kind_filtered
+      = _referenced_artifacts(...)` with the leading underscore, avoiding ruff F841 since
+      neither reads the second value yet. The bullet states this is "an explicit instruction to
+      the WP-A implementer, not a stylistic option" and explicitly assigns WP-C and WP-D the
+      job of renaming `_kind_filtered` back to `kind_filtered` "in their OWN commit, at the
+      exact point they start using it" — matching remediation option (a) verbatim. WP-D's own
+      bullet (line ~701) restates "Rename `_kind_filtered` to `kind_filtered` in
+      `deactivation_plan` (per WP-A's instruction above)". Confirmed via `git show 995578381`
+      diff and direct read of the current plan.md text.
+
+  - id: PLAN-FRESH-002
+    status: resolved
+    notes: >
+      Read spec.md C-006 (line 258) again: its required test spans THREE fields in one
+      sentence — `activated`, `skipped_by_scope` (both CascadeActivationResult) and
+      `deactivate`/candidates (DeactivationPlan). WP-A's header now reads "the activation-side
+      half of the C-006 required test — WP-D completes the deactivation-side half, see WP-D
+      below" (no longer claims sole ownership), and its body explicitly says "C-006's own text
+      also names `deactivate`/candidates ... which this WP's test does NOT cover — that half is
+      WP-D's job ... the two WPs' tests together, not WP-A's alone, satisfy C-006 in full."
+      WP-D's bullet header now reads "the deactivation-side half of the C-006 required test" and
+      its body adds a second, explicit engine-level test (distinct from its pre-existing
+      CLI-level NFR-003/SC-003 test): "under `CascadeScope.all()`, assert the kind-filtered
+      asset URN appears in `deactivation_plan(...).not_cascaded_kind_filtered` and NOT in
+      `.deactivate` or inside any `SharedSkip` in `.skipped_shared`" — this is the exact
+      assertion the finding's remediation demanded, word for word. Read as a whole, WP-A's
+      activation-side test (activated/skipped_by_scope) plus WP-D's new deactivation-side
+      engine-level test (deactivate/skipped_shared) jointly cover all three fields C-006 names;
+      coverage is real, not just reworded claims.
+
+  - id: PLAN-FRESH-003
+    status: resolved
+    notes: >
+      Ran `grep -ni 'wp[ -]*[1-4]\b' kitty-specs/cascade-asset-silent-drop-01M0RME0/plan.md`
+      directly — zero hits. All prior WP1/WP2/WP3/WP4 references (Project Structure comment at
+      the old line 126, the "becomes (shape...)" note, the FR-009 shared-helper paragraph, the
+      baseline-capture procedure heading, the §10 PR-shape paragraph, and the "Suggested WP
+      shape" header immediately above §12's bullets — all cited as evidence in the original
+      finding) were replaced with WP-A/WP-B/WP-C/WP-D lettering per `git show 995578381`'s diff.
+      No remaining hits to hand-check for false positives.

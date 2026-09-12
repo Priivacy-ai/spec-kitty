@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import datetime
+from kernel.clock import parse_iso
 from pathlib import Path
 
 import pytest
@@ -65,7 +65,7 @@ def _make_pre_schema_project(root: Path) -> None:
     legacy_metadata = {
         "spec_kitty": {
             "version": "0.12.0",
-            "initialized_at": datetime.fromisoformat("2026-01-01T00:00:00").isoformat(),
+            "initialized_at": parse_iso("2026-01-01T00:00:00").isoformat(),
             "last_upgraded_at": None,
         },
         "environment": {

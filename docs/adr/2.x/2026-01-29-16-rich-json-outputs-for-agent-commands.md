@@ -1,5 +1,6 @@
 ---
 title: Rich JSON Outputs for Agent Commands
+description: Expands agent-facing JSON with commit hashes and touched-file lists so an agent can confirm what actually happened instead of inferring it from a dirty tree.
 status: Accepted
 date: '2026-01-29'
 ---

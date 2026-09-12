@@ -11,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from specify_cli.coordination.status_transition import (
+    emit_inner_state_changed_transactional,
     emit_status_transition_batch_transactional,
     emit_status_transition_transactional,
     read_current_wp_state_transactional,
@@ -28,6 +29,7 @@ from specify_cli.coordination.status_service import (
 )
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -152,10 +154,10 @@ def test_transactional_emit_fans_out_only_after_commit(
     mock_saas_sink: Any,
 ) -> None:
     _seed_planned_on_coord(repo)
-    event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
+    event = emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 1
-    assert mock_saas_sink.last_kwargs["causation_id"] == event.event_id
+    assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
 
     show = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl")
     assert event.event_id in show.stdout
@@ -184,7 +186,7 @@ def test_transactional_claim_and_binding_use_one_atomic_stream_append(
 
     monkeypatch.setattr(status_store, "_append_serialized_atomic", _capture)
 
-    emit_status_transition_transactional(request, sync_dossier=False)
+    emit_status_transition_transactional(request)
 
     assert len(appended_units) == 1  # golden-count: cardinality-is-contract
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
@@ -229,7 +231,6 @@ def test_production_implement_lifecycle_persists_two_hops_and_binding_atomically
             agent_profile="python-pedro",
             model="claude-opus-4-6",
         ),
-        sync_dossier=False,
     )
 
     assert len(appended_units) == 1  # golden-count: cardinality-is-contract
@@ -247,7 +248,7 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
         agent="claude",
         assignee="implementer",
     )
-    event = emit_status_transition_transactional(request, sync_dossier=False)
+    event = emit_status_transition_transactional(request)
 
     events = read_events_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
@@ -272,7 +273,15 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
 def test_review_gate_reads_subtask_annotations_from_unmaterialized_coord_branch(
     repo: Path,
 ) -> None:
-    """The review gate must not fall back to stale primary runtime state."""
+    """The review gate must not fall back to stale primary runtime state.
+
+    WP06 (``fsm-write-path-integrity-01M1TZV6``): the aggregate no longer
+    infers the review gates itself; the status-owned pipeline infers them
+    inside the transaction from ``txn.feature_dir`` -- the coordination
+    surface that carries the committed subtask annotation. The primary
+    checkout has NO event log at all, so a gate reading the primary would
+    report every roster id incomplete and refuse the hand-off.
+    """
     feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
@@ -286,10 +295,12 @@ def test_review_gate_reads_subtask_annotations_from_unmaterialized_coord_branch(
     _seed_planned_on_coord(repo)
     request = _request(repo)
     request.annotation_delta = WPInnerStateDelta(subtasks={"T001": Status.DONE})
-    emit_status_transition_transactional(request, sync_dossier=False)
+    emit_status_transition_transactional(request)
+    start = _request(repo)
+    start.to_lane = "in_progress"
+    emit_status_transition_transactional(start)
 
     from specify_cli.status import TransitionRequest
-    from specify_cli.status import emit as status_emit
     from specify_cli.status.aggregate import MissionStatus
 
     aggregate = MissionStatus(
@@ -301,39 +312,21 @@ def test_review_gate_reads_subtask_annotations_from_unmaterialized_coord_branch(
         repo_root=repo,
         coordination_branch=COORD_BRANCH,
     )
-    transition = TransitionRequest(
-        feature_dir=feature_dir,
-        mission_slug=MISSION_SLUG,
-        wp_id="WP01",
-        to_lane=Lane.FOR_REVIEW,
-        actor="review-gate",
-        repo_root=repo,
-    )
-    worktrees_dir = repo / ".worktrees"
-    worktrees_before_read = (
-        tuple(sorted(candidate.name for candidate in worktrees_dir.iterdir()))
-        if worktrees_dir.exists()
-        else ()
+    event = aggregate.transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=MISSION_SLUG,
+            wp_id="WP01",
+            to_lane=Lane.FOR_REVIEW,
+            actor="review-gate",
+            repo_root=repo,
+        )
     )
 
-    subtasks_complete, evidence = aggregate._resolve_review_gate_inputs(
-        request=transition,
-        from_lane_str=str(Lane.IN_PROGRESS),
-        resolved_to_lane=str(Lane.FOR_REVIEW),
-        status_emit=status_emit,
-        lane_in_progress=Lane.IN_PROGRESS,
-        lane_for_review=Lane.FOR_REVIEW,
-    )
-
-    assert subtasks_complete is True
-    assert evidence is True
+    assert event.to_lane == Lane.FOR_REVIEW
     assert not (feature_dir / "status.events.jsonl").exists()
-    worktrees_after_read = (
-        tuple(sorted(candidate.name for candidate in worktrees_dir.iterdir()))
-        if worktrees_dir.exists()
-        else ()
-    )
-    assert worktrees_after_read == worktrees_before_read
+    committed = _git(repo, "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/status.events.jsonl")
+    assert event.event_id in committed.stdout
 
 
 def test_merge_done_evidence_reads_unmaterialized_coord_branch(
@@ -524,7 +517,7 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     _git(repo, "config", "core.hooksPath", str(hooks_dir))
 
     with pytest.raises(BookkeepingCommitFailed):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     # The coord branch still carries only the seed (genesis->planned); the
@@ -547,10 +540,71 @@ def test_transactional_emit_fails_closed_when_coordination_branch_missing(
     _git(repo, "branch", "-D", COORD_BRANCH)
 
     with pytest.raises(BookkeepingWorktreeMissing):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_transactional_batch_fails_closed_when_coordination_branch_missing(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    """C-007: the batch door keeps the single door's fail-closed policy.
+
+    An unresolvable coord worktree propagates ``BookkeepingWorktreeMissing``
+    from the batch door exactly as from the single door (#1848 / SC-001);
+    the #3460 degrade is the inner-state door's alone.
+    """
+    _git(repo, "branch", "-D", COORD_BRANCH)
+
+    with pytest.raises(BookkeepingWorktreeMissing):
+        emit_status_transition_batch_transactional([_request(repo)])
+
+    assert mock_saas_sink.call_count == 0
+    assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_inner_state_annotation_degrades_when_coordination_branch_missing(
+    repo: Path,
+    mock_saas_sink: Any,
+) -> None:
+    """#3460: an off-axis annotation emit must NEVER hard-fail on an
+    unresolvable coord worktree the way the authoritative lane-hop transition
+    correctly does (see ``test_transactional_emit_fails_closed_when_
+    coordination_branch_missing`` immediately above — same fixture setup,
+    deliberately opposite outcome).
+
+    Before the fix, ``emit_inner_state_changed_transactional`` routed straight
+    into ``BookkeepingTransaction.acquire`` whenever meta *declared* a
+    ``coordination_branch`` regardless of whether that branch still existed,
+    so a mission whose coord branch was deleted (or never materialized) raised
+    ``BookkeepingWorktreeMissing`` out of an otherwise-uncommitted, best-effort
+    annotation write -- the same defect class that made move-task's
+    ``_mt_emit_runtime_state`` crash (#2939 WP03 regression). The fix catches
+    ``BookkeepingWorktreeMissing`` and degrades to the uncommitted
+    ``emit_inner_state_changed`` primary write instead of propagating.
+    """
+    _git(repo, "branch", "-D", COORD_BRANCH)
+    events_path = repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl"
+
+    annotation = emit_inner_state_changed_transactional(
+        repo / "kitty-specs" / MISSION_DIRNAME,
+        "WP01",
+        WPInnerStateDelta(note="degrade-on-missing-coord-branch"),
+        actor="issue-3460-test",
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+    )
+
+    assert isinstance(annotation, InnerStateChanged)
+    assert mock_saas_sink.call_count == 0
+    # Degraded to the PRIMARY, uncommitted write: the annotation lands on
+    # the primary checkout's event log rather than a coord ref that could
+    # never be committed to (the coord branch no longer exists).
+    assert events_path.exists()
+    assert "degrade-on-missing-coord-branch" in events_path.read_text(encoding="utf-8")
+    assert _git(repo, "status", "--short").stdout.strip() != ""
 
 
 def test_transactional_emit_fails_closed_on_malformed_meta(
@@ -562,8 +616,8 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="Malformed JSON"):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+    with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
@@ -627,7 +681,7 @@ def test_transactional_batch_rejects_request_without_any_feature_dir(repo: Path)
     with pytest.raises(
         TypeError, match="requires feature_dir/mission_dir, mission_slug, and wp_id"
     ):
-        emit_status_transition_batch_transactional([request], sync_dossier=False)
+        emit_status_transition_batch_transactional([request])
 
 
 def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
@@ -666,7 +720,6 @@ def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
 
     events = emit_status_transition_batch_transactional(
         [_coord_request("claimed"), _coord_request("in_progress")],
-        sync_dossier=False,
     )
 
     assert [e.to_lane for e in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
@@ -709,12 +762,13 @@ def test_transactional_read_falls_back_to_primary_when_coord_branch_deleted(repo
     _git(repo, "commit", "-q", "-m", "merge mission artifacts to main")
     _git(repo, "branch", "-D", COORD_BRANCH)
 
-    lane, actor = read_current_wp_state_transactional(
+    _state = read_current_wp_state_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
         mission_slug=MISSION_SLUG,
         wp_id="WP01",
         repo_root=repo,
     )
+    lane, actor = _state.lane, _state.actor
     assert lane == Lane.PLANNED
     assert actor == "seed"
 
@@ -771,12 +825,13 @@ def test_transactional_wp_state_read_survives_fail_closed_surface_refusal(
 ) -> None:
     _materialize_coord_root_without_mission_dir(repo)
 
-    lane, actor = read_current_wp_state_transactional(
+    _state = read_current_wp_state_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
         mission_slug=MISSION_DIRNAME,
         wp_id="WP01",
         repo_root=repo,
     )
+    lane, actor = _state.lane, _state.actor
 
     assert lane == Lane.GENESIS
     assert actor is None
@@ -794,6 +849,283 @@ def test_transactional_emit_fail_closed_surface_refusal_stays_structured(
     _materialize_coord_root_without_mission_dir(repo)
 
     with pytest.raises(BookkeepingWorktreeMissing):
-        emit_status_transition_transactional(
-            _canonical_slug_request(repo), sync_dossier=False
+        emit_status_transition_transactional(_canonical_slug_request(repo))
+
+
+# ---------------------------------------------------------------------------
+# #154 regression: the coordination-topology probe must not demand mission
+# metadata a meta-less mission never had. ``resolve_transaction_mid8`` returns
+# "" for exactly those missions — its documented bare-slug surface ("there is
+# no coord target to mis-route") — so probing branch existence by COMPOSING a
+# ``CoordinationWorkspace`` handle from that empty mid8 raised
+# CoordinationWorkspaceIdentityUnresolved out of every transactional read and
+# write whenever the feature dir sat inside a git work tree (e.g. any ambient
+# ancestor checkout above basetemp on the host running the suite), instead of
+# reporting "no coordination topology available".
+# ---------------------------------------------------------------------------
+
+
+def _meta_less_legacy_repo(tmp_path: Path) -> Path:
+    """A real repo whose only mission dir carries no meta.json (legacy slug)."""
+    r = tmp_path / "meta-less-repo"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@example.invalid")
+    _git(r, "config", "user.name", "Test")
+    _git(r, "config", "commit.gpgsign", "false")
+    (r / "kitty-specs" / "099-lifecycle-test").mkdir(parents=True)
+    return r
+
+
+def test_topology_probe_reports_unavailable_for_meta_less_mission(
+    tmp_path: Path,
+) -> None:
+    """Empty mid8 ⇒ topology NOT available; never a malformed-ref composition."""
+    from specify_cli.coordination.status_transition import (
+        _identity_for_request,
+        _transaction_topology_available,
+    )
+
+    repo = _meta_less_legacy_repo(tmp_path)
+    identity = _identity_for_request(
+        TransitionRequest(
+            feature_dir=repo / "kitty-specs" / "099-lifecycle-test",
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            to_lane=Lane.PLANNED,
+            actor="topology-probe",
+            repo_root=repo,
         )
+    )
+
+    assert identity.mid8 == ""
+    assert _transaction_topology_available(identity, "099-lifecycle-test") is False
+
+
+def test_meta_less_mission_read_does_not_raise_identity_unresolved(
+    tmp_path: Path,
+) -> None:
+    """An unseeded WP in a meta-less mission inside a real repo reads GENESIS."""
+    repo = _meta_less_legacy_repo(tmp_path)
+
+    _state = read_current_wp_state_transactional(
+        feature_dir=repo / "kitty-specs" / "099-lifecycle-test",
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        repo_root=repo,
+    )
+
+    assert _state.lane == Lane.GENESIS
+
+
+# ---------------------------------------------------------------------------
+# FR-007 / SC-003 (WP06 T032 -> T039): batch/single owned-mission parity.
+# The two transactional doors share ONE identity/acquire preamble, so the
+# owned-mission refusal and the ``effective_root`` acquisition can no longer
+# diverge field by field (decision Q5: parity; data-model §5 S-2).
+# ---------------------------------------------------------------------------
+
+
+def _owned_identity(repo: Path, *, primary_root: Path) -> Any:
+    from specify_cli.coordination.status_transition import _TransactionIdentity
+
+    return _TransactionIdentity(
+        repo_root=repo,
+        feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
+        mission_id=MISSION_ID,
+        mid8=MID8,
+        destination_ref=COORD_BRANCH,
+        meta_exists=True,
+        coordination_branch=COORD_BRANCH,
+        transaction_meta_exists=True,
+        primary_root=primary_root,
+    )
+
+
+def _owned_request(repo: Path, *, effective_root: Path) -> TransitionRequest:
+    request = _request(repo)
+    request.effective_root = effective_root
+    return request
+
+
+class _AcquireHalted(Exception):
+    """Sentinel: the acquire shape was recorded; nothing beyond it runs."""
+
+
+def test_batch_door_refuses_owned_mission_without_transaction_like_single(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both doors raise the same ``OWNED_TRANSACTION_UNAVAILABLE`` refusal.
+
+    An owned-mission (``effective_root``) request must never degrade to the
+    non-transactional fallback: the single door has refused it since #1737;
+    the batch door used to fall back silently (the SC-003 divergence).
+    """
+    from mission_runtime import ActionContextError
+    from specify_cli.coordination import status_transition as st
+
+    owned_checkout = tmp_path / "owned"
+    monkeypatch.setattr(st, "_identity_for_request", lambda _r: _owned_identity(repo, primary_root=repo))
+    monkeypatch.setattr(st, "_transaction_topology_available", lambda *_a, **_k: False)
+    request = _owned_request(repo, effective_root=owned_checkout)
+
+    with pytest.raises(ActionContextError) as single:
+        emit_status_transition_transactional(request)
+    with pytest.raises(ActionContextError) as batch:
+        emit_status_transition_batch_transactional([request])
+
+    assert single.value.code == "OWNED_TRANSACTION_UNAVAILABLE"
+    assert batch.value.code == single.value.code
+    assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_batch_door_acquires_transaction_with_the_single_door_shape(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``BookkeepingTransaction.acquire`` receives identical identity fields.
+
+    For an owned mission the lock/worktree anchor is ``identity.primary_root``
+    and ``effective_root`` is the owned checkout (``identity.repo_root``); for
+    an ordinary mission both doors pass ``identity.repo_root`` and no
+    ``effective_root``. The recorded kwargs must agree door-for-door.
+    """
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.coordination.transaction import BookkeepingTransaction
+
+    owned_checkout = tmp_path / "owned"
+    owned_checkout.mkdir()
+    identity = _owned_identity(owned_checkout, primary_root=repo)
+    monkeypatch.setattr(st, "_identity_for_request", lambda _r: identity)
+    monkeypatch.setattr(st, "_transaction_topology_available", lambda *_a, **_k: True)
+    recorded: list[dict[str, Any]] = []
+
+    def _record_acquire(**kwargs: Any) -> None:
+        recorded.append(kwargs)
+        raise _AcquireHalted
+
+    monkeypatch.setattr(BookkeepingTransaction, "acquire", _record_acquire)
+    request = _owned_request(repo, effective_root=owned_checkout)
+
+    with pytest.raises(_AcquireHalted):
+        emit_status_transition_transactional(request)
+    with pytest.raises(_AcquireHalted):
+        emit_status_transition_batch_transactional([request])
+
+    single, batch = recorded
+    assert single["repo_root"] == repo, "the transaction anchors on the primary root"
+    assert single["effective_root"] == owned_checkout
+    for field in ("repo_root", "effective_root", "mission_id", "mission_slug", "mid8", "destination_ref", "capability"):
+        assert batch[field] == single[field], field
+
+
+# ---------------------------------------------------------------------------
+# FR-006 / C-009 (WP06 T039): delegation equivalence across the three doors.
+# The same TransitionRequest yields the same StatusEvent (modulo event_id/at)
+# through the plain door, the single transactional door and the batch
+# transactional door, and ``prepare_transition`` is the only validator any
+# of them invokes.
+# ---------------------------------------------------------------------------
+
+_EVENT_IDENTITY_FIELDS = (
+    "mission_slug",
+    "mission_id",
+    "wp_id",
+    "from_lane",
+    "to_lane",
+    "actor",
+    "force",
+    "execution_mode",
+    "reason",
+    "reason_source",
+    "review_ref",
+    "evidence",
+    "review_result",
+    "policy_metadata",
+)
+
+
+def _event_identity(event: StatusEvent) -> dict[str, Any]:
+    return {field: getattr(event, field) for field in _EVENT_IDENTITY_FIELDS}
+
+
+def _flat_mission(tmp_path: Path) -> Path:
+    """The same mission as ``repo`` but coord-less and outside git: the plain door's home."""
+    feature_dir = tmp_path / "flat" / "kitty-specs" / MISSION_DIRNAME
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": MISSION_SLUG, "mission_id": MISSION_ID, "mid8": MID8}) + "\n",
+        encoding="utf-8",
+    )
+    append_event_log(
+        EventLogWriteContract.primary_checkout_append(feature_dir),
+        _seed_planned_event(),
+    )
+    return feature_dir
+
+
+def _seed_planned_event() -> StatusEvent:
+    return StatusEvent(
+        event_id="01SEEDGENESIS0000000000001",
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.GENESIS,
+        to_lane=Lane.PLANNED,
+        at="2026-05-31T00:00:00+00:00",
+        actor="seed",
+        force=False,
+        reason="seed",
+        execution_mode="worktree",
+    )
+
+
+def _claim_with_policy(feature_dir: Path, repo_root: Path) -> TransitionRequest:
+    return TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=MISSION_SLUG,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="equivalence-test",
+        reason="delegation equivalence",
+        reason_source="operator",
+        repo_root=repo_root,
+        policy_metadata={"claim": "policy"},
+    )
+
+
+def test_three_doors_build_the_same_event_and_validate_once_each(
+    repo: Path, tmp_path: Path, mock_saas_sink: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.coordination import status_transition as st
+    from specify_cli.status import emit as status_emit
+    from specify_cli.status import transition_pipeline
+
+    calls: list[tuple[object, ...]] = []
+    real = transition_pipeline.validate_transition
+
+    def _counting(*args: object, **kwargs: object) -> object:
+        calls.append(args)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(transition_pipeline, "validate_transition", _counting)
+    _seed_planned_on_coord(repo)
+    coord_feature_dir = repo / "kitty-specs" / MISSION_DIRNAME
+    flat_feature_dir = _flat_mission(tmp_path)
+
+    plain = status_emit.emit_status_transition(_claim_with_policy(flat_feature_dir, None), ensure_sync_daemon=False)
+    assert len(calls) == 1
+    single = emit_status_transition_transactional(_claim_with_policy(coord_feature_dir, repo), ensure_sync_daemon=False)
+    assert len(calls) == 2
+    # Roll the coord WP back to planned so the batch door sees the same from_lane
+    # (the worktree holding the branch must go before the ref can move).
+    _git(repo, "worktree", "remove", "-f", str(CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)))
+    _git(repo, "branch", "-f", COORD_BRANCH, f"{COORD_BRANCH}~1")
+    (batch,) = emit_status_transition_batch_transactional(
+        [_claim_with_policy(coord_feature_dir, repo)], ensure_sync_daemon=False
+    )
+    assert len(calls) == 3
+
+    assert _event_identity(plain) == _event_identity(single) == _event_identity(batch)
+    assert {(args[0], args[1]) for args in calls} == {(Lane.PLANNED, Lane.CLAIMED)}
+    assert not hasattr(st, "validate_transition"), "the transactional shell must not validate itself (P-2)"
+    assert not hasattr(st, "_prepare_event"), "the pre-promotion duplicate is gone (FR-005/FR-006)"

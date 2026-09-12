@@ -10,7 +10,7 @@ Does not import any flow class directly.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, now_utc, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -32,7 +32,7 @@ runner = CliRunner()
 
 def _authenticated_session() -> StoredSession:
     """Return a well-formed StoredSession for logout fixtures."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_alice",
         email="alice@example.com",

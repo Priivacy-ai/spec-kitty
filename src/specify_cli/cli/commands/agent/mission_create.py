@@ -23,6 +23,10 @@ pre-decomposition ``mission.py``; the WP01 golden harness is the regression net.
 
 from __future__ import annotations
 
+import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
@@ -33,6 +37,7 @@ import typer
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
@@ -53,6 +58,177 @@ START_TARGET_MISMATCH_MESSAGE = (
     "creation stores one planning branch. Omit --target-branch for "
     "the recommended PR-bound feature-branch flow."
 )
+
+
+@dataclass(frozen=True)
+class _StartBranchRollbackState:
+    """Git state captured before ``--start-branch`` changes the checkout."""
+
+    repo_root: Path
+    start_branch: str
+    start_branch_preexisted: bool
+    start_branch_original_commit: str | None
+    original_branch: str | None
+    original_commit: str
+    original_index_tree: str | None
+
+
+def _capture_start_branch_rollback_state(
+    repo_root: Path | None,
+    start_branch: str | None,
+) -> _StartBranchRollbackState | None:
+    """Capture enough state to undo a failed early-create branch switch."""
+    if repo_root is None or start_branch is None:
+        return None
+
+    normalized_start_branch = start_branch.strip()
+    if not normalized_start_branch:
+        return None
+
+    try:
+        original_commit = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        original_index_result = subprocess.run(
+            ["git", "-C", str(repo_root), "write-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        branch_result = subprocess.run(
+            ["git", "-C", str(repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        start_branch_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/{normalized_start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        start_branch_commit_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "rev-parse",
+                "--verify",
+                f"refs/heads/{normalized_start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        # Preserve the established structured error path when the checkout is
+        # not a usable git repository; the branch-switch phase reports it.
+        return None
+
+    return _StartBranchRollbackState(
+        repo_root=repo_root,
+        start_branch=normalized_start_branch,
+        start_branch_preexisted=start_branch_result.returncode == 0,
+        start_branch_original_commit=(start_branch_commit_result.stdout.strip() if start_branch_commit_result.returncode == 0 else None),
+        original_branch=branch_result.stdout.strip() if branch_result.returncode == 0 else None,
+        original_commit=original_commit,
+        original_index_tree=(original_index_result.stdout.strip() if original_index_result.returncode == 0 else None),
+    )
+
+
+def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> None:
+    """Restore the original checkout and delete only a newly created branch."""
+    restore_args = ["switch", state.original_branch] if state.original_branch is not None else ["switch", "--detach", state.original_commit]
+    subprocess.run(
+        ["git", "-C", str(state.repo_root), *restore_args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    if state.start_branch_preexisted:
+        original_tip = state.start_branch_original_commit
+        if original_tip is not None:
+            current_tip_result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(state.repo_root),
+                    "rev-parse",
+                    "--verify",
+                    f"refs/heads/{state.start_branch}",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            current_tip = current_tip_result.stdout.strip()
+            if current_tip != original_tip:
+                restore_branch_ref(
+                    state.repo_root,
+                    state.start_branch,
+                    original_tip,
+                    expected_current_sha=current_tip,
+                )
+    elif state.start_branch != state.original_branch:
+        branch_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(state.repo_root),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/{state.start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if branch_result.returncode == 0:
+            subprocess.run(
+                ["git", "-C", str(state.repo_root), "branch", "-D", state.start_branch],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+    if state.original_index_tree is not None:
+        subprocess.run(
+            ["git", "-C", str(state.repo_root), "read-tree", state.original_index_tree],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+@contextmanager
+def _rollback_start_branch_on_failure(
+    repo_root: Path | None,
+    start_branch: str | None,
+) -> Iterator[None]:
+    """Make ``--start-branch`` failure-atomic across the CLI pre-core phases."""
+    state = _capture_start_branch_rollback_state(repo_root, start_branch)
+    try:
+        yield
+    except BaseException as error:
+        if state is not None:
+            try:
+                _restore_start_branch_after_failure(state)
+            except (OSError, subprocess.CalledProcessError, RefRestoreError) as rollback_error:
+                error.add_note(f"Failed to restore checkout after create failure: {rollback_error}")
+        raise
 
 
 def _resolve_start_branch_phase(
@@ -201,25 +377,44 @@ def _resolve_default_topology_phase(
     current_branch: str | None,
     pr_bound: bool,
 ) -> MissionTopology:
-    """Derive the create-time topology default from branch/pr-bound context (#2581).
+    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533).
 
-    An explicit ``--topology`` always wins. Otherwise: PR-bound missions and
-    missions created on the repository's primary branch keep the historical
-    ``coord`` default (a coordination branch is minted). A mission created on
-    a non-primary feature/fork branch without ``--pr-bound`` defaults to
-    ``single_branch`` instead — minting a coordination branch there just to
-    have the operator manually flatten it is the exact friction #2581 closes.
+    An explicit ``--topology`` always wins. Otherwise the default keys on
+    *topology honesty* (INV-2): a coordination topology is minted only when
+    coordination routing is actually reachable, never as pure overhead.
+
+    - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
+      is reachable iff ``primary_protected or current_is_primary``. A pr-bound
+      mission on an **unprotected** primary target (e.g. created with
+      ``--start-branch <feature-branch>``) therefore defaults to
+      ``single_branch``, eliminating the stranded coord branch behind the #2533
+      split-brain. Protection is keyed on the **primary TARGET branch**
+      (``ProtectionPolicy`` + ``resolve_primary_branch``), NOT the current
+      checkout (the tripwire in ``test_mission_create.py`` proves this).
+    - A non-pr-bound mission created on the repository's primary branch keeps the
+      historical ``coord`` default; one created on a non-primary feature/fork
+      branch defaults to ``single_branch`` — minting a coordination branch there
+      just to have the operator manually flatten it is the friction #2581 closes.
     """
     if explicit_topology is not None:
         return explicit_topology
-    if pr_bound:
-        return MissionTopology.COORD
+    # Fail-safe: without a resolvable repo/checkout we cannot key on target
+    # protection, so keep the historical ``coord`` default. Hoisted ahead of the
+    # pr-bound arm because that arm now needs a resolvable ``repo_root`` to read
+    # the primary target branch's protection.
     if repo_root is None or current_branch is None:
         return MissionTopology.COORD
 
     from specify_cli.core.git_ops import resolve_primary_branch
 
     primary_branch = resolve_primary_branch(repo_root)
+    if pr_bound:
+        from specify_cli.coordination.surface_authority import coord_topology_reachable
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
+        current_is_primary = current_branch == primary_branch
+        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.SINGLE_BRANCH
     if current_branch == primary_branch:
         return MissionTopology.COORD
     return MissionTopology.SINGLE_BRANCH
@@ -256,9 +451,13 @@ def _run_create_core_phase(
     friendly_name: str | None,
     purpose_tldr: str | None,
     purpose_context: str | None,
+    pr_bound: bool,
     force_recreate_coordination_branch: bool,
+    owned_checkout: Path | None,
     json_output: bool,
     topology: MissionTopology = MissionTopology.COORD,
+    retain_branches: bool = False,
+    retain_worktrees: bool = False,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
 
@@ -267,10 +466,12 @@ def _run_create_core_phase(
     a ``MissionCreationError`` (with worktree navigation hint), or any other
     unexpected exception.
     """
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.core.mission_creation import (
         MissionCreationError,
         create_mission_core,
     )
+    from specify_cli.core.checkout_ownership import CheckoutOwnershipError
     from specify_cli.missions._create import CoordinationBranchDiverged
 
     try:
@@ -282,8 +483,12 @@ def _run_create_core_phase(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            pr_bound=pr_bound,
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
+            owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     except CoordinationBranchDiverged as exc:
         # Structured error path (NFR-007): emit a stable error_code payload
@@ -293,6 +498,23 @@ def _run_create_core_phase(
         else:
             console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(1) from exc
+    except CheckoutOwnershipError as exc:
+        error_msg = str(exc)
+        if json_output:
+            # Shared ownership refusal contract (mirrors
+            # next_cmd._emit_checkout_ownership_error): exactly
+            # {success, error_code, error} — no redundant `message` key from
+            # StructuredError.to_dict().
+            _emit_json(
+                {
+                    "success": False,
+                    "error_code": exc.error_code,
+                    "error": error_msg,
+                }
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] {error_msg}")
+        raise typer.Exit(1) from exc
     except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
@@ -300,6 +522,24 @@ def _run_create_core_phase(
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             _print_worktree_navigation_hint(mission_slug, error_msg)
+        raise typer.Exit(1) from exc
+    except CharterPackConfigError as exc:
+        # FR-010 (#3337): the fail-closed charter-pack gate raises a
+        # ``KittyInternalConsistencyError`` whose ``str(exc)`` is only the
+        # stable ``.code`` — the actionable remediation lives on ``.body``. The
+        # generic handler below would emit ``{"error": "<CODE>"}`` and drop the
+        # remediation entirely, so carry both the code and the body into the
+        # --json envelope for scripted callers.
+        if json_output:
+            _emit_json(
+                {
+                    "error_code": exc.code,
+                    "error": exc.body,
+                    "remediation": exc.body,
+                }
+            )
+        else:
+            console.print(f"[bold red]Error:[/bold red] {exc.body}")
         raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:
@@ -326,13 +566,14 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
     feature_dir = result.feature_dir
     spec_file = feature_dir / "spec.md"
     meta_file = feature_dir / "meta.json"
-    tasks_readme = feature_dir / "tasks" / "README.md"
-    return {
+    payload: dict[str, object] = {
         "result": "success",
         "mission_slug": result.mission_slug,
         "mission_number": result.mission_number,
         "mission_id": str(result.meta.get("mission_id", "")),
-        "mission_type": str(result.meta.get("mission_type", result.meta.get("mission", ""))),
+        # rc3 M5 (FR-002): echo the canonical field only — the legacy `mission`
+        # echo is retired (a just-created mission always carries `mission_type`).
+        "mission_type": str(result.meta.get("mission_type", "")),
         "slug": str(result.meta.get("slug", "")),
         "friendly_name": str(result.meta.get("friendly_name", "")),
         "purpose_tldr": str(result.meta.get("purpose_tldr", "")),
@@ -341,7 +582,26 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "spec_file": str(spec_file),
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),
-        "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
+        "created_files": [str(path) for path in result.created_files],
+        # #2693: spec.md is scaffolded empty and left uncommitted on purpose
+        # (#846) — it is committed later by /spec-kitty.specify once it holds
+        # substantive content. Disclose it as a structured uncommitted artifact
+        # (with the command responsible for committing it) so a generated file
+        # is never both untracked in the working tree AND undisclosed to the
+        # caller. meta.json, status.events.jsonl, and the tasks/ scaffold are
+        # committed transactionally at create time, so they are NOT listed here.
+        "uncommitted_artifacts": [
+            {
+                "path": str(path),
+                "reason": (
+                    "Scaffolded empty at create time; populated and committed with substantive content later (#846)."
+                    if path == spec_file
+                    else "Generated scaffold could not be committed to the protected or unavailable target branch."
+                ),
+                "responsible_command": ("/spec-kitty.specify" if path == spec_file else "commit from a non-protected feature branch"),
+            }
+            for path in result.uncommitted_files
+        ],
         "write_mode": "update_existing_files",
         "scaffold_only": True,
         "requires_agent_authoring": True,
@@ -361,6 +621,10 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # surfaced so `specify --json` callers can read it without re-deriving.
         "topology": str(result.meta.get("topology", "")),
     }
+    if result.owned_checkout is not None:
+        payload["owned_checkout"] = str(result.owned_checkout)
+        payload["canonical_repo_root"] = str(result.canonical_repo_root)
+    return payload
 
 
 def _emit_create_result_phase(
@@ -457,6 +721,31 @@ def create_mission(
             ),
         ),
     ] = False,
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option(
+            "--owned-checkout",
+            help=(
+                "Explicitly declare a checkout root owned by this invocation. "
+                "The path must be the primary checkout or a validated linked "
+                "worktree of the resolved primary repository."
+            ),
+        ),
+    ] = None,
+    retain_branches: Annotated[
+        bool,
+        typer.Option(
+            "--retain-branches",
+            help="Opt this mission's branches out of post-merge cleanup deletion.",
+        ),
+    ] = False,
+    retain_worktrees: Annotated[
+        bool,
+        typer.Option(
+            "--retain-worktrees",
+            help="Opt this mission's worktrees out of post-merge cleanup deletion.",
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -472,60 +761,64 @@ def create_mission(
     from specify_cli.cli.commands.agent import mission as _mission
 
     repo_root = _mission.locate_project_root()
+    command_checkout = owned_checkout.resolve() if owned_checkout is not None else repo_root
 
-    _resolve_start_branch_phase(
-        repo_root=repo_root,
-        start_branch=start_branch,
-        target_branch=target_branch,
-        json_output=json_output,
-    )
+    with _rollback_start_branch_on_failure(command_checkout, start_branch):
+        _resolve_start_branch_phase(
+            repo_root=command_checkout,
+            start_branch=start_branch,
+            target_branch=target_branch,
+            json_output=json_output,
+        )
 
-    resolved_mission_type = _resolve_mission_type_phase(
-        mission_type=mission_type,
-        mission=mission,
-        json_output=json_output,
-    )
+        resolved_mission_type = _resolve_mission_type_phase(
+            mission_type=mission_type,
+            mission=mission,
+            json_output=json_output,
+        )
 
-    current_branch = _mission.get_current_branch(repo_root)
-    _enforce_branch_strategy_gate_phase(
-        pr_bound=pr_bound,
-        current_branch=current_branch,
-        target_branch=target_branch,
-        branch_strategy=branch_strategy,
-        start_branch=start_branch,
-        json_output=json_output,
-    )
+        current_branch = _mission.get_current_branch(command_checkout)
+        _enforce_branch_strategy_gate_phase(
+            pr_bound=pr_bound,
+            current_branch=current_branch,
+            target_branch=target_branch,
+            branch_strategy=branch_strategy,
+            start_branch=start_branch,
+            json_output=json_output,
+        )
 
-    resolved_topology = _resolve_default_topology_phase(
-        explicit_topology=topology,
-        repo_root=repo_root,
-        current_branch=current_branch,
-        pr_bound=pr_bound,
-    )
+        resolved_topology = _resolve_default_topology_phase(
+            explicit_topology=topology,
+            repo_root=command_checkout,
+            current_branch=current_branch,
+            pr_bound=pr_bound,
+        )
 
-    # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
-    # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
-    # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
-    # T012). Keeping this import inside the command body — rather than at module
-    # scope — keeps the whole tracker/sync/SaaS stack off the CLI cold-start path
-    # (NFR-003), while preserving the CLI-layer placement so no CORE→INTEGRATION
-    # import edge is introduced in ``core/mission_creation.py`` (#614 leak fix).
-    import specify_cli.tracker  # noqa: F401  (import side-effect: origin-consumer registration)
+        # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
+        # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
+        # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
+        # T012). Keeping this import inside the command body — rather than at module
+        # scope — keeps the whole tracker/sync/SaaS stack off the CLI cold-start path
+        # (NFR-003), while preserving the CLI-layer placement so no CORE→INTEGRATION
+        # import edge is introduced in ``core/mission_creation.py`` (#614 leak fix).
+        import specify_cli.tracker  # noqa: F401  (import side-effect: origin-consumer registration)
 
-    result = _run_create_core_phase(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        resolved_mission_type=resolved_mission_type,
-        target_branch=target_branch,
-        friendly_name=friendly_name,
-        purpose_tldr=purpose_tldr,
-        purpose_context=purpose_context,
-        topology=resolved_topology,
-        force_recreate_coordination_branch=force_recreate_coordination_branch,
-        json_output=json_output,
-    )
-
-    _persist_pr_bound_phase(result, pr_bound=pr_bound)
+        result = _run_create_core_phase(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            resolved_mission_type=resolved_mission_type,
+            target_branch=target_branch,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
+            pr_bound=pr_bound,
+            topology=resolved_topology,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
+            owned_checkout=owned_checkout,
+            json_output=json_output,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
+        )
     _emit_create_result_phase(
         result,
         resolved_mission_type=resolved_mission_type,

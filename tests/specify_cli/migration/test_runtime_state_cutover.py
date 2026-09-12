@@ -30,9 +30,9 @@ from specify_cli.status import (
     Lane,
     WPInnerStateDelta,
     annotate,
-    append_annotations_atomic_verified,
     emit_inner_state_changed,
 )
+from specify_cli.status._unsafe import append_annotations_atomic_verified
 from tests.unit.migration._backfill_fixture import (
     CLAIMED_AT,
     IN_PROGRESS_AT,
@@ -275,6 +275,92 @@ def test_idempotent_rerun_seeds_and_flips_nothing(tmp_path: Path) -> None:
     assert second.seeded_count == 0
     assert (feature_dir / "status.events.jsonl").read_bytes() == events_after
     assert (feature_dir / "meta.json").read_bytes() == meta_after
+
+
+# ---------------------------------------------------------------------------
+# #3212 — a mission with event-log evidence but NO seedable legacy state
+# ---------------------------------------------------------------------------
+
+
+def _build_no_seed_state_mission(tmp_path: Path, *, slug: str = "no-state") -> Path:
+    """The #3212 corpus shape: transitions on disk, zero seedable frontmatter.
+
+    Event-log runtime evidence (the ``planned -> claimed -> in_progress``
+    transitions) but no legacy frontmatter/checkbox state to seed: no claim
+    fields, no assignee/tracker_refs, no review override, no history, no
+    subtask checklist. A cutover over this mission seeds ZERO events and still
+    flips — the exact mission the CLI summary used to misreport as
+    "Skipped (already migrated)".
+    """
+    return build_mission(
+        tmp_path,
+        slug=slug,
+        with_claim=False,
+        with_review=False,
+        with_history=False,
+        assignee="",
+        tracker_refs=(),
+        with_subtasks=False,
+    )
+
+
+def test_no_seed_state_mission_flips_and_says_so(tmp_path: Path) -> None:
+    """Zero seeds, phase absent -> the run flips and ``already_migrated`` is False.
+
+    ``seeded_count == 0`` must never be read as "already migrated" (#3212):
+    seeding and flipping are independent legs of the spine.
+    """
+    feature_dir = _build_no_seed_state_mission(tmp_path)
+
+    result = rsc.cutover_mission(feature_dir)
+
+    assert result.verify is not None and result.verify.ok
+    assert result.seeded_count == 0
+    assert result.flipped is True
+    assert result.already_migrated is False
+    assert json.loads((feature_dir / "meta.json").read_text())[_STATUS_PHASE] == "1"
+
+
+def test_rerun_over_migrated_mission_reports_already_migrated(tmp_path: Path) -> None:
+    """The re-run's no-write short-circuit is named, not inferred from seeds.
+
+    ``flipped`` stays True by the pinned contract (verify ok + authority
+    held); ``already_migrated`` is the bit that says this run wrote nothing.
+    """
+    feature_dir = _build_no_seed_state_mission(tmp_path)
+    rsc.cutover_mission(feature_dir)
+    meta_after_first = (feature_dir / "meta.json").read_bytes()
+
+    second = rsc.cutover_mission(feature_dir)
+
+    assert second.flipped is True  # pinned contract (test_birth_cutover.py)
+    assert second.seeded_count == 0
+    assert second.already_migrated is True
+    assert (feature_dir / "meta.json").read_bytes() == meta_after_first
+
+
+def test_dry_run_distinguishes_would_flip_from_already_migrated(tmp_path: Path) -> None:
+    """Dry-run ``already_migrated`` separates "would write" from "nothing to do".
+
+    ``would_flip`` itself stays the raw verify-ok signal (the ``doctor
+    cutover`` verdict rides it, FR-007) — including on a migrated mission —
+    so the would-WRITE answer is ``would_flip and not already_migrated``.
+    """
+    feature_dir = _build_no_seed_state_mission(tmp_path)
+    meta_before = (feature_dir / "meta.json").read_bytes()
+
+    pending = rsc.cutover_mission(feature_dir, dry_run=True)
+
+    assert pending.would_flip is True
+    assert pending.already_migrated is False
+    assert (feature_dir / "meta.json").read_bytes() == meta_before  # wrote nothing
+
+    rsc.cutover_mission(feature_dir)  # the live flip
+
+    migrated = rsc.cutover_mission(feature_dir, dry_run=True)
+
+    assert migrated.would_flip is True  # raw signal: verify passed
+    assert migrated.already_migrated is True  # ...but a live run would write nothing
 
 
 # ---------------------------------------------------------------------------

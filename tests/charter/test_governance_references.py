@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.governance_references import (
+from charter.activation.governance_references import (
     collect_governance_reference_status,
     render_governance_references,
 )

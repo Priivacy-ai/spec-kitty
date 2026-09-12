@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
@@ -25,7 +25,7 @@ def _disable_saas_sync_for_tasks_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     in scope. The preflight is not what these tests are testing — they
     test the planning workflow logic — so we disable the gate here.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 @pytest.fixture(autouse=True)
@@ -91,7 +91,7 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
         "friendly_name": slug.replace("-", " "),
         "mission_type": "software-dev",
         "target_branch": "main",
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": now_utc_iso(),
     }
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2) + "\n",

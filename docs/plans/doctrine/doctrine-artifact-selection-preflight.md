@@ -1,12 +1,14 @@
 ---
 title: Pre-flight investigation — user-authored doctrine artifact selection
 description: 'Pre-mission investigation by Architect Alphonso into user-authored doctrine-artifact selection: the design questions and constraints ahead of the mission.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-15'
 related:
 - docs/plans/doctrine/runtime-charter-doctrine-boundary.md
 ---
 # Pre-flight investigation — user-authored doctrine artifact selection
+
+> **Retired (deprecated).** Design shipped via the org-doctrine-layer three-layer model (all 8 layer-rule tests pass; PRs #305/#348; drivers #832/#883/#1013/#391). Preserved as a historical record.
 
 **Author:** Architect Alphonso (pre-mission investigation)
 **Date:** 2026-05-17

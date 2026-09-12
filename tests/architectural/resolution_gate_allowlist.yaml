@@ -19,26 +19,31 @@
 # shrunk 7 -> 3 (the 4 workflow.py entries drained; see the coord_authority
 # header comment below for the routing detail). SHRINK-ONLY: baseline must
 # never rise back above the honest live entry count.
+# write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A,
+# STRENGTHENING: decisions/emit.py:_mission_dir:71 was routed off the
+# kind-blind resolver entirely (onto placement_seam(...).read_dir(STATUS_STATE)),
+# so its allowlist entry below is REMOVED (staleness twin-guard) — the site no
+# longer exists. coord_authority_baseline shrinks 4 -> 3.
 canonicalizer_baseline: 3
-coord_authority_baseline: 4
+coord_authority_baseline: 3
 
 canonicalizer:
 - qualname: _canonicalize_bare_modern_handle
-  line: 453
-  rationale: "C-001/FR-011 sanctioned bare probe inside _canonicalize_bare_modern_handle (the FR-004 bare-human-slug fold) - folding canonicalization into the primitive would recurse; PERMANENT fixture, never remove"
+  line: 464
+  rationale: "C-001/FR-011 sanctioned bare probe inside _canonicalize_bare_modern_handle (the FR-004 bare-human-slug fold) - folding canonicalization into the primitive would recurse; PERMANENT fixture, never remove. read-side-seam-primary-primitive-closure-01KYKMMT WP03 T016 re-pointed this call at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission) to break the wrapper-delegates-to-seam recursion (Ledger M16); same semantic raw-probe, new literal callee name."
   file: src/specify_cli/missions/_read_path_resolver.py
-  token: literal_primary = primary_feature_dir_for_mission ( repo_root , handle )
+  token: literal_primary = _compose_primary_feature_dir ( repo_root , handle )
 - qualname: read_primary_meta
-  line: 819
-  rationale: "WP03 SANCTION: seam-internal first-probe in read_primary_meta - callers (resolve_handle_to_read_path:929, _stored_topology_best_effort:1203) pass already-canonicalized handles; the raw first-probe is intentional (try literal dir, then _canonicalize_handle fallback in body); wrapping here would double-fold the composed handle; PERMANENT fixture"
+  line: 845
+  rationale: "WP03 SANCTION: seam-internal first-probe in read_primary_meta - callers (resolve_handle_to_read_path:929, _stored_topology_best_effort:1203) pass already-canonicalized handles; the raw first-probe is intentional (try literal dir, then _canonicalize_handle fallback in body); wrapping here would double-fold the composed handle; PERMANENT fixture. read-side-seam-primary-primitive-closure-01KYKMMT WP03 T016 re-pointed this call at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission), same semantic raw-probe, new literal callee name."
   file: src/specify_cli/missions/_read_path_resolver.py
-  token: primary_dir = primary_feature_dir_for_mission ( repo_root , handle )
+  token: primary_dir = _compose_primary_feature_dir ( repo_root , handle )
 - qualname: MissionStatus._find_meta_path
-  line: 533
-  rationale: "WP05 SANCTION: bare_dir_name is returned by resolve_bare_modern_mission_dir_name (called on line 531) which returns meta_path.parent.name -- the actual on-disk composed dir name (e.g. 'demo-feature-01ABCDEF'). This is a feature_dir.name-equivalent; the gate cannot detect it via def-use (bare_dir_name is a local str variable, not a .name attribute read) but the invariant is guaranteed by the callee's implementation and docstring. Already-canonical by provenance."
+  line: 534
+  rationale: "WP05 SANCTION: bare_dir_name is returned by resolve_bare_modern_mission_dir_name (called on line 521) which returns meta_path.parent.name -- the actual on-disk composed dir name (e.g. 'demo-feature-01ABCDEF'). This is a feature_dir.name-equivalent; the gate cannot detect it via def-use (bare_dir_name is a local str variable, not a .name attribute read) but the invariant is guaranteed by the callee's implementation and docstring. Already-canonical by provenance. read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): re-pointed at the module-private leaf _compose_primary_feature_dir (was primary_feature_dir_for_mission) -- WP08 deleted the public wrapper this call used; CANONICALIZER_PRIMITIVE_NAMES already recognises the leaf by literal name, so the token moves with it (precedent: WP03 77226250f)."
 
   file: src/specify_cli/status/aggregate.py
-  token: composed_primary = primary_feature_dir_for_mission ( repo_root , bare_dir_name )
+  token: composed_primary = _compose_primary_feature_dir ( repo_root , bare_dir_name )
 coord_authority:
   # WP02 (T008/T014): ``mark_status:1807`` is ROUTED -- its write leg now uses the
   # kind-aware resolve_planning_read_dir(kind=TASKS_INDEX) (closes #2154), so it is
@@ -73,11 +78,6 @@ coord_authority:
   # WP07/WP08 because they were never seen. This is a census GAIN (2 new
   # legitimate write sites surfaced, not routed), raising honest write count
   # 2 -> 4 and allowlist baseline 2 -> 4.
-- qualname: _mission_dir
-  line: 71
-  rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
-  file: src/specify_cli/decisions/emit.py
-  token: return resolve_feature_dir_for_mission ( repo_root , mission_slug )
 - qualname: WidenPendingStore.__init__
   line: 63
   rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"

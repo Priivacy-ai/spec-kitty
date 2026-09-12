@@ -1,0 +1,95 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: TASKS-SEQ-001
+    lens: Phasing / Chokepoints
+    severity: 4
+    title: lanes.json's depends_on_lanes graph is cyclic (lane-a <-> lane-b, lane-a <-> lane-c), and nothing in the mission artifacts flags or mitigates it for WP07's implementer
+    evidence:
+      - artifact: "lanes.json (full file)"
+      - code: "kitty-specs/up-mission-type-seam-01KZY1JB/lanes.json:7-96 — lane-a (WP02,WP03,WP07) declares depends_on_lanes: [lane-b, lane-c, lane-planning]; lane-b (WP04,WP06) declares depends_on_lanes: [lane-a]; lane-c (WP05) declares depends_on_lanes: [lane-a]"
+      - artifact: "lanes.json collapse_report (lines 103-129) — write_scope_overlap merged WP02+WP03 (shared src/doctrine/missions/mission_type_repository.py) and WP02+WP07 (shared src/specify_cli/cli/commands/mission_type.py + tests/cli/test_charter_mission_type_commands.py) into one lane"
+      - code: "src/specify_cli/lanes/compute.py:624-629 — _compute_lane_depths's own docstring: \"Self-loops and cycles in lane_deps are detected via the in_progress guard and treated as depth-0 anchors rather than recursing infinitely. Cycle detection is best-effort... Callers that need cycle-accurate depths should validate the lane graph before invoking.\""
+      - code: "src/specify_cli/lanes/compute.py:279-576 (compute_lanes) — no caller performs that validation; confirmed no logging/warning/rejection path exists for a cyclic lane_deps graph anywhere in compute_lanes or its only call site (src/specify_cli/cli/commands/agent/mission_finalize.py:1352)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:419-514 (_merge_dependency_lane_tips), called from allocate_lane_worktree at :204-206/:255-257/:290-292 — depends_on_lanes IS mechanically acted on: it git-merges each dependency lane's branch tip into the dependent lane's worktree at allocation time"
+    claim: >
+      lanes.json (one of this review's primary artifacts) encodes a real, mechanically-actionable
+      cycle in its lane-dependency graph, not merely an odd-looking-but-harmless byproduct. The
+      write_scope_overlap collapse rule in compute_lanes unions WP02 (the mission's first WP),
+      WP03 (a middle WP depended on by WP04/WP06 in a different lane), and WP07 (the mission's
+      last WP, dependent on WP05/WP06 in the two other lanes) into a single lane ("lane-a") purely
+      because WP02 and WP03 share one file (mission_type_repository.py) and WP02 and WP07 share
+      two files (mission_type.py, its test file). Because that merged lane spans the full temporal
+      extent of the mission, the lane-level dependency projection (compute.py:466-501, "Lane B
+      depends on lane A if any WP in B depends on any WP in A") produces both lane-a -> lane-b/c
+      (via WP07's real dependency on WP05/WP06) and lane-b/c -> lane-a (via WP04/WP05's real
+      dependency on WP03/WP02) simultaneously — a genuine cycle, not an artifact-formatting quirk.
+      Per-WP claim/start gating (dependency_readiness_for_wp) is unaffected and correctly reads
+      wps.yaml's own acyclic WP-level graph, so this is not a scheduling deadlock. But
+      worktree_allocator.py's _merge_dependency_lane_tips DOES mechanically consume
+      depends_on_lanes for real git-merge operations at worktree-allocation time, in both
+      directions of the cycle: when lane-a's worktree is allocated (to run WP02, then later
+      WP07), the allocator will attempt to merge lane-b's and lane-c's tips per lane-a's own
+      depends_on_lanes — content that, for the WP02 portion of lane-a's work, does not exist yet
+      because lane-b/lane-c themselves declare depends_on_lanes: [lane-a] and are waiting on
+      lane-a's WP02/WP03 commits. This is exactly the class of "silent success" / unvalidated
+      graph state NFR-002 and the charter's Standing Order #9 exist to catch elsewhere in this
+      mission's own domain logic, but it appears unaddressed in the mission's own execution
+      scaffolding. Nothing in tasks.md, wps.yaml's header comment, or WP07's prompt (which
+      otherwise goes out of its way to document every other deviation from plan.md, e.g. the
+      WP06-dependency rationale) flags this lane-graph inconsistency or gives WP07's implementer
+      any guidance for handling lane-a's worktree allocation when it is reached.
+    remediation: >
+      (1) Add an explicit note in wps.yaml's header comment and/or WP07's prompt's "Branch
+      Strategy" section warning that lane-a's automatic worktree allocation may hit a
+      depends_on_lanes cycle, and that the operator/implementer should verify lane-a's worktree
+      base already contains lane-b's and lane-c's merged tips (or bypass automatic lane-based
+      allocation for WP07 and construct its workspace directly against the mission coordination
+      branch) rather than trusting the automatic merge to succeed cleanly. (2) File an upstream
+      spec-kitty gap against src/specify_cli/lanes/compute.py: either have compute_lanes reject
+      (fail loudly, per this codebase's own NFR-002 ethos) a cyclic depends_on_lanes graph at
+      generation time instead of silently emitting it, or refine the write_scope_overlap collapse
+      rule so it does not union two WPs across an intervening cross-lane dependency edge (i.e.
+      detect that unioning WP02+WP03+WP07 would create exactly this cycle and either keep them
+      as three lanes with a documented sequential-write-scope-overlap warning, or serialize the
+      whole union into parallel_group order without emitting contradictory depends_on_lanes
+      entries). (3) Record this as a tooling-friction entry in this mission's
+      tracer-tooling-friction.md so later missions with a similar first-WP/last-WP file-overlap
+      shape don't hit the same unflagged gap.
+
+  - id: TASKS-SEQ-002
+    lens: "[MISSION-DERIVED] Write-scope disjointness"
+    severity: 3
+    title: WP07 owns src/specify_cli/cli/commands/doctrine.py, which collides with two live, open, non-draft upstream PRs — no open-PR collision check is documented anywhere in the mission artifacts
+    evidence:
+      - artifact: "wps.yaml § WP07 owned_files (lines 203-211); tasks/WP07-cli-surface-fixes.md frontmatter owned_files (lines 35-43)"
+      - code: "gh pr list --state open --json number,title,headRefName,files (run live against this repo's GitHub remote) → PR #3166 \"feat(doctrine): ETag skip + Artifactory version for HTTPS fetch\" (OPEN, non-draft, updated 2026-08-11) modifies src/specify_cli/cli/commands/doctrine.py; PR #2719 \"feat: doctrine org init from local/git template\" (OPEN, non-draft, updated 2026-08-11) also modifies src/specify_cli/cli/commands/doctrine.py"
+      - artifact: "grep -rn \"gh pr\\|open pull\\|PR collision\\|in-flight PR\\|concurrent PR\" across kitty-specs/up-mission-type-seam-01KZY1JB/ → zero hits"
+    claim: >
+      WP07 (tasks/WP07-cli-surface-fixes.md, T018) claims src/specify_cli/cli/commands/doctrine.py
+      as an owned file to implement FR-008 (extend the `rows` collection in
+      `_collect_built_in_mission_types`/`mission_type_list`). Two open, non-draft, recently-updated
+      upstream PRs (#3166, #2719) independently modify this exact same file for unrelated reasons
+      (HTTPS-fetch caching, org-init-from-template). The mission's own preflight discipline
+      (evidenced by tasks.ruling.md's careful handling of the spec.md:77 FR-032 false-positive)
+      shows this mission takes tooling landmines seriously when they are surfaced — but no artifact
+      in this mission (tasks.md, wps.yaml, or WP07's own prompt) documents having run the mandated
+      `gh pr list` open-PR collision preflight, and none flags this real collision to WP07's
+      implementer. Without that flag, WP07's implementer is likely to hit an unexpected merge
+      conflict (or, worse, a silent semantic conflict if `_collect_built_in_mission_types`'s
+      surrounding code shifts under one of those PRs before this mission's PR lands) with no
+      advance warning, causing rework specifically inside WP07 — the mission's capstone,
+      integration-point WP.
+    remediation: >
+      Add a note to WP07's prompt (Context & Constraints or Risks & Mitigations section) naming
+      PRs #3166 and #2719 as known open, file-overlapping PRs against
+      src/specify_cli/cli/commands/doctrine.py, instructing the implementer to re-run
+      `gh pr list --search "doctrine.py in:file"` (or equivalent) immediately before starting T018,
+      and to rebase/re-verify the `_collect_built_in_mission_types`/`mission_type_list` line numbers
+      and surrounding code shape against main's current state (both PRs may have merged or drifted
+      by the time WP07 is implemented) rather than trusting plan.md's/this WP's live-verified line
+      numbers to still hold.

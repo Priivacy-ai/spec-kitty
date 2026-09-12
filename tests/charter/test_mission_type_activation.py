@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 
 pytestmark = [pytest.mark.fast]
 

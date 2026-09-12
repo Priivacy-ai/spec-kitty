@@ -6,4 +6,4 @@ cd "$(dirname "$0")"
 
 # Run the suite via uv (the canonical authority; see the Makefile `test` target and
 # CONTRIBUTING). uv sync's editable install handles src/ imports, so no manual PYTHONPATH.
-uv run pytest tests/ "$@"
+uv run --frozen pytest tests/ "$@"

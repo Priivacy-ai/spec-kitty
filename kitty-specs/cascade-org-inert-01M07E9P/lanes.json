@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "cascade-org-inert-01M07E9P",
+  "mission_id": "01M07E9PV8R2X74SM75BYY279F",
+  "mission_branch": "kitty/mission-cascade-org-inert-01M07E9P",
+  "target_branch": "pr/up-cascade-org-inert",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/dossier/rebaseline.py",
+        "tests/dossier/test_rebaseline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_layer_roots.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_flags.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_deactivate_commands.py",
+        "tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "tests/charter/test_context_org_chain.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-17T13:32:00.772726+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9aa45d6b852adb6d780ef1d0e19f840750bce106"
+}

@@ -17,9 +17,7 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.invocation.adapters import (
     get_saas_client,
     register_saas_client_factory,
-    register_sync_routing_resolver,
     reset_adapters,
-    resolve_sync_routing,
 )
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
@@ -106,9 +104,7 @@ __all__ = [
     "AlreadyClosedError",
     "get_saas_client",
     "register_saas_client_factory",
-    "register_sync_routing_resolver",
     "reset_adapters",
-    "resolve_sync_routing",
     "ContextUnavailableError",
     "EvidenceArtifact",
     "InvocationError",

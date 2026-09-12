@@ -30,9 +30,13 @@ import typer
 from click.testing import Result
 
 from mission_runtime import CommitTarget, MissionTopology
-from specify_cli.status import COORD_OWNED_STATUS_FILES
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
+# WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES``; this fixture module needs
+# the two canonical status-artifact basenames as test-local seed data, not a
+# churn-classifier verdict.
+_STATUS_STATE_BASENAMES: frozenset[str] = frozenset({"status.events.jsonl", "status.json"})
 
 
 def _patch_mission_topology(
@@ -107,7 +111,7 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         # remain residue whose stale primary copy the preflight must ignore.
         # Seed + commit coord-owned finalized artifacts so they are *tracked*; a
         # later edit makes them show up as worktree-modified residue.
-        for name in sorted(COORD_OWNED_STATUS_FILES):
+        for name in sorted(_STATUS_STATE_BASENAMES):
             (mission_dir / name).write_text("{}\n", encoding="utf-8")
         for rel_path in (
             "acceptance-matrix.json",
@@ -120,7 +124,7 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         git("commit", "-m", "seed coord-owned artifacts")
         # The coord branch is now the canonical owner; the primary checkout edit
         # below is exactly the COORD-partition residue that deadlocked #1814/#1998.
-        for name in sorted(COORD_OWNED_STATUS_FILES):
+        for name in sorted(_STATUS_STATE_BASENAMES):
             (mission_dir / name).write_text('{"stale": true}\n', encoding="utf-8")
         for rel_path in (
             "acceptance-matrix.json",
@@ -338,7 +342,9 @@ class TestImplementClaimNoPlanningArtifactSplit:
 # refused with DIRTY_WORKTREE. Cleanup is scoped to paths finalize itself
 # materialized this invocation (research R6): an operator-authored untracked
 # file planted pre-finalize SURVIVES. Constraint C-003: the fix never widens
-# COORD_OWNED_STATUS_FILES (asserted via the frozen set's exact contents).
+# the status-log/snapshot exclusion set (formerly ``COORD_OWNED_STATUS_FILES``,
+# retired onto the owner in WP13; now the ``STATUS_STATE`` kind, still exactly
+# ``status.events.jsonl`` / ``status.json``).
 
 _RESIDUE_MISSION_ID = "01T009RESIDUEFREE000000001"
 _RESIDUE_MID8 = _RESIDUE_MISSION_ID[:8]
@@ -454,16 +460,6 @@ def _run_real_finalize(repo: Path, mission_slug: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return CliRunner().invoke(
             app,
@@ -490,16 +486,12 @@ class TestFinalizeLeavesNoPrimaryResidue:
     @pytest.fixture(autouse=True)
     def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.status.emit as emit_module
-        import specify_cli.sync.feature_flags as feature_flags_module
 
         monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
-        # Disable SaaS sync at the source module: late `from .feature_flags
-        # import is_saas_sync_enabled` imports inside the dossier pipeline must
-        # also see it disabled, or environment-dependent dossier writes leak
-        # into the porcelain assertions.
-        monkeypatch.setattr(
-            feature_flags_module, "is_saas_sync_enabled", lambda *a, **k: False
-        )
+        # Disable hosted sync at its canonical source module: late
+        # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled`
+        # imports (readiness coordinator, mission_type) must also see it disabled,
+        # or environment-dependent writes leak into the porcelain assertions.
 
     def test_finalize_leaves_porcelain_free_of_stager_residue(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -522,7 +514,7 @@ class TestFinalizeLeavesNoPrimaryResidue:
             line
             for line in porcelain
             if "kitty-specs/" in line
-            and line.split("/")[-1] not in COORD_OWNED_STATUS_FILES
+            and line.split("/")[-1] not in _STATUS_STATE_BASENAMES
         ]
         assert residue == [], (
             "finalize left planning-artifact residue on the primary checkout "
@@ -555,8 +547,10 @@ class TestFinalizeLeavesNoPrimaryResidue:
         assert result.exit_code == 0, f"finalize failed:\n{result.output}"
 
         # write-surface-coherence WP01: ``kind`` is REQUIRED. record-analysis
-        # writes ``ANALYSIS_REPORT`` (a COORD-partition kind), so its placement
-        # resolves to the coordination ref under coord topology.
+        # writes ``ANALYSIS_REPORT``, which coord-commit-integrity FR-003
+        # re-homed COORD->PRIMARY -- its placement resolves to the primary ref
+        # even though this mission's topology routes other kinds through
+        # coordination (checked separately below).
         placement = resolve_placement_only(
             repo, mission_slug, kind=MissionArtifactKind.ANALYSIS_REPORT
         )
@@ -622,9 +616,29 @@ class TestFinalizeLeavesNoPrimaryResidue:
 
     def test_coord_owned_status_files_not_widened(self) -> None:
         """C-003: the residue fix is cleanup-at-source; the coord-owned
-        exclusion list keeps exactly its two members."""
-        expected = frozenset({"status.events.jsonl", "status.json"})
-        assert expected == COORD_OWNED_STATUS_FILES
+        exclusion set keeps exactly its two members.
+
+        WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES`` onto the canonical
+        file->kind classifier; this pins the same invariant against the new
+        owner (``MissionArtifactKind.STATUS_STATE``) instead of the retired
+        frozenset.
+        """
+        from mission_runtime import MissionArtifactKind, kind_for_mission_file
+
+        candidates = (
+            "status.events.jsonl",
+            "status.json",
+            "tasks.md",
+            "lanes.json",
+            "acceptance-matrix.json",
+            "issue-matrix.md",
+        )
+        classified_status_state = {
+            name
+            for name in candidates
+            if kind_for_mission_file(f"kitty-specs/m/{name}") is MissionArtifactKind.STATUS_STATE
+        }
+        assert classified_status_state == {"status.events.jsonl", "status.json"}
 
 
 class TestStagerResidueCleanupScoping:

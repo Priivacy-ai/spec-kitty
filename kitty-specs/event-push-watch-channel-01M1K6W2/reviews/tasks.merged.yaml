@@ -1,0 +1,178 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "PR-shape carry-forward (lens 2 — aggregate-diff review rigor)"
+    severity: 3
+    title: "Plan's 'aggregate diff NOT trivially reviewable in one sitting' note is missing from 3 of 5 WP files, including the highest-risk core WP"
+    evidence:
+      - artifact: "plan.md § PR Shape (lines 859-872)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md, line 86 (carries the note)"
+      - artifact: "tasks/WP05-concurrency-proof.md, lines 83-88 (carries the note)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md (no occurrence anywhere in the file)"
+      - artifact: "tasks/WP02-truncation-detection.md (same — no occurrence)"
+      - artifact: "tasks/WP03-bounded-generator-core.md (same — no occurrence)"
+    claim: >
+      plan.md's "PR Shape" section explicitly recommends WP-level review not be compressed or
+      skipped even though the final artifact is one PR. That note is present in WP04/WP05 but
+      absent from WP01/WP02/WP03 — the three core WPs carrying the mission's hardest logic.
+    remediation: >
+      Add the same PR-Shape recap bullet used in WP04/WP05 to WP01, WP02, and WP03's Context
+      sections.
+    source_groups: [decomp]
+
+  - id: TASKS-DECOMP-002
+    lens: "Single-concern / ownership-overlap narrative accuracy (decomp lens 1; independently confirmed by seq's Chokepoints lens as TASKS-SEQ-001 — merged, duplicate claim)"
+    severity: 4
+    title: "WP02 and WP03 both assert a false claim about their own owned_files, and both omit the real ownership-overlap exemption (scope: codebase-wide) actually used"
+    evidence:
+      - artifact: "wps.yaml, lines 42-45 (WP02 owned_files includes tail_reader.py; scope: codebase-wide)"
+      - artifact: "wps.yaml, lines 74-77 (WP03 owned_files includes tail_reader.py; scope: codebase-wide)"
+      - artifact: "tasks.md, line 23 (WP02 Owned Files lists tail_reader.py) and line 34 (WP03 same)"
+      - artifact: "tasks/WP02-truncation-detection.md, frontmatter lines 33-35 (lists tail_reader.py) vs. lines 65-71 ('this mission's resolution is that only the file's creator (WP01) lists tail_reader.py in owned_files' — false against its own frontmatter 8 lines above)"
+      - artifact: "tasks/WP03-bounded-generator-core.md, frontmatter lines 31-33 (lists tail_reader.py) vs. lines 62-63 ('This WP has NO exclusive owned_files' — false against its own frontmatter)"
+      - code: "packs/built-in/missions/mission-steps/software-dev/tasks-finalize/prompt.md:71-79 (scope: codebase-wide is 'the ONLY exemption' for two narrow WPs claiming the same file)"
+      - artifact: "lanes.json collapse_report, lines 82-95 (independently corroborates the WP01/WP02 and WP01/WP03 owned_files overlap on tail_reader.py — third confirmation the WP prose is wrong)"
+      - code: "src/specify_cli/lanes/compute.py:1-11 (dependency edges do not collapse lanes by themselves), :277-296 (find_overlap_pairs, glob-overlap only), :453-466 (Rule 1 write_scope_overlap unions only on owned_files overlap, never on a bare dependency edge)"
+    claim: >
+      WP02 and WP03's Context sections each assert, citing the mission's own canonical
+      tasks-finalize doctrine, that "this mission's resolution" is that only WP01 lists
+      tail_reader.py in owned_files while WP02/WP03 extend it without claiming it. This is
+      factually false against wps.yaml, tasks.md, both WPs' own frontmatter, and lanes.json's
+      independently-computed collapse_report — all four show WP01, WP02 AND WP03 listing the
+      file, with `scope: codebase-wide` (the doctrine's only sanctioned exemption for narrow
+      overlapping WPs) set on WP02/WP03. This is not a cosmetic mismatch: verified directly
+      against src/specify_cli/lanes/compute.py, lane collapse (which produced the safe single
+      sequential lane-a = WP01+WP02+WP03) triggers ONLY on owned_files overlap, never on a bare
+      dependency edge. Had the data actually matched the prose (tail_reader.py removed from
+      WP02/WP03's owned_files), lane collapse would NOT have fired, and the WP01→WP02→WP03
+      strict-sequential-same-worktree guarantee both WP files insist on would have been silently
+      broken. A future editor who "corrects" owned_files to match the false prose would silently
+      reopen the concurrent-write hazard on the shared chokepoint file, with nothing in the
+      mission's own artifacts to catch it.
+    remediation: >
+      Rewrite WP02's Context section (~lines 65-76) and WP03's (~lines 62-70) to state the actual
+      mechanism: both WPs DO list tail_reader.py in owned_files; this overlap is what correctly
+      triggers lanes.json's write_scope_overlap lane collapse (merging WP01+WP02+WP03 into
+      sequential lane-a); `scope: codebase-wide` is the separate, additional flag needed to pass
+      tasks-finalize's static ownership-overlap validator without misrepresenting owned_files as
+      disjoint. Explicitly instruct: do NOT remove tail_reader.py from owned_files to "clean up"
+      this WP — doing so would silently break lane collapse. Keep the correct, still-valid parts
+      of the existing narrative (the WP01→WP02→WP03 strict sequential chokepoint is real and
+      should stay stated).
+    source_groups: [decomp, seq]
+    merged_duplicate_of: [TASKS-SEQ-001]
+
+  - id: TASKS-DECOMP-003
+    lens: "Mission-derived — marker + CI job completeness (C-008/SK-144)"
+    severity: 4
+    title: "WP02's own subtasks never instruct adding the fast marker to the new file tests/status/test_tail_reader_truncation.py, unlike every sibling WP that creates a new test file"
+    evidence:
+      - artifact: "tasks/WP02-truncation-detection.md — zero hits for 'pytestmark' outside the DoD table header"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md, line 142 ('Create tests/status/test_tail_reader.py with pytestmark = [pytest.mark.fast] at module scope')"
+      - artifact: "tasks/WP03-bounded-generator-core.md, line 239 ('Add pytestmark = [pytest.mark.fast] at module level if not already present')"
+      - artifact: "tasks/WP05-concurrency-proof.md, line 283 (explicit pytestmark instruction for its own new file)"
+      - artifact: "plan.md § Marker Discipline recap table, line 736 (WP02 row: marker fast, job fast-tests-status)"
+    claim: >
+      WP02's DoD table asserts marker/job matching plan.md's recap table, but no subtask (T009-
+      T015) ever instructs the implementer to add pytestmark = [pytest.mark.fast] to the new file
+      tests/status/test_tail_reader_truncation.py — unlike WP01, WP03, and WP05, which all
+      explicitly instruct this for their own new test files. A literal implementer could ship a
+      file collected by zero CI jobs.
+    remediation: >
+      Add an explicit instruction to WP02's Subtask T009 (mirroring WP01 T001's phrasing):
+      "Create tests/status/test_tail_reader_truncation.py with pytestmark =
+      [pytest.mark.fast] at module scope" before any test function is written.
+    source_groups: [decomp]
+
+  - id: TASKS-VERIFY-001
+    lens: "mission-derived: bug-preserving-test / ambiguous-mock-target hunt"
+    severity: 4
+    title: "Fd-sharing invariant tests (WP01 T007, WP02 T013/T014) do not actually catch the exact path.stat()-then-separate-path.open() TOCTOU pattern they are written to prevent"
+    evidence:
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T007, steps 1 and 3"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtasks T013, T014"
+      - artifact: "plan.md § Architectural Seam: Core vs. Shell, 'Fd-sharing invariant' + 'Same commitment for validate_resume_cursor()' paragraphs (lines ~248-279)"
+    claim: >
+      The plan's own worked example of the bug this test exists to catch is "path.stat().st_size
+      for the cheap size check, then a separate path.open('rb') for the hash-check read". T007
+      step 1 monkeypatches both Path.stat and Path.open to raise "if called AFTER its initial
+      open" — but in the named lazy pattern, Path.stat() fires BEFORE any Path.open() call, so
+      the "after initial open" condition never triggers for it, and it silently passes. The lazy
+      pattern also opens exactly once total, so the "assert Path.open called exactly once"
+      fallback also passes unchanged. T007 step 3 explicitly (and incorrectly) claims the
+      open-call-count assertion "closes that gap" — it does not, for the exact case named. WP02
+      T013/T014 propagate the same gap by re-running "WP01's single-open assertion pattern". An
+      implementer shipping exactly the named lazy pattern would pass all three fd-sharing tests,
+      and the intra-call TOCTOU race would ship with zero coverage.
+    remediation: >
+      Give Path.stat and Path.open different tolerance semantics: patch Path.stat to raise
+      UNCONDITIONALLY on any invocation (the design mandates os.fstat(fh.fileno()) exclusively —
+      zero legitimate Path.stat() calls), and separately spy on Path.open to assert exactly ONE
+      total call. This actually fails against the named lazy implementation.
+    source_groups: [verify]
+
+  - id: TASKS-VERIFY-002
+    lens: "Per-AC test strategy concrete"
+    severity: 4
+    title: "No WP tests the SUCCESS path of a --from-offset/--from-invariant resume (User Story 3 AC1 / FR-013's non-refusal branch)"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (lines 212-214)"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T012 (defines validate_resume_cursor's success-return branches) and T015 step 1 (lists only the four REFUSAL-shape tests)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md § Subtasks T025 (all ResumeRefused/error-path tests), T026 (happy path uses --once with a fresh cursor, no --from-offset)"
+    claim: >
+      Every test named across WP02 (T015) and WP04 (T025) exercises only validate_resume_cursor's
+      REFUSAL branch. No test supplies a structurally valid offset, confirms
+      validate_resume_cursor accepts it, and feeds the resulting cursor into a subsequent
+      poll_once()/tail_events() call to verify US3 AC1's literal guarantee. This is the mission's
+      headline P2 resumability deliverable with its positive/success path entirely untested.
+    remediation: >
+      Add a dedicated test in WP02 (extending T015): consume a log to offset O, record its
+      content invariant, call validate_resume_cursor(path, O, invariant) and assert success;
+      append M more events, feed the cursor into poll_once()/tail_events(), assert exactly the M
+      new events are yielded. Add a parallel CLI-level test in WP04 (extending T025/T026) using
+      --from-offset/--from-invariant against a real tmp-path log.
+    source_groups: [verify]
+
+  - id: TASKS-VERIFY-003
+    lens: "Per-AC test strategy concrete"
+    severity: 3
+    title: "No WP tests the recovery half of a live truncation resync (User Story 2 AC2 — re-emission after log_truncated), only the detection signal itself"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 2 (lines 174-177)"
+      - artifact: "tasks/WP02-truncation-detection.md § Subtask T009 step 5 and T010 step 4 (assertions stop at 'log_truncated fires') and T015 (no re-emission-after-resync test listed)"
+    claim: >
+      T009/T010 stop at confirming the log_truncated signal fires. No subtask drives a follow-up
+      poll_once()/tail_events() call after the signal to verify AC2's recovery contract: correct
+      re-emission from offset 0, no fabricated already-gone events.
+    remediation: >
+      Extend T009/T010 (or add a T015 case) with a follow-up poll_once() call after the
+      truncation signal, asserting emitted events exactly match current file content from offset
+      0, and that no pre-truncation event that no longer exists is replayed.
+    source_groups: [verify]
+
+  - id: TASKS-VERIFY-004
+    lens: "Per-AC test strategy concrete"
+    severity: 3
+    title: "No single WP concretely tests User Story 1 AC2 end-to-end (writer appending while events tail is actively running) — coverage is split and partly optional"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2 (lines 140-143)"
+      - artifact: "tasks/WP01-core-tail-reader-primitives.md § Subtask T008 item 1 (two sequential poll_once() calls, not through the generator or CLI)"
+      - artifact: "tasks/WP03-bounded-generator-core.md § Subtask T019(b) (explicitly allows a degenerate zero-new-poll fixture; one option among several, not mandated)"
+      - artifact: "tasks/WP04-cli-shell-events-tail.md § Subtasks T026, T030 (static pre-populated log with --once only; no append-while-running scenario)"
+    claim: >
+      AC2's narrative — an actively-running tail process observing a mid-run append within a
+      bounded poll interval — is never exercised as a required, single concrete test through the
+      generator/CLI surface that implements it. This P1 acceptance scenario ("the entire scope of
+      the mission" per spec.md) has no test required to exist that drives it end-to-end.
+    remediation: >
+      Add a required (not optional) test in WP03 that starts tail_events() against a log with
+      fewer than N events, appends remaining events mid-consumption using the injected sleep_fn
+      as a synchronization point, and asserts every appended event is yielded exactly once in
+      order — making T019(b)'s shape mandatory, not optional.
+    source_groups: [verify]
+findings_count: 7
+raw_findings_count: 8

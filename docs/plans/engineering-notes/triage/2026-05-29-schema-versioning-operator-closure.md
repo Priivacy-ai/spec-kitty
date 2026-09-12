@@ -1,7 +1,7 @@
 ---
 title: Schema-Versioning Launch Cluster Operator Closure
 description: 'Operator closure (2026-05-29) of the schema-versioning launch cluster: the issues resolved and the closure decision recorded.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-05-29'
 ---
 # Schema-Versioning Launch Cluster Operator Closure

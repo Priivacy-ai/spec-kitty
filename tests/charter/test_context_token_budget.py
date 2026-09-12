@@ -2,7 +2,7 @@
 
 The tests cover the standalone :func:`apply_token_budget` helper plus
 the end-to-end self-sufficiency check that the full bootstrap render
-respects the budget for the ``python-pedro`` profile fixture.
+respects the budget for a bounded, single-directive profile fixture.
 """
 
 from __future__ import annotations
@@ -11,14 +11,14 @@ import re
 
 import pytest
 
-from charter.context_renderers import (
+from charter.activation.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
     apply_token_budget,
     fetch_stanza,
     warning_line,
 )
-from charter.context_renderers.fetch_stanza import (
+from charter.activation.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     format_selector,
 )
@@ -30,6 +30,7 @@ from charter.context_renderers.fetch_stanza import (
 
 
 pytestmark = [pytest.mark.unit]
+
 
 def _make_section(
     section_id: str,
@@ -158,9 +159,7 @@ class TestWarningLine:
 
         assert notes  # at least one swap
         # The warning line is appended at the tail.
-        assert joined.rstrip().endswith(
-            warning_line(len(notes), 5_000)
-        )
+        assert joined.rstrip().endswith(warning_line(len(notes), 5_000))
 
     def test_warning_line_absent_when_no_substitution(self) -> None:
         sections = [
@@ -196,7 +195,7 @@ class TestWarningLine:
         assert joined.rstrip().endswith(warning_line(len(notes), budget))
 
     def test_production_context_budget_counts_warning_line(self) -> None:
-        from charter.context import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         section_block = "S" * 1_000
         profile_block = "P" * 400
@@ -224,6 +223,117 @@ class TestWarningLine:
         assert section_block not in result
         assert profile_block not in result
         assert result.rstrip().endswith(warning_line(2, budget))
+
+
+# ---------------------------------------------------------------------------
+# Header preservation on substitution (landing fold, origin 873832aa1) —
+# ``_enforce_token_budget`` used to hand the WHOLE ``section_block`` /
+# ``profile_block`` string to ``RenderedSection`` with ``header=""``, even
+# though each block's own first line IS its anchor header (e.g.
+# ``Profile-Cited Directives (<profile-id>):``). A budget-forced swap then
+# deleted the header along with the body it was meant to label — the
+# invariant this module's own ``RenderedSection.header`` docstring promises
+# ("the substitution algorithm never touches the header") did not hold for
+# either caller. These tests pin the fix at the unit level so the defect
+# cannot silently regress behind the (much slower) integration test that
+# first caught it.
+# ---------------------------------------------------------------------------
+
+
+class TestHeaderSurvivesSubstitution:
+    """A section whose body starts with its own header line keeps that
+    header after token-budget substitution."""
+
+    def test_single_header_body_keeps_header_after_swap(self) -> None:
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
+
+        header_line = "Profile-Cited Directives (reviewer-renata):"
+        profile_block = header_line + "\n" + ("x" * 40_000)
+        text = "Preamble.\n\n" + profile_block
+
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=profile_block,
+            section_block="",
+        )
+
+        # The block was big enough to force a swap...
+        assert "# Governance payload" in result
+        assert ("x" * 40_000) not in result
+        # ...but the anchor header line survived the swap verbatim.
+        assert header_line in result
+
+    def test_multi_kind_profile_block_keeps_every_populated_header(self) -> None:
+        """profile_block joins several kind-blocks (directives, tactics, ...);
+        ALL of their headers must survive, not just the first one swapped."""
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
+
+        directives_header = "Profile-Cited Directives (reviewer-renata):"
+        tactics_header = "Profile-Cited Tactics (reviewer-renata):"
+        profile_block = "\n\n".join(
+            [
+                directives_header + "\n" + ("d" * 20_000),
+                tactics_header + "\n" + ("t" * 20_000),
+            ]
+        )
+        text = "Preamble.\n\n" + profile_block
+
+        # A tight budget forces BOTH kind-blocks to swap, not just the
+        # longer one — proving every populated header survives, not only
+        # whichever block happens to be picked first.
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=profile_block,
+            section_block="",
+            budget=200,
+        )
+
+        assert "# Governance payload" in result
+        assert ("d" * 20_000) not in result
+        assert ("t" * 20_000) not in result
+        assert directives_header in result
+        assert tactics_header in result
+
+    def test_action_critical_section_block_keeps_outer_header_after_swap(
+        self,
+    ) -> None:
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
+
+        header_line = "Action-Critical Charter Sections (implement):"
+        section_block = header_line + "\n" + ("y" * 40_000)
+        text = "Preamble.\n\n" + section_block
+
+        result = _enforce_token_budget(
+            text,
+            action="implement",
+            profile_block="",
+            section_block=section_block,
+        )
+
+        assert "# Governance payload" in result
+        assert ("y" * 40_000) not in result
+        assert header_line in result
+
+    def test_header_less_body_still_fully_substituted(self) -> None:
+        """A section with no separate header line (single-line body, the
+        RenderedSection.header='' by-design case) still swaps its ENTIRE
+        body — the header-preservation fix must not change this baseline."""
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
+
+        body_only = "z" * 40_000
+        text = "Preamble.\n\n" + body_only
+
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=body_only,
+            section_block="",
+        )
+
+        assert "# Governance payload" in result
+        assert body_only not in result
 
 
 # ---------------------------------------------------------------------------
@@ -352,8 +462,12 @@ class TestEdgeCases:
         assert joined == ""
         assert notes == []
 
-    def test_default_budget_is_32k(self) -> None:
-        assert BUDGET_DEFAULT == 32_000
+    def test_default_budget_is_40k(self) -> None:
+        # Raised 32_000 -> 40_000 (2026-08-12) so the software-dev doctrine
+        # cascade wired by 3bcdda344 fits without compacting away the
+        # anti-drift anchors (DIRECTIVE_032, glossary, ADR). See
+        # BUDGET_DEFAULT's docstring in token_budget.py.
+        assert BUDGET_DEFAULT == 40_000
 
     def test_non_positive_budget_is_noop(self) -> None:
         sections = [_make_section("a", "x" * 100)]
@@ -368,25 +482,48 @@ class TestEdgeCases:
 
 
 class TestAggregateUnderBudget:
-    """The full bootstrap render against the python-pedro fixture stays under budget."""
+    """A bounded bootstrap includes directive navigation without compaction."""
 
-    def test_aggregate_self_sufficiency_under_budget(self, tmp_path) -> None:
-        from pathlib import Path
+    def test_aggregate_self_sufficiency_under_budget(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from types import SimpleNamespace
 
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
+        from charter.activation.profile_resolution import _reset_agent_profile_cache
+        from charter.offering.agent_profiles import AgentProfile
 
-        # Use the spec-kitty repo's own charter as a representative fixture.
-        repo_root = Path(__file__).resolve().parents[2]
-        if not (repo_root / ".kittify" / "charter" / "charter.md").exists():
-            pytest.skip("No charter.md present in repo (fixture unavailable)")
-
-        result = build_charter_context(
-            repo_root,
-            profile="python-pedro",
-            action="implement",
-            mark_loaded=False,
+        # Keep the input bounded independently of the development repo's growing
+        # charter and profile corpus. Exercise the actual aggregate renderer.
+        charter_dir = tmp_path / ".kittify/charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Project Charter\n\n## Policy Summary\n\n- Intent: deterministic delivery\n",
+            encoding="utf-8",
         )
-        assert len(result.text) <= BUDGET_DEFAULT, (
-            f"Bootstrap render produced {len(result.text)} chars, "
-            f"exceeding NFR-001 budget of {BUDGET_DEFAULT}."
+        (charter_dir / "charter.yaml").write_text(
+            'schema_version: "2.0.0"\ngovernance:\n  charter:\n    selected_directives: [DIRECTIVE_025]\n',
+            encoding="utf-8",
         )
+        (tmp_path / ".kittify/config.yaml").write_text("mission_type_activations: [software-dev]\n", encoding="utf-8")
+        profile = AgentProfile.model_validate(
+            {
+                "profile-id": "budget-fixture-agent",
+                "name": "Budget Fixture Agent",
+                "roles": ["implementer"],
+                "purpose": "Bounded bootstrap fixture",
+                "specialization": {"primary-focus": "testing"},
+                "directive-references": [{"code": "025", "name": "Boy Scout Rule", "rationale": "Preserve local cleanup"}],
+            }
+        )
+        repository = SimpleNamespace(get=lambda name: profile if name == profile.profile_id else None)
+        monkeypatch.setattr("charter.activation.context._default_agent_profile_repository", lambda: repository)
+        _reset_agent_profile_cache()
+        try:
+            result = build_charter_context(tmp_path, profile=profile.profile_id, action="implement", mark_loaded=False)
+        finally:
+            _reset_agent_profile_cache()
+        assert len(result.text) <= BUDGET_DEFAULT, f"Bootstrap render produced {len(result.text)} chars, exceeding NFR-001 budget of {BUDGET_DEFAULT}."
+        assert "Selected directives:" in result.text
+        assert "Profile-Cited Directives (budget-fixture-agent):" in result.text
+        assert "Run: spec-kitty charter context --include directive:DIRECTIVE_025" in result.text
+        assert "DIRECTIVE_025" in result.text or "025-boy-scout-rule" in result.text
+        assert "sections substituted with fetch commands" not in result.text

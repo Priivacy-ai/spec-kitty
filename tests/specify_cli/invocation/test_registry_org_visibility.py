@@ -135,6 +135,24 @@ class TestNoOrgPacksRegression:
     """T010 — no org packs declared → byte-identical to the project layer (NFR-001)."""
 
     def test_list_all_byte_identical_to_project_layer(self, tmp_path: Path) -> None:
+        """Absence of org packs never perturbs the built-in+project catalog.
+
+        Restored (landing-fold regression fix, charter-sole-door-bypass-
+        closure-01KZ3WAA): WP01 unified ``ProfileRegistry``'s builder to
+        always compute ``active_languages=infer_repo_languages(repo_root)``.
+        A prior revision of that unification made ``infer_repo_languages``
+        return an *explicitly empty* list for a ``tmp_path`` with no compiled
+        charter/interview data, which narrowed the built-in layer down to
+        language-agnostic profiles — breaking byte-identity with a bare,
+        unfiltered ``AgentProfileRepository`` baseline and forcing this test
+        onto an independently-rebuilt two-primitive baseline instead (with a
+        ``._inner`` reach-around fixed in the immediately preceding commit).
+        ``infer_repo_languages`` now resolves that "truly nothing configured
+        yet" case to ``None`` ("unknown" — admits every scoped profile), so
+        the bare, unfiltered baseline is byte-identical to
+        ``ProfileRegistry(tmp_path).list_all()`` again, and the original,
+        simpler, non-fakeable assertion is restored.
+        """
         _write_project_profile(tmp_path)
         # No .kittify/config.yaml org packs at all.
         registry = ProfileRegistry(tmp_path)

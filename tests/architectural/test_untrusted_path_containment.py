@@ -103,6 +103,7 @@ _SEAM_NAMES: frozenset[str] = frozenset(
         "_validate_mission_slug",  # status/aggregate.py → assert_safe_path_segment
         "_validate_segment",  # review/cycle.py → assert_safe_path_segment
         "_is_safe_slug",  # status/store.py → assert_safe_path_segment
+        "resolve_handle_to_read_path",  # missions/_read_path_resolver.py → assert_safe_path_segment (#2037 decision.py)
         # Reducer delegators: these produce a pre-sanitised snapshot slug
         # that the derived-view writers consume (lifecycle/progress/views).
         "materialize",  # calls safe_mission_slug inside reduce()

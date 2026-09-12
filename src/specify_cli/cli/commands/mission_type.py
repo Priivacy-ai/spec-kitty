@@ -16,23 +16,21 @@ from __future__ import annotations
 
 import contextlib
 import json
+import warnings
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
-)
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
+from mission_runtime import MissionArtifactKind, placement_seam
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
 from specify_cli.cli.console import console
@@ -41,11 +39,13 @@ from specify_cli.mission import (
     Mission,
     MissionError,
     MissionNotFoundError,
-    discover_missions,
     get_mission_by_name,
     get_mission_for_feature,
     list_available_missions,
 )
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 app = typer.Typer(
     name="mission-type",
@@ -121,55 +121,6 @@ def _mission_details_lines(mission: Mission, include_description: bool = True) -
     return details
 
 
-def _print_available_missions(project_root: Path) -> None:
-    """Print available missions with source indicators (project/built-in)."""
-    missions = discover_missions(project_root)
-    if not missions:
-        console.print("[yellow]No missions found in .kittify/missions/[/yellow]")
-        return
-
-    table = Table(title="Available Missions", show_header=True)
-    table.add_column("Key", style="cyan")
-    table.add_column("Name", style="green")
-    table.add_column("Domain", style="magenta")
-    table.add_column("Description", overflow="fold")
-    table.add_column("Source", style="dim")
-
-    for key, (mission, source) in sorted(missions.items()):
-        table.add_row(
-            key,
-            mission.name,
-            mission.domain,
-            mission.description or "",
-            source,
-        )
-
-    console.print(table)
-    console.print()
-    console.print("[dim]Mission types are selected per mission run during /spec-kitty.specify[/dim]")
-
-
-@app.command("list")
-def list_cmd() -> None:
-    """List all available missions with their source (project/built-in)."""
-    project_root = get_project_root_or_exit()
-    kittify_dir = project_root / ".kittify"
-    if not kittify_dir.exists():
-        console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
-        console.print(
-            "[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]"  # noqa: E501
-        )
-        raise typer.Exit(1)
-
-    try:
-        _print_available_missions(project_root)
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        console.print(f"[red]Error listing missions:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-
 def _detect_current_feature(project_root: Path) -> str | None:
     """Return None — no auto-detection (requires explicit --mission).
 
@@ -240,7 +191,33 @@ def current_cmd(
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
-        loaded_mission = get_mission_for_feature(feature_dir, project_root)
+        # FR-005 (#3831): `get_mission_for_feature` signals a software-dev
+        # fallback substitution only via `warnings.warn` (mission.py, unchanged
+        # by this fix — every other caller keeps that exact signal). Under
+        # default warning filters that never reaches an operator running the
+        # CLI normally (and even under `-W always` it never reaches *this*
+        # command's stdout), so the substitution was previously invisible here.
+        # Capture that one warning locally and re-surface it loudly through the
+        # same `console` object already used for the two sibling exceptions
+        # just below (`MissionNotFoundError` / `MissionError`), without
+        # altering `mission.py`'s own warning behavior for any other caller.
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            warnings.simplefilter("always")
+            loaded_mission = get_mission_for_feature(feature_dir, project_root)
+        for caught in caught_warnings:
+            if issubclass(caught.category, UserWarning) and "using software-dev as default" in str(caught.message):
+                console.print(f"[yellow]Warning:[/yellow] {caught.message}")
+            else:
+                # #3831 fold: `catch_warnings(record=True)` captures EVERY
+                # warning raised inside the block, not just the fallback one
+                # this command specifically surfaces above — anything else
+                # was previously dropped on the floor. Re-emit it through the
+                # normal warnings machinery so it still reaches whatever
+                # filter/handler the caller has configured, instead of being
+                # silently swallowed by this command's own capture.
+                warnings.warn_explicit(
+                    caught.message, caught.category, caught.filename, caught.lineno
+                )
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
@@ -307,7 +284,7 @@ def create_cmd(
     Example:
         spec-kitty mission create --from-ticket linear:PRI-42
     """
-    from specify_cli.sync.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+    from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
     from specify_cli.tracker.config import load_tracker_config, require_repo_root
     from specify_cli.tracker.saas_client import SaaSTrackerClientError
     from specify_cli.tracker.service import TrackerService, TrackerServiceError
@@ -410,9 +387,9 @@ def _resolve_mission_slug(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        candidate: Path = candidate_feature_dir_for_mission(
+        candidate: Path = placement_seam(
             get_main_repo_root(repo_root), mission_slug
-        )
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
         # Fail-closed coordination window (coord worktree root materialized,
         # mission dir absent): fall back to the raw handle so slug resolution
@@ -601,15 +578,19 @@ def close_cmd(
     # coordination worktree exists it returns that worktree's status-only dir
     # (no meta.json → _read_mission_mid8 empties → teardown silently no-ops).
     # Re-anchor to the primary mission dir, matching how `mission reopen` resolves.
-    # FR-005/WP03: fold through _canonicalize_primary_read_handle so the gate
-    # detects the handle as provably canonical (mission_slug is feature_dir.name
-    # from :584 — already composed — but the fold is explicit for the gate seam).
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        _canonicalize_primary_read_handle,
-    )
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004): the
+    # terminal read is routed through the kind-aware placement seam directly —
+    # the (now-bypassed) primary_feature_dir_for_mission wrapper's own body was
+    # exactly this seam call reading PRIMARY_METADATA (meta.json is read right
+    # below), so passing the kind here lets the resolver decide the partition.
+    # WP08 (T036): the caller-side canonicalizer fold DROPPED — this call is
+    # ``read_dir(...)``, not a direct canonicalizer-primitive call, so it was
+    # never subject to that gate's def-use check; ``mission_slug`` is already
+    # ``feature_dir.name`` (line 593, already composed) and the seam folds it
+    # again internally regardless (idempotent no-op for an already-canonical
+    # handle).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
 
     meta_path = feature_dir / "meta.json"
@@ -633,6 +614,10 @@ def close_cmd(
         # Flatten: drop the now-dangling coordination_branch marker so subsequent
         # commands for this mission don't trip CoordinationBranchDeleted (#2120).
         _flatten_discarded_mission(feature_dir)
+        # #3716: the flatten is the LAST mutating write on the discard path and
+        # previously had no commit leg, leaving ``meta.json`` modified-uncommitted
+        # after a discard that reported success. Commit it to the PRIMARY surface.
+        _commit_flattened_meta(repo_root, feature_dir, mission_slug)
         console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
     else:
         # Teardown the coordination worktree. Routes through the shared
@@ -671,7 +656,11 @@ def _discard_mission(
     # Remove ALL worktrees BEFORE deleting their branches (#2120): a branch that
     # is checked out in a worktree cannot be `git branch -D`'d, so the prior
     # branch-first order silently leaked the coordination/lane branches.
-    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
+    # #3716: this is the abandonment leg — the retrospective the teardown persists
+    # must carry ``runtime_abandoned`` provenance, not completion provenance.
+    _teardown_coordination_worktree(
+        repo_root, mission_slug, mid8_value, provenance_kind="runtime_abandoned"
+    )
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
@@ -836,15 +825,98 @@ def _verify_discard_complete(
 
 
 def _flatten_discarded_mission(feature_dir: Path) -> None:
-    """Drop the dangling ``coordination_branch`` marker after a discard (#2120).
+    """Flatten a discarded mission's coordination metadata (#2120 / #3219).
+
+    Converged onto the canonical ``flatten_coordination_metadata`` primitive
+    (FR-015 / D-PLAN-17): pops BOTH ``coordination_branch`` AND the now-stale
+    ``topology``, and records ``flattened=True``. Fixes a latent bug the prior
+    ``clear_coordination_metadata``-only call left: it cleared
+    ``coordination_branch`` but never popped ``topology``, so a discarded
+    coord mission could still carry a stored ``topology: "coord"`` value and
+    route back through coordination, hitting ``CoordinationBranchDeleted`` on
+    a mission that was supposed to be flattened.
 
     Tolerant: a missing meta.json (legacy mission) is a no-op — flattening is a
     best-effort cleanup, never a hard failure of an otherwise-successful discard.
     """
-    from specify_cli.mission_metadata import clear_coordination_metadata
+    from specify_cli.mission_metadata import flatten_coordination_metadata
 
     with contextlib.suppress(FileNotFoundError):
-        clear_coordination_metadata(feature_dir)
+        flatten_coordination_metadata(feature_dir)
+
+
+def _meta_has_uncommitted_changes(repo_root: Path, meta_path: Path) -> bool:
+    """Return ``True`` when ``meta_path`` differs from HEAD or is untracked.
+
+    Fail-open helper (never raises): a git failure or an absent file reports
+    "not dirty" so the tolerant commit leg simply no-ops.
+    """
+    if not meta_path.exists():
+        return False
+    from specify_cli.core.git_ops import run_command
+
+    rel = str(meta_path)
+    resolved_root = repo_root.resolve()
+    if meta_path.is_absolute():
+        with contextlib.suppress(ValueError):
+            rel = str(meta_path.resolve().relative_to(resolved_root))
+    ret, out, _ = run_command(
+        ["git", "status", "--porcelain", "--", rel],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return ret == 0 and bool(out.strip())
+
+
+def _commit_flattened_meta(
+    repo_root: Path, feature_dir: Path, mission_slug: str
+) -> None:
+    """Commit the discard flatten's ``meta.json`` write to the PRIMARY surface (#3716).
+
+    ``_flatten_discarded_mission`` is the last mutating write on the discard path
+    and (pre-#3716) had no commit leg, so ``mission close --discard`` reported
+    success while leaving ``M kitty-specs/<slug>/meta.json`` uncommitted. Route
+    the write through the ONE sanctioned bookkeeping-commit surface (the same
+    ``commit_merge_bookkeeping`` the retrospective terminus uses).
+
+    The mission is now flattened to single-branch, so the destination is the
+    PRIMARY ``target_branch`` — NEVER the coordination branch, which the discard
+    already DELETED. That target is also supplied as the degrade ref so the commit
+    still lands on the primary surface if placement resolution fails closed
+    (the failure mode the discard teardown surfaces, #3716 nuance).
+
+    Tolerant: a legacy/no-op meta (nothing changed, or no ``meta.json``) is a
+    silent no-op. Fail-open-but-loud: a commit failure is WARNED, never raised —
+    a bookkeeping hiccup must not turn a completed discard into an error.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not _meta_has_uncommitted_changes(repo_root, meta_path):
+        return
+
+    from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
+
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    target_branch = (
+        str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else ""
+    ) or None
+
+    try:
+        commit_merge_bookkeeping(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            mission_slug=mission_slug,
+            message=f"chore({mission_slug}): flatten discarded mission metadata",
+            paths=(meta_path,),
+            branch=target_branch,
+        )
+    except Exception as exc:  # noqa: BLE001 — fail-open: warn, never abort discard
+        console.print(
+            f"[yellow]Warning:[/yellow] discard of {mission_slug} flattened "
+            f"meta.json but could not commit it ({exc}). Commit it manually: "
+            f"git -C {repo_root} add {meta_path} && git -C {repo_root} commit "
+            f"-m 'chore({mission_slug}): flatten discarded mission metadata'"
+        )
 
 
 def _confirm_discard(mission_slug: str, *, force: bool) -> None:
@@ -899,7 +971,13 @@ def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None
         console.print(f"  Deleted coordination branch {coord_branch}")
 
 
-def _teardown_coordination_worktree(repo_root: Path, mission_slug: str, mid8_value: str) -> None:
+def _teardown_coordination_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    mid8_value: str,
+    *,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
+) -> None:
     if not mid8_value:
         return
     # Route through the shared ``teardown_coordination_topology`` seam (FR-004):
@@ -907,10 +985,15 @@ def _teardown_coordination_worktree(repo_root: Path, mission_slug: str, mid8_val
     # coordination worktree (persist-before-destroy, FR-005). The destroy leg is
     # best-effort inside the seam; we report success/failure from the on-disk
     # ``is_present`` truth so the operator sees whether manual cleanup is needed.
+    # ``provenance_kind`` stamps the captured retrospective — the discard leg
+    # passes ``"runtime_abandoned"`` (#3716) so an abandoned mission is not tagged
+    # with completion provenance.
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
-    teardown_coordination_topology(repo_root, mission_slug, mid8_value)
+    teardown_coordination_topology(
+        repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind
+    )
     if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
         console.print(
             "[yellow]Warning:[/yellow] coordination worktree still "
@@ -978,13 +1061,13 @@ def _remove_lane_worktrees(
     import subprocess as _subprocess
 
     worktrees_root = repo_root / ".worktrees"
-    if not worktrees_root.exists():
+    if not safe_is_dir(worktrees_root):
         return
 
     removed = 0
     for name in sorted(_expected_lane_worktree_dir_names(mission_slug, lanes_manifest)):
         entry = worktrees_root / name
-        if not entry.is_dir():
+        if not safe_is_dir(entry):
             continue
         _subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "remove", str(entry), "--force"],
@@ -1045,7 +1128,6 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
     )
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
-        _canonicalize_primary_read_handle,
     )
 
     try:
@@ -1058,15 +1140,21 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
         ) from exc
     except MissionNotFoundError:
         # Legacy / no-mission_id handle: fall back to the literal slug directory.
-        # #2136/#2164: fold the handle through the proven full-fold FIRST so a bare
+        # #2136/#2164: the seam folds the handle through the proven full-fold
+        # internally (WP08 T036: no caller-side pre-fold needed) so a bare
         # human slug whose on-disk primary dir carries the composed ``<slug>-<mid8>``
         # name lands on the real dir (the identity resolver above keys on the dir NAME
         # and so cannot match a bare slug onto a composed dir — it raised
         # MissionNotFoundError). The fold is a NO-OP for a genuinely literal/legacy
         # dir name (back-compat preserved) and propagates ``MissionSelectorAmbiguous``
         # on an ambiguous handle (no silent pick — C-009).
-        canonical_handle = _canonicalize_primary_read_handle(repo_root, handle)
-        feature_dir = primary_feature_dir_for_mission(repo_root, canonical_handle)
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-004): the
+        # terminal read is routed through the kind-aware placement seam
+        # directly (meta.json is read right below) rather than the
+        # (now-bypassed) primary_feature_dir_for_mission wrapper.
+        feature_dir = placement_seam(repo_root, handle).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         meta = _safe_load_meta(feature_dir)
         return _ResolvedMissionHandle(
             mission_id=(meta or {}).get("mission_id") if meta else None,
@@ -1087,9 +1175,9 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
 def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
     """Load ``meta.json`` tolerating absence/corruption (returns ``None``)."""
     try:
-        result: dict[str, Any] | None = load_meta(feature_dir)
+        result: dict[str, Any] | None = load_meta_fail_closed(feature_dir)
         return result
-    except (ValueError, OSError):
+    except (OSError, MissionMetaReadError):
         return None
 
 
@@ -1136,8 +1224,28 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     return False
 
 
-def _emit_selector_error(exc: Exception) -> None:
-    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero."""
+def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
+    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
+
+    When ``json_output`` is set, emits the same shared ``{"success": False,
+    "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
+    JSON envelope used elsewhere for ``MissionSelectorAmbiguous`` (e.g.
+    ``status.py``/``tasks_shared.py``'s ``_find_mission_slug``), instead of
+    Rich-formatted text on stdout (spec-kitty#477).
+    """
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
+                    "error": str(exc),
+                    "handle": getattr(exc, "handle", ""),
+                    "candidates": getattr(exc, "candidates", []),
+                }
+            )
+        )
+        return
     console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
 
 
@@ -1181,7 +1289,7 @@ def reopen_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
@@ -1313,7 +1421,7 @@ def follow_up_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     if not resolved.mission_id:
@@ -1451,12 +1559,16 @@ def show_mission_type(
     Exits with code 1 and lists registered IDs when ``mission_type_id``
     is not an activated type.
     """
-    from charter.mission_type_profiles import (  # noqa: PLC0415
+    from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+        MissionTypeEmptyActionSequenceError,
         UnknownMissionTypeError,
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
+    from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        resolve_layered_roster,
+        resolve_mission_type_source_layer,
+    )
 
     repo_root = Path.cwd()
     activated_ids = existing_mission_types(repo_root)
@@ -1466,12 +1578,34 @@ def show_mission_type(
         console.print(f"[red]Error:[/red] {err}")
         raise typer.Exit(1)
 
-    repo = MissionTypeRepository.default()
-    mt = repo.get(mission_type_id)
+    # FR-007 (WP07/T017, PLAN-FRESH2-001 site 1): reach the FR-001 layered
+    # lookup, not the built-in-only ``MissionTypeRepository.default()`` --
+    # an activated-but-non-built-in type must succeed here, not hard-fail.
+    #
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
+    # ``charter mission-type list`` / ``doctrine mission-type list`` --
+    # ``resolve_layered_roster`` loud-fails BY DESIGN (WP03,
+    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
+    # built-in/org/project ``mission_types/`` layers, even when the
+    # malformed file is unrelated to ``mission_type_id`` (the scan is
+    # directory-wide, not per-id). A bare ``except ValueError`` also catches
+    # ``pydantic.ValidationError`` (this resolver's other documented
+    # ``Raises`` type) since it subclasses ``ValueError`` in the pinned
+    # pydantic version.
+    try:
+        mt = resolve_layered_roster(repo_root).get(mission_type_id)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     if mt is None:
         err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
         console.print(f"[red]Error:[/red] {err}")
         raise typer.Exit(1)
+
+    # FR-007 (sites 2/3): one real, resolved value shared by both the JSON
+    # and Panel branches below -- not two independently-hardcoded literals.
+    source_layer = resolve_mission_type_source_layer(mission_type_id, repo_root)
 
     try:
         resolved = resolve_mission_type_context(repo_root, mission_type=mission_type_id)
@@ -1489,10 +1623,10 @@ def show_mission_type(
         # Mirrors the resolver's own computation (FR-002): the retired model
         # field has no fallback value to read, so this narrow branch computes
         # the mapping straight from the step authority instead.
-        from doctrine.missions.mission_step_repository import (  # noqa: PLC0415
+        from charter.missions import (  # noqa: PLC0415
             MissionStepRepository,
+            project_template_set,
         )
-        from doctrine.missions.step_projection import project_template_set  # noqa: PLC0415
 
         fallback_steps = list(
             MissionStepRepository.default()
@@ -1500,6 +1634,16 @@ def show_mission_type(
             .values()
         )
         template_mapping = project_template_set(fallback_steps)
+    except MissionTypeEmptyActionSequenceError as exc:
+        # PR-CONTRACT-001 (pre-merge squad, mission up-mission-type-seam-
+        # 01KZY1JB): CL-003's loud-fail exception is a sibling ValueError
+        # subclass of UnknownMissionTypeError, not a child of it -- the
+        # `except UnknownMissionTypeError` above does not catch it. Mirrors
+        # `charter_mission_type_list`'s existing handling
+        # (charter/mission_type.py:151-160) instead of inventing a second
+        # error-reporting style for the same exception type.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # `dict()`-wrap: `ResolvedMissionType.template_set` is a `MappingProxyType`,
     # which `json.dumps` cannot serialize directly (TypeError) -- and the panel
@@ -1512,7 +1656,7 @@ def show_mission_type(
             "display_name": mt.display_name,
             "action_sequence": action_seq,
             "template_set": template_set,
-            "source_layer": "built-in",
+            "source_layer": source_layer,
             "extends": mt.extends,
         }
         print(json.dumps(data, indent=2))
@@ -1524,7 +1668,7 @@ def show_mission_type(
     lines: list[str] = [
         f"[cyan]ID:[/cyan] {mt.id}",
         f"[cyan]Display Name:[/cyan] {mt.display_name}",
-        "[cyan]Source Layer:[/cyan] built-in",
+        f"[cyan]Source Layer:[/cyan] {source_layer}",
     ]
     if mt.extends:
         lines.append(f"[cyan]Extends:[/cyan] {mt.extends}")

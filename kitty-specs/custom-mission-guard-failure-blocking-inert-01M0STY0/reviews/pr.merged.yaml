@@ -1,0 +1,50 @@
+# review-findings/v1 — R2 merge/dedup of the pre-merge (PHASE=pr) lens round.
+# Bookkeeping only: no finding was created, altered in substance, or dismissed here.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+source:
+  - pr.boundary.findings.yaml   # architect-alphonso  — 0 findings
+  - pr.contract.findings.yaml   # reviewer-renata     — 1 finding (severity 4)
+  - pr.tests.findings.yaml      # debugger-debbie     — 1 finding (severity 4)
+dedup_note: >
+  pr-contract-001 and pr-tests-001 are the SAME underlying defect, found independently by two
+  lenses from different angles and empirically reproduced by each: contract from
+  implementation-fidelity (the FR-010 guard does not cover the production path), tests from
+  coverage (no test drives gather_artifact_presence with a schema-invalid manifest, which is
+  why the gap survived). Merged into pr-merged-001, retaining both framings and both evidence
+  sets. The tests lens itself predicted this merge. No severity change: both filed severity 4.
+findings:
+  - id: pr-merged-001
+    merged_from: [pr-contract-001, pr-tests-001]
+    lens: contract/silent-success + tests/coverage
+    severity: 4
+    title: >
+      FR-010's ManifestSchemaError guard is dead on the production path — gather_artifact_presence
+      hits an unwrapped model_validate() in _presence_filenames_for first, so a schema-invalid
+      manifest raises a bare pydantic.ValidationError through all three call sites
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_io.py:904 (_presence_filenames_for, org-tier branch — unwrapped model_validate)"
+      - code: "src/runtime/next/runtime_bridge_io.py:909 (_presence_filenames_for, built-in branch — unwrapped model_validate)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1051 (gather_artifact_presence calls _presence_filenames_for FIRST)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1114-1122 (blocking_artifact_names / required_artifacts_for resolved only afterwards)"
+      - code: "src/specify_cli/runtime/resolver.py:557-680 (_load_expected_artifact_manifest — the ONLY path FR-010's try/except actually wraps)"
+      - code: "tests/specify_cli/runtime/test_configured_artifact_name.py:524-593 (TestManifestSchemaErrorPerTier calls required_artifacts_for directly, never gather_artifact_presence)"
+      - artifact: "spec.md:455-478 (FR-010: 'wrap ExpectedArtifactManifest.model_validate(...) ... for both the built-in and the new org-tier branch')"
+    claim: >
+      FR-010 requires schema-invalid manifests to surface as ManifestSchemaError at both tiers on
+      this mission's call path. The try/except was added only in resolver.py::_load_expected_artifact_manifest.
+      WP02 introduced a second, structurally identical org-tier model_validate() inside
+      _presence_filenames_for (runtime_bridge_io.py) and left it unguarded, and gather_artifact_presence
+      — the function all three real call sites use — reaches that one first. Both lenses independently
+      reproduced a bare pydantic.ValidationError escaping gather_artifact_presence with a malformed
+      manifest, while required_artifacts_for correctly raises ManifestSchemaError. The fix is therefore
+      effective only on the path the tests exercise and dead on the path production uses.
+    remediation: >
+      Wrap the model_validate() calls in _presence_filenames_for (both the org-tier branch at :904 and
+      the built-in branch at :909) in the same try/except ValidationError -> ManifestSchemaError used in
+      resolver.py, or route both branches through the already-guarded loader. Add a test that drives
+      gather_artifact_presence itself (not required_artifacts_for) with a schema-invalid manifest at each
+      tier — that missing test is why the gap survived four reviews.

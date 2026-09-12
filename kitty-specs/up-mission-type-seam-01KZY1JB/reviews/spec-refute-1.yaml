@@ -1,0 +1,37 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Live runner.invoke() against src/specify_cli/cli/commands/mission_type.py confirms two @app.command(\"list\") registrations (line 150 list_cmd, line 1429 list_mission_types) on the same Typer app; invoking `list --help` resolves to list_mission_types's docstring (FR-016 alias), proving list_cmd/_print_available_missions are shadowed dead code in a file this mission's FR-007 (show_mission_type, same file, calls resolve_mission_type_context/UnknownMissionTypeError directly) demonstrably touches."
+
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: "grep confirms spec.md:287 and both packs/built-in and .kittify/overrides spec-template.md:113 carry the identical inherited '(include if feature involves data)' header text verbatim, exactly as claimed, with the finding correctly scoping it as pre-existing template debt rather than this mission's requirement wording."
+
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "tests/architectural/test_no_inert_schema_slots.py has exactly 3 tests and only test_live_tree_has_no_new_inert_slots walks the live tree (assert new == []); repo-wide grep for code_only_drift/find_code_only_suppressions/code_producer_writes/MAX_MASKING_SUPPRESSIONS/test_every_recorded_code_producer_actually_writes_the_slot/test_every_named_owner_resolves finds zero calls outside _inert_slots.py/_inert_slots_baseline.yaml, confirming the second 'assertion' CL-001 cites is not wired to any pytest test today, while the first assertion and the single action_sequence producer line at mission_type_repository.py:209 are verified real."
+
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "grep -n confirms the 'pack_context=None ... pre-cutover parity contract' text sits at exactly lines 859-860, inside _resolve_template_set_slot (def at 841, next def at 887) and describes template_set/step-authority resolution, not _resolve_action_slot (a distinct function at lines 762-807 with its own separate docstring) — the citation is misattributed exactly as claimed, though the underlying WP06 conclusion survives via the correctly-cited _resolve_action_slot sentence one line earlier."
+
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "Full read of docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md (181 lines) confirms zero mentions of MissionType/mission-type/MissionStepRepository, its Decision adopts field-level merge, and its Code-changes section scopes normative changes explicitly to BaseDoctrineRepository._apply_org_overrides/_apply_project_overrides and AgentProfileRepository; MissionTypeRepository (mission_type_repository.py:22) has no base class at all, and the sibling MissionStepRepository's own docstring states a full per-compound-key replace model ('project > org > built-in'), confirming the cited ADR does not govern the artifact kind the Edge Case invokes it for."
+
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: "spec.md's FR-004 and US2-AC1 commit only to message content ('mission type `<id>` resolved from layer `<layer>` has an empty action sequence'), never to an exception class/type/hierarchy, while mission_type_profiles.py:800 shows the module's existing precedent (UnknownMissionTypeError) for an analogous configuration-inconsistency case — confirming the gap and the 'same class of error' AC2 language has no named class to anchor to."
+
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: "charter.md's ATDD-First Discipline (binding per C-011) states the reviewer's verification method as exactly the two-endpoint check described in the finding ('RED on the WP's planning_base_branch AND GREEN on the WP's final commit'), with no stated mechanism to confirm an intermediate mid-WP RED state or that the test-commit precedes the fix-commit in the WP's own history — matching NFR-005's stronger, currently-unverifiable ordering claim."
+
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: "grep of spec.md confirms zero occurrences of 'baseline'/'pre-existing'/'red main'/'already red'/carve-out language near SC-003 or User Story 3, while AGENTS.md's 'Test-run baseline-red gotcha' section (verified present, naming #2736/#2772/#1834) and charter Standing Order #9 ('never green-wash') are both live, real repo policy that SC-003's unqualified '100%... passing' language fails to reference."

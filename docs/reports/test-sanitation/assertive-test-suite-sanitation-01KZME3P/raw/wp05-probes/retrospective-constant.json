@@ -1,0 +1,12 @@
+{
+  "schema": "wp05-causal-probe/v1",
+  "base_commit": "c1c79d53937abf11b1c8435311a9eaa47f4d8d8f",
+  "mutation_ids": ["behavior-preserving-retrospective-constant-rename"],
+  "historical_patch_sha256": "7a1948617f72b0e829357f9863b3ee8e2deeac2a342ac70fdd73a62e59b291c1",
+  "materialize_command": "for p in src/specify_cli/core/constants.py src/specify_cli/retrospective/writer.py src/specify_cli/retrospective/lifecycle_events.py src/specify_cli/retrospective/summary.py src/specify_cli/cli/commands/retrospect.py src/specify_cli/post_merge/retrospective_terminus.py; do perl -pi -e 's/RETROSPECTIVE_FILENAME/CANONICAL_RETROSPECTIVE_NAME/g' \"$p\"; done",
+  "test_commands": [".venv/bin/pytest -q -p no:cacheprovider tests/retrospective/test_schema_roundtrip.py::test_write_read_roundtrip", ".venv/bin/pytest -q -p no:cacheprovider tests/core/test_retrospective_filename_constant.py"],
+  "red": {"exit_code": 1, "salient_output": "behavioral round-trip: 4 passed in 42.69s; shape guard: 2 failed, 1 passed in 39.71s because old constant/export name vanished"},
+  "restore_command": "git restore -- src/specify_cli/core/constants.py src/specify_cli/retrospective/writer.py src/specify_cli/retrospective/lifecycle_events.py src/specify_cli/retrospective/summary.py src/specify_cli/cli/commands/retrospect.py src/specify_cli/post_merge/retrospective_terminus.py",
+  "clean_command": "test -z \"$(git status --porcelain)\"",
+  "green": {"exit_code": 0, "salient_output": "combined restored controls: 13 passed in 103.71s"}
+}

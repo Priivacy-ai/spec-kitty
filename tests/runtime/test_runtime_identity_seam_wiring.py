@@ -5,8 +5,9 @@ so the pre-existing monkeypatch-based tests in
 ``tests/runtime/test_runtime_bridge_identity.py`` stay effective.
 
 (Pure-shape checks -- seam-defines-symbol and the native-delegate
-``__module__`` assertion -- were intentionally dropped: they are covered
-family-wide by ``tests/runtime/test_bridge_compat_surface.py``.)
+``__module__`` assertion -- were intentionally dropped here: they were once
+covered family-wide by a dedicated frozen bridge compat-surface guard, retired
+in #3285.)
 """
 
 from __future__ import annotations

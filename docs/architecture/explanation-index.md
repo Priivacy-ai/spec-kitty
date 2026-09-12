@@ -30,6 +30,8 @@ here when you want the mental model behind a feature rather than step-by-step in
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.
 - [Kanban workflow](kanban-workflow.md) and [runtime loop](runtime-loop.md) — the mission control loop.
 - [AI agent architecture](ai-agent-architecture.md) — how supported agents integrate.
+- [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for.
+- [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in structured-prompt-driven-development doctrine pack.
 
 ## See also
 

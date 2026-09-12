@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "mission_slug": "pack-metadata-manifest-unification-01M052PT",
+  "mission_id": "01M052PTYBFFWZXNP1V7A7G753",
+  "mission_branch": "kitty/mission-pack-metadata-manifest-unification-01M052PT",
+  "target_branch": "feat/pack-metadata-manifest-unification",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/pack-manifest.yaml",
+        "src/charter/synthesizer/manifest.py",
+        "src/specify_cli/doctrine/builtin_manifest.py",
+        "src/specify_cli/doctrine/pack_manifest.py",
+        "src/specify_cli/doctrine/snapshot.py",
+        "tests/doctrine/test_builtin_manifest.py",
+        "tests/doctrine/test_charter_profile_absorption.py",
+        "tests/doctrine/test_counts_derivation.py",
+        "tests/doctrine/test_pack_manifest_schema.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/org_pack_config.py",
+        "src/specify_cli/doctrine/pack_descriptor.py",
+        "tests/doctrine/test_pack_id_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/pack_lineage.py",
+        "tests/architectural/test_pack_lineage_no_parallel_resolver.py",
+        "tests/doctrine/test_pack_lineage.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/pack.md",
+        "packs/built-in/pack.yaml",
+        "src/specify_cli/cli/commands/_doctrine_collect.py",
+        "src/specify_cli/doctrine/pack_assembler.py",
+        "tests/architectural/test_pack_manifest_no_author_edit.py",
+        "tests/doctrine/test_pack_version_relocation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-16T11:40:43.548337+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6a9ad2863be1bf05e1d783814e41420684835def"
+}

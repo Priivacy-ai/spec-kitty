@@ -1,0 +1,120 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: SPEC-VERIFY-001
+    lens: silent-success
+    severity: 4
+    title: "FR-002's dedup wording ('never both') does not explicitly forbid a reconciliation that reports the missing fact through NEITHER channel"
+    evidence:
+      - artifact: "spec.md § FR-002 (Functional Requirements table)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1"
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - artifact: "spec.md § Key Entities, AcceptanceSummary paragraph"
+      - code: "src/specify_cli/acceptance/__init__.py:585-595 (_missing_artifacts) and :1049-1117 (collect_feature_summary) — missing_optional and path_violations are two independent fields; .ok gates only on path_violations, not optional_missing (line 378)"
+    claim: >
+      FR-002's own row text is "so that 'optional' and 'blocking' never contradict
+      each other"; User Story 2's Acceptance Scenario 1 says the fact must be
+      "surfaced through exactly one of missing_optional (non-blocking) or
+      path_violations (blocking) — never both"; SC-002 repeats "either ... or ...,
+      never both"; the Key Entities paragraph says the two fields "never both carry
+      the same fact." In every one of these four places the emphasized, testable
+      clause is "never both" — none of them state "and never neither" as an
+      equally explicit requirement. A technically-compliant-but-wrong
+      "reconciliation" for a token declared under both artifacts.optional and
+      paths.* could satisfy "never both" by excluding the token from BOTH
+      missing_optional and path_violations when a conflict is detected (e.g. "if
+      dual-declared and missing, treat as already handled, skip both lists").
+      That would make AcceptanceSummary.ok true and print no warning at all for a
+      genuinely-missing kitty-specs/<slug>/contracts/ — i.e. the repo's dominant
+      silent-success failure mode (report success / drop the fact silently)
+      instead of the FR's intent (report it once, honestly). The only place the
+      spec states the stronger, unambiguous guard is the "Independent Test" prose
+      for Story 2 ("mentions contracts exactly once ... combined") — narrative
+      text that a task-writer working from the FR/SC tables (the more likely
+      source for /tasks generation) could miss. Story 4's fixture ACs (1-2) also
+      only repeat "reported through exactly one severity," the same ambiguous
+      phrasing, so the fixture itself would not obviously catch a
+      drop-both implementation unless its assertion is written to require
+      presence in at least one field, not just absence-of-both.
+    remediation: >
+      In FR-002's row, Story 2 Acceptance Scenario 1, SC-002, and the Key
+      Entities AcceptanceSummary paragraph, replace "never both" with an
+      explicit XOR framing that rules out the empty case too, e.g.: "the missing
+      fact MUST appear in exactly one of missing_optional or path_violations —
+      never in both, and never in neither; a dual-declared token whose resolved
+      location is missing must always surface as one or the other." Also
+      strengthen Story 4's fixture Acceptance Scenario 2 to assert presence in
+      exactly one field (not merely "not both"), mirroring the "exactly once"
+      wording already used in Story 2's Independent Test paragraph, so the
+      repro fixture itself would fail against a silently-drops-both
+      implementation.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: "Story 3 Acceptance Scenario 4 ('not presented as the only or primary path') has no objectively falsifiable signal in spec.md itself"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 4"
+      - artifact: "tracer-design-decisions.md § Decision: WP3's honesty fix combines three of #3730's four candidate directions"
+    claim: >
+      AC4 requires that when the mkdir -p suggestion is still offered, "it is not
+      presented as the only or primary path off the failure." Nothing in spec.md
+      defines what signal a test would check to determine "primary-ness" (text
+      order, bolding, a "secondary"/"optional" label, position relative to the
+      --lenient mention, etc.), so two different, equally spec-compliant
+      implementations could disagree about whether they satisfy this AC. The
+      concrete resolution actually exists — tracer-design-decisions.md states
+      "rank --lenient first with a note that mkdir -p only silences the check" —
+      but that resolution lives only in the tracer file, not in the spec's own
+      testable Acceptance Scenario text, so a reader of spec.md alone (e.g. a
+      fresh implementer or reviewer not cross-referencing the tracer) has no
+      falsifiable criterion to check against.
+    remediation: >
+      Fold the tracer's concrete resolution into AC4 itself, e.g.: "Given the
+      same failure, When the mkdir -p suggestion is still offered, Then the
+      --lenient pointer appears before the mkdir -p suggestion in the printed
+      failure text, and the mkdir -p line is explicitly marked as a secondary/
+      optional remedy (e.g. via wording such as '... or, if you want to adopt
+      the convention: mkdir -p ...')." This makes the AC checkable by a plain
+      string-order/string-content assertion without requiring the tracer file
+      as an external dependency.
+
+  - id: SPEC-VERIFY-003
+    lens: repro fixture testability & vacuity (mission-derived)
+    severity: 2
+    title: "FR-007/SC-004 do not pin which production entry point(s) the repro fixture must invoke, unlike FR-001"
+    evidence:
+      - artifact: "spec.md § FR-007 (Functional Requirements table)"
+      - artifact: "spec.md § SC-004 (Success Criteria)"
+      - artifact: "spec.md § FR-001 (Functional Requirements table) — for contrast, names validate_mission_paths as the tested unit via its Independent Test"
+      - artifact: "spec.md § NFR-001 — 'reproduced through the pre-existing entry point, per charter Standing Order 4 / ATDD', applies to FR-007 by cross-reference only"
+    claim: >
+      FR-007's own text and SC-004 require a fixture that "fails on pre-fix code
+      and passes on post-fix code" and (per Story 4's Acceptance Scenarios)
+      "observes" the bare-token path / dual-severity contradiction — but neither
+      FR-007 nor SC-004 names which function(s) or entry point the fixture must
+      actually call (contrast FR-001, whose Independent Test explicitly names
+      "invoke validate_mission_paths directly"). The anti-vacuity guarantee for
+      FR-007 currently depends entirely on inferring that NFR-001's general
+      "reproduced through the pre-existing entry point" clause also covers FR-007
+      (it says "every FR above 001-007," so it does apply, but only by cross-
+      reference, not by FR-007 being self-contained). A technically-compliant
+      fixture that hand-constructs a PathValidationResult/AcceptanceSummary
+      object in-test (never calling validate_mission_paths or
+      collect_feature_summary) would satisfy FR-007's literal "fails pre-fix,
+      passes post-fix" if the test author gates the assertion on a manual
+      constant rather than on real code — the git-stash-reversibility check in
+      the Independent Test paragraph would catch this only if a reviewer
+      actually performs it, which is not itself an enforced/testable AC.
+    remediation: >
+      Name the specific entry point(s) directly in FR-007's row and/or SC-004,
+      e.g.: "...by invoking validate_mission_paths and collect_feature_summary
+      (or the accept CLI command) directly against a real/realistic mission
+      layout — not a hand-built PathValidationResult/AcceptanceSummary stand-in
+      — so that reverting Stories 1-2's code changes necessarily flips the
+      fixture's own pass/fail result." This makes FR-007 self-contained rather
+      than relying on a reader connecting it to NFR-001's general clause.

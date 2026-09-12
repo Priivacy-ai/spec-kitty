@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -61,7 +63,7 @@ class WorkflowAgentFlagMigration(BaseMigration):
 
         lines = [_patch_line(line) for line in lines]
         if updated and not dry_run:
-            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            write_generated_file(path, "\n".join(lines) + "\n", read_only=True)
         return updated
 
     def detect(self, project_path: Path) -> bool:

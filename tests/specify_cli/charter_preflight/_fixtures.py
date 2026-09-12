@@ -227,6 +227,104 @@ def seed_graph(repo: Path) -> Path:
     return graph_path
 
 
+#: ``PopulateSlashCommandsMigration.detect()`` (``m_0_10_1_populate_slash_commands.py:46``)
+#: treats fewer than 8 ``spec-kitty.*.md`` files under ``.claude/commands/`` as "migration
+#: needed", then routes into ``can_apply()``, which fails on a minimal package install (no
+#: ``.kittify/missions/*/command-templates`` -- that subdirectory is generated at ``spec-kitty
+#: init`` time, not shipped in the package `EnsureMissionsMigration` copies from). Matching
+#: this exact threshold is what lets ``spec-kitty upgrade``'s sequential migration runner (which
+#: stops on first failure, ``runner.py:177-178``) skip past this unrelated precondition instead
+#: of halting on it.
+_REALISTIC_AGENT_COMMAND_COUNT = 8
+
+
+def seed_realistic_agent_scaffolding(repo: Path) -> None:
+    """Seed ``.claude/commands/`` with placeholder ``spec-kitty.*.md`` files.
+
+    **Why (added after WP01 review cycle 1 / contract C-EFF-7)**: F2 and F4 model a project
+    that is *blocking* on ``charter_source``/``synced_bundle`` -- but that is not a state any
+    real operator occupies in isolation. A real legacy-bundle or invalid-``charter.yaml``
+    project is a real spec-kitty project, with the rest of its agent-command scaffolding
+    already present from ``spec-kitty init``. Without this, a fixture built from only the
+    charter-layer artifacts is artificially minimal: ``spec-kitty upgrade``'s migration runner
+    halts on the unrelated ``0.10.1_populate_slash_commands`` precondition
+    (``PopulateSlashCommandsMigration.can_apply`` -- "No mission command templates found")
+    before ever reaching ``ConsolidateCharterBundleMigration``, the migration that actually
+    composes ``charter.yaml`` from the legacy bundle. Against that artificial fixture, even a
+    genuinely correct remediation reads as ineffective -- a false negative, which is worse than
+    no gate at all because it looks like evidence.
+
+    Seeding >= :data:`_REALISTIC_AGENT_COMMAND_COUNT` files makes
+    ``PopulateSlashCommandsMigration.detect()`` report "not needed" on its own threshold, so the
+    migration is skipped outright rather than routed around by a parallel test-only mechanism
+    (DIRECTIVE_044).
+    """
+    commands_dir = repo / ".claude" / "commands"
+    commands_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(_REALISTIC_AGENT_COMMAND_COUNT):
+        (commands_dir / f"spec-kitty.placeholder{i}.md").write_text(
+            f"# Placeholder command {i}\n\nFixture scaffolding -- not a real command.\n",
+            encoding="utf-8",
+        )
+
+
+def build_f1_no_charter(repo: Path) -> Path:
+    """F1 (data-model.md) — no charter at all; never initialised.
+
+    Advisory / non-blocking treatment must not change (FR-006). Composed
+    purely from :func:`init_git_repo` — no charter artifacts of any kind.
+    """
+    init_git_repo(repo)
+    return repo
+
+
+def build_f2_legacy_bundle_no_charter_yaml(repo: Path) -> Path:
+    """F2 (data-model.md) — legacy multi-file bundle present, **no**
+    ``charter.yaml``. The mission's trigger state (BC-2): a project that
+    upgraded through the pre-consolidate-charter-bundle layout but never
+    generated the authoritative ``charter.yaml``. Blocking, and the P0 fix
+    target — its remediation must actually change ``charter_source`` /
+    ``synced_bundle`` state (C-EFF-1).
+
+    Includes :func:`seed_realistic_agent_scaffolding` (C-EFF-7, review cycle
+    1) so the fixture represents a real spec-kitty project's trigger state,
+    not an artificially minimal one that cannot support any remediation
+    reaching completion.
+    """
+    init_git_repo(repo)
+    charter_path, metadata_path = seed_charter(repo)
+    write_metadata(metadata_path, charter_path)
+    seed_bundle_files(repo)
+    seed_realistic_agent_scaffolding(repo)
+    return repo
+
+
+def build_f3_valid_charter(repo: Path) -> Path:
+    """F3 (data-model.md) — ``charter.yaml`` present and valid, full fresh
+    stack. Expected treatment: passing. Delegates to :func:`make_fresh_repo`
+    rather than re-seeding the same shape.
+    """
+    make_fresh_repo(repo)
+    return repo
+
+
+def build_f4_invalid_charter_yaml(repo: Path) -> Path:
+    """F4 (data-model.md) — ``charter.yaml`` present but unparseable.
+    Blocking, and distinguishable from F1 (FR-005): ``charter_source`` reads
+    ``invalid``, not ``missing``.
+
+    Includes :func:`seed_realistic_agent_scaffolding` (C-EFF-7, review cycle
+    1) — same rationale as F2: a project with a broken ``charter.yaml`` is a
+    real spec-kitty project with the rest of its scaffolding present, and
+    this fixture feeds two of the driver's red cases (:318, :357), so it
+    must be equally capable of supporting a genuinely effective remediation.
+    """
+    init_git_repo(repo)
+    seed_charter_yaml(repo, valid=False)
+    seed_realistic_agent_scaffolding(repo)
+    return repo
+
+
 def make_fresh_repo(repo: Path) -> None:
     """Materialise a fully-fresh repo: charter + bundle + synthesised graph.
 

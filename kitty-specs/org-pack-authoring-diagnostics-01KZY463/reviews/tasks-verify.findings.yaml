@@ -1,0 +1,101 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-VERIFY-001
+    lens: isolated-base-branch-checkout-mechanics
+    severity: 3
+    title: "WP03/WP04 name the correct RED-check concept (separate ref/worktree of planning_base_branch) but never give a runnable command"
+    evidence:
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md § Reviewer Guidance (first bullet)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Reviewer Guidance (first bullet)"
+      - artifact: "plan.md § Per-FR ATDD Sequencing (C-011), 'Practical consequence for Lane B's sequencing' paragraph"
+      - code: "grep -rn 'git worktree|git show|git checkout|git stash|git -C' kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/*.md kitty-specs/org-pack-authoring-diagnostics-01KZY463/plan.md → only one hit, plan.md:569, an unrelated sentence about the lanes topology using worktrees generally, not the RED-check procedure"
+    claim: >
+      Both WP03 and WP04 correctly get the *concept* right this time (no regression of
+      PLAN-V4-001): both say the RED check must be against a separate ref/worktree checkout of
+      `planning_base_branch`, with only that WP's own new test id(s) applied on top, not the
+      whole targeted test file. But neither WP file, nor plan.md's own "Practical consequence"
+      paragraph they both point back to, gives an actual command sequence — no `git worktree
+      add`, no `git show <ref>:<path>`, no equivalent mechanism. WP03's T009 step 2 explicitly
+      defers to "this WP's Reviewer Guidance for the exact procedure," but the Reviewer Guidance
+      section it points to only restates the same concept in different words ("check out
+      `planning_base_branch` itself as a separate ref or worktree, applying only T009's new test
+      id(s) on top of it") without ever supplying the procedure. The second half of the
+      instruction — "apply only this WP's new test id(s) on top of it (not the whole file, which
+      by then carries earlier WPs' own new test functions too)" — is the harder operational step
+      (isolating one new test function while excluding others already committed to the same
+      file) and is left completely unspecified: no guidance on `git show <test-commit>:<path> --
+      <test-name>` extraction, manual copy, `git apply` of a scoped hunk, or any other concrete
+      mechanism. An implementer/reviewer following only what's written would have to invent the
+      mechanics from scratch — exactly the kind of gap the C-011 regression this plan already
+      caught once (PLAN-V4-001) shows is easy to get wrong under this pressure.
+    remediation: >
+      Add a concrete, copy-pasteable command block to WP03's and WP04's Reviewer Guidance
+      sections (and ideally to plan.md's "Practical consequence" paragraph, since both WPs point
+      back to it), e.g.: `git worktree add /tmp/pbb-check main` (planning_base_branch is `main`
+      per meta.json), then either (a) `git show <this-WP's-test-commit-sha> -- <test file>` to
+      extract just the new test function's diff hunk and `git apply` it into the worktree's copy
+      of the file, or (b) manually copy only the new test function's body into the worktree's
+      untouched (pre-mission) copy of the file, run `cd /tmp/pbb-check && uv run pytest <file>
+      -k <new_test_id> -q`, confirm RED, then `git worktree remove /tmp/pbb-check`. Either
+      concrete mechanism resolves the gap; the current text names only the category of solution.
+  - id: TASKS-VERIFY-002
+    lens: per-ac-test-strategy
+    severity: 3
+    title: "FR-002's AC-4 ('reuses the real function, not a hand-rolled heuristic') has no named test in WP03 — DoD downgrades it to a manual code-review confirmation"
+    evidence:
+      - artifact: "spec.md FR-002 AC-4 (lines 331-334): '... it does not hand-roll a second skip-detection heuristic ... (verified by test asserting the same function is called or the same dataclass shape is surfaced)'"
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md § Definition of Done: 'AC-4 (reuse AgentProfileRepository/skipped_profiles() directly, no second heuristic) is true by construction — confirm the helper calls .skipped_profiles() and does not reimplement any part of the skip-detection logic.'"
+      - artifact: "tasks/WP03-profile-skip-diagnostics-fr002.md subtasks T008-T013 (no subtask patches/mocks AgentProfileRepository.skipped_profiles or asserts a call/shape)"
+    claim: >
+      spec.md's AC-4 text is explicit that this AC must be closed by a test ("verified by test
+      asserting the same function is called or the same dataclass shape is surfaced"), not by
+      inspection. WP03's Definition of Done instead treats AC-4 as satisfied "by construction"
+      via a reviewer manually confirming the helper's source calls `.skipped_profiles()` — none
+      of T008-T013 add a call-assertion or dataclass-shape test. This is a real inconsistency
+      inside the mission's own tasks: WP04's analogous requirements (AC-6, AC-7(a) — "reuses the
+      correct parameter value, not a hand-rolled default") are explicitly implemented as
+      mock/patch-based parameter-value assertions in T016/T017(a), with the WP text itself
+      insisting "the existing test still passes" is "necessary but insufficient evidence." WP03
+      applies the weaker "necessary but insufficient" standard to AC-4 that WP04 explicitly
+      rejects for its own parallel ACs. T009's behavioral test (a real `analyst-annie` merge
+      failure surfaces as `profile_skipped`) is reasonably strong indirect evidence the real
+      repository path was exercised, but it is not the call-assertion or shape-assertion the
+      spec text names, and a hand-rolled heuristic that happened to reproduce this one fixture's
+      symptom would not be caught by T009 alone.
+    remediation: >
+      Add a small assertion to WP03 (extend T010's validation or add a short T010a) using
+      `unittest.mock.patch("doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles")`
+      (or equivalent) to assert `_check_profile_skipped_diagnostics` actually calls
+      `.skipped_profiles()` on the constructed repository — mirroring the mock/patch technique
+      WP04's T016 and T017(a) already use for their own "not a hand-rolled X" ACs — and update
+      the Definition of Done bullet from "true by construction" to point at that test.
+  - id: TASKS-VERIFY-003
+    lens: per-ac-test-strategy
+    severity: 2
+    title: "FR-004's AC-4 requires ok-is-False AND exit-code-1 be tested; WP04's T014 only exercises ok-is-False (never invokes the CLI for AC-1's fixture)"
+    evidence:
+      - artifact: "spec.md FR-004 AC-4 (lines 471-475): 'This is falsifiable in a test asserting `ok is False` and exit code `1` for AC-1's fixture.'"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Subtask T014, step 1: 'Calls `validate_pack(tmp_path)` ... Asserts `result.ok is False` ...' (no CliRunner/runner.invoke, no exit-code assertion)"
+      - artifact: "tasks/WP04-drg-root-graph-diagnostic-fr004.md § Definition of Done: 'AC-4 (error severity, exit code 1 — falsifiable via T014's test)'"
+    claim: >
+      T014 (the only test built for AC-1/AC-4's fixture) calls `validate_pack()` directly and
+      asserts `result.ok is False`; it never invokes the `pack_validate` CLI command via
+      `CliRunner`/`runner.invoke`, so the exit-code-1 half of AC-4 is never actually exercised by
+      any test in this WP for AC-1's specific fixture. The Definition of Done nonetheless claims
+      AC-4 (including "exit code 1") is "falsifiable via T014's test," which overstates what
+      T014 does. The gap is low-risk in practice — `pack_validate`'s ok→exit-code mapping
+      (`doctrine.py:349-372`) is pre-existing, unmodified code this mission does not touch, so
+      `ok is False` almost certainly does still yield exit code 1 — but the WP's own DoD claim is
+      inaccurate about what its test covers, and no test anywhere in the mission's targeted files
+      exercises the CLI-level exit code for this specific new diagnostic.
+    remediation: >
+      Either (a) add a short CliRunner-based assertion to T014 (or as a small addendum) that
+      invokes `pack_validate` against AC-1's fixture pack and asserts `result.exit_code == 1`, or
+      (b) if the intent is to rely on the unchanged CLI wrapper, correct the Definition of Done
+      bullet to say "ok is False (T014); exit code 1 follows from pack_validate's unchanged
+      ok→exit-code mapping, not independently tested here" so a reviewer isn't misled about test
+      coverage.

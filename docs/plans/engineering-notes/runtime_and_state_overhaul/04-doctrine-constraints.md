@@ -1,7 +1,7 @@
 ---
 title: '04 — Doctrine Constraints: The Rules Any Domain Split Must Obey'
 description: 'Doctrine constraints for the runtime and state overhaul: the binding governance artifacts any domain split must obey, with directive enforcement levels noted.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 ---
 # 04 — Doctrine Constraints: The Rules Any Domain Split Must Obey
@@ -14,6 +14,7 @@ enforcement levels are noted. Any proposed domain split in `06` is checked again
 ## Binding directives
 
 ### DIRECTIVE_001 — Architectural Integrity Standard *(enforcement: required)*
+
 `src/doctrine/directives/built-in/001-architectural-integrity-standard.directive.yaml`
 > "System designs must maintain clear separation of concerns and well-defined component boundaries so
 > that each part of the system is independently understandable, testable, and replaceable without cascading changes."
@@ -24,6 +25,7 @@ Core rules:
 - Boundary violations found in review **must be resolved before merge** (`:21`).
 
 ### DIRECTIVE_031 — Context-Aware Design *(enforcement: required)*
+
 `031-context-aware-design.directive.yaml`
 > "Every design decision must be made with explicit awareness of the bounded context it belongs to …
 > Crossing a context boundary requires an explicit translation layer; implicit coupling across boundaries is prohibited."
@@ -35,6 +37,7 @@ Core rules:
 - Avoid generic names (`Manager`, `Handler`, `Data`, `Utils`) that obscure domain meaning (`:18-19`).
 
 ### DIRECTIVE_032 — Conceptual Alignment *(enforcement: required)*
+
 `032-conceptual-alignment.directive.yaml`
 > "Agents must never assume that shared vocabulary implies shared meaning … state its interpretation
 > of each key term and confirm that interpretation with the requester."
@@ -50,6 +53,7 @@ Core rules:
 > implementation. (See `06` open questions.)
 
 ### DIRECTIVE_024 — Locality of Change *(enforcement: lenient-adherence)*
+
 > "Changes should stay close to the problem … Unrelated refactors must not be mixed into scoped implementation tasks" (`:16`).
 
 > Tension to manage: a context-unification touches the densest coupling cluster in the repo. The
@@ -61,6 +65,7 @@ Core rules:
 ## Paradigms (worldview the design should express)
 
 ### Domain-Driven Design — `paradigms/built-in/domain-driven-design.paradigm.yaml`
+
 Strategic design = decompose into **Bounded Contexts** connected by explicit **Context Mapping**
 (ACL, OHS, Shared Kernel, Published Language…). Each context holds **one Ubiquitous Language**.
 Tactical patterns (Aggregates, Entities, Value Objects, Domain Events, Repositories, Domain Services)
@@ -68,6 +73,7 @@ enforce invariants at the model boundary. **Opposed by** `anemic-domain-model`, 
 `database-driven-design`. References DIRECTIVE_001/031/032.
 
 ### Deep Module Design — `paradigms/built-in/deep-module-design.paradigm.yaml`
+
 > "Shape modules so a small, stable interface gives callers high leverage over a substantial
 > implementation … changes, bugs, and knowledge concentrate behind the interface instead of spreading across callers and tests."
 
@@ -92,6 +98,7 @@ enforce invariants at the model boundary. **Opposed by** `anemic-domain-model`, 
 ---
 
 ## Styleguide — Aggregate Design Rules
+
 `styleguides/built-in/aggregate-design-rules.styleguide.yaml`
 - Reference other aggregates **by identity only** — never a direct object reference (`:7`).
 - **Keep aggregates small**; split if parts change independently and don't share invariants (`:8`).
@@ -101,6 +108,7 @@ enforce invariants at the model boundary. **Opposed by** `anemic-domain-model`, 
 ---
 
 ## Dependency-direction rule (from current architecture)
+
 `charter` and `doctrine` must **not** import from `specify_cli`; `specify_cli` imports from both.
 This clean direction is a protected invariant — the redesign may not invert it.
 

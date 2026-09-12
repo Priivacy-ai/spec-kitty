@@ -1,0 +1,95 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-2
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: PLAN-FRESH2-001
+    lens: cross-artifact-consistency
+    severity: 3
+    title: tracer-approach.md's "No PR split" Blast Radius enumeration still omits the CHANGELOG.md entry round 2 added everywhere else
+    evidence:
+      - artifact: "tracer-approach.md § Planning-phase entry, \"No PR split\" bullet (lines 39-43)"
+      - artifact: "plan.md § PR shape (lines 554-561)"
+      - artifact: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/reviews/plan-fresh.yaml (round-1 finding that triggered this round's fix, lines 86-129)"
+      - artifact: "kitty-specs/dispatch-dry-run-route-only-01M1HKV2/reviews/plan-verify-2.yaml (round-2 verification, PLAN-FRESH-003, lines 20-28)"
+    claim: >-
+      Round 2's fix for PLAN-FRESH-001 (round-1 finding) added the "1 CHANGELOG.md entry
+      (WP3, ...)" item to four places that restate the mission's Blast Radius file count:
+      Scale/Scope (plan.md line 65), the Seam table (plan.md line 109), Project Structure's
+      source tree (plan.md line 605), and the "PR shape" section (plan.md line 556). The
+      round-2 verification pass (plan-verify-2.yaml, PLAN-FRESH-003) explicitly checked and
+      confirmed only these same four places agree. But tracer-approach.md's own "No PR
+      split" bullet (lines 39-43) is a fifth, textually-parallel restatement of the exact
+      same Blast Radius file count ("Blast Radius is small (5 implementation files, one of
+      which — `chokepoint.py` — is verification-only with no expected diff; 1 generated doc
+      regeneration; 1 hand-edited contract doc; 3 test files)") and round 2 did NOT update
+      it — it still enumerates only 4 categories of files, omitting CHANGELOG.md entirely,
+      even though round 2 touched this exact file (tracer-approach.md) in the same commit
+      for the unrelated helper-relocation fix, just two paragraphs above this one. An
+      implementer or reviewer reading tracer-approach.md alone (the file explicitly designed
+      to carry planning decisions forward into implementation, per its own header "Seeded at
+      planning ... Append during implementation") gets a Blast Radius count that disagrees
+      with plan.md's now-corrected count.
+    remediation: >-
+      Update tracer-approach.md's "No PR split" bullet to match plan.md's "PR shape"
+      wording, e.g.: "Blast Radius is small (5 implementation files, one of which —
+      `chokepoint.py` — is verification-only with no expected diff; 1 generated doc
+      regeneration; 1 hand-edited contract doc; 1 CHANGELOG.md entry (WP3, per
+      "Downstream/external consumer impact"); 3 test files)".
+  - id: PLAN-FRESH2-002
+    lens: gate-completeness
+    severity: 3
+    title: Gate Set table wasn't updated for the newly in-scope CHANGELOG.md when round 2 added it to the Blast Radius
+    evidence:
+      - artifact: "plan.md § The gate set, markdown lint row (line 285)"
+      - artifact: "plan.md § The gate set, architecture/docs consistency row (line 286)"
+      - artifact: "plan.md § Seam table, CHANGELOG.md row (line 109)"
+      - code: ".markdownlint-cli2.jsonc (ignores list — no exclusion for CHANGELOG.md or docs/changelog/)"
+      - code: "CHANGELOG.md is a symlink to docs/changelog/CHANGELOG.md (verified: `ls -la CHANGELOG.md`)"
+      - code: "docs/development/3-2-page-inventory.yaml:1859 (`path: docs/changelog/CHANGELOG.md`, tracked in the page inventory `scripts/docs/check_docs_freshness.py` validates)"
+    claim: >-
+      Round 2 added CHANGELOG.md to the Blast Radius as a new "hand-edited" Markdown file
+      (Seam table row, line 109), but did not update either of the two Gate Set rows that
+      govern hand-edited Markdown files in this repo. (1) The markdown-lint row still reads
+      "Yes, for `cli-do-output.md`" — its rationale names only cli-do-output.md/plan.md/the
+      tracer files, not CHANGELOG.md, even though CHANGELOG.md is a real repo-root symlink to
+      `docs/changelog/CHANGELOG.md` and nothing in `.markdownlint-cli2.jsonc`'s `ignores` list
+      excludes `docs/changelog/` or `CHANGELOG.md` — so it IS in markdownlint-cli2's scope
+      and the implementer isn't told to run it against the new entry. (2) The
+      architecture/docs-consistency row ("Yes | `cli-commands.md` changes; run ...") also
+      doesn't mention CHANGELOG.md, even though `docs/changelog/CHANGELOG.md` is a tracked
+      row in `docs/development/3-2-page-inventory.yaml` (the exact inventory
+      `check_docs_freshness.py`'s page-inventory-completeness and inventory-lockfile-drift
+      sub-checks validate) — i.e. CHANGELOG.md falls within the same doc-freshness gate this
+      row already lists as "Yes" for an unrelated file, but the plan doesn't say so.
+    remediation: >-
+      Add CHANGELOG.md to the markdown-lint gate row's rationale ("Yes, for
+      `cli-do-output.md` and the new WP3 `CHANGELOG.md` entry — both are hand-edited
+      Markdown under the repo's lint scope") and to the docs-freshness row's rationale
+      (note that `docs/changelog/CHANGELOG.md`, the real path CHANGELOG.md symlinks to, is a
+      tracked page-inventory entry, so the freshness check also covers the new WP3 entry).
+  - id: PLAN-FRESH2-003
+    lens: seam-completeness
+    severity: 2
+    title: Seam table's relocated build_ambiguous_dry_run_payload() helper doesn't flag the new RouterAmbiguityError import executor.py needs
+    evidence:
+      - artifact: "plan.md § Seam table, executor.py row (line 102)"
+      - code: "src/specify_cli/invocation/executor.py:36-40 (current `from specify_cli.invocation.errors import (InvalidModeForEvidenceError, InvocationError, UndeterminedModeForEvidenceError)` — no `RouterAmbiguityError`)"
+    claim: >-
+      Round 2's fix relocated `build_ambiguous_dry_run_payload(request_text, err:
+      RouterAmbiguityError) -> dict[str, object]` from dispatch.py into executor.py (Seam
+      table line 102, tracer-approach.md lines 34-35). `RouterAmbiguityError` is not
+      currently imported anywhere in executor.py — the file's existing `errors` import only
+      pulls `InvalidModeForEvidenceError`, `InvocationError`, and
+      `UndeterminedModeForEvidenceError`. The Seam table's executor.py row describes the new
+      function's signature using `RouterAmbiguityError` as a type annotation but doesn't
+      note that this requires adding a new import to executor.py — trivial for an
+      implementer to notice, but the plan's own stated intent (Seam table = "exactly where
+      each symbol lands") would be more complete calling it out, the way it already calls
+      out other new-vs-existing details for this same row.
+    remediation: >-
+      Add a short clause to the executor.py Seam table row noting the new
+      `from specify_cli.invocation.errors import RouterAmbiguityError` import required to
+      type-annotate `build_ambiguous_dry_run_payload`'s `err` parameter (mypy --strict would
+      otherwise fail at the type-annotation, not silently pass).

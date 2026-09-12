@@ -69,17 +69,33 @@ def dashboard(
     # dashboard starts. On failure we STILL launch the server so the
     # operator can see the running state, but we persist the
     # ``blocked_reason`` so the API surface can expose it as a critical
-    # banner. On success we clear any stale warning from a previous run.
+    # banner. Passed advisory warnings use the same persistence channel; a
+    # clean success clears stale warning state.
+    from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+
     from specify_cli.charter_runtime.preflight.dashboard_warning import (
         clear_preflight_warning,
         write_preflight_warning,
     )
     from specify_cli.charter_runtime.preflight.hook import run_preflight_for_dashboard
+    from specify_cli.cli.helpers import exit_git_resolution_failure
 
-    preflight_result = run_preflight_for_dashboard(project_root)
-    if not preflight_result.passed and preflight_result.blocked_reason:
-        write_preflight_warning(project_root, preflight_result.blocked_reason)
-        console.print(f"[yellow]⚠ Charter preflight warning:[/yellow] {preflight_result.blocked_reason}")
+    # #4123: a `spec-kitty init`-ed project that was never `git init`-ed
+    # must get the actionable git-init message here, never a raw
+    # NotInsideRepositoryError traceback (nor the misleading "re-run
+    # init" advice the generic handler below used to print).
+    try:
+        preflight_result = run_preflight_for_dashboard(project_root)
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
+        exit_git_resolution_failure(exc, project_root)
+    warning = (
+        preflight_result.blocked_reason
+        if not preflight_result.passed
+        else "\n".join(preflight_result.warnings) or None
+    )
+    if warning:
+        write_preflight_warning(project_root, warning)
+        console.print(f"[yellow]⚠ Charter preflight warning:[/yellow] {warning}")
     else:
         clear_preflight_warning(project_root)
 
@@ -94,6 +110,8 @@ def dashboard(
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1) from exc
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:  # #4123
+        exit_git_resolution_failure(exc, project_root)
     except OSError as exc:  # Port conflict or permission error
         error_msg = str(exc).lower()
         if "address already in use" in error_msg or "port" in error_msg:

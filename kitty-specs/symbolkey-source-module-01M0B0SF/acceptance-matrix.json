@@ -1,0 +1,79 @@
+{
+  "mission_slug": "symbolkey-source-module-01M0B0SF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: source_module=field(default=None,compare=False) on SymbolKey; G1-G6 green (44 passed) with mutation-proven teeth; ruff+mypy --strict clean.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:32.747968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: helper reads source_module= via _source_module_kwarg; decide() unchanged; 58 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:34.948325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: 338 content-tier entries carry source_module=, comments preserved (no ast.unparse); FR-006 completeness guard mechanically asserts it.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:37.169946+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: 6 machine parse surfaces + dangling imports removed (SC-004 grep clean); Outcome.UNRECOVERABLE retained (docstring reworded).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:39.383563+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: comment-independent recovery test green; #3560 Finding-1 tests stay green asserting NEEDS_MODULE_PATH (correct escalation unchanged).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:41.512823+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: test_every_content_tier_entry_has_source_module present + green (non-vacuous).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:43.629847+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: test_every_content_tier_source_module_is_live_and_declares_symbol cross-checks against the live importable corpus (classify_collisions/_walk_modules), NOT comment re-parse.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-18T20:22:45.834172+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

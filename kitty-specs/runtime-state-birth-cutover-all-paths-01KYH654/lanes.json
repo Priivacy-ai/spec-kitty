@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-state-birth-cutover-all-paths-01KYH654",
+  "mission_id": "01KYH654JQGY765A6Y63M41REP",
+  "mission_branch": "kitty/mission-runtime-state-birth-cutover-all-paths-01KYH654",
+  "target_branch": "fix/runtime-state-birth-cutover-all-paths",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "tests/specify_cli/migration/test_seed_anchor_determinism.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/cutover_guard.py",
+        "src/specify_cli/status/cutover_eligibility.py",
+        "tests/specify_cli/migration/test_dogfood_corpus_backfilled.py",
+        "tests/specify_cli/status/test_cutover_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_cutover_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/specify_cli/cli/commands/test_cutover_doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/migration/runtime_state_cutover.py",
+        "tests/specify_cli/cli/test_accept_birth_cutover.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/release-readiness.yml",
+        "docs/development/cutover-guard.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-27T07:48:48.585836+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

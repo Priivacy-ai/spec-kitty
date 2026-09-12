@@ -5,13 +5,23 @@ These helpers implement the rules in
 
 | Consumer                | passed=True   | passed=False                                     |
 |-------------------------|---------------|--------------------------------------------------|
-| spec-kitty next         | log + cont    | print blocked_reason, exit 1, NO state mutation  |
-| spec-kitty implement WP | log + cont    | abort BEFORE worktree alloc or .kittify writes   |
-| dashboard serve / start | log + cont    | start server, inject blocked_reason as warning   |
+| spec-kitty next         | emit warnings + continue | print blocked_reason, exit 1, NO mutation |
+| spec-kitty implement WP | emit warnings + continue | abort BEFORE worktree/.kittify writes     |
+| dashboard serve / start | persist advisory + start | start server, persist blocked_reason       |
 
 The helpers are intentionally CLI-side (typer-aware): they are the shared
 glue between the three consumer entry points and ``run_charter_preflight``.
 The runner itself stays framework-free.
+
+Boundary heal caveat (WP04, charter-synthesize-reconciliation-01KZJQN6): when
+``cfg.auto_refresh`` is set, ``run_charter_preflight`` attempts a
+non-destructive heal (``SynthesizeMode.preserve`` — never drops backed
+content) before falling through to the ``passed=False`` branch below. That
+non-destructive guarantee is not a "never refuses" guarantee: orphaned
+(backing-artifact-deleted) content and an unparseable on-disk doctrine
+overlay still make the heal fail. When that happens it surfaces here exactly
+like any other preflight failure — printed ``blocked_reason`` + exit 1 (or,
+for the dashboard, a warning banner), never a silently-coerced ``passed=True``.
 """
 
 from __future__ import annotations
@@ -27,6 +37,7 @@ from specify_cli.charter_runtime.preflight.config import load_preflight_config
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
 __all__ = [
+    "emit_advisory_warnings",
     "run_preflight_or_abort",
     "run_preflight_for_dashboard",
 ]
@@ -40,6 +51,17 @@ def run_charter_preflight(**kwargs: Any) -> CharterPreflightResult:
     from specify_cli.charter_runtime.preflight.runner import run_charter_preflight as _run
 
     return _run(**kwargs)
+
+
+def emit_advisory_warnings(
+    result: CharterPreflightResult,
+    *,
+    stderr: TextIO | None = None,
+) -> None:
+    """Render passed advisory warnings on stderr without polluting JSON stdout."""
+    err = stderr if stderr is not None else sys.stderr
+    for warning in result.warnings:
+        print(f"Warning: {warning}", file=err)
 
 
 def run_preflight_or_abort(
@@ -78,10 +100,12 @@ def run_preflight_or_abort(
     result = run_charter_preflight(
         repo_root=repo_root,
         auto_refresh=cfg.auto_refresh,
+        allow_missing_charter=True,
         strict=False,
     )
 
     if result.passed:
+        emit_advisory_warnings(result, stderr=stderr)
         _logger.info("charter preflight passed (consumer=%s)", consumer)
         return result
 

@@ -7,18 +7,15 @@ The authoring taxonomy (``pytest.ini`` documents ``unit`` as "the category
 default for module-scoped tests"; ``contract`` for contract tests) diverges
 from that *selection* taxonomy: **no gate selects ``-m unit`` or
 ``-m contract``**, and several test directories are touched by no gate at all.
-The result is that a large fraction of the suite is selected by **zero** gates —
-"untested-but-green": those tests never run in CI, so a regression in them is
-invisible (no red), only a silent coverage hole.
+Historically, that mismatch left tests selected by **zero** gates —
+"untested-but-green". This model now keeps that orphan surface at zero.
 
 This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the five workflow files that run
-   the suite (``ci-quality`` / ``ci-windows`` / ``drift-detector`` /
-   ``release`` / ``ui-e2e``), expanding the ``integration-tests-core-misc``
-   shard matrix.
+1. Parses every ``pytest`` invocation across the restored suite-running
+   workflow (``ci-windows``), expanding shard matrices when present.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -27,15 +24,19 @@ A test selected by **0** gates is an *orphan* (coverage hole); a test selected
 by **>=2** gates is a *duplicate* (intentional overlap is allowed — reported,
 not enforced).
 
-The companion ratchet (``test_gate_coverage.py`` +
-``_gate_coverage_baseline.json``) freezes today's orphan surface as a visible
-worklist and fails only on a **new** ungated file — so no *new* test can leak
-into zero gates by construction, without blocking on the existing backlog.
+The companion end-to-end oracle
+(``test_ci_collection_completeness.py``) requires zero primary-push orphans.
+It runs in the PR operator path through ``arch-adversarial`` → ``quality-gate``
+and has an independent ``fast-tests-core-misc`` owner for route-affecting
+changes. GitHub branch protection wires no required context in this
+experimental programme (see repo ``CLAUDE.md``); this module does not
+misrepresent any workflow as a required check.
 
-Run directly to refresh the baseline or check drift::
+Run directly to refresh/verify the topology census or the separate retained E3
+job-selection baselines::
 
-    uv run python -m tests.architectural._gate_coverage --update-baseline
-    uv run python -m tests.architectural._gate_coverage --check
+    uv run python -m tests.architectural._gate_coverage --emit-census
+    uv run python -m tests.architectural._gate_coverage --verify-census
     uv run python -m tests.architectural._gate_coverage --freeze-baselines
 """
 
@@ -70,26 +71,35 @@ from _pytest.mark.expression import Expression
 # One collected test: its nodeid, repo-relative path, and applied marker names.
 TestRecord = dict[str, Any]
 
+# ``(workflow file name, job name)`` — the identity of one CI job. Job names are
+# only unique WITHIN a workflow (``changes`` exists in both ci-quality and
+# ci-windows), so the pair, never the bare job name, is the key.
+JobKey = tuple[str, str]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The five workflows that actually run the pytest suite (the others lint, build,
-# or sync and select no tests). ``ui-e2e.yml`` is the scoped Playwright
-# dashboard e2e gate (issue #1008): a standalone, drift-detector-shaped
-# workflow (own trigger, single job, no dorny filter, no quality-gate
-# aggregator) whose ``pytest tests/ui/`` invocation must be MODELED here so
-# ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
-# allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
-# surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
+# The interim convergence topology restores ``ci-windows.yml`` and the tag-time
+# ``release.yml`` as direct pytest suite runners. ``ci-quality.yml`` is
+# reduced to lint/build/install/lock jobs plus the non-blocking ``sonarcloud``
+# reporter (spec-kitty#3993), which reaches pytest only through
+# ``make test-fast`` — no directly-anchored pytest command, so it is not (and
+# cannot be) collected as a gate here; its reasoned non-blocking declaration
+# lives in ``test_suite_jobs_gate_blocking.py``'s NON_BLOCKING_ALLOWLIST. The
+# factory ``ci.yml`` delegates suite execution to the planning CI scripts
+# rather than embedding a pytest command; and the other restored producers do
+# not run tests.
 WORKFLOW_FILES: tuple[str, ...] = (
-    "ci-quality.yml",
     "ci-windows.yml",
-    "drift-detector.yml",
     "release.yml",
-    "ui-e2e.yml",
+    # Net-new pytest-running workflows reinstated by the ci-pipeline-reinstatement
+    # mission (kept in lockstep with the on-disk set — enforced by
+    # test_workflow_coherence::test_pytest_workflow_set_equals_model_allowlist_live).
+    "ci-modules.yml",
+    "ci-nightly.yml",
+    "module-tests.yml",
 )
 
-BASELINE_PATH = Path(__file__).with_name("_gate_coverage_baseline.json")
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
 _TESTS_ROOT = "tests"
 
@@ -308,7 +318,7 @@ def parse_pytest_invocation(
 
 def parse_workflow(path: Path) -> list[Gate]:
     """Parse one workflow file into the gates it defines."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     gates: list[Gate] = []
     for job_name, job, step in _iter_run_steps(data):
         includes = _matrix_includes(job)
@@ -334,7 +344,7 @@ def parse_workflow(path: Path) -> list[Gate]:
 
 
 def load_gates() -> list[Gate]:
-    """Parse all five suite-running workflows into the full gate list."""
+    """Parse every restored suite-running workflow into the full gate list."""
     gates: list[Gate] = []
     for name in WORKFLOW_FILES:
         gates.extend(parse_workflow(WORKFLOWS_DIR / name))
@@ -358,6 +368,31 @@ _NEEDS_RESULT_RE = re.compile(r"needs\.([A-Za-z0-9_-]+)\.result")
 _FILTER_OUTPUT_RE = re.compile(r"needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)")
 # ``--cov=<target>`` emitters inside run scripts (FR-005).
 _COV_TARGET_RE = re.compile(r"--cov=([^\s\\'\"]+)")
+# Jobs that *consume* coverage XML rather than emit real pytest --cov data.
+# ``sonarcloud`` in particular carries prose ``--cov=...`` examples inside its
+# own step comments and heredoc documentation (see the "Normalize coverage
+# XML..." step) -- ``_COV_TARGET_RE`` has no way to distinguish a documentation
+# mention from a real flag, so the job is excluded wholesale rather than
+# taught to parse comments. Any consumer of ``cov_targets`` that means "jobs
+# that actually run pytest --cov" (not "jobs whose script mentions --cov")
+# must exclude this set.
+NON_EMITTER_JOBS: frozenset[str] = frozenset(
+    {"sonarcloud", "diff-coverage", "mutation-testing"}
+)
+# Top-level packages declared in [build-system].packages (pyproject.toml) --
+# the only names a bare/dotted (no "/") --cov target can legitimately resolve
+# to under src/ (#2975's cov_target_repo_path normalizer).
+_TOP_LEVEL_SRC_PACKAGES: frozenset[str] = frozenset(
+    {
+        "kernel",
+        "glossary",
+        "mission_runtime",
+        "runtime",
+        "specify_cli",
+        "doctrine",
+        "charter",
+    }
+)
 # The diff-coverage job's ``critical_paths=( ... )`` shell array (FR-005).
 _CRITICAL_PATHS_RE = re.compile(r"critical_paths=\((.*?)\)", re.DOTALL)
 _SHELL_QUOTED_RE = re.compile(r"'([^']*)'|\"([^\"]*)\"")
@@ -449,6 +484,19 @@ class WorkflowModel:
       ``critical_paths`` array entries, in declaration order (FR-005).
     - ``pull_request_types`` / ``pull_request_paths`` / ``push_paths``: outer
       ``on:`` trigger types and paths lists (FR-013 / FR-012 two-layer reads).
+    - ``job_if``: job -> the RAW ``if:`` scalar (``None`` when absent, ``bool``
+      for the YAML-literal ``if: false`` form). ``job_gating_groups`` records
+      only *which* filter outputs an ``if:`` mentions; this keeps the whole
+      condition so :func:`job_runs_under` can decide whether the job actually
+      runs under a given trigger state — the distinction between "references
+      the ``cli`` group" and "runs on a push regardless of the ``cli`` group"
+      (mission doctrine-silence-guards WP10, FR-013).
+    - ``push_branches``: ``on.push.branches``, so the collection-completeness
+      model can tell which workflows a push to a given branch even starts.
+
+    ``uses:`` reusable-workflow delegation (#3447) is resolved BEFORE this model
+    is built, by :func:`load_spliced_workflow` — a caller job is seen with its
+    delegate's steps inlined — so there is no per-job delegation field here.
     """
 
     path: Path
@@ -461,6 +509,8 @@ class WorkflowModel:
     pull_request_types: tuple[str, ...]
     pull_request_paths: tuple[str, ...]
     push_paths: tuple[str, ...]
+    job_if: dict[str, str | bool | None]
+    push_branches: tuple[str, ...]
 
 
 def _job_needs_tuple(job: dict[str, Any]) -> tuple[str, ...]:
@@ -532,6 +582,95 @@ def _on_section(data: dict[Any, Any]) -> dict[str, Any]:
     return section if isinstance(section, dict) else {}
 
 
+def _job_if_scalar(job: dict[str, Any]) -> str | bool | None:
+    """One job's raw ``if:`` scalar, preserving the YAML-literal boolean form.
+
+    ``if: false`` (used to park a job) parses as a real ``bool``; coercing it to
+    the string ``"False"`` would make it indistinguishable from an unparseable
+    condition, so the bool is kept and handled explicitly by
+    :func:`job_runs_under`.
+    """
+    value = job.get("if")
+    if value is None or isinstance(value, bool):
+        return value
+    return str(value)
+
+
+_LOCAL_REUSABLE_PREFIX = "./.github/workflows/"
+
+
+def _job_uses_local(job: dict[str, Any]) -> str | None:
+    """The local reusable-workflow file a ``uses:`` job delegates to, if any.
+
+    Only ``./.github/workflows/<file>`` refs resolve to a workflow in this model
+    (a same-repo reusable workflow, mission #3447); an external
+    ``org/repo/.github/workflows/x@ref`` ref returns ``None`` because its jobs
+    are not modeled here.
+    """
+    uses = job.get("uses")
+    if isinstance(uses, str) and uses.startswith(_LOCAL_REUSABLE_PREFIX):
+        return uses.rsplit("/", 1)[-1]
+    return None
+
+
+def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, Any]:
+    """Inline a local ``uses:`` caller job's delegate steps (mission #3447).
+
+    A reusable-workflow caller job (``uses: ./.github/workflows/<file>``) carries
+    no ``steps:`` of its own — its ``--cov`` emitters, test paths and markers
+    live in the called workflow. This resolver returns a copy of ``data`` where
+    each such caller job gains the called workflow's job steps, so every model
+    consumer sees the caller as if it ran the delegate inline (its own
+    ``if``/``needs``/name are preserved). The called reusable workflow is
+    therefore NOT an independent suite runner — it is excluded from
+    :func:`discover_pytest_workflows` and absent from :data:`WORKFLOW_FILES` —
+    which avoids double-counting its gate. One level is resolved (module
+    workflows are single-purpose, non-nested — enforced below).
+    """
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return data
+    spliced: dict[str, Any] = {}
+    for name, job in jobs.items():
+        called = _job_uses_local(job) if isinstance(job, dict) else None
+        target_path = workflows_dir / called if called else None
+        if target_path is None or not target_path.exists():
+            spliced[name] = job
+            continue
+        target = yaml.safe_load(target_path.read_text(encoding="utf-8")) or {}
+        target_jobs = target.get("jobs") or {}
+        # Single-purpose assumption made load-bearing: flattening multiple
+        # delegate jobs into one caller key would conflate their markers/coverage.
+        assert len(target_jobs) == 1, (  # golden-count: cardinality-is-contract
+            f"reusable workflow {called} must define exactly one job to splice "
+            f"into caller {name!r}; found {sorted(target_jobs)}"
+        )
+        delegate_steps: list[Any] = []
+        for delegate_job in target_jobs.values():
+            if isinstance(delegate_job, dict):
+                delegate_steps.extend(delegate_job.get("steps") or [])
+        merged = dict(job)
+        merged["steps"] = list(job.get("steps") or []) + delegate_steps
+        spliced[name] = merged
+    resolved = dict(data)
+    resolved["jobs"] = spliced
+    return resolved
+
+
+def load_spliced_workflow(path: Path) -> dict[str, Any]:
+    """Parse a workflow file with local ``uses:`` delegation resolved (#3447).
+
+    EVERY reader of a workflow that may contain reusable-workflow caller jobs
+    must load through this — not a raw ``yaml.safe_load`` — so a ``uses:`` caller
+    job is seen with its delegate's steps inlined. Raw readers that bypass this
+    see the caller with no ``steps:`` and mis-model it (missing timeouts,
+    ``KeyError: 'steps'``, dropped gates).
+    """
+    return _splice_local_uses(
+        yaml.safe_load(path.read_text(encoding="utf-8")), path.parent
+    )
+
+
 def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[str, ...]:
     """``on.<event>.<key>`` as a string tuple; ``()`` when absent."""
     event_section = on_section.get(event)
@@ -542,7 +681,7 @@ def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[st
 
 def load_workflow_model(path: Path) -> WorkflowModel:
     """Parse one workflow file into its :class:`WorkflowModel` relations."""
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_spliced_workflow(path)
     jobs: dict[str, Any] = data.get("jobs") or {}
     run_texts = {name: _job_run_text(job) for name, job in jobs.items()}
     on_section = _on_section(data)
@@ -568,7 +707,42 @@ def load_workflow_model(path: Path) -> WorkflowModel:
         pull_request_types=_trigger_tuple(on_section, "pull_request", "types"),
         pull_request_paths=_trigger_tuple(on_section, "pull_request", "paths"),
         push_paths=_trigger_tuple(on_section, "push", "paths"),
+        job_if={name: _job_if_scalar(job) for name, job in jobs.items()},
+        push_branches=_trigger_tuple(on_section, "push", "branches"),
     )
+
+
+def cov_target_repo_path(target: str) -> str:
+    """Normalize a ``--cov`` target to its ``src/``-relative repo path.
+
+    ``--cov`` targets come in two shapes (#2975): a ``src/``-relative path
+    (single-root invocations, e.g. ``src/kernel``) or a dotted importable
+    module (multi-root invocations, converted to dotted form so
+    coverage.py's ``XmlReporter.source_paths`` stays empty and same-basename
+    files across roots cannot collide, e.g. ``specify_cli.charter_runtime``).
+    Both name the same on-disk location; every consumer of ``cov_targets``
+    that compares against a filesystem path (FR-005's critical-path backing,
+    the src-coverage-emitter set) must go through this normalizer instead of
+    assuming one shape, or a dotted target silently stops matching.
+    """
+    if "/" in target:
+        return target.rstrip("/")
+    return "/".join(("src", *target.split(".")))
+
+
+def is_src_cov_target(target: str) -> bool:
+    """Whether a ``--cov`` target measures a ``src/`` package (dotted or path).
+
+    True for both shapes as long as the top-level segment is one of the
+    packages declared in ``[build-system].packages`` (pyproject.toml) -- the
+    only names coverage.py can resolve a bare/dotted target against. False
+    for non-src targets like ``scripts/docs``.
+    """
+    path = cov_target_repo_path(target)
+    if not path.startswith("src/"):
+        return False
+    top_level = path.split("/", 2)[1]
+    return top_level in _TOP_LEVEL_SRC_PACKAGES
 
 
 def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[str]:
@@ -579,10 +753,28 @@ def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[st
     diverge in what "runs the suite" means. The consumer invariant asserts
     this set equals the allowlist, failing closed when a fifth suite-running
     workflow appears without entering the model.
+
+    Reusable ``on: workflow_call``-only workflows are excluded (mission #3447):
+    they are not independent suite runners — their steps are spliced into the
+    caller job (:func:`_splice_local_uses`) and modeled there, so counting them
+    separately would break the ``discover == WORKFLOW_FILES`` invariant.
     """
     directory = workflows_dir or WORKFLOWS_DIR
     candidates = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml"))
-    return frozenset(path.name for path in candidates if parse_workflow(path))
+    return frozenset(
+        path.name
+        for path in candidates
+        if parse_workflow(path) and not _is_reusable_only(path)
+    )
+
+
+def _is_reusable_only(path: Path) -> bool:
+    """Whether a workflow's only trigger is ``workflow_call`` (a reusable module)."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    on_section = data.get("on", data.get(True))
+    if isinstance(on_section, dict):
+        return set(on_section) == {"workflow_call"}
+    return False
 
 
 def registered_markers(pytest_ini: Path | None = None) -> tuple[str, ...]:
@@ -634,13 +826,24 @@ class CompiledGate:
         # builds its test list dynamically via ``git grep``) falls back to the
         # whole tree. That fallback is coverage-SAFE only when a marker expression
         # narrows it: ci-windows runs ``-m windows_ci``, so it claims coverage of
-        # exactly the windows-only tests, not the whole suite. A whole-tree gate
-        # with NO marker would over-claim — guarded by
-        # ``test_windows_gate_models_windows_ci_marker``.
+        # exactly the windows-only tests, not the whole suite.
+        #
+        # #2967 (zero-producer / inert-slot bare-name false-pass): a gate with
+        # NEITHER parsed positional paths NOR a marker is a *bare name that
+        # resolves to no real producer*. Letting it fall back to the whole tree
+        # (with no marker to narrow it) makes it silently claim coverage of EVERY
+        # test — an inert slot that "covers" the whole suite. Such a gate must
+        # instead select NOTHING (fail closed): a producer that produces no real
+        # selection covers no test.
+        self._zero_producer = not gate.paths and gate.marker_expr is None
         self.paths = gate.paths or [_TESTS_ROOT]
         self.expr = Expression.compile(gate.marker_expr) if gate.marker_expr else None
 
     def selects(self, relpath: str, nodeid: str, markers: set[str]) -> bool:
+        if self._zero_producer:
+            # A zero-producer / inert-slot gate resolves to no real producer and
+            # therefore covers nothing (#2967) — never the whole-tree fallback.
+            return False
         if not any(path_matches(relpath, nodeid, p) for p in self.paths):
             return False
         if any(path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):
@@ -665,9 +868,28 @@ class CoverageReport:
         return len(self.orphan_nodeids)
 
 
-def analyze(gates: list[Gate], universe: list[TestRecord]) -> CoverageReport:
-    """Count gate selections per test; collect orphans (0) and duplicates (>=2)."""
-    compiled = [CompiledGate(g) for g in gates]
+def analyze(
+    gates: list[Gate],
+    universe: list[TestRecord],
+    active_jobs: frozenset[JobKey] | None = None,
+) -> CoverageReport:
+    """Count gate selections per test; collect orphans (0) and duplicates (>=2).
+
+    ``active_jobs`` restricts the model to the jobs that actually RUN under some
+    trigger state (:func:`active_job_keys`). Default ``None`` keeps the historic
+    "every job runs" model every existing caller relies on — which is why the
+    committed ratchet baseline records ``orphan_test_count: 0``: true in that
+    model, and vacuous against a real CI run where most jobs are filter-gated
+    away. Passing an active set is what makes the count non-vacuous; the
+    selection evaluator itself (:class:`CompiledGate`) is unchanged and shared,
+    so there is exactly one selection engine (D-044).
+    """
+    selected = (
+        gates
+        if active_jobs is None
+        else [g for g in gates if (g.workflow, g.job) in active_jobs]
+    )
+    compiled = [CompiledGate(g) for g in selected]
     orphan_nodeids: list[str] = []
     orphan_files: set[str] = set()
     duplicate_nodeids: list[str] = []
@@ -685,6 +907,263 @@ def analyze(gates: list[Gate], universe: list[TestRecord]) -> CoverageReport:
         orphan_nodeids=sorted(orphan_nodeids),
         orphan_files=sorted(orphan_files),
         duplicate_nodeids=sorted(duplicate_nodeids),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Trigger-state job activation (mission doctrine-silence-guards WP10, FR-013 /
+# SC-013 / issue #2957).
+#
+# WHY THIS EXISTS. :func:`analyze` counts a test as covered when ANY parsed gate
+# selects it — a model in which every job always runs. Real CI does not work
+# that way: 40 of the 50 suite-running jobs are gated on a ``dorny/paths-filter``
+# output, so on a push whose diff misses those globs the job never starts and
+# every test it uniquely owns runs nowhere. That is the same defect as WP01's
+# inert schema slot, one layer up: a frozen-contract test no job collects is
+# exactly as inert as a schema slot nothing produces.
+#
+# WHAT IS MODELED. The two path-topology authorities the module already parses
+# (Adjudicated Decision 8: the dorny filter block and the job ``if:`` gates),
+# plus the ``on:`` trigger block. Nothing new is parsed from the workflow — the
+# only new capability is DECIDING a parsed ``if:`` against a named trigger
+# state, which no existing surface does.
+#
+# FAIL-CLOSED BY CONSTRUCTION. :func:`job_runs_under` returns ``True`` only for
+# conditions it positively recognizes as satisfied; anything it does not model
+# is treated as "does not run". The consequence of a mis-read is therefore an
+# over-report of uncollected tests (a loud red someone must look at), never a
+# silent claim of coverage that does not exist.
+#
+# ONE DELIBERATE EXCEPTION, AND WHAT IT COSTS THE CLAIM. Exactly one conjunct
+# fails OPEN: ``needs.<job>.result == 'success'`` decides ``True``
+# (:data:`_NEEDS_RESULT_RE_CONJUNCT`). It has to — reading it as unsatisfiable
+# would declare every downstream job dead and leave nothing to reason about. The
+# property this module can therefore state is "collected on a push to ``main``
+# ON THE GREEN PATH": when an upstream job fails, GitHub skips its dependents and
+# a real run collects less than modelled. So an uncollected count from here is
+# exact on a green run and a LOWER BOUND on a red one — the error direction is
+# "the hole is at least this big", never "there is no hole".
+# ---------------------------------------------------------------------------
+
+# The branch whose push state the completeness invariant is evaluated against.
+PRIMARY_BRANCH = "main"
+PUSH_EVENT = "push"
+PULL_REQUEST_EVENT = "pull_request"
+
+_ALWAYS = "always()"
+# ``!contains(github.event.pull_request.labels.*.name, '<label>')`` — the two
+# full-CI-block guards. On any non-``pull_request`` event there is no pull
+# request, so ``contains`` over an absent label list is false and the negation
+# holds.
+_PR_LABEL_GUARD_RE = re.compile(
+    r"^!\s*contains\(\s*github\.event\.pull_request\.labels\.\*\.name\s*,\s*"
+    r"'[^']*'\s*\)$",
+)
+# ``needs.<job>.result == 'success'`` / ``!= 'failure'`` — an ORDERING conjunct,
+# not a masking one: it says "run me after that job, if it went well", and it is
+# satisfied on the green path this invariant reasons about. Treating it as
+# unsatisfiable would declare every downstream job dead and make the model
+# useless; treating it as satisfied is the standard "assume upstream green"
+# reading, stated here so a reviewer can see the assumption rather than infer it.
+_NEEDS_RESULT_RE_CONJUNCT = re.compile(
+    r"^needs\.[A-Za-z0-9_-]+\.result\s*[!=]=\s*'[A-Za-z_]+'$",
+)
+_GROUP_OUTPUT_RE = re.compile(
+    r"^needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)\s*==\s*'true'$",
+)
+_EVENT_NAME_RE = re.compile(r"^github\.event_name\s*(==|!=)\s*'([A-Za-z_]+)'$")
+_EXPRESSION_WRAPPER_RE = re.compile(r"^\$\{\{(?P<inner>.*)\}\}$", re.DOTALL)
+
+_AND = "&&"
+_OR = "||"
+
+
+def _is_balanced(text: str) -> bool:
+    """Whether ``text`` has no unmatched ``(`` / ``)``."""
+    depth = 0
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
+
+
+def split_top_level(expr: str, operator: str) -> list[str]:
+    """Split ``expr`` on ``operator`` occurrences OUTSIDE any parentheses.
+
+    The workflow's conditions are plain boolean expressions over identifiers,
+    quoted literals and calls, so paren depth is the only nesting that matters.
+    """
+    parts: list[str] = []
+    buffer: list[str] = []
+    depth = 0
+    index = 0
+    while index < len(expr):
+        char = expr[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if depth == 0 and expr.startswith(operator, index):
+            parts.append("".join(buffer))
+            buffer = []
+            index += len(operator)
+            continue
+        buffer.append(char)
+        index += 1
+    parts.append("".join(buffer))
+    return [part.strip() for part in parts if part.strip()]
+
+
+def normalize_condition(text: str) -> str:
+    """Strip the ``${{ }}`` wrapper and any redundant outer parentheses."""
+    condition = " ".join(text.split())
+    match = _EXPRESSION_WRAPPER_RE.match(condition)
+    if match:
+        condition = match.group("inner").strip()
+    while (
+        condition.startswith("(")
+        and condition.endswith(")")
+        and _is_balanced(condition[1:-1])
+    ):
+        condition = condition[1:-1].strip()
+    return condition
+
+
+def _atom_runs_under(atom: str, *, event_name: str, active_groups: frozenset[str]) -> bool:
+    """Decide a single (non-composite) condition term. Unknown terms -> False."""
+    if atom == _ALWAYS:
+        return True
+    if _PR_LABEL_GUARD_RE.match(atom):
+        return event_name != PULL_REQUEST_EVENT
+    if _NEEDS_RESULT_RE_CONJUNCT.match(atom):
+        return True
+    group_match = _GROUP_OUTPUT_RE.match(atom)
+    if group_match:
+        return group_match.group(1) in active_groups
+    event_match = _EVENT_NAME_RE.match(atom)
+    if event_match:
+        operator, expected = event_match.groups()
+        return (expected == event_name) if operator == "==" else (expected != event_name)
+    return False
+
+
+def job_runs_under(
+    if_value: str | bool | None,
+    *,
+    event_name: str,
+    active_groups: frozenset[str],
+) -> bool:
+    """Whether a job with this ``if:`` starts, given an event and filter state.
+
+    ``None`` (no condition) runs; a YAML-literal ``if: false`` never does.
+    Otherwise the condition is decomposed by precedence — ``||`` then ``&&``,
+    parentheses respected — down to terms :func:`_atom_runs_under` decides.
+    Anything unrecognized decides ``False`` (see the fail-closed note above).
+    """
+    if if_value is None:
+        return True
+    if isinstance(if_value, bool):
+        return if_value
+    condition = normalize_condition(if_value)
+    if not condition:
+        return True
+    disjuncts = split_top_level(condition, _OR)
+    if len(disjuncts) > 1:
+        return any(
+            job_runs_under(part, event_name=event_name, active_groups=active_groups)
+            for part in disjuncts
+        )
+    conjuncts = split_top_level(condition, _AND)
+    if len(conjuncts) > 1:
+        return all(
+            job_runs_under(part, event_name=event_name, active_groups=active_groups)
+            for part in conjuncts
+        )
+    if condition.startswith("(") and condition.endswith(")") and _is_balanced(condition[1:-1]):
+        return job_runs_under(
+            condition[1:-1], event_name=event_name, active_groups=active_groups,
+        )
+    return _atom_runs_under(condition, event_name=event_name, active_groups=active_groups)
+
+
+def workflow_runs_on_push(model: WorkflowModel, branch: str = PRIMARY_BRANCH) -> bool:
+    """Whether a push to ``branch`` starts this workflow at all (``on.push.branches``).
+
+    A workflow that triggers only on tags is a live negative: its tests are not
+    collected by a push to ``main`` — a real hole this predicate surfaces
+    rather than hides.
+    """
+    return branch in model.push_branches
+
+
+def active_job_keys(
+    models: dict[str, WorkflowModel],
+    *,
+    event_name: str,
+    active_groups: frozenset[str],
+    branch: str = PRIMARY_BRANCH,
+) -> frozenset[JobKey]:
+    """Every ``(workflow, job)`` that runs under one trigger state."""
+    active: set[JobKey] = set()
+    for name, model in models.items():
+        if event_name == PUSH_EVENT and not workflow_runs_on_push(model, branch):
+            continue
+        for job, if_value in model.job_if.items():
+            if job_runs_under(
+                if_value, event_name=event_name, active_groups=active_groups,
+            ):
+                active.add((name, job))
+    # NOTE: ``uses:`` reusable-workflow delegation needs no resolution here — the
+    # caller job already carries its delegate's steps/gates (load_spliced_workflow),
+    # so it is emitted with the right paths/markers by the normal loop above (#3447).
+    return frozenset(active)
+
+
+def main_push_active_jobs(
+    models: dict[str, WorkflowModel] | None = None,
+) -> frozenset[JobKey]:
+    """Jobs that run on a push to ``main`` in the WORST reachable filter state.
+
+    The worst state is "no dorny group matched", and it is reachable rather than
+    hypothetical: the ``changes`` job's fail-open catch-all only forces a full
+    run when ``any_src`` is true (a ``src/**`` change no named group claimed), so
+    a push touching only an unclaimed ``tests/**`` directory — which
+    ``on.push.paths`` explicitly admits — hits every named group false with the
+    catch-all silent. Because a job's ``if:`` is monotone in the active-group set
+    (groups only ever appear as ``== 'true'`` disjuncts), completeness in this
+    state implies completeness in every richer one, so one evaluation settles the
+    whole family instead of 2**N of them.
+    """
+    resolved = models if models is not None else load_workflow_models()
+    return active_job_keys(
+        resolved, event_name=PUSH_EVENT, active_groups=frozenset(),
+    )
+
+
+def main_push_uncollected(
+    universe: list[TestRecord],
+    gates: list[Gate] | None = None,
+    models: dict[str, WorkflowModel] | None = None,
+) -> CoverageReport:
+    """SC-013: the tests no job collects on a push to ``main``, on the green path.
+
+    ``orphan_nodeids`` here means "collected by zero RUNNING jobs" — node-level,
+    not file-level. The distinction is load-bearing: a file holding one ``slow``
+    test and twenty ``fast`` ones satisfies any file-level reading while the
+    twenty never execute, and that is the exact shape of most of #2957's list.
+
+    "On the green path" because of the single fail-open conjunct documented in
+    the section header: the count is exact when every upstream job succeeds and a
+    lower bound when one does not.
+    """
+    return analyze(
+        gates if gates is not None else load_gates(),
+        universe,
+        main_push_active_jobs(models),
     )
 
 
@@ -765,7 +1244,7 @@ def collect_job_nodeids(gate: Gate, repo_root: Path | None = None) -> list[str]:
     """Real, scoped ``pytest --collect-only -q`` node-ids for one job's exact CLI.
 
     Restricted to ``gate.paths``/``gate.ignores``/``gate.marker_expr`` — the
-    exact CLI ``ci-quality.yml`` runs for this job. Parses pytest's OWN
+    exact CLI the suite-running workflow uses for this job. Parses pytest's OWN
     ``-q --collect-only`` stdout (one selected node-id per line) rather than the
     marker-dumping :data:`_COLLECT_PLUGIN`: that plugin clears the item list in
     ``pytest_collection_modifyitems`` and so records items BEFORE pytest's own
@@ -946,6 +1425,9 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
         ("tests/invocation", "tests/specify_cli/invocation"),
     ),
     "compat": ("lifecycle", "specify-cli-heavy", ("tests/specify_cli/compat",)),
+    "distribution": (
+        "lifecycle", "specify-cli-heavy", ("tests/specify_cli/distribution",),
+    ),
     "template": ("lifecycle", "specify-cli-heavy", ("tests/test_template",)),
     # agent_surface -> ``specify-cli-rest``.
     "orchestrator_api": (
@@ -973,6 +1455,12 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     "decisions": ("closeout", "misc", ("tests/specify_cli/decisions",)),
     "doc_analysis": ("closeout", "misc", ()),
     "widen": ("closeout", "misc", ("tests/specify_cli/widen",)),
+    # write-side-seam-matrix-tracer-01KYP3MH: issue-matrix.json read/write +
+    # bulk-migration domain (issue_matrix.py, issue_matrix_migration.py,
+    # issue_reference_discovery.py) -- closest to the closeout group's existing
+    # "decisions" member (a structured record-tracking surface), and its tests
+    # already run under the misc shard (tests/tasks -> shard: misc, ci-quality.yml).
+    "tasks": ("closeout", "misc", ("tests/tasks",)),
     # governance -> ``misc``.
     "doctrine": ("governance", "misc", ("tests/specify_cli/doctrine",)),
     "policy": ("governance", "misc", ("tests/policy",)),
@@ -991,13 +1479,14 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     "events": ("platform", "specify-cli-rest", ("tests/specify_cli/events",)),
     "paths": ("platform", "specify-cli-rest", ("tests/paths",)),
     "saas_client": ("platform", "specify-cli-rest", ("tests/specify_cli/saas_client",)),
+    "identity": ("platform", "specify-cli-rest", ("tests/specify_cli/identity",)),
     "task_utils": ("platform", "specify-cli-rest", ()),
     "intake": ("platform", "specify-cli-rest", ()),
 }
 
 
 def load_workflow_models() -> dict[str, WorkflowModel]:
-    """Parse all five suite-running workflows into ``name -> WorkflowModel``."""
+    """Parse every restored suite-running workflow into ``name -> WorkflowModel``."""
     return {
         name: load_workflow_model(WORKFLOWS_DIR / name) for name in WORKFLOW_FILES
     }
@@ -1503,8 +1992,8 @@ def _verify_census() -> int:
 # positional path DIVERGES from the real baseline and GC-2b reds — the real
 # baseline IS the fidelity check for these three jobs. A separate scoped
 # model-fidelity anchor (modeled == a FRESH real collect) is kept for the
-# sharded ``next`` tier in ``test_gate_coverage.py`` to catch a mis-model on the
-# job most at risk of one.
+# sharded ``next`` tier in ``test_ci_collection_completeness.py`` to catch a
+# mis-model on the job most at risk of one.
 # ---------------------------------------------------------------------------
 
 BASELINES_DIR = Path(__file__).with_name("baselines")
@@ -1528,21 +2017,9 @@ class BaselineTarget:
     job: str
 
 
-# T008: the three jobs WP06 actually changes the SELECTION for (see the scope
-# note above) — the pre-WP06 (pre-change) state GC-2b protects.
-BASELINE_TARGETS: tuple[BaselineTarget, ...] = (
-    BaselineTarget("integration-tests-next", "ci-quality.yml", "integration-tests-next"),
-    BaselineTarget("slow-tests", "ci-quality.yml", "slow-tests"),
-    BaselineTarget("fast-tests-core-misc", "ci-quality.yml", "fast-tests-core-misc"),
-)
-
-
-def target_by_slug(slug: str) -> BaselineTarget:
-    """The single :data:`BASELINE_TARGETS` entry named ``slug``."""
-    for target in BASELINE_TARGETS:
-        if target.slug == slug:
-            return target
-    raise KeyError(f"no BaselineTarget with slug {slug!r}")
+# The former slow-tests authoring baseline was retired with the reduced interim
+# CI producer; no restored workflow currently owns an E3 selection baseline.
+BASELINE_TARGETS: tuple[BaselineTarget, ...] = ()
 
 
 def gates_for_target(gates: Sequence[Gate], target: BaselineTarget) -> list[Gate]:
@@ -1582,16 +2059,6 @@ def _baseline_header(target: BaselineTarget) -> str:
         "comment (data-model E3) when a WP legitimately changes this job's "
         "selection: uv run python -m tests.architectural._gate_coverage "
         "--freeze-baselines"
-    )
-
-
-def load_baseline_nodeids(target: BaselineTarget) -> frozenset[str]:
-    """The committed E3 baseline node-id set for one target (``#``-comment lines skipped)."""
-    lines = _baseline_path(target).read_text(encoding="utf-8").splitlines()
-    return frozenset(
-        stripped
-        for stripped in (line.strip() for line in lines)
-        if stripped and not stripped.startswith("#")
     )
 
 
@@ -1640,101 +2107,9 @@ def freeze_baselines(repo_root: Path | None = None) -> dict[str, int]:
     return counts
 
 
-def baseline_diff(
-    current: Iterable[str],
-    baseline: Iterable[str],
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Pure GC-2b comparator: ``(dropped, added)`` — the symmetric-difference halves.
-
-    ``dropped`` = in ``baseline`` but not ``current`` (a real coverage loss);
-    ``added`` = in ``current`` but not ``baseline`` (an un-provenanced
-    selection widening, or a tampered/stale baseline). Both empty ==
-    the GC-2b invariant holds. Deliberately takes plain iterables (not a
-    :class:`BaselineTarget`/gates) so the fault-injection tests can feed it a
-    synthetic pair directly, with no I/O or subprocess involved.
-    """
-    current_set, baseline_set = frozenset(current), frozenset(baseline)
-    return baseline_set - current_set, current_set - baseline_set
-
-
-def gc2b_orphaned_drift(
-    dropped: Iterable[str],
-    orphan_nodeids: Iterable[str],
-) -> frozenset[str]:
-    """The subset of a GC-2b ``dropped`` set that is a GENUINE orphan today.
-
-    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616): GC-2b used to
-    require ``dropped`` (and ``added``) to be empty outright, which fires on
-    routine test-file add/remove — this mission alone adds/removes guard files
-    4-5x, forcing a baseline refreeze every time even though nothing regressed.
-
-    Most ``dropped`` entries are exactly that noise: the file was deleted
-    (it no longer exists in today's collected universe, so it cannot be an
-    orphan) or its coverage moved to a DIFFERENT CI gate (still selected by
-    >=1 of the ~40 gates, just not this target's) — neither is a coverage
-    problem. The load-bearing GC-2b signal this ratchet must still catch is a
-    node-id that still exists in the suite AND is now selected by ZERO gates
-    (``orphan_nodeids`` — the same whole-suite orphan set :func:`analyze`
-    computes): a genuine coverage-hole regression, not membership churn.
-    Intersecting ``dropped`` with ``orphan_nodeids`` scopes the ratchet to
-    exactly that signal.
-    """
-    return frozenset(dropped) & frozenset(orphan_nodeids)
-
-
 # ---------------------------------------------------------------------------
-# Baseline I/O + CLI
+# CLI
 # ---------------------------------------------------------------------------
-
-
-def load_baseline() -> dict[str, Any]:
-    baseline: dict[str, Any] = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
-    return baseline
-
-
-def _baseline_payload(report: CoverageReport) -> dict[str, Any]:
-    return {
-        "_comment": (
-            "Gate-coverage ratchet baseline (Issue #2034 / #1933). Frozen set of "
-            "test FILES that contain >=1 test selected by zero CI gates — the "
-            "visible #1931 worklist. The ratchet (test_gate_coverage.py) fails on "
-            "any NEW orphan file not listed here. Regenerate with: "
-            "uv run python -m tests.architectural._gate_coverage --update-baseline"
-        ),
-        "total_tests": report.total,
-        "orphan_test_count": report.orphan_count,
-        "duplicate_test_count": len(report.duplicate_nodeids),
-        "orphan_files": report.orphan_files,
-    }
-
-
-def update_baseline() -> CoverageReport:
-    report = analyze(load_gates(), collect_universe())
-    BASELINE_PATH.write_text(
-        json.dumps(_baseline_payload(report), indent=2) + "\n", encoding="utf-8",
-    )
-    return report
-
-
-def _print_check(report: CoverageReport, new_files: list[str]) -> None:
-    pct = 100 * report.orphan_count / report.total if report.total else 0.0
-    print(f"total tests          : {report.total}")
-    print(f"orphans (0 gates)    : {report.orphan_count} ({pct:.1f}%)")
-    print(f"duplicates (>=2)     : {len(report.duplicate_nodeids)}")
-    print(f"orphan files         : {len(report.orphan_files)}")
-    if new_files:
-        print(f"\nNEW ungated files ({len(new_files)}):")
-        for f in new_files:
-            print(f"  {f}")
-
-
-def check() -> int:
-    """Recompute coverage and fail (1) if a new orphan file appeared."""
-    report = analyze(load_gates(), collect_universe())
-    baseline_files = set(load_baseline().get("orphan_files", []))
-    new_files = sorted(set(report.orphan_files) - baseline_files)
-    _print_check(report, new_files)
-    return 1 if new_files else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1743,13 +2118,6 @@ def main(argv: list[str] | None = None) -> int:
         return _emit_census()
     if "--verify-census" in args:
         return _verify_census()
-    if "--update-baseline" in args:
-        report = update_baseline()
-        print(f"baseline updated: {report.orphan_count} orphans across "
-              f"{len(report.orphan_files)} files -> {BASELINE_PATH}")
-        return 0
-    if "--check" in args:
-        return check()
     if "--freeze-baselines" in args:
         counts = freeze_baselines()
         for slug, count in counts.items():

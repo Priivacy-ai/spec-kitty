@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
-import os
+import json
 import shutil
+import stat
 import subprocess
 import sys
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
 
@@ -21,8 +22,10 @@ from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AI_CHOICES,
 )
-from specify_cli.core.env import is_truthy
-from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.core.env import is_interactive
+from kernel.clock import now_utc_iso
+from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -30,6 +33,8 @@ from specify_cli.core.vcs import (
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.core.agent_config import (
     AgentConfig,
+    AgentConfigError,
+    load_agent_config,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
@@ -38,9 +43,14 @@ from specify_cli.template import (
     copy_specify_base_from_package,
     get_local_repo_root,
 )
+from specify_cli.provisioning.default_charter import (
+    DefaultCharterPackMissingError,
+    provision_default_mission_type_activations,
+)
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
+from specify_cli.skills.registry import SkillRegistry
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -54,11 +64,124 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 
 _logger = logging.getLogger(__name__)
 _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
+# coord-write-placement-closure-01KYCF83 WP06: decisions.events.jsonl reuses
+# the SAME event-log union driver (structurally identical append-only JSONL
+# envelope) -- see specify_cli/lanes/merge.py's _MERGE_DRIVERS comment.
+_DECISION_LOG_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
+)
 # C-006 (#2709): the meta.json field-merge and traces union drivers register on
 # the same surfaces as the event-log driver.
 _META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
 _TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-traces"
+# C-006 (#2804): the coord gate artifacts are filled on the target at accept time
+# and scaffolded on the mission branch, so the squash integration needs a driver
+# to keep the filled side instead of letting `-X theirs` win.
+_ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
+)
+# WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
+# artifact to structured JSON (C-008); the .md pattern is inert on new repos.
+_ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): review-cycle
+# verdict artifacts become genuinely two-sided during the create-window
+# migration (ADR 2026-08-03-1) -- a refuse-fail-closed driver (never a union)
+# keeps a genuine two-verdict collision from being clobbered by `-X theirs`.
+# Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
+# and `tasks/WP*.md` are unaffected.
+_REVIEW_CYCLE_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
+)
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
+_PENDING_COMMAND_SKILLS = ".kittify/init-command-skills.pending.json"
+
+
+def _pending_command_skills(project: Path) -> tuple[str, ...] | None:
+    """Read init's exact pending-delivery record, never an authored config flag."""
+    path = project / _PENDING_COMMAND_SKILLS
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return None
+    if path.parent.is_symlink() or not stat.S_ISREG(mode):
+        raise ValueError(f"Unsafe pending command-delivery record: {path}")
+    data = json.loads(path.read_bytes())
+    if not isinstance(data, dict) or set(data) != {"schema_version", "agents"} or type(data["schema_version"]) is not int or data["schema_version"] != 1:
+        raise ValueError(f"Unrecognized pending command-delivery record: {path}")
+    agents = data["agents"]
+    if not isinstance(agents, list) or not agents or any(not isinstance(a, str) or a not in _COMMAND_SKILL_AGENTS for a in agents):
+        raise ValueError(f"Invalid pending command-delivery agents: {path}")
+    if agents != sorted(set(agents)):
+        raise ValueError(f"Noncanonical pending command-delivery agents: {path}")
+    return tuple(agents)
+
+
+def _start_command_delivery(project: Path, agents: list[str]) -> None:
+    """Reserve recovery only for new init, after runtime-root protection."""
+    if not agents:
+        return
+    expected = tuple(sorted(set(agents)))
+    pending = _pending_command_skills(project)
+    if pending is not None:
+        if pending != expected:
+            raise ValueError("Pending command delivery has a different agent selection")
+        return
+    path = project / _PENDING_COMMAND_SKILLS
+    with path.open("x", encoding="utf-8") as stream:
+        json.dump({"schema_version": 1, "agents": list(expected)}, stream, sort_keys=True)
+        stream.write("\n")
+
+
+def _finish_command_delivery(project: Path, agents: list[str] | tuple[str, ...]) -> None:
+    if not agents:
+        return
+    if _pending_command_skills(project) != tuple(sorted(set(agents))):
+        raise ValueError("Pending command-delivery record changed; preserving it")
+    (project / _PENDING_COMMAND_SKILLS).unlink()
+
+
+def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
+    """Retain init's per-agent warnings and the installer's ownership checks."""
+    from specify_cli.skills import command_installer
+    from specify_cli.skills.vibe_config import ensure_project_skill_path
+
+    assert _console is not None
+    complete = True
+    for agent_key in agents:
+        try:
+            report = command_installer.install(project, agent_key)
+            if agent_key == "vibe":
+                ensure_project_skill_path(project)
+            installed = len(report.added) + len(report.reused_shared)
+            _console.print(f"[dim]{AI_CHOICES[agent_key]}: {installed} command skills installed[/dim]")
+        except Exception as exc:
+            complete = False
+            _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")
+    return complete
+
+
+def _resume_command_delivery(project: Path) -> bool:
+    """Finish only interrupted command delivery; never rewrite saved config."""
+    pending = _pending_command_skills(project)
+    if pending is None:
+        return False
+    assert _console is not None
+    config = project / ".kittify/config.yaml"
+    data = YAML(typ="safe").load(config.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("agents"), dict) or "available" not in data["agents"]:
+        raise ValueError("Initialization stopped before agent selection was saved; inspect .kittify/config.yaml before retrying")
+    configured = load_agent_config(project)
+    agents = [agent for agent in pending if agent in configured.available]
+    protected = GitignoreManager(project).protect_all_agents()
+    if not protected.success:
+        raise ValueError("Cannot resume command delivery: " + "; ".join(protected.errors))
+    _console.print("[yellow]Resuming interrupted command-skill delivery from saved configuration.[/yellow]")
+    if not _install_command_skill_agents(project, agents):
+        raise ValueError("Command delivery remains incomplete; resolve the reported collision or error before retrying init")
+    _finish_command_delivery(project, pending)
+    return True
+
+
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
@@ -66,7 +189,7 @@ _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/mission-events.jsonl linguist-generated=true",
     "kitty-specs/**/snapshot-latest.json linguist-generated=true",
     "kitty-specs/**/acceptance-matrix.json linguist-generated=true",
-    "kitty-specs/**/occurrence_map.yaml linguist-generated=true",
+    f"kitty-specs/**/{OCCURRENCE_MAP_FILENAME} linguist-generated=true",
     "kitty-specs/**/tasks/** linguist-generated=true",
     "kitty-specs/**/research/evidence-log.csv linguist-generated=true",
     "kitty-specs/**/research/source-register.csv linguist-generated=true",
@@ -80,56 +203,6 @@ _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
 )
 
 
-def _emit_project_init_event(project_path: Path) -> None:
-    """Append a project-init lifecycle event to the durable outbox.
-
-    Issue #1073: ``spec-kitty init`` must register a Teamspace-visible
-    project through the durable outbox after identity exists, regardless
-    of authentication or sync state. We accomplish this by materializing
-    the project identity (which mints ``build_id``, ``project_uuid``,
-    ``project_slug``, ``node_id`` in ``.kittify/config.yaml``) and then
-    asking the emitter to publish ``BuildRegistered`` — which now queues
-    locally even when offline or unauthenticated (issue #1072).
-
-    The function is intentionally best-effort: any failure (filesystem,
-    emitter, etc.) becomes a single ``[dim]Note: ...[/dim]`` line and
-    init does not fail. The local-first contract means a future
-    ``spec-kitty next`` / ``spec-kitty agent`` invocation will emit
-    its own events into the same outbox, so a missed init signal is
-    recoverable.
-    """
-    try:
-        from specify_cli.identity.project import ensure_identity
-
-        # WRITE-AUTHORIZED BOUNDARY (#2263, FR-003): project init may persist identity
-        # to .kittify/config.yaml. Do NOT swap to resolve_identity (read-path only).
-        ensure_identity(project_path)
-    except Exception as exc:
-        _logger.debug("Could not ensure project identity for init event: %s", exc)
-        return
-
-    # Reset the emitter singleton so it re-resolves project identity for
-    # the freshly initialized checkout. Without this, an emitter cached
-    # from an earlier invocation in the same process would still point
-    # at the previous repo root.
-    try:
-        from specify_cli.sync.events import get_emitter, reset_emitter
-
-        reset_emitter()
-        previous_cwd = Path.cwd()
-        try:
-            os.chdir(project_path)
-            emitter = get_emitter()
-            event = emitter.emit_build_registered()
-            if event is None:
-                _logger.debug("emit_build_registered returned None during init")
-        finally:
-            os.chdir(previous_cwd)
-            reset_emitter()
-    except Exception as exc:
-        _logger.debug("Could not emit project-init event: %s", exc)
-
-
 def _has_global_runtime() -> bool:
     """Check whether the global runtime has populated missions.
 
@@ -140,10 +213,16 @@ def _has_global_runtime() -> bool:
     try:
         global_home = get_kittify_home()
         missions_dir = global_home / "missions"
-        if not missions_dir.is_dir():
+        if not safe_is_dir(missions_dir):
             return False
-        # Check for at least one mission subdirectory
-        return any(p.is_dir() for p in missions_dir.iterdir())
+        # Check for at least one mission subdirectory. `safe_is_dir` can raise
+        # `OSError` for a genuinely unreadable entry (rather than silently
+        # answering `False` the way `Path.is_dir()` does on 3.14 only — see
+        # its docstring); the enclosing `except (RuntimeError, OSError)` below
+        # already treats that identically to "no global runtime", so this
+        # function's own answer does not change, only the reasoning leading to
+        # it: it is no longer a coincidence of the resolved interpreter.
+        return any(safe_is_dir(p) for p in missions_dir.iterdir())
     except (RuntimeError, OSError):
         return False
 
@@ -174,8 +253,12 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
         lines = attributes_path.read_text(encoding="utf-8").splitlines()
     required_entries = (
         _EVENT_LOG_GITATTRIBUTES_ENTRY,
+        _DECISION_LOG_GITATTRIBUTES_ENTRY,
         _META_GITATTRIBUTES_ENTRY,
         _TRACES_GITATTRIBUTES_ENTRY,
+        _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
+        _ISSUE_MATRIX_GITATTRIBUTES_ENTRY,
+        _REVIEW_CYCLE_GITATTRIBUTES_ENTRY,
         *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
     )
     missing = [entry for entry in required_entries if entry not in lines]
@@ -293,14 +376,42 @@ def _stamp_schema_metadata(kittify_dir: Path) -> bool:
 def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
-    This is the ``src/doctrine/templates/`` directory which contains
+    This is the ``src/charter/offering/templates/`` directory which contains
     ``command-templates/``, ``AGENTS.md``, etc.
 
     Returns None if the templates directory cannot be located.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005/R-14, required-together with R-09) relocated the missions data to
+    ``packs/built-in/missions``. Two distinct root shapes now reach this
+    function:
+
+    * ``SPEC_KITTY_TEMPLATE_ROOT``-driven test/dev overrides still hand
+      ``get_package_asset_root()`` a synthetic root where ``missions/`` and
+      ``templates/`` are siblings (mirroring the pre-relocation
+      ``src/charter/offering/{missions,templates}`` shape) -- ``.parent / "templates"``
+      is still correct there, and is tried first.
+    * The real, non-override production resolution now routes through the
+      kernel sibling-path primitive to ``packs/built-in/missions``, whose
+      *actual* parent (``packs/built-in``) does **not** carry ``templates/``
+      (that stays under ``src/charter/offering/templates``, untouched by this
+      mission). Falls back to :func:`charter.activation.catalog.resolve_doctrine_root`
+      for this shape.
     """
     try:
-        pkg_root = get_package_asset_root()  # .../doctrine/missions/
-        templates_dir = pkg_root.parent / "templates"
+        pkg_root = get_package_asset_root()
+    except FileNotFoundError:
+        return None
+
+    sibling_templates_dir = pkg_root.parent / "templates"
+    if sibling_templates_dir.is_dir():
+        return Path(sibling_templates_dir)
+
+    from charter.activation.catalog import resolve_doctrine_root  # noqa: PLC0415
+
+    try:
+        doctrine_root = resolve_doctrine_root()
+        templates_dir = doctrine_root / "templates"
         if templates_dir.is_dir():
             return Path(templates_dir)
     except FileNotFoundError:
@@ -316,7 +427,7 @@ def _resolve_mission_command_templates_dir(
 ) -> Path:
     """Materialize the resolved command templates for one mission into scratch space.
 
-    Each template file is resolved independently through the runtime's 5-tier
+    Each template file is resolved independently through the runtime's 6-tier
     precedence chain so mixed-tier command sets still produce the correct
     effective directory for init-time consumers.
     """
@@ -388,11 +499,11 @@ class VCSNotFoundError(Exception):
 
 
 def _is_non_interactive_mode(flag: bool) -> bool:
-    if flag:
-        return True
-    if is_truthy(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
-        return True
-    return not sys.stdin.isatty()
+    # The explicit ``--non-interactive`` flag forces non-interactive; otherwise
+    # defer to the single non-interactive authority. Routing through
+    # ``is_interactive`` adds the ``SPEC_KITTY_FORCE_INTERACTIVE`` escape hatch
+    # the old local matrix omitted (#2912).
+    return flag or not is_interactive()
 
 
 def _primary_next_step_agent(selected_agents: list[str]) -> str:
@@ -569,6 +680,13 @@ def init(  # noqa: C901
     # This prevents silent re-init and makes CI-driven init safe to re-run.
     _config_yaml = project_path / ".kittify" / "config.yaml"
     if _config_yaml.exists():
+        try:
+            resumed = _resume_command_delivery(project_path)
+        except (OSError, ValueError, AgentConfigError) as exc:
+            _console.print(f"[red]Initialization incomplete:[/red] {exc}")
+            raise typer.Exit(1) from exc
+        if resumed:
+            raise typer.Exit(0)
         _console.print(
             Panel(
                 "[yellow]Already initialized.[/yellow]\n"
@@ -613,7 +731,8 @@ def init(  # noqa: C901
         if not _is_inside_git_work_tree(probe_dir):
             _console.print(
                 "[yellow]Target is not a git repository.[/yellow] "
-                "After init, run `git init` in the target before using `spec-kitty agent ...` commands."
+                "After init, run `git init` in the target before using "
+                "`spec-kitty agent`, `dashboard`, `dispatch`, `next`, or `implement` commands."
             )
     except VCSNotFoundError:
         # git not available - not an error, just informational
@@ -677,7 +796,6 @@ def init(  # noqa: C901
     tracker.add("ai-select", "Select AI assistant(s)")
     tracker.complete("ai-select", ai_display)
     tracker.add("runtime", "Bootstrap global runtime")
-    tracker.add("skills", "Install skills globally")
     for agent_key in selected_agents:
         label = AI_CHOICES[agent_key]
         tracker.add(f"{agent_key}-fetch", f"{label}: fetch latest release")
@@ -698,6 +816,7 @@ def init(  # noqa: C901
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
+    command_skill_agents: list[str] = []
 
     with Live(tracker.render(), console=_console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
@@ -714,27 +833,15 @@ def init(  # noqa: C901
                 _console.print(f"[red]Error:[/red] Failed to bootstrap global runtime: {exc}")
                 raise typer.Exit(1) from exc
 
-            # Install skills globally (FR-007)
-            tracker.start("skills")
-            try:
-                from specify_cli.skills.registry import SkillRegistry
-                from specify_cli.skills.paths import iter_installable_agents
-                from specify_cli.skills.installer import _sync_global_skill
-
-                skill_registry = SkillRegistry.from_package()
-                skills = skill_registry.discover_skills()
-                for skill in skills:
-                    for agent_key in iter_installable_agents():
-                        from specify_cli.skills.paths import get_primary_global_skill_root
-                        global_root = get_primary_global_skill_root(agent_key)
-                        if global_root is not None:
-                            _sync_global_skill(skill, global_root)
-                tracker.complete("skills", f"{len(skills)} skills installed globally")
-            except Exception as exc:
-                tracker.error("skills", str(exc))
-                _console.print(f"[yellow]Warning:[/yellow] Skill installation incomplete: {exc}")
-                # Non-fatal: skills can be re-installed on next upgrade
-
+            # Global canonical skills are NOT installed here: the CLI root
+            # callback already dispatched the retained global owner
+            # (``ensure_global_agent_skills()`` in ``specify_cli/__init__.py``)
+            # before this command body ran, and the per-agent loop below
+            # installs each selected agent's project skills through the
+            # current installer contract (``install_skills_for_agent`` /
+            # command delivery). The former standalone phase here imported
+            # the removed private ``_sync_global_skill`` writer and failed
+            # with an ImportError on every first run (#4166).
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
 
@@ -768,7 +875,17 @@ def init(  # noqa: C901
                                 use_global = False
                         if not use_global:
                             if template_mode == "local":
-                                assert local_repo is not None
+                                # Invariant: template_mode is only set to "local"
+                                # right after local_repo is confirmed non-None
+                                # (see get_local_repo_root() above). An explicit
+                                # raise (not assert) keeps this guard live under
+                                # `python -O` and lets the surrounding
+                                # `except Exception` translate it via
+                                # tracker.error(...) + re-raise, same as before.
+                                if local_repo is None:
+                                    raise RuntimeError(
+                                        "local_repo must be set when template_mode is 'local'"
+                                    )
                                 copy_specify_base_from_local(local_repo, project_path)
                             else:
                                 copy_specify_base_from_package(project_path)
@@ -803,19 +920,12 @@ def init(  # noqa: C901
                         # WRAPPER agents have no installable root.
                         tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
                     elif agent_key in ("codex", "vibe", "pi", "letta"):
-                        # Command-skill agents receive Spec Kitty's slash
-                        # commands as Agent Skills packages rendered into
-                        # .agents/skills/.
-                        from specify_cli.skills import command_installer  # noqa: PLC0415
-                        from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
-
-                        report = command_installer.install(project_path, agent_key)
-                        if agent_key == "vibe":
-                            ensure_project_skill_path(project_path)
-                        installed = len(report.added) + len(report.reused_shared)
+                        # Render only after config is finalized: an absent config
+                        # intentionally has different REASONS activation semantics.
+                        command_skill_agents.append(agent_key)
                         tracker.complete(
                             f"{agent_key}-skills",
-                            f"{installed} command skills installed",
+                            "queued until project configuration is saved",
                         )
                     elif agent_skill_class == SKILL_CLASS_SHARED:
                         # Other SHARED-class agents install their canonical skills
@@ -852,6 +962,32 @@ def init(  # noqa: C901
 
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker)
+
+            # Protect runtime roots before publishing project identity or
+            # declaring initialization complete. A failed protection check
+            # must remain resumable: config.yaml is the idempotency boundary.
+            manager = GitignoreManager(project_path)
+            result = manager.protect_all_agents()
+            if result.modified:
+                _console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
+                for entry in result.entries_added:
+                    _console.print(f"  • {entry}")
+                if result.entries_skipped:
+                    _console.print(f"  ({len(result.entries_skipped)} already protected)")
+            elif result.entries_skipped:
+                _console.print(
+                    f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]"
+                )
+            for warning in result.warnings:
+                _console.print(f"[yellow]⚠️  {warning}[/yellow]")
+            for error in result.errors:
+                _console.print(f"[red]❌ {error}[/red]")
+            if not result.success:
+                raise typer.Exit(1)
+
+            # Config existence alone must not hide a newly interrupted command
+            # delivery. Authored pre-existing config never reaches this boundary.
+            _start_command_delivery(project_path, command_skill_agents)
 
             # T001: No git initialization. init is file-creation-only.
             # Git management is the user's responsibility. Running init inside
@@ -961,7 +1097,7 @@ def init(  # noqa: C901
         step_num += 1
     if not inside_git:
         steps_lines.append(
-            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent/worktree commands"
+            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dashboard, dispatch, next, and implement commands"
         )
         step_num += 1
 
@@ -1053,30 +1189,33 @@ def init(  # noqa: C901
     _console.print()
     _console.print(enhancements_panel)
 
-    # Protect ALL agent directories in .gitignore
-    manager = GitignoreManager(project_path)
-    result = manager.protect_all_agents()  # Note: ALL agents, not just selected
-
-    # Display results to user
-    if result.modified:
-        _console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
-        for entry in result.entries_added:
-            _console.print(f"  • {entry}")
-        if result.entries_skipped:
-            _console.print(f"  ({len(result.entries_skipped)} already protected)")
-    elif result.entries_skipped:
-        _console.print(f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]")
-
-    # Show warnings (especially for .github/)
-    for warning in result.warnings:
-        _console.print(f"[yellow]⚠️  {warning}[/yellow]")
-
-    # Show errors if any
-    for error in result.errors:
-        _console.print(f"[red]❌ {error}[/red]")
-
     if _ensure_event_log_merge_attributes(project_path):
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
+
+    # #4146: the attribute mapping above is inert without its git-config half
+    # (``merge.<key>.name`` / ``.driver``). Install both halves of every
+    # registered merge driver here so the union driver is active from the very
+    # first lane claim, not only after the first merge/auto-rebase self-heals
+    # it. No-op (by the helper's own guard) when the target is not a git
+    # repository yet -- that case keeps relying on the merge-path self-heal.
+    from specify_cli.lanes.merge import _ensure_merge_driver_git_config
+
+    _ensure_merge_driver_git_config(project_path)
+
+    # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
+    # mission_type_activations from the shipped default charter pack so a
+    # brand-new project always has an explicit, non-empty activation set.
+    # This is the load-bearing prerequisite for removing the config-absent
+    # implicit backfill elsewhere in the charter runtime (mission
+    # resolution-activation-foundation-01KZ9FKG, WP04) -- unlike the
+    # best-effort steps around it, this one fails closed (C-A4): a broken
+    # install missing default.yaml must stop init, never silently produce an
+    # empty or implicit mission-type set.
+    try:
+        provision_default_mission_type_activations(project_path)
+    except DefaultCharterPackMissingError as exc:
+        _console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # Copy AGENTS.md from template source (not user project)
     # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.
@@ -1103,7 +1242,7 @@ def init(  # noqa: C901
 
         metadata = ProjectMetadata(
             version=__version__,
-            initialized_at=datetime.now(),
+            initialized_at=now_utc(),
             python_version=plat.python_version(),
             platform=system.platform,
             platform_version=plat.platform(),
@@ -1131,12 +1270,23 @@ def init(  # noqa: C901
             _console.print(f"[dim]Note: Could not save VCS config: {e}[/dim]")
 
     # Save agent configuration to config.yaml
+    agent_config_saved = False
     try:
         save_agent_config(project_path, agent_config)
+        agent_config_saved = True
         _console.print("[dim]Saved agent configuration[/dim]")
     except Exception as e:
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
+
+    # Install each selected command-skill owner once, with final render inputs.
+    # Keep config creation after runtime-root protection (the resumability gate),
+    # and reuse the installer for shared-root ownership and collision protection.
+    commands_complete = _install_command_skill_agents(project_path, command_skill_agents)
+    if agent_config_saved and commands_complete:
+        _finish_command_delivery(project_path, command_skill_agents)
+    elif command_skill_agents:
+        _console.print("[yellow]Command delivery is incomplete; retry init after resolving the reported error.[/yellow]")
 
     # Write session presence orientation for each configured agent (FR-003).
     try:
@@ -1148,14 +1298,6 @@ def init(  # noqa: C901
     except Exception as e:
         # Never fail init due to session presence errors
         _console.print(f"[dim]Note: Could not write session presence: {e}[/dim]")
-
-    # Emit the project-init lifecycle event into the durable outbox so
-    # the SaaS side can materialize the project even when init runs
-    # offline / unauthenticated / without a git remote (issue #1073).
-    try:
-        _emit_project_init_event(project_path)
-    except Exception as e:
-        _console.print(f"[dim]Note: Could not emit project-init event: {e}[/dim]")
 
     # Run tool-surface repair after all agent config has been flushed to disk.
     # NFR-007: --yes (non_interactive) does NOT imply --repair-drift; drifted

@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from charter.evidence.corpus_loader import CorpusLoader, CorpusLoaderError
+from charter.activation.evidence.corpus_loader import CorpusLoader, CorpusLoaderError
 
 
 pytestmark = [pytest.mark.unit]

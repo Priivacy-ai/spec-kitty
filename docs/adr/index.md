@@ -4,9 +4,9 @@ description: 'Architecture Decision Records for Spec Kitty, organized by release
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/adr/1.x/README.md
-- docs/adr/2.x/README.md
-- docs/adr/3.x/README.md
+- docs/adr/1.x/index.md
+- docs/adr/2.x/index.md
+- docs/adr/3.x/index.md
 - docs/architecture/index.md
 - docs/index.md
 ---
@@ -18,16 +18,17 @@ system is navigable across major versions.
 
 ## Eras
 
-- [1.x ADRs](1.x/README.md) — decisions from the 1.x lineage.
-- [2.x ADRs](2.x/README.md) — decisions from the 2.x lineage.
-- [3.x ADRs](3.x/README.md) — current (3.x) decisions.
+- [1.x ADRs](1.x/index.md) — decisions from the 1.x lineage.
+- [2.x ADRs](2.x/index.md) — decisions from the 2.x lineage.
+- [3.x ADRs](3.x/index.md) — current (3.x) decisions.
 
 ## Adding an ADR
 
-After adding an ADR file under `docs/adr/<era>/`, run:
+After adding an ADR file under `docs/adr/<era>/`, run (from the repository root, using the
+`python -m` module form so `scripts` resolves as a package — #3227):
 
 ```bash
-python scripts/docs/freshen_adr_inventory.py docs/adr/<era>/<your-adr>.md
+python -m scripts.docs.freshen_adr_inventory docs/adr/<era>/<your-adr>.md
 ```
 
 This freshens **both** indexes the `docs-freshness` CI gate enforces — the

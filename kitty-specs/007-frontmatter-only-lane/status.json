@@ -22,42 +22,89 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38M6KRBNV8A1NG3ED867",
-      "last_transition_at": "2025-12-17T13:15:00Z"
+      "last_transition_at": "2025-12-17T13:15:00Z",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned"
+      }
     },
     "WP02": {
       "actor": "migration",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38M8NVKJ7BX00FQWF0BN",
-      "last_transition_at": "2025-12-17T13:15:00Z"
+      "last_transition_at": "2025-12-17T13:15:00Z",
+      "subtasks": {
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned"
+      }
     },
     "WP03": {
       "actor": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38MA76W31FX57ZT0PM80",
-      "last_transition_at": "2025-12-17T16:30:00Z"
+      "last_transition_at": "2025-12-17T16:30:00Z",
+      "subtasks": {
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned"
+      }
     },
     "WP04": {
       "actor": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38MCCSX9C6CXC21FRBN2",
-      "last_transition_at": "2025-12-17T16:45:00Z"
+      "last_transition_at": "2025-12-17T16:45:00Z",
+      "subtasks": {
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned"
+      }
     },
     "WP05": {
       "actor": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38MEBP3QAH2HY1C9PSTP",
-      "last_transition_at": "2025-12-17T17:00:00Z"
+      "last_transition_at": "2025-12-17T17:00:00Z",
+      "subtasks": {
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
+      }
     },
     "WP06": {
       "actor": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJ5V38MGZMDECQR5TWAPC2T4",
-      "last_transition_at": "2025-12-17T13:50:00Z"
+      "last_transition_at": "2025-12-17T13:50:00Z",
+      "subtasks": {
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned"
+      }
     }
   }
 }

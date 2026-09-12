@@ -2,9 +2,9 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-06-13'
+updated: '2026-09-08'
 related:
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/context/identity.md
 - docs/context/system-events.md
 - docs/context/technology-foundations.md
@@ -97,7 +97,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
-### Work Package
+### work package
 
 | | |
 |---|---|
@@ -116,11 +116,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [Step Contract](#step-contract), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./charter.md#procedure) |
 
 ---
 
-### Step Contract
+### step contract
 
 | | |
 |---|---|
@@ -128,7 +128,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./charter.md#procedure) |
 
 ---
 
@@ -140,7 +140,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical (generic prose only) |
 | **Applicable to** | `1.x`, `2.x` |
-| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [Step Contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
+| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./charter.md#procedure) when precision matters. |
 
 ---
 
@@ -148,11 +148,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Legacy lexical variant of [Work Package](#work-package). |
+| **Definition** | Legacy lexical variant of [work package](#work-package). |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Canonical entry** | [Work Package](#work-package) |
+| **Canonical entry** | [work package](#work-package) |
 
 ---
 
@@ -160,7 +160,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Work package state position in the canonical lifecycle FSM. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`. Alias: `doing` -> `in_progress`. |
+| **Definition** | work package state position in the canonical lifecycle FSM. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`. Alias: `doing` -> `in_progress`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -175,7 +175,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [Step Dependency](#step-dependency), [Step Contract](#step-contract), [Command Template](#command-template) |
+| **Related terms** | [Mission Type](#mission-type), [Step Dependency](#step-dependency), [step contract](#step-contract), [Command Template](#command-template) |
 
 ---
 
@@ -354,7 +354,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
-### Base Branch
+### base branch
 
 | | |
 |---|---|
@@ -362,11 +362,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Lane](#lane) |
+| **Related terms** | [target branch](#target-branch), [Planning base branch](#planning-base-branch), [Lane](#lane) |
 
 ---
 
-### Branch Strategy Gate
+### branch strategy gate
 
 | | |
 |---|---|
@@ -374,11 +374,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Feature Branch](#feature-branch), [Start Branch](#start-branch) |
+| **Related terms** | [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [feature branch](#feature-branch), [start branch](#start-branch) |
 
 ---
 
-### Current Branch
+### current branch
 
 | | |
 |---|---|
@@ -386,23 +386,47 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Base Branch](#base-branch) |
+| **Related terms** | [target branch](#target-branch), [base branch](#base-branch) |
 
 ---
 
-### Feature Branch
+### feature branch
 
 | | |
 |---|---|
-| **Definition** | A dedicated git branch for PR-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
+| **Definition** | A dedicated git branch for pr-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [PR-Bound Mission](#pr-bound-mission), [Primary Branch](#primary-branch), [Start Branch](#start-branch), [Target Branch](#target-branch) |
+| **Related terms** | [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [start branch](#start-branch), [target branch](#target-branch) |
 
 ---
 
-### Merge Target Branch
+### gate binding
+
+| | |
+|---|---|
+| **Definition** | A versioned doctrine declaration attaching a named gate handler to a status-transition edge (`{on_transition, handler, handler_kind, schema_version, fail_open, provenance}`), authored on the review `MissionStepContract`. A binding is a field/relationship, not a standalone artefact. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge checks. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate handler](#gate-handler), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate) |
+
+---
+
+### gate handler
+
+| | |
+|---|---|
+| **Definition** | A named, dispatchable check registered in `GATE_REGISTRY`; the Spec-Kitty pre-review engine is the first handler, keyed to the `for_review` edge. Registry membership is the callable source; activation decides whether it runs. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved dispatch callables. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate binding](#gate-binding), [transition gate](#transition-gate), [branch strategy gate](#branch-strategy-gate) |
+
+---
+
+### Merge target branch
 
 | | |
 |---|---|
@@ -410,11 +434,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Planning Base Branch](#planning-base-branch), [Work Package](#work-package) |
+| **Related terms** | [target branch](#target-branch), [Planning base branch](#planning-base-branch), [work package](#work-package) |
 
 ---
 
-### Planning Base Branch
+### Planning base branch
 
 | | |
 |---|---|
@@ -422,24 +446,24 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Lane](#lane), [Work Package](#work-package) |
+| **Related terms** | [target branch](#target-branch), [Merge target branch](#merge-target-branch), [Lane](#lane), [work package](#work-package) |
 
 ---
 
-### Primary Branch
+### primary branch
 
 | | |
 |---|---|
-| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. This is `primary` **Sense B** — the canonical term is "Primary Branch" (kept per operator decision D1); the wire keys `primary_branch` / `current_is_primary` are unchanged. |
+| **Definition** | The repository's default integration branch, normally resolved from `origin/HEAD` and commonly named `main`, `master`, or `develop`. The specify branch-context output exposes this value as `primary_branch` only for branch-strategy recommendation; it is not automatically the mission's `target_branch` once `target_branch` has been persisted in `meta.json`. This is `primary` **Sense B** — the canonical term is "primary branch" (kept per operator decision D1); the wire keys `primary_branch` / `current_is_primary` are unchanged. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). |
-| **Related terms** | [Current Branch](#current-branch), [Target Branch](#target-branch), [Feature Branch](#feature-branch), [Branch Strategy Gate](#branch-strategy-gate), [PRIMARY partition](#primary-partition), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target) |
+| **Related terms** | [current branch](#current-branch), [target branch](#target-branch), [feature branch](#feature-branch), [branch strategy gate](#branch-strategy-gate), [PRIMARY partition](#primary-partition), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target) |
 
 ---
 
-### PR-Bound Mission
+### pr-bound mission
 
 | | |
 |---|---|
@@ -447,11 +471,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Branch Strategy Gate](#branch-strategy-gate), [Feature Branch](#feature-branch), [Primary Branch](#primary-branch) |
+| **Related terms** | [branch strategy gate](#branch-strategy-gate), [feature branch](#feature-branch), [primary branch](#primary-branch) |
 
 ---
 
-### Start Branch
+### start branch
 
 | | |
 |---|---|
@@ -459,11 +483,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Related terms** | [Feature Branch](#feature-branch), [Target Branch](#target-branch), [Branch Strategy Gate](#branch-strategy-gate) |
+| **Related terms** | [feature branch](#feature-branch), [target branch](#target-branch), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 
-### Target Branch
+### target branch
 
 | | |
 |---|---|
@@ -471,7 +495,19 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
-| **Related terms** | [Base Branch](#base-branch), [Planning Base Branch](#planning-base-branch), [Merge Target Branch](#merge-target-branch), [Current Branch](#current-branch), [Mission](#mission) |
+| **Related terms** | [base branch](#base-branch), [Planning base branch](#planning-base-branch), [Merge target branch](#merge-target-branch), [current branch](#current-branch), [Mission](#mission) |
+
+---
+
+### transition gate
+
+| | |
+|---|---|
+| **Definition** | A check that must pass before a work-package status-transition edge (e.g. `in_progress->for_review`) is allowed. Resolved from the repo's active doctrine and dispatched through the inverted move-task hook (`_mt_run_transition_gates`); the flagship handler is the scoped pre-review regression check. Do NOT confuse with the five pre-existing `*gate*` senses (branch strategy gate / diff compliance gate / dependency gate / merge dependency gate / sonar quality gate) — those are unrelated one-off guards, not doctrine-resolved lane-edge checks. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [gate handler](#gate-handler), [gate binding](#gate-binding), [branch strategy gate](#branch-strategy-gate) |
 
 ---
 
@@ -483,7 +519,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Target Branch](#target-branch), [Orchestrator API](#orchestrator-api), [WPStatusChanged](./system-events.md#wpstatuschanged) |
+| **Related terms** | [target branch](#target-branch), [Orchestrator API](#orchestrator-api), [WPStatusChanged](./system-events.md#wpstatuschanged) |
 
 ---
 
@@ -503,12 +539,12 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the COORD partition that holds lifecycle/status surfaces (status, notes, trace, issue-matrix, `move-task`). A partition is an artifact-kind *routing* concept: it decides which surface an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
+| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the [COORD partition](#coord-partition) that holds the lifecycle artifacts (status events, notes, trace, issue-matrix, acceptance-matrix, review cycles, `move-task`). A partition is an artifact-kind *routing* concept: it decides which [topology surface](#topology-surface) an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). Never write bare "primary" for the partition; always say "PRIMARY partition". |
-| **Related terms** | [Primary Branch](#primary-branch), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [Target Branch](#target-branch) |
+| **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the repository-root working copy versus a lane worktree — use [repository root checkout](./execution.md#repository-root-checkout). The concept is the ref that planning artifacts commit to — use [Target Ref / Commit Target](#target-ref--commit-target). The concept is the physical tree the routed artifact lands in — use [Topology Surface](#topology-surface). Never write bare "primary" for the partition; always say "PRIMARY partition". |
+| **Related terms** | [primary branch](#primary-branch), [COORD partition](#coord-partition), [Topology Surface](#topology-surface), [repository root checkout](./execution.md#repository-root-checkout), [Target Ref / Commit Target](#target-ref--commit-target), [target branch](#target-branch) |
 
 ---
 
@@ -520,8 +556,8 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository's default integration branch — use [Primary Branch](#primary-branch). The concept is the branch the mission's code must ultimately land on — use [Target Branch](#target-branch). Avoid the bare aliases "primary target" and "primary ref". |
-| **Related terms** | [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch), [Base Branch](#base-branch), [Current Branch](#current-branch), [PRIMARY partition](#primary-partition) |
+| **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](#primary-partition). The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the branch the mission's code must ultimately land on — use [target branch](#target-branch). Avoid the bare aliases "primary target" and "primary ref". |
+| **Related terms** | [target branch](#target-branch), [Merge target branch](#merge-target-branch), [base branch](#base-branch), [current branch](#current-branch), [PRIMARY partition](#primary-partition) |
 
 ---
 
@@ -533,8 +569,9 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. |
-| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge Target Branch](#merge-target-branch), [Lane](#lane) |
+| **Canonical term (2026-07-30)** | `consolidate` / `consolidation` is the **canonical word** for this sense (ADR [2026-07-30-1](../adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md), #3080 foundation). The bare word "merge" for lane consolidation is now a **legacy alias**: existing occurrences are grandfathered (not rewritten by this ADR), but NEW code, new symbols, and touched prose must say "consolidate" / "consolidation" for this sense (boyscouting, C-012). Existing public symbols (`spec-kitty merge`, `MergeState`, `baseline_merge_commit`, `consolidate_lane_into_mission`'s own name) are renamed only by the full #3080 rename, not by this entry. |
+| **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. In NEW code or prose, prefer "consolidate" / "consolidation" over "merge" for this sense — see **Canonical term** above; a CI drift-ratchet guard (`tests/architectural/test_no_legacy_terminology.py`, `_LANE_CONSOLIDATION_FORBIDDEN_PHRASES`) blocks the specific legacy lane-plus-merge-verb phrasings from growing beyond their grandfathered baseline (FR-016). |
+| **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane), [Topology Surface](#topology-surface) |
 
 ---
 
@@ -547,7 +584,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). |
-| **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [Target Branch](#target-branch), [Merge Target Branch](#merge-target-branch) |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Publish to origin/main](#publish-to-originmain), [target branch](#target-branch), [Merge target branch](#merge-target-branch) |
 
 ---
 
@@ -560,4 +597,66 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty merge`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
-| **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [Primary Branch](#primary-branch) |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |
+
+---
+
+### COORD partition
+
+| | |
+|---|---|
+| **Definition** | The artifact-kind partition that holds a mission's lifecycle/coordination artifacts — status events, notes, trace, issue-matrix, acceptance-matrix, review cycles, `move-task` — as distinct from the [PRIMARY partition](#primary-partition) that holds stable planning artifacts. Like PRIMARY it is an artifact-kind *routing* concept, **not** a git branch and **not** a directory: it decides which surface a kind is written to. Only missions whose stored topology routes through coordination (`COORD` / `LANES_WITH_COORD`) have a materialised COORD surface; `SINGLE_BRANCH` / `LANES` missions route every kind to PRIMARY. Realized in code as the `_PLACEMENT_ARTIFACT_KINDS` frozenset in `mission_runtime/artifacts.py`, whose partition-invariant P-1 (disjoint and jointly exhaustive with `_PRIMARY_ARTIFACT_KINDS`) is asserted at the placement seam. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the physical tree an artifact resolves to — use [Topology Surface](#topology-surface). The concept is a coordination *branch* or *worktree* — say "coord branch" / "coord worktree" explicitly. Never write bare "coord" for the partition; always say "COORD partition". |
+| **Related terms** | [PRIMARY partition](#primary-partition), [Topology Surface](#topology-surface), [Lane](#lane), [Mission](#mission) |
+
+---
+
+### Topology Surface
+
+| | |
+|---|---|
+| **Definition** | The physical tree (working copy / checkout location) that a mission artifact resolves to for reading and writing. This is `surface` **Sense 2** — the mission-topology sense. Modelled by the `TopologySurface` enum in `src/mission_runtime/artifacts.py`, carried on `MissionArtifactHome` as `read_surface` / `write_surface`, and returned by `artifact_home_for`. Live members today: `PRIMARY` — the repository-root planning tree; `COORD` — the mission's coordination tree. Planned members, landing together with the surface→filesystem translation seam that makes each resolvable: `LANE` — a per-work-package lane worktree under `.worktrees/`; `CONSOLIDATED` — the tree after lane branches have been consolidated into the mission branch; `TEMP` — an ephemeral scratch tree with no durable home. The three planned members are deliberately **not** declared ahead of that seam: a member no caller can translate to a location is a phantom, and the seam's totality test exists precisely to catch that. Renamed from `Surface` (whose members were `PRIMARY` \| `PLACEMENT`, with a `str` mixin and an `ArtifactSurface` back-compat alias, both retired) per ADR [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md). |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Note** | A topology surface is a *location*; a partition is a *routing rule over artifact kinds*. The two vocabularies coincide only on the `PRIMARY` and `COORD` values — the [PRIMARY partition](#primary-partition) routes its kinds to the `PRIMARY` topology surface and the [COORD partition](#coord-partition) to the `COORD` topology surface. `LANE`, `CONSOLIDATED`, and `TEMP` are locations with no partition of their own. Prose also uses "surface" as an ungoverned generic modifier ("command surface", "API surface", "doc surface") meaning "the outward face of X"; that usage is not governed here, but it must always carry its modifier — bare "surface" always means one of the two governed senses. |
+| **Note (naming vs conditioning)** | Naming a surface `COORD` does **not** violate the rule against conditioning behaviour on topology. Naming a real surface is correct; *branching* on it — `if surface is COORD: ...` in place of a resolved read/write path — is what is forbidden. The prior member name `PLACEMENT` avoided the *word* while keeping the *concept*; explicitness is preferred. |
+| **Note (`CONSOLIDATED`, not `MERGED`)** | The post-consolidation surface is named `CONSOLIDATED` because `merge` is itself a three-sense overloaded term in this codebase — [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), and [Publish to origin/main](#publish-to-originmain). A member named `MERGED` would not say which of the three had happened. `CONSOLIDATED` names exactly one: the surface that exists after [Lane Consolidation](#lane-consolidation). This is the same disambiguation discipline already applied to `primary` / `main` / `base`. |
+| **Do NOT use when** | The concept is a tool-visible artifact or configuration entry Spec Kitty installs for a concrete execution tool — use [Tool Surface](./execution.md#tool-surface) (`surface` **Sense 1**). The concept is the artifact-kind routing rule rather than the location — use [PRIMARY partition](#primary-partition) or [COORD partition](#coord-partition). The concept is the repository-root working copy versus a lane worktree as an operator-facing checkout — use [repository root checkout](./execution.md#repository-root-checkout). Never write bare "surface" in governed prose; name the sense ("topology surface" / "tool surface"). |
+| **Related terms** | [Tool Surface](./execution.md#tool-surface), [PRIMARY partition](#primary-partition), [COORD partition](#coord-partition), [Lane](#lane), [Lane Consolidation](#lane-consolidation), [repository root checkout](./execution.md#repository-root-checkout) |
+
+---
+
+### Routing
+
+| | |
+|---|---|
+| **Definition** | "Routing" has no single meaning in this codebase — it is an umbrella word covering at least six **live governed** decisions, one **retired** governed sense retained here as a named referent, plus several **infrastructural** ones that are explicitly out of scope here. This entry extends, not restates, [PRIMARY partition](#primary-partition) / [COORD partition](#coord-partition) / [Topology Surface](#topology-surface) above, which already frame the **placement** sense; naming an exclusion is disambiguation, silence is not. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Governed senses** | **Placement routing** — mapping a `MissionArtifactKind` + mission topology to a [Topology Surface](#topology-surface). Owning module: `mission_runtime/resolution.py` (`PlacementSeam`, `placement_seam`). Full explanation: [The Artifact Placement Seam](../architecture/artifact-placement-seam.md). *Do NOT use when* the question is which git **branch** a commit lands on — that is branch-target routing, below. — **Branch-target routing** — which git branch (lane / coordination / target) a category of change commits to. Owning doc: [Branch-Target Routing](../architecture/branch-target-routing.md). *Do NOT use when* the question is which physical **tree** an artifact kind resolves to — that is placement routing, above. — **Commit routing** — the git-commit mechanics inside `coordination/commit_router.py::commit_for_mission`: given an already-resolved placement, whether the coordination worktree must be materialised before staging and committing. *Do NOT use when* the question is which surface a kind resolves to (placement routing) or which branch a category lands on (branch-target routing) — commit routing consumes both answers, it does not compute either. — **Dispatch/profile routing** — matching an ad-hoc natural-language request to an agent profile + action. Owning module: `specify_cli/invocation/router.py` (`ActionRouter`). *Do NOT use when* the subject is mission artifact placement or git branches. — **Model/task routing** — assigning a model or delegation target to a unit of work; the highest-collision sense in agent-authored prose because "route this to the right agent" reads as dispatch/profile routing but is a distinct decision. Owning surface: `src/charter/offering/model_task_routing/`. *Do NOT use when* the subject is profile selection for an ad-hoc request (dispatch/profile routing) or mission artifact placement. — **Scope routing** — resolving which configuration/auth/sync scope (repo-level vs global) an operation applies at. Owning module: `specify_cli/auth/transport.py`. *Do NOT use when* the subject is artifact placement, branches, or model/agent assignment. |
+| **Retired governed sense** | **Sync fan-out routing** — per-checkout opt-in/opt-out for SaaS sync delivery. Was owned by `specify_cli/sync/routing.py` (`resolve_checkout_sync_routing`); the entire `specify_cli/sync/` tree was deleted with the sync transport (issue #115) and this is no longer a live governed decision. Retained here as a named referent, not as a live sense, so historical prose ("sync routing decides only *whether* a checkout participates in sync fan-out, never where anything is stored") still resolves. |
+| **Explicitly out of scope (infrastructural senses, named not silenced)** | **Event routing** — dispatching an emitted event to its handler(s) inside the event/runtime-bridge machinery. **HTTP request routing** — mapping an inbound request path to a handler in a web-serving layer. **Significance routing bands** — `make_routing_bands` in `runtime/next/_internal_runtime/significance.py`, which buckets a decision's scored significance into a band; a scoring concept, not a placement or dispatch decision. None of these three is governed by this entry; if a caller needs one disambiguated further, name it explicitly in prose rather than writing bare "routing". |
+| **Do NOT use when** | Never write bare "routing" in governed prose without naming which of the senses above (or an explicitly out-of-scope one) is meant. |
+| **Related terms** | [PRIMARY partition](#primary-partition), [COORD partition](#coord-partition), [Topology Surface](#topology-surface), [target branch](#target-branch) |
+
+---
+
+### The drain
+
+| | |
+|---|---|
+| **Definition** | "The drain" is retired historical terminology on this line. It previously named three distinct flows — the **dispatch-selection drain** (`delivery/selection.py`), the **body drain** (`sync/background.py`), and the **queue-backed event drain** (`sync/batch.py`, removed upstream by #3167) — all of which were deleted with the `sync` / `delivery` / `event_journal` subsystems (spec-kitty#5 / PR #114). The entry is retained as a named referent so historical prose, commit messages and issue threads that say "the drain" stay resolvable. Bare use is not resolvable from context; in new prose, name the concrete current operation instead. |
+
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Governed senses** | All three senses are historical on this line: **the dispatch-selection drain** (formerly `specify_cli/delivery/selection.py`, feeding `delivery/dispatcher.py`), **the body drain** (formerly `specify_cli/sync/background.py` backed by `sync/body_queue.py`), and **the queue-backed event drain** (formerly `specify_cli/sync/batch.py`, removed upstream by #3167 before the subsystem deletion). None has a successor mechanism: mission status is ephemeral via Zeitgeist, and dossier artifacts render server-side from git. A reader resolving a historical "the drain" mention consults this entry, not current code. |
+
+| **Note (why this entry exists)** | The overload was load-bearing, not cosmetic. #3167's own first-draft specification asserted that a **true** docstring was false — it read `sync/runtime.py`'s claim that "the drain" walks the per-project consent chain as referring to `sync/batch.py` (which walked a different chain) instead of to `delivery/selection.py` (which does walk it). The proposed correction would have rewritten correct documentation and, in the natural rewrite, claimed consent coverage for a module that had no production caller — manufacturing exactly the false-pointer class that mission existed to remove. A false pointer is how an auditor concludes a gate exists. |
+| **Do NOT use when** | Never write bare "the drain" in governed prose or in `src/` docstrings. Write "the dispatch-selection drain", "the body drain", or "the retired queue-backed drain" — or link this entry. Also do not use "the drain" for the [Lane Consolidation](#lane-consolidation) or status-event flush paths; those are not drains and have their own terms. |
+| **Related terms** | [Routing](#routing) (the retired sync fan-out sense decided *whether* a checkout participates, never what "the drain" means), [Lane Consolidation](#lane-consolidation), [Mission](#mission) |

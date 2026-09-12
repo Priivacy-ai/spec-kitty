@@ -1,0 +1,51 @@
+# review-verify/v1 — post-fix verification of PR-CONTRACT-003 (fourth
+# independent context: prior reviewers filed and confirmed the finding;
+# this session verifies the fix mechanically and does not repair anything).
+#
+# Fix under review: 2 commits on kitty/mission-mission-type-guard-registry-01KZY2FG-lane-b
+#   54a77c9c0  test(WP02): RED — classification helper exception must not crash audit run
+#   e892780f7  fix(WP02): widen classify_mission_type try/except to cover classification helpers
+#
+# RED->GREEN, mechanical (throwaway `git worktree add --detach` under /tmp, removed after):
+#   at 54a77c9c0: PYTHONPATH=<wt>/src <repo>/.venv/bin/python -m pytest
+#     tests/specify_cli/cli/commands/test_doctor_mission_type.py -k
+#     "classification_helper_exception_is_error_not_crash or classification_error_does_not_abort_run"
+#     -> 2 failed (test_audit_mission_types_classification_error_does_not_abort_run fails with
+#        an uncaught RuntimeError propagating out of audit_mission_types -> classify_mission_type
+#        -> _classify_present_key, i.e. exactly the crash the finding described)
+#   at e892780f7: PYTHONPATH=<wt>/src <repo>/.venv/bin/python -m pytest
+#     tests/specify_cli/cli/commands/test_doctor_mission_type.py -> 18 passed
+#
+# Scope check against the finding as filed (not just the narrow test case): the finding named
+# TWO gaps — (1) classify_mission_type's try/except covered only load_meta_fail_closed, not the
+# _classify_present_key/_classify_absent_key helpers, and (2) audit_mission_types's calling loop
+# has no try/except around the classify_mission_type call either. The fix widens the try/except
+# in classify_mission_type to wrap the ENTIRE function body (read + both helper branches) under
+# one `except Exception`, so classify_mission_type itself can no longer raise — which structurally
+# closes gap (2) too, since a function that cannot raise needs no caller-side guard. Confirmed by
+# reading audit_mission_types's for-loop (still has no try/except, unchanged) and by the RED test
+# test_audit_mission_types_classification_error_does_not_abort_run, which drives the exception
+# through the real audit_mission_types loop (not just classify_mission_type in isolation) and
+# passes at e892780f7. This resolves the finding as filed, not only the narrow single-function case.
+#
+# --fail-on / error-state contract (FR-008, "never silently succeed"): empirically verified with
+# a throwaway audit_mission_types() + _compute_fail_on("error", states) call against a mission
+# with a corrupt meta.json -> state == "error", error message preserved verbatim
+# ("Malformed JSON in ... Expecting property name enclosed in double quotes ..."), and
+# _compute_fail_on returns fail_on_triggered=True. --fail-on error is a real, working failure
+# gate; error can never be mistaken for a passing/zero-exit result under that flag.
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-CONTRACT-003
+    status: resolved
+    reason: >
+      classify_mission_type's try/except now wraps the full function body (meta.json read +
+      both classification-helper branches) under one `except Exception`, so the function itself
+      can no longer raise; audit_mission_types's calling loop needs no separate guard as a
+      result. RED (54a77c9c0) mechanically fails via an uncaught RuntimeError propagating out of
+      audit_mission_types; GREEN (e892780f7) passes, including the run-level test that drives
+      the exception through the real caller loop, not just classify_mission_type in isolation.
+      --fail-on error verified empirically to trigger exit-1 with the real exception message
+      preserved.

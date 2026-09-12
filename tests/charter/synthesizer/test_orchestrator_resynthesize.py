@@ -13,29 +13,30 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from doctrine.drg.loader import load_graph
+from kernel.clock import UTC, datetime
+
+from charter.offering.drg.loader import load_graph
 
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.errors import ProjectDRGValidationError
+from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
     load_yaml as load_manifest,
     verify_manifest_hash,
 )
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +87,7 @@ def minimal_doctrine_snapshot() -> dict[str, Any]:
 def minimal_drg_snapshot() -> dict[str, Any]:
     return {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",
@@ -204,6 +205,47 @@ class TestPriorSynthesisBaseline:
 
 
 # ---------------------------------------------------------------------------
+# Regression: importlib.metadata.PackageNotFoundError must not be mislabeled
+# as "resynthesize_pipeline.py is missing" (PackageNotFoundError subclasses
+# ModuleNotFoundError, which subclasses ImportError). resynthesize_pipeline.
+# run() previously called importlib.metadata.version() directly; a metadata
+# resolution failure there would propagate through orchestrator.resynthesize()
+# 's except ImportError guard and surface as a false NotImplementedError.
+# ---------------------------------------------------------------------------
+
+
+class TestResynthesizeSurvivesPackageMetadataFailure:
+    def test_resynthesize_run_does_not_raise_on_package_not_found(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A PackageNotFoundError from version lookup must not surface as
+        ImportError/NotImplementedError; resynthesize_pipeline.run() must
+        complete normally, falling back to the dev sentinel version."""
+        from importlib.metadata import PackageNotFoundError
+
+        repo = repo_with_prior_synthesis
+
+        def _raise_package_not_found(name: str) -> str:
+            raise PackageNotFoundError(name)
+
+        monkeypatch.setattr("importlib.metadata.version", _raise_package_not_found)
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="directive:PROJECT_001",
+            repo_root=repo,
+        )
+
+        assert not result.is_noop
+        assert result.resolved_topic.matched_form == "kind_slug"
+
+
+# ---------------------------------------------------------------------------
 # US-3: kind+slug local-first → exactly one artifact regenerated
 # ---------------------------------------------------------------------------
 
@@ -269,14 +311,16 @@ class TestUs3KindSlug:
         _commit_all(repo, "baseline synthesis")
         assert _git(repo, "status", "--porcelain") == ""
 
-        from charter.synthesizer import project_drg
+        from charter.activation.synthesizer import project_drg
 
-        class _LaterDatetime:
-            @classmethod
-            def now(cls, tz: object = None) -> datetime:
-                return datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
-
-        monkeypatch.setattr(project_drg, "datetime", _LaterDatetime)
+        # kernel-clock-single-door (WP07): project_drg now stamps
+        # `generated_at` via the door's `now_utc_seconds()` producer rather
+        # than a raw `datetime.now(UTC)` call, so the "time has advanced"
+        # freeze point is `project_drg.now_utc_seconds` itself.
+        later = datetime(2026, 6, 15, 12, 0, 0, tzinfo=UTC)
+        monkeypatch.setattr(
+            project_drg, "now_utc_seconds", lambda: later.isoformat(timespec="seconds")
+        )
 
         result = resynthesize_run(
             request=base_request,
@@ -355,6 +399,37 @@ class TestUs3KindSlug:
 # ---------------------------------------------------------------------------
 # US-2: DRG URN → multiple artifacts affected, unrelated unchanged
 # ---------------------------------------------------------------------------
+
+    def test_resynthesis_reference_warnings_ride_on_result(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """#4121 (MAJOR 2): unresolved-reference warnings from the callback's
+        overlay re-emission ride on ``ResynthesisResult.reference_warnings``
+        so the CLI can surface them."""
+        from charter.activation.synthesizer import project_drg
+
+        real_emit = project_drg.emit_project_layer
+
+        def _emit_with_warning(*args: object, **kwargs: object) -> object:
+            sink = kwargs.get("warnings_out")
+            if isinstance(sink, list):
+                sink.append("agent_profile:ops-responder references unresolved procedure:gone")
+            return real_emit(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(project_drg, "emit_project_layer", _emit_with_warning)
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=repo_with_prior_synthesis,
+        )
+        assert result.reference_warnings == (
+            "agent_profile:ops-responder references unresolved procedure:gone",
+        )
 
 
 class TestUs2DrgUrn:
@@ -487,7 +562,7 @@ class TestEc4ZeroMatch:
         # Build a DRG with a paradigm URN that no artifact references
         extended_drg = dict(base_request.drg_snapshot)
         extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
-            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+            {"urn": "paradigm:evidence-first", "kind": "paradigm"}
         ]
         ec4_request = SynthesisRequest(
             target=base_request.target,
@@ -523,7 +598,7 @@ class TestEc4ZeroMatch:
 
         extended_drg = dict(base_request.drg_snapshot)
         extended_drg["nodes"] = list(base_request.drg_snapshot.get("nodes", [])) + [
-            {"urn": "paradigm:evidence-first", "kind": "paradigm", "id": "evidence-first"}
+            {"urn": "paradigm:evidence-first", "kind": "paradigm"}
         ]
         ec4_request = SynthesisRequest(
             target=base_request.target,
@@ -583,13 +658,19 @@ class TestResynthesizeValidationWiring:
         manifest_before = manifest_path.read_text(encoding="utf-8")
         graph_before = graph_path.read_text(encoding="utf-8")
 
-        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+        def fail_validate(
+            _staging_dir: Path, _shipped_drg: object, conflicts: object = (), org_drg: object = None
+        ) -> None:
+            # #4121 (MAJOR 2) added the org-chain ``org_drg`` kwarg to
+            # validate(); accept (and ignore) it plus ``conflicts`` so this
+            # forced-failure stub keeps matching the real call signature.
+            del conflicts, org_drg
             raise ProjectDRGValidationError(
                 errors=("forced resynthesis validation failure",),
                 merged_graph_summary="forced by test",
             )
 
-        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+        monkeypatch.setattr("charter.activation.synthesizer.validation_gate.validate", fail_validate)
 
         with pytest.raises(ProjectDRGValidationError, match="forced resynthesis validation failure"):
             resynthesize_run(

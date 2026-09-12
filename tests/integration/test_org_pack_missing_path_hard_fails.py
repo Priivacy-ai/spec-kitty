@@ -39,10 +39,8 @@ def test_org_pack_with_missing_local_path_raises_named_error(
 ) -> None:
     """FR-004 — missing ``local_path`` raises ``OrgPackMissingError`` whose
     message names the pack and the configured path."""
-    from charter.drg import (  # noqa: PLC0415 - lazy ImportError on RED
-        OrgPackMissingError,
-        load_org_drg,
-    )
+    from charter.drg import OrgPackMissingError
+    from charter.activation.drg_activation import load_org_drg
 
     with pytest.raises(OrgPackMissingError) as exc_info:
         load_org_drg(tmp_repo_with_dangling_pack)

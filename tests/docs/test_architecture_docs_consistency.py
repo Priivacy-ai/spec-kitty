@@ -46,7 +46,7 @@ REQUIRED_ARCH_PATHS: list[Path] = [
     ARCH_DIR / "ARCHITECTURE_DOCS_GUIDE.md",
     ARCH_DIR / "NAVIGATION_GUIDE.md",
     ADR_DIR,
-    AUDIENCE_DIR / "README.md",
+    AUDIENCE_DIR / "index.md",
     AUDIENCE_DIR / "internal",
     AUDIENCE_DIR / "external",
     ADR_DIR / "1.x",
@@ -69,13 +69,14 @@ REQUIRED_ADR_SECTION_CHECKS: tuple[tuple[str, re.Pattern[str]], ...] = (
 def _collect_adr_files() -> list[tuple[str, Path]]:
     """Return (track_label, path) for every ADR file in both tracks.
 
-    README.md index files are excluded because they are not ADRs.
+    ``README.md`` / ``index.md`` era-landing pages are excluded because they are
+    not ADRs (the era index was normalized README.md -> index.md per #2227).
     """
     result: list[tuple[str, Path]] = []
     for track, adr_dir in ADR_TRACKS.items():
         if adr_dir.is_dir():
             for path in sorted(adr_dir.glob("*.md")):
-                if path.name.lower() == "readme.md":
+                if path.name.lower() in ("readme.md", "index.md"):
                     continue
                 result.append((track, path))
     return result

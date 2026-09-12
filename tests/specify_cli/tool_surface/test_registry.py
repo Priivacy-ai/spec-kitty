@@ -11,7 +11,7 @@ from specify_cli.tool_surface.enums import (
     InstallScope,
     RequiredPolicy,
     SourceKind,
-    SurfaceKind,
+    ToolSurfaceKind,
 )
 from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
@@ -22,7 +22,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _definition(provider_key: str = "command-skill") -> SurfaceDefinition:
     return SurfaceDefinition(
-        kind=SurfaceKind.COMMAND_SKILL,
+        kind=ToolSurfaceKind.COMMAND_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=".agents/skills/spec-kitty.{command}/SKILL.md",
@@ -100,3 +100,46 @@ def test_provider_protocol_is_runtime_checkable() -> None:
 
 def test_non_provider_fails_protocol_check() -> None:
     assert not isinstance(object(), ReportingSurfaceProvider)
+
+
+def _assert_required_registry_floor() -> None:
+    from specify_cli.tool_surface.service import build_providers, build_registry
+
+    expected = {
+        ToolSurfaceKind.COMMAND_SKILL: "command_skills",
+        ToolSurfaceKind.DOCTRINE_SKILL: "managed_skills",
+        ToolSurfaceKind.AGENT_PROFILE: "agent_profiles",
+        ToolSurfaceKind.COMMAND_FILE: "slash_commands",
+        ToolSurfaceKind.CONTEXT_FILE: "session_presence",
+        ToolSurfaceKind.HOOK: "session_presence",
+        ToolSurfaceKind.RULE: "session_presence",
+        ToolSurfaceKind.NATIVE_CONFIG: "native_config",
+    }
+    registry = build_registry(("codex", "claude", "vibe"))
+    actual = {(d.kind, d.provider_key) for d in registry.get_definitions("codex")}
+    assert set(expected.items()) <= actual
+    assert set(expected.values()) <= {p.provider_key for p in build_providers()}
+
+
+def test_concrete_registry_contains_required_owner_floor() -> None:
+    _assert_required_registry_floor()
+
+
+def test_required_registration_removal_breaks_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry
+
+    _assert_required_registry_floor()
+    registrations = SurfaceProviderRegistry._registrations
+    reduced = [r for r in registrations if r.provider_class.provider_key != "command_skills"]
+    assert len(reduced) < len(registrations)
+    monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", reduced)
+    with pytest.raises(AssertionError):
+        _assert_required_registry_floor()
+
+
+def test_reporting_provider_does_not_imply_assessment_support() -> None:
+    from specify_cli.tool_surface.providers.protocol import AssessingSurfaceProvider
+
+    provider = _StubProvider()
+    assert isinstance(provider, ReportingSurfaceProvider)
+    assert not isinstance(provider, AssessingSurfaceProvider)

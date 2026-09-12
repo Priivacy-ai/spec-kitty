@@ -34,10 +34,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
+from kernel.vcs_lock import is_vcs_lock_only_change
 from specify_cli.cli.commands.implement import (
-    _drop_vcs_lock_only_meta,
-    _is_vcs_lock_only_meta_diff,
+    _is_self_write_only_diff,
     implement,
+    resolve_planning_artifact_staging,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -317,17 +318,23 @@ def test_non_lock_dirty_meta_still_blocks_auto_commit_false_claim(
 
 def test_drop_helper_is_noop_under_auto_commit_true(tmp_path: Path) -> None:
     """NFR-001: under ``auto_commit=True`` the exclusion is a byte-identical
-    no-op — the meta.json path stays in the guard's commit set even when its
-    only diff is the vcs-lock fields, so the default path's commit semantics are
-    unchanged."""
+    no-op — the meta.json path stays in the staging plan's commit set even
+    when its only diff is the vcs-lock fields, so the default path's commit
+    semantics are unchanged.
+
+    WP14 / IC-07d: the ``auto_commit`` gate moved from the retired
+    ``_drop_vcs_lock_only_meta`` helper itself to its caller
+    (:func:`resolve_planning_artifact_staging` applies :func:`_drop_if` only
+    when ``not auto_commit``), so this is now exercised at the staging-plan
+    level rather than the bare predicate.
+    """
     feature_dir = _build_mission_repo(tmp_path)
     set_vcs_lock(feature_dir, vcs_type="git", locked_at=_LOCKED_AT)
     meta_rel = (feature_dir / "meta.json").relative_to(tmp_path).as_posix()
-    paths = [meta_rel]
 
-    kept = _drop_vcs_lock_only_meta(tmp_path, paths, None, auto_commit=True)
+    plan = resolve_planning_artifact_staging(tmp_path, feature_dir, None, [], auto_commit=True)
 
-    assert kept == paths
+    assert meta_rel in plan.files_to_commit
 
 
 def test_drop_helper_excludes_lock_only_meta_under_auto_commit_false(
@@ -340,9 +347,7 @@ def test_drop_helper_excludes_lock_only_meta_under_auto_commit_false(
     meta_rel = (feature_dir / "meta.json").relative_to(tmp_path).as_posix()
     spec_rel = (feature_dir / "spec.md").relative_to(tmp_path).as_posix()
 
-    kept = _drop_vcs_lock_only_meta(
-        tmp_path, [meta_rel, spec_rel], None, auto_commit=False
-    )
+    kept = [p for p in (meta_rel, spec_rel) if not _is_self_write_only_diff(tmp_path, p, None)]
 
     assert kept == [spec_rel]
 
@@ -361,9 +366,7 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     meta_rel = meta_path.relative_to(tmp_path).as_posix()
 
-    kept = _drop_vcs_lock_only_meta(tmp_path, [meta_rel], None, auto_commit=False)
-
-    assert kept == [meta_rel]
+    assert _is_self_write_only_diff(tmp_path, meta_rel, None) is False
 
 
 @pytest.mark.parametrize(
@@ -381,8 +384,10 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
             {"slug": "m2", "vcs": "git", "vcs_locked_at": _LOCKED_AT},
             False,
         ),
-        # No diff at all -> nothing to exclude.
-        ({"vcs": "git"}, {"vcs": "git"}, False),
+        # No diff at all -> the kernel comparator treats the empty difference
+        # set as trivially lock-only (True), unlike the retired predicate's
+        # ``bool(changed_keys)`` guard (WP03 / T016 -- FR-006 semantics shift).
+        ({"vcs": "git"}, {"vcs": "git"}, True),
         # Only a non-lock change -> NOT lock-only.
         ({"slug": "m"}, {"slug": "m", "purpose_tldr": "x"}, False),
         # Removing a non-lock null-valued key is still a dirty meta change.
@@ -399,11 +404,15 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
         ),
     ],
 )
-def test_is_vcs_lock_only_meta_diff_truth_table(
+def test_is_vcs_lock_only_change_truth_table(
     committed: dict[str, Any] | None,
     working: dict[str, Any],
     expected: bool,
 ) -> None:
-    """The pure decision distinguishes a lock-field-only diff from every diff
-    that touches a non-lock key (and from an empty diff)."""
-    assert _is_vcs_lock_only_meta_diff(committed, working) is expected
+    """WP03 / T016: the retired ``_is_vcs_lock_only_meta_diff`` comparator is
+    routed onto the single canonical
+    :func:`kernel.vcs_lock.is_vcs_lock_only_change` (FR-006). It distinguishes a
+    lock-field-only diff from every diff that touches a non-lock key
+    (absent != present-but-null, C-005); an EMPTY diff is trivially lock-only
+    (``True``) under the kernel comparator."""
+    assert is_vcs_lock_only_change(committed, working) is expected

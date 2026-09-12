@@ -1,0 +1,95 @@
+schema: review-findings/v1
+phase: pr
+group: merged
+complete: true
+# R2 merge/dedup — orchestrator bookkeeping only. No judgement applied here:
+# every R1 finding is carried forward verbatim in substance for R3 refutation.
+# Sources: pr-boundary.findings.yaml (1ba727b70), pr-contract.findings.yaml (78dbfb736),
+#          pr-tests.findings.yaml (ad8d18562).
+sources:
+  boundary: 1
+  contract: 1
+  tests: 2
+raw_total: 4
+duplicates_collapsed: 0
+findings:
+  - id: PR-M-001
+    from: PR-CONTRACT-001
+    severity: 3
+    lens: silent-success
+    location: src/specify_cli/doctrine/pack_validator.py:_check_profile_skipped_diagnostics
+    finding: >-
+      Constructs AgentProfileRepository and calls .skipped_profiles() with no exception
+      handling. A raising constructor propagates uncaught through validate_pack() and both
+      CLI entry points (pack_validate, org_validate), producing a raw traceback instead of
+      the promised {"ok": ...} JSON. No test covers this path.
+    evidence: >-
+      Reproduced by monkeypatching the repository to raise. In-file precedent:
+      _load_built_in_ids_per_kind guards the identical built_in_dir() seam against
+      PackRootNotFound / BuiltInContentDirNotAvailable a few lines below.
+    fix: >-
+      Guard the call and surface the failure as a validation issue rather than a crash.
+      Add a test for the raising path.
+    note: >-
+      Co-located with PR-M-002 in the same ~3 lines; one fix can satisfy both. Reported by
+      the contract lens as the INVERSE of this mission's own defect class — an uncaught
+      crash, not a false-clean report. The lens explicitly confirmed the fix does not
+      reproduce silent-clean-report anywhere.
+  - id: PR-M-002
+    from: PR-BOUNDARY-001
+    severity: 3
+    lens: seam
+    location: src/specify_cli/doctrine/pack_validator.py:858-860
+    finding: >-
+      Hand-constructs doctrine.agent_profiles.repository.AgentProfileRepository directly
+      instead of going through the canonical doctrine.service.DoctrineService construction
+      seam that every other consumer uses for the identical object — a second construction
+      path that DIRECTIVE_044 (Canonical Sources and Unification) exists to close.
+    evidence: src/specify_cli/doctrine/pack_validator.py:858-860 vs other DoctrineService consumers.
+    fix: Construct via DoctrineService, or record why this call site is exempt.
+    note: Co-located with PR-M-001. Independent finding, not a duplicate — seam choice vs missing guard.
+  - id: PR-M-003
+    from: PR-TESTS-002
+    severity: 2
+    lens: vacuous
+    location: tests/specify_cli/doctrine/test_pack_validator.py
+    finding: >-
+      Three negative-assertion tests are unfalsifiable w.r.t. their own subject — they pass
+      identically whether the check exists or not:
+      test_pack_root_graph_present_suppresses_diagnostic,
+      test_neither_root_graph_nor_drg_dir_no_diagnostic (FR-004),
+      test_clean_pack_has_no_profile_skipped_issue (FR-002).
+    evidence: >-
+      Confirmed by the tests lens's own revert test. Mirrors the AC-2/AC-3 "vacuously
+      pre-implementation" pattern the implementers noted informally but never filed.
+    fix: >-
+      Same remedy as the precedent already accepted at severity 1 in wp02.review.yaml
+      (WP02-003): a one-line comment recording that the negative case is structural and
+      that the paired positive-fire test carries the regression pin.
+    note: Each is paired with a solid positive-fire test that IS falsifiable.
+  - id: PR-M-004
+    from: PR-TESTS-001
+    severity: 1
+    lens: sonar
+    location: src/specify_cli/doctrine/pack_validator.py
+    finding: >-
+      The "*.graph.yaml" glob literal now appears 4x in pack_validator.py (was 2x
+      pre-mission), crossing CLAUDE.md's Sonar >=3x threshold for hoisting to a named
+      module constant. This diff's own new code tipped it over.
+    evidence: CLAUDE.md Sonar Expectations, S1192.
+    fix: Hoist to a module constant.
+severity_counts:
+  "5": 0
+  "4": 0
+  "3": 2
+  "2": 1
+  "1": 1
+blocks_merge_presentation: false
+concurrency_note: >-
+  The three R1 lenses were dispatched concurrently in a shared checkout, which the sk
+  overlay reserves for serialized runs when falsification mutates the tree. The boundary
+  lens observed transient mutations from another lens mid-review. Validity cross-check:
+  boundary and tests independently measured identical shard totals (66 passed, 5 skipped,
+  0 failed) and the tests lens cross-checked its +16 delta against the new def test_ count,
+  so no finding appears to have been produced against a racing tree. Recorded as an
+  orchestration deviation regardless.

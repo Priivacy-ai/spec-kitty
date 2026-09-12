@@ -52,3 +52,25 @@ def test_warn_or_confirm_hollow_reviews_assume_yes_does_not_prompt(tmp_path: Pat
     out = capsys.readouterr().out
     assert "Hollow reviews detected" in out
     assert "Proceeding without interactive confirmation" in out
+
+
+def test_warn_or_confirm_hollow_reviews_non_interactive_env_does_not_prompt(
+    tmp_path: Path, capsys, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2912: with SPEC_KITTY_NON_INTERACTIVE set the hollow-review gate
+    auto-proceeds without a confirm prompt even without --yes. Before routing
+    through is_interactive(), the bare ``sys.stdin.isatty()`` check would prompt
+    (and could hang an agent) whenever stdin merely looked like a TTY."""
+    monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "status.json").write_text(
+        json.dumps({"work_packages": {"WP01": {"force_count": 2}}}),
+        encoding="utf-8",
+    )
+
+    _warn_or_confirm_hollow_reviews(feature_dir=feature_dir, wp_ids=["WP01"], assume_yes=False)
+
+    out = capsys.readouterr().out
+    assert "Hollow reviews detected" in out
+    assert "Proceeding without interactive confirmation" in out

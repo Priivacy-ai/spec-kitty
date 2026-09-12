@@ -1,0 +1,213 @@
+{
+  "event_count": 74,
+  "last_event_id": "01KZSWWG1MC3A6WVGY9HQ61T0W",
+  "materialized_at": "2026-08-12T02:30:08.180751+00:00",
+  "mission_number": "193",
+  "mission_slug": "worktree-owned-root-3328-01KZRG01",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "prime",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZSWW56Z8ME1KER3VQC05AHN",
+      "last_transition_at": "2026-08-12T02:29:57.087889+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for independent review; RED and green evidence recorded",
+        "Cycle 2 root-equality fix ready for independent review",
+        "Prime Agent 0.7.1 OpenRouter ~moonshotai/kimi-latest thinking=high no-session APPROVE. Real-git primary+linked subdirs False/NESTED; actual roots True/OWNED; probe exit 0. Tests 21+16+25+27 pass; Ruff/mypy/diff-check pass. Raw SHA256 79914b4366bec295d868ed5e2c8ee6ea178832bbef91c3ed8455e01e458f5372; final SHA256 ee86dcd24f30112446a589e0008eb0cea53478d6fec79ebb5cae29367e8cbfd4. Op dispatch omitted mission identity and catalog model differed; actual Kimi launch/raw evidence is authoritative."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Op:01KZRR8QD4RP8EKA0J0HBREQAK",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 8916,
+      "shell_pid_created_at": "1786463422.47962",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "prime",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZSWW7DN4SHD6ZKT5MPTEES6",
+      "last_transition_at": "2026-08-12T02:29:59.349394+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Material planning gap: create-time placement seam cannot resolve mission meta isolated to owned linked checkout; preserved WIP and 1F/2P proof pending planner-priti amendment.",
+        "Architectural public-surface contract requires one owned-file amendment",
+        "Ready: target and public-surface RED→green; 386 tests pass; Ruff/mypy clean; JUnit SHA256 74722d46a32ee0d5b159fa8460d31030a056bc505946e19ab9c33626bfa5bec4",
+        "Approved by reviewer-renata: Prime Agent 0.7.1 OpenRouter ~moonshotai/kimi-latest high/no-session, governed Op 01KZRX23PBRFKHVVMYPVCWJYX8. Independent 70P+180P+3P, Ruff/mypy green; real-git linked-root create/ref placement and primary cleanliness verified. Contract Non-Goal defers caller-vs-declared equality to #3128."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Approved by reviewer-renata: Prime Agent 0.7.1 OpenRouter ~moonshotai/kimi-latest high/no-session, governed Op 01KZRX23PBRFKHVVMYPVCWJYX8. Independent 70P+180P+3P, Ruff/mypy green; real-git linked-root create/ref placement and primary cleanliness verified. Contract Non-Goal defers caller-vs-declared equality to #3128.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "prime-agent",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZSWW9GVS5XP2V83B08F8ZWQ",
+      "last_transition_at": "2026-08-12T02:30:01.499494+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementer Op 01KZRY9F8DY9JS4T7H02K9X1PF governed this cycle but its started record predates mission binding (mission_id=None); CLI correctly refused authoritative linkage. RED parser/guard failures became green; 30P focused, 722P/1S runtime, 35P next compatibility; Ruff/mypy/diff green.",
+        "Independent Prime Agent 0.7.1 / OpenRouter ~moonshotai/kimi-latest / thinking high / no-session APPROVE. Real-git primary+linked exact roots and both subdirectory negatives explicitly passed; defaults, typed refusals, shared lock, 30P+56P+44P, Ruff/mypy green. Nonblocking observation: synthetic mission content read anchors primary while FR-007 runtime state routes owned checkout; carry to WP04/WP05 review."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Prime Op 01KZS0QVDFRH5S3DASD31YM4E0 APPROVE",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZSWWDXQ9R81PJW73EWE8WBH",
+      "last_transition_at": "2026-08-12T02:30:06.007103+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Material ownership gap: 3F/3P RED proves mission create omits success:false across nested/foreign/broken while next complies. Freeze test-only WIP; planner-priti amendment required before one-line production fix.",
+        "Implementation commit c2edd891d; intended 3F/3P RED corrected; exact 6P green twice plus post-format 6P; 1483P/20S agent gate; 201P runtime/ownership; Ruff and mypy clean. Direct Codex under python-pedro implementer Op 01KZS2EBY55TBPM457M7NJWCM5; canonical assignee key retained as implement-command.",
+        "Independent Prime/Kimi APPROVE: WP04 refusal-envelope parity and architectural fence verified; mission-level linked-content divergence and stale descriptors remain blocking for governed WP05 remediation."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "prime-op:01KZS4A3HYF6TJP8NK7RDSGTXR",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZSWWG1MC3A6WVGY9HQ61T0W",
+      "last_transition_at": "2026-08-12T02:30:08.180751+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation d51dfa893. Implementer Op 01KZS8HM4TEGJD8W0N0HRQZCJ7 separately governed; linkage rejected because legacy Op recorded no mission identity. Final immutable wheel acceptance 24/24; broad 383/383; architectural 104/104; ruff/mypy/diff-check green.",
+        "Cycle-1 Prime APPROVE superseded by reviewer arbiter: its own probe shows permission-denied rc128 retried 20x, violating positive-contention-only retry contract. Canonical reject for minimal predicate/test repair; raw verdict preserved.",
+        "Cycle2 commit ac7c29dc: permission-denied immediate fail-closed; retry 4P, broad 383P, immutable 25P; #3343 mapped to WP06 for CI-selection contract.",
+        "Independent Prime Kimi cycle2 APPROVE; strict retry fix and immutable authority verified. CI follow-up durably mapped WP06/#3343."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "prime:01KZSJYXVRX26ASTRDVJZJSTQN",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZSWWBR1TBDBAVYZCEPXFHWS",
+      "last_transition_at": "2026-08-12T02:30:03.777339+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Canonical ADR inventory freshener requires two generated outputs outside current owned scope; return for minimal planning amendment.",
+        "Ready for review: ADR matches WP01-WP05; #3345 canonical index RED-GREEN; generator check clean; 233 docs/architecture tests pass",
+        "Prime cycle 1 REQUEST_CHANGES; Op 01KZSPJBDFYK49W34J08ZSQ6CM evidence preserved separately: regenerate docs retrieval index and fail closed for malformed canonical index in --all",
+        "Cycle 2 ready: retrieval index strict/freshness clean; malformed canonical --all fails closed; 15 freshener + 220 docs gates pass",
+        "Prime cycle 2 REQUEST_CHANGES; Op 01KZSRS0Y0Q4K900EQBAZ3N1ME: preserve sanctioned table-less 1.x/2.x while keeping malformed table-maintaining eras fail closed",
+        "Cycle 3 ready: tableless legacy eras preserved, malformed declared indexes fail closed, real-tree/docs/static gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Prime Kimi cycle 3 APPROVE: real 1.x/2.x layouts clean; malformed declared index exit-2 parity; 16/16, docs/static/freshness gates green; raw SHA256 96600a411ad16c282ee8ad8b491ccf83418402df5b1429bd2e9729aa16fd888e",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28365,
+      "shell_pid_created_at": "1786191813.84724",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done"
+      }
+    }
+  }
+}

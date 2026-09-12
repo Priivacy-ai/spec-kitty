@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
 from specify_cli.status.models import AgentAssignment
-from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
+from specify_cli.status.wp_metadata import WPMetadata, coerce_legacy_dependencies, read_wp_frontmatter
 
 from tests.status.conftest import seed_wp_to_planned
 
@@ -308,6 +308,61 @@ class TestWPMetadataExtraFields:
         assert meta.agent_profile == "python-implementer"
 
 
+class TestLenientReaderToleratesLegacyFields:
+    """FR-011 (#3406): historical import must tolerate retired frontmatter keys.
+
+    The strict authoring reader rejects unknown fields (typo guard); the lenient
+    reader used by the import path drops them but still validates known fields.
+    """
+
+    _LEGACY_WP = (
+        "---\n"
+        "work_package_id: WP07\n"
+        "title: Legacy Work Package\n"
+        "dependencies: [WP06]\n"
+        "estimated_lines: 240\n"  # retired field, not on the current schema
+        "some_other_dead_key: whatever\n"
+        "---\n\nBody\n"
+    )
+
+    def test_strict_reader_rejects_legacy_field(self, tmp_path: Path) -> None:
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+
+        wp_file = tmp_path / "WP07-legacy.md"
+        wp_file.write_text(self._LEGACY_WP, encoding="utf-8")
+        with pytest.raises(ValidationError, match="extra_forbidden"):
+            read_authored_wp_frontmatter(wp_file)
+
+    def test_lenient_reader_drops_legacy_field_and_preserves_known(self, tmp_path: Path) -> None:
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter_lenient
+
+        wp_file = tmp_path / "WP07-legacy.md"
+        wp_file.write_text(self._LEGACY_WP, encoding="utf-8")
+
+        meta, body = read_authored_wp_frontmatter_lenient(wp_file)
+
+        assert meta.work_package_id == "WP07"
+        assert meta.display_title == "Legacy Work Package"
+        assert meta.dependencies == ["WP06"]
+        assert body.strip() == "Body"
+        # The dropped key does not become an attribute (frozen model, extra keys gone).
+        assert not hasattr(meta, "estimated_lines")
+
+    def test_lenient_reader_still_raises_on_invalid_known_field(self, tmp_path: Path) -> None:
+        """Tolerance covers unknown keys only -- a bad value for a known field
+        (here an id that violates the WP## pattern) still fails loudly, so the
+        import scan's malformed-skip path is unchanged for real corruption."""
+        from specify_cli.status.wp_metadata import read_authored_wp_frontmatter_lenient
+
+        wp_file = tmp_path / "WPbad.md"
+        wp_file.write_text(
+            "---\nwork_package_id: not-a-wp-id\ntitle: T\nestimated_lines: 5\n---\n\nBody\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValidationError):
+            read_authored_wp_frontmatter_lenient(wp_file)
+
+
 class TestWPMetadataDisplayTitle:
     """display_title property: safe title with fallback to work_package_id."""
 
@@ -470,6 +525,38 @@ class TestWPMetadataLegacyNormalization:
         )
         assert meta.dependencies == ["WP01", "WP02"]
 
+    def test_dependencies_bare_scalar(self) -> None:
+        """A bare scalar ``dependencies: WP01`` is a one-element list."""
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "dependencies": "WP01"})
+        assert meta.dependencies == ["WP01"]
+
+
+class TestCoerceLegacyDependencies:
+    """The shared pure coercion behind ``WPMetadata`` and the FSM shells (single parser, FR-014)."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("[]", []),
+            ("  []  ", []),
+            ("WP01, WP02", ["WP01", "WP02"]),
+            ("WP01", ["WP01"]),
+            ("  WP03 ,WP04 , ", ["WP03", "WP04"]),
+            ("", []),
+        ],
+    )
+    def test_string_forms(self, raw: str, expected: list[str]) -> None:
+        assert coerce_legacy_dependencies(raw) == expected
+
+    @pytest.mark.parametrize("raw", [None, [], ["WP01"], [1, 2], 3, {"a": 1}])
+    def test_non_strings_pass_through_unchanged(self, raw: object) -> None:
+        assert coerce_legacy_dependencies(raw) is raw
+
+    @pytest.mark.parametrize("raw", ["[]", "WP01, WP02", "WP01"])
+    def test_model_uses_the_same_coercion(self, raw: str) -> None:
+        meta = WPMetadata.model_validate({"work_package_id": "WP01", "title": "T", "dependencies": raw})
+        assert meta.dependencies == coerce_legacy_dependencies(raw)
+
 
 class TestWPMetadataRoundTrip:
     """NFR-004: Round-trip safe serialization."""
@@ -551,8 +638,6 @@ class TestReadWpFrontmatter:
         import specify_cli.status.emit as status_emit
 
         monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None, raising=False)
-        monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None, raising=False)
-
         feature_dir = tmp_path / "kitty-specs" / "pid-snapshot"
         (feature_dir / "tasks").mkdir(parents=True)
         (feature_dir / "meta.json").write_text('{"status_phase": 0}', encoding="utf-8")

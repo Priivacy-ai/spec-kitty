@@ -1,0 +1,83 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: PLAN-ARCH-001
+    lens: mission-specific (content-invariant algorithmic soundness / TOCTOU safety)
+    severity: 4
+    title: "poll_once() never commits to a single held fd for stat + hash-check + drain, leaving an intra-call TOCTOU race the plan's own test plan does not cover"
+    evidence:
+      - artifact: "plan.md § Architectural Seam: Core vs. Shell (FR-011 / NFR-001)"
+      - artifact: "plan.md § Truncation Detection Design (FR-005, FR-007, FR-013)"
+      - artifact: "plan.md § Reopen-by-path composability (FR-003)"
+      - code: "src/specify_cli/status/store.py:358 (_append_serialized_atomic, full inode swap via os.replace at :392)"
+      - code: "src/specify_cli/coordination/transaction.py:921 (_rollback), :938 (in-place fh.truncate on the SAME inode via a fresh open(path,\"ab\"))"
+    claim: >
+      The plan describes poll_once() as "ONE reopen-by-path → stat → dual-truncation-check →
+      drain-available-complete-lines → parse pass" and separately promises "poll_once() reopens
+      the file by path, inside itself, on every call". This closes the INTER-call race (a
+      different poll_once() invocation always reopens), and the one test it prescribes for this
+      ("write a file, call poll_once, replace the file with a different inode via os.replace, call
+      poll_once again, assert the new inode's content is observed") only exercises that inter-call
+      case. Nowhere does the plan commit to the narrower, load-bearing invariant that closes the
+      INTRA-call race: that the size check (os.fstat on the fd already opened at the top of this
+      call), the hash-check read, and the new-bytes drain read all read through that SAME
+      already-open file descriptor, never a fresh path.stat() or a second open() call partway
+      through poll_once(). Without that explicit commitment, a natural (even idiomatic) Python
+      implementation — e.g. `size = path.stat().st_size` for the cheap size check, followed by a
+      separate `path.open("rb")` (or a second `os.stat`) for the hash-check read — reintroduces
+      exactly the race User Story 2 Scenario 3 exists to close: a writer's rollback-truncate (an
+      in-place fh.truncate on the SAME inode, transaction.py:938) or a locked-writer os.replace
+      inode swap (store.py:392) landing BETWEEN the size stat and the hash-check read within the
+      SAME poll_once() call would let the size check observe one snapshot and the hash check
+      observe a different, later one — a race narrower than "one poll interval" that the plan's
+      own dual-check design does not structurally rule out, because it never states which syscalls
+      must share the same fd. This is precisely the defect class DIRECTIVE_043 (Close Defect
+      Classes by Construction) flags: a design that depends on an unstated implementation
+      discipline ("remember to use fstat, not stat-by-path") to be correct is structurally
+      incomplete. Because the crafted-file unit tests IC-01/IC-02 describe are sequential
+      (write-then-call, not concurrent), an implementation with this flaw could pass every test in
+      the plan's own Test Strategy and only manifest under real concurrent production load
+      (NFR-004's actual, expected use case) — the worst kind of gap to leave implicit.
+    remediation: >
+      Add one sentence to the Architectural Seam / Truncation Detection Design section making the
+      fd-sharing invariant explicit and testable: "poll_once() opens exactly one file descriptor
+      per call; the size check uses os.fstat(fd) on that descriptor (never Path.stat() or a second
+      open()), and the hash-check read and the new-bytes drain read both read through that same fd
+      via seek()+read() — no operation in a single poll_once() call re-resolves the path after the
+      initial open." Add this as an explicit IC-01 test requirement: a test that monkeypatches
+      Path.stat (or pathlib's stat) to raise if called from within poll_once(), forcing the
+      implementation to route every size query through the already-open fd, so the invariant is
+      enforced by a failing test rather than a discipline reminder.
+
+  - id: PLAN-ARCH-002
+    lens: generated-artifacts
+    severity: 3
+    title: "Plan's cited agent_retrospect.py:415 precedent is the wrong code — it's a stdout _console.print_json call with a different JSON shape, not the stderr err_console pattern the plan describes"
+    evidence:
+      - artifact: "plan.md § Tail Envelope & Cursor Schema (plan-authored, within the spec's declared open space)"
+      - code: "src/specify_cli/cli/commands/agent_retrospect.py:408-419 (the block containing line 415 is `_console.print_json(json.dumps({\"schema_version\": \"1\", \"command\": ..., \"status\": \"error\", \"outcome\": \"mission_not_found\", \"error\": \"mission_not_found\", \"handle\": exc.handle, \"next_action\": ...}))` — `_console`, i.e. STDOUT, imported at agent_retrospect.py:21 as `from specify_cli.cli.console import console as _console`)"
+      - code: "src/specify_cli/cli/console.py:126-127 (`console = CliConsole()` is stdout; `err_console = CliConsole(stderr=True)` is stderr — two distinct objects)"
+      - code: "src/specify_cli/cli/commands/agent_retrospect.py:593 and :600 (the ACTUAL `_err_console.print_json(json.dumps({\"error\": <code>, \"detail\": <message>}))` precedent the plan describes, on stderr, with the {error, detail} shape)"
+    claim: >
+      The plan states the FR-009/FR-004/FR-013 stderr error envelope is "Modeled on the existing
+      agent_retrospect.py:415 pattern: err_console.print_json(json.dumps({\"error\": <code>,
+      \"detail\": <message>})) + raise typer.Exit(<n>)". Line 415 of that file is not this pattern
+      at all — it sits inside a `_console.print_json(...)` call (imported as stdout's `console`,
+      not `err_console`) with an unrelated, larger JSON shape (`schema_version`, `command`,
+      `status`, `outcome`, `error`, `handle`, `next_action`) used for that command's OWN
+      mission-not-found reporting. The pattern the plan actually describes — `err_console` +
+      `{"error": ..., "detail": ...}` — genuinely exists in the same file, just at lines 593 and
+      600. This is exactly the load-bearing distinction this mission's own Design Decision #3
+      turns on ("Resolve-failure/usage-error/resume-refused signals are stderr-only, never on the
+      stdout Tail-envelope stream") — a WP author who trusts the citation and opens the file at
+      line 415 rather than reading the surrounding function finds the WRONG precedent (a stdout
+      call), which if copied verbatim would leak the FR-013/FR-004 usage-error and resume-refused
+      signals onto stdout, polluting the Tail-envelope stream the plan is explicit must stay clean.
+    remediation: >
+      Correct the citation to `agent_retrospect.py:593` (or `:600`) — the actual
+      `_err_console.print_json(json.dumps({"error": ..., "detail": ...}))` call sites — before this
+      plan is used to author WP04. A one-line fix; no design change needed since the plan's prose
+      description of the pattern is otherwise correct.

@@ -1,0 +1,106 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+mission: charter-activate-empty-action-sequence-01M0STSX
+refutations:
+- id: PR-CONTRACT-001
+  verdict: survives
+  severity_original: 2
+  severity_adjusted: 2
+  reason: |
+    Worked all four attack lines under debugger-debbie's directives (001
+    architectural-integrity, 003 decision-documentation, 030 test/typecheck
+    quality gate, 032 conceptual alignment) and none of them kill the finding.
+
+    (1) Coverage claim -- TRUE, verified against the whole suite, not just the
+    files the lens named. `grep -rln extends tests/` surfaces 35 files; every
+    one was checked. `tests/charter/test_action_sequence_dispatch.py` has
+    exactly two extends tests (`test_extends_chain_resolved_when_own_sequence_empty`,
+    `test_own_sequence_takes_priority_over_extends`) -- "own empty, parent
+    non-empty" and "own non-empty wins", confirming the lens's characterization.
+    `tests/charter/test_mission_type_profiles.py`'s new
+    `TestValidateActivatableMissionTypeExtendsFallback` has exactly one test
+    (`test_extends_fallback_to_non_empty_parent_does_not_raise`), and its own
+    class docstring says "Zero extends precedent existed in this file before
+    this mission" -- confirming no prior test in that file covers the
+    also-empty/unresolvable-parent branch either. The only other `extends`-named
+    test surface, `tests/charter/test_org_extends.py`, tests a DIFFERENT
+    resolver entirely: `charter.org_extends.resolve_extends_order`, which
+    governs PACK-lineage `extends:` chains (one org pack extending another),
+    not `MissionType.extends` (mission-type-to-mission-type single-level
+    inheritance). Its dangling-target test (`resolve_extends_order("B",
+    {"B": "nonexistent"})` raising `ExtendsBaseNotFoundError`) does not touch
+    `_resolve_with_extends_fallback` or either of its two callers at all --
+    confirmed by reading `src/charter/org_extends.py` and
+    `src/specify_cli/doctrine/pack_lineage.py`, which document this as the
+    single-source-of-truth resolver for pack lineage specifically. No test
+    anywhere pins the branch under discussion for either caller.
+
+    (2) Reachability -- real, not theoretical. `MissionType`
+    (`src/doctrine/missions/models.py:220-283`) has no cross-check that
+    `extends` resolves to a known id: `extends: str | None = None` carries no
+    field_validator, and `_validate_action_sequence` only fires "if
+    self.action_sequence is not None" -- an org/project-layer YAML that omits
+    `action_sequence:` entirely (a documented, already-exercised shape: the
+    mission's own new success-path test authors exactly this via
+    `action_sequence=None, extends="parent"`) loads cleanly with no
+    validation error. `resolve_layered_mission_types` (`src/doctrine/missions/
+    mission_type_repository.py:454+`) does a plain per-layer YAML scan with no
+    schema-level extends-existence gate. The DRG (which does validate some
+    cross-artifact edges, e.g. `unresolved_edge_endpoint`) does not govern this
+    at all: `mission-type` is explicitly named in this repo's own CLAUDE.md as
+    a token that is NOT in the charter-activatable/DRG-governed vocabulary
+    (`MissionTypeNotAnArtifactKind`). I built the two production-shaped
+    scenarios directly (own action_sequence omitted + extends parent whose own
+    action_sequence is also omitted; own action_sequence omitted + extends
+    pointing at a nonexistent id) using the mission's own test helpers
+    (`_write_layered_mission_type_yaml`, `_write_org_pack_config`) and ran them
+    end-to-end against both callers -- see evidence. Nothing upstream
+    intercepted either scenario; both reached `_resolve_with_extends_fallback`
+    and both callers correctly raised `MissionTypeEmptyActionSequenceError`,
+    confirming empirically (not just per the lens's own unlogged claim) that
+    today's behavior is correct and that the branch is production-reachable
+    via ordinary org-pack authoring, not a theoretical/unreachable edge.
+
+    (3) Scope -- in-scope for this mission, at least for the half the
+    remediation actually asks for. `_resolve_action_slot`'s extends-fallback
+    is genuinely pre-existing: `git show bb9a56226:src/charter/
+    mission_type_profiles.py` (the commit immediately before this mission's
+    own commits) already has the identical inline `if not action_sequence and
+    mission.extends is not None: parent = roster.get(...)` logic with the same
+    single-level, no-chain-traversal, both-empty-stays-empty semantics -- this
+    diff only extracted it into a shared helper, it did not change its
+    behavior. But `validate_activatable_mission_type` and its test class
+    `TestValidateActivatableMissionTypeExtendsFallback` are wholly new,
+    authored BY this mission's WP01 -- this is not drive-by cleanup of
+    unrelated debt in a shared file. The plan's "no campsite-clean" decision
+    (plan.md "Campsite-clean scope" section) is explicitly about NOT touching
+    unrelated debt in `activate.py`/`mission_type_profiles.py` because of
+    conflict surface against concurrently open PRs #3707/#3708/#3711 -- it
+    does not reach a negative-path test added to a test class this mission
+    itself created for a function this mission itself introduced. The
+    remediation's stated minimum ("at minimum one for
+    validate_activatable_mission_type, since that's this mission's new
+    surface") already self-limits to the in-scope half and does not require
+    touching test_action_sequence_dispatch.py at all, keeping the additional
+    diff surface (and PR-conflict risk) small.
+
+    (4) Severity -- 2 ("should fix, not blocking") survives review as
+    proportionate: the lens itself verified (and I independently
+    re-verified) that behavior is correct today, so this is a coverage gap on
+    the mission's own new fail-closed gate, not a live bug -- not severity
+    3+/merge-blocking, but a real, evidence-backed hole on the exact
+    defect-shape (silent-empty-sequence degradation) this mission exists to
+    close, on code this mission itself wrote. No argument surfaced to move it
+    either direction.
+
+    Net: none of the four attack lines land a kill. The finding survives at
+    its original severity.
+  evidence:
+  - code: "tests/charter/test_action_sequence_dispatch.py:338-390 -- exactly two extends tests: `test_extends_chain_resolved_when_own_sequence_empty`, `test_own_sequence_takes_priority_over_extends`; no also-empty/unresolvable-parent case."
+  - code: "tests/charter/test_mission_type_profiles.py:1346-1380 -- `TestValidateActivatableMissionTypeExtendsFallback` has exactly one test (success path); class docstring: \"Zero extends precedent existed in this file before this mission.\""
+  - code: "tests/charter/test_org_extends.py:1-90 -- tests `charter.org_extends.resolve_extends_order` (pack-lineage extends chains), a distinct resolver from `MissionType.extends`/`_resolve_with_extends_fallback`; confirmed via src/charter/org_extends.py and src/specify_cli/doctrine/pack_lineage.py docstrings naming it the single source of truth for pack lineage specifically."
+  - code: "src/doctrine/missions/models.py:255-283 -- `MissionType.extends: str | None = None` has no field_validator against known ids; `_validate_action_sequence` only fires `if self.action_sequence is not None`, so an omitted action_sequence (None) passes model validation with no gate."
+  - code: "CLAUDE.md 'Canonical Kind Vocabulary' section -- `mission-type` explicitly raises `MissionTypeNotAnArtifactKind`, i.e. is NOT charter-activatable / NOT DRG-governed, confirming mission-type `extends` has no DRG-level cross-check either."
+  - code: "git show bb9a56226:src/charter/mission_type_profiles.py | grep -n extends -- shows the identical single-level extends-fallback logic (lines ~987-992) already present in the commit immediately preceding this mission's WP01 commit, proving `_resolve_action_slot`'s half of the branch is pre-existing, not introduced by this diff."
+  - code: "Ad hoc pytest run (not committed; file created at tests/charter/test_zzrefute_pr_contract_001.py, executed, then deleted -- git status --porcelain -uno confirmed empty before and after): 4 tests exercising (also-empty-parent, nonexistent-parent) x (validate_activatable_mission_type, _resolve_action_slot) all PASSED -- '4 passed in 22.04s' -- confirming both callers correctly raise MissionTypeEmptyActionSequenceError today for both unpinned shapes, with nothing upstream intercepting either scenario."

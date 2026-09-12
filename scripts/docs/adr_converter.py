@@ -60,8 +60,8 @@ from ruamel.yaml import YAML
 # ``scripts.docs`` is a namespace-package module; when this file is imported as
 # a bare script (``python scripts/docs/adr_converter.py``) the repo root is not
 # on ``sys.path``. Anchor it so the shared frontmatter extractor resolves to the
-# canonical inventory parser rather than a forked copy — mirrors the bootstrap
-# used by ``scripts/docs/anti_sprawl_ratchet.py``.
+# canonical inventory parser rather than a forked copy — mirrors the sys.path
+# bootstrap used by the sibling docs scripts.
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -157,8 +157,8 @@ class AdrParseError(ValueError):
     """Raised when an ADR header cannot be parsed into a complete schema.
 
     A status-less, date-less, or title-less header surfaces this error rather
-    than emitting a silent status-less frontmatter block (which the anti-sprawl
-    ratchet would then block on).
+    than emitting a silent status-less frontmatter block (which downstream
+    docs frontmatter validation would then reject).
     """
 
 
@@ -339,8 +339,8 @@ def parse_dash_bullet_header(text: str, filename: str | None = None) -> ParsedHe
     (``- **Status:** …``). 1 + 1 ADRs.
 
     The plain form is the dialect the cycle-2 spec missed; the dash+bold hybrid
-    is the cycle-3 addition. Without them those ADRs convert status-less and the
-    frontmatter ratchet blocks the whole conversion.
+    is the cycle-3 addition. Without them those ADRs convert status-less and
+    downstream frontmatter validation would reject the whole conversion.
     """
     return _build_header(text.splitlines(keepends=True), _match_dash_field, filename)
 

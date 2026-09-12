@@ -1,7 +1,7 @@
 """Wiring tests for ``OperationalContext`` at the runtime entry points (WP14).
 
 WP13 delivered the pure ``build_operational_context`` assembler and its guards
-in ``charter.invocation_context``. WP14 wires those symbols into the three live
+in ``charter.activation.invocation_context``. WP14 wires those symbols into the three live
 runtime entry points (FR-017):
 
 1. the ``implement.py`` WP-claim path,
@@ -35,7 +35,7 @@ import pytest
 
 pytestmark = [pytest.mark.integration]
 
-from charter.invocation_context import (
+from charter.activation.invocation_context import (
     ContextPreconditionError,
     OperationalContext,
 )

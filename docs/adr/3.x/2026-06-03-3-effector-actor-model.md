@@ -1,5 +1,6 @@
 ---
 title: 'ADR 2026-06-03-3: Effector/Actor Model'
+description: 'Defines an Effector as an Actor realized inside the Execution domain, but keeps it documentation vocabulary — no code type until a real bug demands one.'
 status: Accepted
 date: '2026-06-03'
 ---

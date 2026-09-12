@@ -1,0 +1,39 @@
+{
+  "mission_slug": "home-pin-census-owner-adoption-01M05C50",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commit ea030c62f: test requests canonical_home, own setenv removed; discover() returns to 40 members",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:45:22.532366+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/cli/commands/test_sync_status_drain_blockers.py -> 4 passed (behaviour preserved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:45:24.576819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/architectural/test_spec_kitty_home_pin_census.py -> 29 passed (was 6 failed); no frozen-artefact edits; ratchet-bite proof red-on-inject",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-16T13:45:26.603061+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

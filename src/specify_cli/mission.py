@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
-from charter.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.mission_metadata import load_meta_or_empty
 
 
@@ -53,9 +53,12 @@ MISSION_ROOT_FIELDS: tuple[str, ...] = (
     "task_types",
 )
 
-# Hybrid mission configs produced by older generators may include v1 state-machine
-# keys alongside v0 mission schema keys. Ignore these compatibility keys so
-# mission discovery does not skip otherwise valid missions.
+# These keys belonged to the retired mission-DSL v1 state machine (mission
+# dead-port-disposition-01M1TZVN removed its interpreter and deleted the
+# ``states:``/``transitions:`` blocks from the built-in packs). Tolerance is
+# retained on purpose: third-party packs and project ``.kittify/overrides``
+# ``mission.yaml`` files may still carry the keys, and mission discovery must
+# not skip an otherwise valid mission over inert DSL residue.
 MISSION_COMPAT_IGNORED_FIELDS: tuple[str, ...] = (
     "mission",
     "initial",
@@ -153,6 +156,11 @@ class TaskMetadataConfig(BaseModel):
     optional: list[str] = Field(default_factory=list)
 
 
+VALID_PATH_KEYS: frozenset[str] = frozenset({"workspace", "tests", "deliverables", "documentation", "data"})
+"""Canonical path-convention keys (C-005). Single authority reused by MissionConfig validation
+and the project-level ``path_conventions`` override reader."""
+
+
 class MissionConfig(BaseModel):
     """Complete mission configuration schema."""
 
@@ -180,11 +188,10 @@ class MissionConfig(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:  # pragma: no cover - simple warning logic
         """Warn on unknown path convention keys while permitting customization."""
-        valid_path_keys = {"workspace", "tests", "deliverables", "documentation", "data"}
-        unknown_paths = set(self.paths.keys()) - valid_path_keys
+        unknown_paths = set(self.paths.keys()) - VALID_PATH_KEYS
         if unknown_paths:
             warnings.warn(
-                f"Unknown path conventions: {sorted(unknown_paths)}. Known conventions: {sorted(valid_path_keys)}",
+                f"Unknown path conventions: {sorted(unknown_paths)}. Known conventions: {sorted(VALID_PATH_KEYS)}",
                 stacklevel=2,
             )
 
@@ -542,18 +549,14 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
 def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
     """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
-    Reads the canonical ``mission_type`` field first, then the legacy ``mission``
-    field, routing each through the single boundary-safe canonicalizer
-    (WP02 / FR-012). Non-string values (malformed metadata) and blank values are
-    treated as absent — the result is ``None`` (typeless), never a substituted
-    ``software-dev`` default (FR-001 / FR-003a).
+    Thin delegate to the one shared runtime reader
+    :func:`charter.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
+    **only** the canonical ``mission_type`` field — the legacy ``mission`` field
+    is no longer consulted (FR-002, legacy-resolution retirement). A typeless /
+    absent / blank / non-string value yields ``None``, never a substituted
+    ``software-dev`` default (FR-003).
     """
-    for field in ("mission_type", "mission"):
-        raw = meta.get(field)
-        key = canonical_mission_type_key(raw if isinstance(raw, str) else None)
-        if key is not None:
-            return key
-    return None
+    return read_mission_type(meta)
 
 
 def get_mission_type(feature_dir: Path) -> str:

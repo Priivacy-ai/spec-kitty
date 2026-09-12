@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#1623": {
+      "evidence_ref": "Stray closed ref; live doctor de-godding is Follow-up: #2059",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2059": {
+      "evidence_ref": "WP03 adds doctor auto-discovery seam for new facets; full de-godding Follow-up: #2059",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3022": {
+      "evidence_ref": "Token provenance is forward-compatible with external-pack extraction. Follow-up: #3022",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3047": {
+      "evidence_ref": "Consumer opt-in slice delivered; CI rc-cadence + publication remain. Follow-up: #3047",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3381": {
+      "evidence_ref": "WP04 provision coordinates migration ordering; consent backfill remains Follow-up: #3381",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3493": {
+      "evidence_ref": "Epic children #3494/#3495/#3496 delivered (consumer side); rc-cadence producer half continues. Follow-up: #3047",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3494": {
+      "evidence_ref": "Portable token provenance delivered (WP01 kernel seam + WP03 emit/heal); merged commit on fix/operator-config-ergonomics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3495": {
+      "evidence_ref": ".kitty.env config seam delivered (WP02 loader + WP04 provision/secrets)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3496": {
+      "evidence_ref": "Consumer rc-channel opt-in delivered (WP05); producer half remains in #3047",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}

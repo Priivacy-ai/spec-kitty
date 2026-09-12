@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2536": {
+      "evidence_ref": "Named at spec.md:278 and plan.md:587 as a separately-tracked, maintainer-scoped concern held out of scope: not investigated, not touched by this branch. Remains tracked in its own issue #2536.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2599": {
+      "evidence_ref": "Explicitly out of scope per spec.md:276 and plan.md:585 -- this mission delivers the visibility half only; actually invoking a pack-shipped code asset as a gate handler remains tracked in its own issue #2599. Not investigated, not touched by this branch.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3284": {
+      "evidence_ref": "Open pre-existing-failure umbrella (~23 known-failing tests / 2 errors), untouched by this mission. Referenced at plan.md:492-496 only as the canonical bucket to classify scoped-run reds against. No red in this mission's gate set fell inside it: fast-tests-charter 2521 passed/0 failed, fast-tests-cli 3110 passed/0 failed on the final tip. Remains tracked in its own issue #3284.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3705": {
+      "evidence_ref": "Fixed across WP01-WP04 on branch fix/cascade-asset-silent-drop-3705; kind-filtered ASSET/TEMPLATE nodes are now reported by charter activate --cascade, the no-cascade warning path, and charter deactivate --cascade. PR #3711.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,8 +1,7 @@
-"""Tests for specify_cli.runtime.home — cross-platform path resolution.
+"""Compatibility-surface tests for :mod:`specify_cli.runtime.home`.
 
-Covers:
-- T004: Cross-platform path resolution tests (G6, 1A-08)
-- T005: SPEC_KITTY_HOME env var override tests (1A-09)
+Kernel path semantics live in ``tests/kernel/test_paths.py``. This suite keeps
+only behavior unique to the historical runtime-home import surface.
 """
 
 from __future__ import annotations
@@ -14,256 +13,85 @@ import pytest
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 
-# ---------------------------------------------------------------------------
-# T004: Cross-platform path resolution tests
-# ---------------------------------------------------------------------------
-
-
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 class TestGetKittifyHomeUnix:
     """Unix (macOS/Linux) default path resolution."""
 
     def test_unix_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On Unix, default is ~/.kittify/ (1A-08)."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
-        result = get_kittify_home()
-        assert result == Path.home() / ".kittify"
+        assert get_kittify_home() == Path.home() / ".kittify"
 
     def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Return type is Path, not str."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
-        result = get_kittify_home()
-        assert isinstance(result, Path)
+        assert isinstance(get_kittify_home(), Path)
 
     def test_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Path is always absolute."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
-        result = get_kittify_home()
-        assert result.is_absolute()
+        assert get_kittify_home().is_absolute()
 
 
 class TestGetKittifyHomeWindows:
-    """Windows default path resolution.
-
-    As of DRIFT-3 in the Windows Compatibility Hardening mission,
-    ``get_kittify_home()`` on Windows delegates to
-    ``specify_cli.paths.get_runtime_root().base`` rather than hitting
-    ``platformdirs.user_data_dir`` directly. The monkeypatch-based simulation
-    that worked when the implementation was a thin platformdirs wrapper no
-    longer drives the code path reliably on non-Windows runners, so this test
-    must run on the real ``windows-latest`` CI job.
-    """
+    """Windows keeps a distinct runtime-root compatibility contract."""
 
     @pytest.mark.windows_ci
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On Windows, default uses platformdirs user_data_dir (1A-08)."""
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
-        monkeypatch.setattr(platformdirs, "user_data_dir", lambda *_args, **_kwargs: (
-            r"C:\Users\test\AppData\Local\kittify"
-        ))
-        result = get_kittify_home()
-        assert result == Path(r"C:\Users\test\AppData\Local\kittify")
-
-
-# ---------------------------------------------------------------------------
-# T005: SPEC_KITTY_HOME env var override tests
-# ---------------------------------------------------------------------------
+        monkeypatch.setattr(
+            platformdirs,
+            "user_data_dir",
+            lambda *_args, **_kwargs: r"C:\Users\test\AppData\Local\kittify",
+        )
+        assert get_kittify_home() == Path(r"C:\Users\test\AppData\Local\kittify")
 
 
 class TestSpecKittyHomeEnvOverride:
-    """SPEC_KITTY_HOME environment variable overrides default path."""
+    """``SPEC_KITTY_HOME`` overrides the platform default."""
 
     def test_env_override(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """SPEC_KITTY_HOME overrides default on all platforms (1A-09)."""
         custom_path = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom_path)
-        result = get_kittify_home()
-        assert result == Path(custom_path)
+        assert get_kittify_home() == Path(custom_path)
 
     def test_env_override_on_windows(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """SPEC_KITTY_HOME takes precedence even on Windows (1A-09)."""
         custom_path = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom_path)
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
-        result = get_kittify_home()
-        assert result == Path(custom_path)  # env var wins over platformdirs
+        assert get_kittify_home() == Path(custom_path)
 
     def test_env_override_returns_path(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Env override returns a Path object."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
-        result = get_kittify_home()
-        assert isinstance(result, Path)
+        assert isinstance(get_kittify_home(), Path)
 
     def test_empty_env_var_uses_default(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Empty SPEC_KITTY_HOME falls through to platform default."""
         monkeypatch.setenv("SPEC_KITTY_HOME", "")
         monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
-        result = get_kittify_home()
-        # Empty string is falsy, so should fall through
-        assert result == Path.home() / ".kittify"
+        assert get_kittify_home() == Path.home() / ".kittify"
 
 
-# ---------------------------------------------------------------------------
-# T005: get_package_asset_root() tests
-# ---------------------------------------------------------------------------
+def test_package_asset_root_compatibility_surface_delegates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The public legacy import delegates to the kernel authority by identity."""
+    expected = tmp_path / "sentinel-missions"
+    monkeypatch.setattr(
+        "specify_cli.runtime.home.kernel.paths.get_package_asset_root",
+        lambda: expected,
+    )
 
-
-class TestGetPackageAssetRoot:
-    """Package asset discovery via SPEC_KITTY_TEMPLATE_ROOT and importlib."""
-
-    def test_template_root_env_override(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """SPEC_KITTY_TEMPLATE_ROOT overrides package discovery."""
-        missions = tmp_path / "missions"
-        templates = missions / "software-dev" / "templates"
-        templates.mkdir(parents=True)
-        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
-        result = get_package_asset_root()
-        assert result == missions
-
-    def test_template_root_checkout_root_normalizes_to_doctrine_missions(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """A checkout root env var resolves to src/doctrine/missions."""
-        checkout = tmp_path / "spec-kitty"
-        missions = checkout / "src" / "doctrine" / "missions"
-        templates = missions / "software-dev" / "templates"
-        templates.mkdir(parents=True)
-        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
-
-        assert get_package_asset_root() == missions
-
-    def test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """A direct stale specify_cli missions root resolves to doctrine assets."""
-        checkout = tmp_path / "spec-kitty"
-        stale_missions = checkout / "src" / "specify_cli" / "missions"
-        stale_software_dev = stale_missions / "software-dev"
-        stale_software_dev.mkdir(parents=True)
-        (stale_software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
-
-        doctrine_missions = checkout / "src" / "doctrine" / "missions"
-        templates = doctrine_missions / "software-dev" / "templates"
-        templates.mkdir(parents=True)
-        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(stale_missions))
-
-        assert get_package_asset_root() == doctrine_missions
-
-    def test_template_root_checkout_root_falls_back_to_legacy_specify_cli_missions(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """A legacy checkout without doctrine assets still resolves."""
-        checkout = tmp_path / "spec-kitty"
-        missions = checkout / "src" / "specify_cli" / "missions"
-        templates = missions / "software-dev" / "templates"
-        templates.mkdir(parents=True)
-        (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(checkout))
-
-        assert get_package_asset_root() == missions
-
-    def test_template_root_legacy_package_asset_root_with_command_templates(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """A direct package asset root with command templates remains valid."""
-        package_assets = tmp_path / "pkg"
-        command_templates = package_assets / "software-dev" / "command-templates"
-        command_templates.mkdir(parents=True)
-        (command_templates / "implement.md").write_text("# Implement\n", encoding="utf-8")
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
-
-        assert get_package_asset_root() == package_assets
-
-    def test_template_root_legacy_package_asset_root_with_mission_yaml(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """A direct package asset root with only mission YAML is incomplete."""
-        package_assets = tmp_path / "pkg"
-        mission = package_assets / "software-dev"
-        mission.mkdir(parents=True)
-        (mission / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_assets))
-
-        with pytest.raises(FileNotFoundError, match="does not contain mission assets"):
-            get_package_asset_root()
-
-    def test_template_root_env_nonexistent_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """SPEC_KITTY_TEMPLATE_ROOT with invalid path raises FileNotFoundError."""
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", "/nonexistent/path")
-        with pytest.raises(FileNotFoundError, match="SPEC_KITTY_TEMPLATE_ROOT"):
-            get_package_asset_root()
-
-    def test_template_root_existing_invalid_dir_raises(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """SPEC_KITTY_TEMPLATE_ROOT must contain recognizable mission assets."""
-        empty_root = tmp_path / "empty"
-        empty_root.mkdir()
-
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(empty_root))
-
-        with pytest.raises(FileNotFoundError, match="does not contain mission assets"):
-            get_package_asset_root()
-
-    def test_importlib_discovery(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Falls through to importlib.resources when env var not set."""
-        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        # Should find missions via importlib or dev layout
-        result = get_package_asset_root()
-        assert result.is_dir()
-        assert result.name == "missions"
-
-    def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Return type is Path."""
-        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        result = get_package_asset_root()
-        assert isinstance(result, Path)
-
-    def test_returns_existing_directory(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Returned path must exist as a directory."""
-        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        result = get_package_asset_root()
-        assert result.is_dir()
-
-    def test_dev_layout_fallback(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Falls back to dev layout when importlib discovery fails."""
-        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        # Block importlib path so it falls through to dev layout
-        monkeypatch.setattr(
-            "specify_cli.runtime.home.importlib.resources.files",
-            lambda _pkg: type("Fake", (), {"__truediv__": lambda s, n: Path("/nonexistent")})(),
-        )
-        result = get_package_asset_root()
-        assert result.is_dir()
-        assert result.name == "missions"
+    assert get_package_asset_root() is expected

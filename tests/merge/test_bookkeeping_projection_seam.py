@@ -1,12 +1,14 @@
 """Seam test for ``specify_cli.merge.bookkeeping_projection`` (mission #2057, WP09).
 
 Covers the security-sensitive path-trust assertions (trusted AND rejected
-branches), the snapshot capture/restore round-trip (byte-identical), and the
-``_restore_final_bookkeeping_snapshots`` signature the executor depends on
-(INV-6). The re-export-identity and one-way-import guards (FR-003, FR-006,
-INV-2) live in the consolidated ``tests/merge/test_merge_compat_surface.py``
-(WP04, dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps
-only the functional coverage.
+branches) and the surviving coord→target projection helpers. The
+final-bookkeeping snapshot/restore compensator that used to live in this module
+was RETIRED by the lifecycle-gate-execution-context mission (WP09 / T048 / TAO-3):
+the merge executor now enrols its bytes with the SINGLE owner compensator in
+``coordination.atomic_write``, so the compensator round-trip / trust tests below
+re-point onto that owner surface (same byte-identical semantics). The
+re-export-identity and one-way-import guards live in the consolidated
+``tests/merge/test_merge_compat_surface.py``.
 """
 
 from __future__ import annotations
@@ -16,19 +18,20 @@ from unittest.mock import patch
 
 import pytest
 
+from specify_cli.coordination import atomic_write as aw
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.merge import bookkeeping_projection as bp
 
 pytestmark = pytest.mark.fast
 
 
-def test_restore_final_bookkeeping_snapshots_signature_stable() -> None:
-    """INV-6: the executor (WP10) calls this with a single dict positional arg."""
+def test_restore_generated_artifact_snapshots_signature_stable() -> None:
+    """TAO-3: the ONE owner compensator restores from a single dict positional arg."""
     import inspect
 
-    sig = inspect.signature(bp._restore_final_bookkeeping_snapshots)
+    sig = inspect.signature(aw.restore_generated_artifact_snapshots)
     params = list(sig.parameters)
-    assert params == ["snapshots"]
+    assert params[0] == "snapshots"
 
 
 # --- _validate_mission_slug_path_segment ------------------------------------
@@ -57,11 +60,11 @@ def test_capture_and_restore_round_trip(tmp_path: Path) -> None:
     events = repo / KITTY_SPECS_DIR / "m" / "status.events.jsonl"
     events.write_text("ORIGINAL\n", encoding="utf-8")
 
-    with patch.object(bp, "get_main_repo_root", lambda _r: repo):
-        snapshots = bp._capture_bookkeeping_snapshots(repo, events)
-        # Mutate, then restore.
-        events.write_text("MUTATED\n", encoding="utf-8")
-        bp._restore_final_bookkeeping_snapshots(snapshots)
+    roots = [repo / KITTY_SPECS_DIR]
+    snapshots = aw.capture_generated_artifact_snapshots(events, trusted_roots=roots)
+    # Mutate, then restore through the single owner compensator.
+    events.write_text("MUTATED\n", encoding="utf-8")
+    aw.restore_generated_artifact_snapshots(snapshots)
     assert events.read_text(encoding="utf-8") == "ORIGINAL\n"
 
 
@@ -69,32 +72,32 @@ def test_capture_restore_recreates_deleted_file(tmp_path: Path) -> None:
     repo = _repo_with_spec(tmp_path)
     events = repo / KITTY_SPECS_DIR / "m" / "status.events.jsonl"
     # Absent at capture time -> snapshot is None -> restore must remove it.
-    with patch.object(bp, "get_main_repo_root", lambda _r: repo):
-        snapshots = bp._capture_bookkeeping_snapshots(repo, events)
-        events.write_text("CREATED-AFTER-CAPTURE\n", encoding="utf-8")
-        bp._restore_final_bookkeeping_snapshots(snapshots)
+    roots = [repo / KITTY_SPECS_DIR]
+    snapshots = aw.capture_generated_artifact_snapshots(events, trusted_roots=roots)
+    events.write_text("CREATED-AFTER-CAPTURE\n", encoding="utf-8")
+    aw.restore_generated_artifact_snapshots(snapshots)
     assert not events.exists()
 
 
-# --- path-trust: trusted + rejected branches --------------------------------
+# --- path-trust: trusted + rejected branches (owner containment) -------------
 
 
 def test_snapshot_trust_accepts_kitty_specs(tmp_path: Path) -> None:
     repo = _repo_with_spec(tmp_path)
     candidate = repo / KITTY_SPECS_DIR / "m" / "status.json"
-    with patch.object(bp, "get_main_repo_root", lambda _r: repo):
-        trusted = bp._assert_bookkeeping_snapshot_path_is_trusted(repo_root=repo, candidate=candidate)
-    assert trusted == candidate.resolve()
+    snapshots = aw.capture_generated_artifact_snapshots(
+        candidate, trusted_roots=[repo / KITTY_SPECS_DIR]
+    )
+    assert candidate.resolve(strict=False) in snapshots
 
 
 def test_snapshot_trust_rejects_outside_path(tmp_path: Path) -> None:
     repo = _repo_with_spec(tmp_path)
     outside = tmp_path / "elsewhere" / "evil.json"
-    with (
-        patch.object(bp, "get_main_repo_root", lambda _r: repo),
-        pytest.raises(ValueError),
-    ):
-        bp._assert_bookkeeping_snapshot_path_is_trusted(repo_root=repo, candidate=outside)
+    with pytest.raises(ValueError):
+        aw.capture_generated_artifact_snapshots(
+            outside, trusted_roots=[repo / KITTY_SPECS_DIR]
+        )
 
 
 def test_status_surface_trust_accepts_kitty_specs(tmp_path: Path) -> None:

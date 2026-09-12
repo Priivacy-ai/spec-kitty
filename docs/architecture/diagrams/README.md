@@ -2,7 +2,7 @@
 title: Architecture Diagrams (living C4)
 description: The living C4 model for the current 3.x architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified 3.x domain model.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-12'
 related:
 - docs/architecture/README.md
 - docs/architecture/diagrams/01_context/README.md
@@ -57,3 +57,15 @@ the modules as the shared Op shape.
 > Deterministic diagram **generation** (Structurizr/PlantUML) is deliberately out
 > of scope here — see upstream `#1839` (deduped vs `#1812`). This living C4 stays
 > hand-authored per R-04; the generated-C4 swap is cross-referenced only.
+>
+> **R-04 carve-out (2026-08-12) — a separate lane, not a reversal.** R-04 is
+> **unchanged for the hand-authored C4 architecture diagrams** in this directory:
+> they stay hand-authored Markdown + Mermaid so they render on GitHub, and
+> deterministic *generation of the C4 model* remains out of scope. A **new,
+> narrowly-scoped lane** now covers a different genre — **generated,
+> docsite-only schema diagrams of code models** (the doctrine artefact schemas:
+> agent-profile, mission-type/step, DRG, artefact-kind vocabulary). Those are
+> `@startyaml` diagrams generated from the frozen models, rendered at docs-build
+> time and drift-guarded, and they render **only on the built docsite**, not on
+> github.com source view. This lane does **not** touch the C4 diagrams here. See
+> [`../../adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md`](../../adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md).

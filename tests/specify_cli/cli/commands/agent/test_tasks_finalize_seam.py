@@ -298,15 +298,14 @@ def test_patched_output_result_intercepts_ft_output_validate_only_leg(
 
 
 def test_patched_output_error_intercepts_do_finalize_tasks_exception_arm() -> None:
-    """``tasks._output_error`` + ``tasks.emit_error_logged`` bite through
-    ``_do_finalize_tasks``' generic exception arm (exit-1 translation). The
+    """``tasks._output_error`` bites through ``_do_finalize_tasks``' generic
+    exception arm (exit-1 translation). The
     failure is injected through the routed ``tasks.locate_project_root`` D7
     seam — the orchestrator reaches its ``_ft_*`` phase siblings by bare
     same-module name, so the phases themselves are deliberately NOT patch
     targets."""
     with (
         patch(f"{_TASKS}.locate_project_root", side_effect=RuntimeError("boom")),
-        patch(f"{_TASKS}.emit_error_logged") as logged_mock,
         patch(f"{_TASKS}._output_error") as error_mock,
         pytest.raises(typer.Exit) as exc_info,
     ):
@@ -316,8 +315,6 @@ def test_patched_output_error_intercepts_do_finalize_tasks_exception_arm() -> No
             validate_only=False,
         )
     assert exc_info.value.exit_code == 1
-    logged_mock.assert_called_once()
-    assert logged_mock.call_args.kwargs["error_message"] == "boom"
     error_mock.assert_called_once_with(True, "boom")
 
 

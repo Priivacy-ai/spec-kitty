@@ -10,19 +10,15 @@ All recovery transitions use actor="recovery" for auditability.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.mission_metadata import load_meta
-from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
     mission_branch_name_required,
@@ -599,11 +595,24 @@ def scan_recovery_state(
     """
     # PRIMARY leg: lanes.json / tasks/ live on the PRIMARY checkout (#2106). A
     # single PRIMARY read dir co-resolves both LANE_STATE and WORK_PACKAGE_TASK.
-    primary_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
-    )
+    seam = placement_seam(repo_root, mission_slug)
+    primary_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
     # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
-    coord_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # Fail-loud on a DELETED coordination branch is deliberate and specified: the
+    # WP02 classification ledger records this site as `migrate-fail-loud` because
+    # "recovery-state computation genuinely needs to know whether the coord branch
+    # backing a WP's event log was deleted, rather than silently reading a
+    # stale/absent surface". See docs/development/read-side-seam-classification.md
+    # (`lanes/recovery.py` row) and the acceptance test
+    # tests/specify_cli/merge/test_read_seam_migration_merge_lanes.py
+    # ::test_recovery_scan_fails_loud_when_coordination_branch_was_deleted.
+    #
+    # Tracked follow-up (do not "fix" here): reviewers argue `implement --recover`
+    # is the operator's escape hatch from broken state and should render this as a
+    # report finding carrying the exception's `doctor coordination --fix` next_step
+    # rather than raising. That is a deliberate UX contract change and is out of
+    # scope for the read-side seam migration; it needs its own mission.
+    coord_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
 
     branches = _list_mission_branches(repo_root, mission_slug)
     lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
@@ -703,8 +712,8 @@ def recover_context(
     # FR-001 (#2185): lane→WP membership and the mission branch are read from
     # ``lanes.json`` (LANE_STATE) / ``meta.json`` (PRIMARY_METADATA) — both
     # PRIMARY-partition, resolved topology-blind onto the PRIMARY checkout.
-    feature_dir = resolve_planning_read_dir(
-        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.LANE_STATE
     )
     worktree_path = _worktree_path(
         repo_root, mission_slug, mission_id=None, lane_id=state.lane_id

@@ -1,0 +1,162 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: SPEC-VERIFY-001
+    lens: corpus-gate falsifiability / bar-setting integrity
+    severity: 4
+    title: FP-rate acceptance bar deferred to plan phase with no ceiling or forcing function
+    evidence:
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 3"
+      - artifact: "spec.md § FR-006"
+      - artifact: "spec.md § C-006"
+      - artifact: "spec.md § SC-006"
+      - code: "src/specify_cli/requirement_mapping.py:44-53 (docstring recording #3395's 6% figure, verified verbatim on this checkout)"
+    claim: >
+      Story 4 Scenario 3 says a rate "anywhere near #3395's rejected 6% is
+      presumptively too high" but explicitly defers the actual numeric bar to
+      the plan phase ("this mission's plan phase sets and justifies the
+      bar"). Nothing in spec.md gives the plan phase a ceiling it must
+      justify deviation FROM -- there is no stated maximum (e.g. "must not
+      exceed 2%"), no requirement that the chosen bar be lower than 6%, and
+      no requirement that the bar itself (as opposed to the resulting
+      measured number, per C-006) be independently reviewed before
+      implementation proceeds. FR-006/SC-006/C-006 only police what happens
+      AFTER a bar is chosen ("if unacceptably high, narrow and re-measure");
+      "unacceptably high" is entirely self-defined by the same plan phase
+      that will read the measured number. A plan could set the bar at, say,
+      15-20%, write one sentence of justification, and technically satisfy
+      FR-006's letter (nothing above the self-chosen bar occurred) while
+      defeating Story 4's stated purpose of gating a noisy signal. This is
+      the classic "unfalsifiable success criterion" pattern: the passing
+      threshold is set only after (or concurrently with) knowing what
+      number will be measured, by the same actor whose plan needs it to
+      land.
+    remediation: >
+      Either (a) set the actual numeric ceiling in spec.md itself (e.g. add
+      a Constraint: "the accepted false-positive rate must not exceed
+      <=X%, materially below #3395's rejected 6%"), or (b) keep the
+      deferral but bound it: add a Constraint/FR requiring that any
+      plan-phase bar above a stated default ceiling (e.g. 2%) carries an
+      explicit, evidence-backed justification that is independently
+      reviewed (not merely self-documented) before FR-006/C-006 can be
+      considered satisfied -- e.g. require the chosen bar and its
+      justification to be a named checklist item in the mandatory post-plan
+      review pass for this mission, not merely "documented" by the same
+      plan that proposes it.
+
+  - id: SPEC-VERIFY-002
+    lens: corpus-gate falsifiability / bar-setting integrity
+    severity: 3
+    title: Corpus false-positive classification methodology is unspecified and not required to be preserved, risking a repeat of #3395's own lost-measurement failure
+    evidence:
+      - artifact: "spec.md § User Story 4, Independent Test (\"manually or systematically classifies each as a true or false positive\")"
+      - artifact: "spec.md § User Story 4, Acceptance Scenario 4"
+      - artifact: "spec.md § FR-005"
+      - code: "src/specify_cli/requirement_mapping.py:44-53 (\"the prototype and its measurement were not preserved outside the Op transcript, so this sentence is the durable record of the number and the rationale\" -- verified verbatim)"
+    claim: >
+      spec.md's own Context section names the exact failure mode it must not
+      repeat: #3395's 6% figure was asserted with the underlying
+      prototype/measurement never preserved outside an Op transcript, so
+      the docstring sentence is the ONLY surviving record. Story 4's
+      Independent Test explicitly leaves classification method open
+      ("manually or systematically") and Scenario 4 only requires the
+      docstring to record "the number, the corpus size and date ... and the
+      rationale" -- not the classification method, not who/what performed
+      it, and not a reproducible script or procedure. A repo search
+      confirms there is no existing corpus-validation script or fixture in
+      this codebase to reuse (checked `scripts/`, `src/charter/corpus/`
+      grep) -- this mission's plan phase starts from nothing, exactly as
+      #3395's did, with the same risk that the classification work is done
+      ad hoc (in an Op transcript or a subagent turn) and never checked in.
+      As written, a future maintainer reading the module docstring gets a
+      number but, same as with the 6% figure today, has no way to verify or
+      re-run how it was produced.
+    remediation: >
+      Extend FR-005 (or add a new FR) to require that the corpus-validation
+      procedure itself -- not only its resulting number -- is committed
+      in-repo (e.g. a script under `scripts/` or a parametrized test under
+      `tests/`) so the measurement is re-runnable, and require the
+      docstring to state whether classification was automated (name the
+      heuristic) or manual (name that it was manual and how ties/
+      ambiguity were resolved). This closes the exact evidentiary gap the
+      mission's own Context section identifies in #3395's precedent.
+
+  - id: SPEC-VERIFY-003
+    lens: silent-success
+    severity: 4
+    title: "Section-scoping via _is_requirement_heading is structurally blind to the corpus's dominant Constraints heading, leaving C-XXX bare prose undetectable and undetected by Story 4's FP-only corpus validation"
+    evidence:
+      - artifact: "spec.md § Key Entities (\"Bare-prose requirement candidate: a raw FR-/NFR-/C--shaped token found inside a heading section whose title names 'Requirements'\")"
+      - artifact: "spec.md § Edge Cases (\"Heading-title matching for 'Requirements' sections\" -- names over-match risk and a hypothetical under-match example only, not Constraints)"
+      - artifact: "spec.md § User Story 4 Independent Test/Acceptance Scenarios (measures false positives only, never false negatives)"
+      - code: "src/specify_cli/requirement_mapping.py:107-109 (_is_requirement_heading: `stripped.startswith(\"#\") and \"requirement\" in stripped.lower()`)"
+      - code: "kitty-specs/*/spec.md: 325 of 368 files (~88%) use a `### Constraints` or `## Constraints` heading, verified via `grep -rln '^### Constraints\\|^## Constraints' kitty-specs/*/spec.md`"
+    claim: >
+      This mission's own model of "declared" requirement shapes and the
+      reused scoping mechanism (`_requirement_named_sections` /
+      `_is_requirement_heading`) both explicitly include `C-` ids as a
+      requirement type this mission must protect (Key Entities, C-001..C-006
+      in this very spec.md). But `_is_requirement_heading` only matches
+      headings whose text contains the literal substring "requirement" --
+      and the canonical, near-universal section heading for Constraints
+      across the real corpus is "### Constraints" (88% of 368 corpus files),
+      which does not contain "requirement." A bare-prose C-XXX item written
+      under a "### Constraints" heading (the dominant real-world shape) would
+      therefore never be scoped into any `_requirement_named_sections`
+      result at all -- not flagged, not warned, not blocked -- because the
+      section itself is invisible to the scoping mechanism this mission
+      reuses "as-is" (FR-001: "reusing `_requirement_named_sections` /
+      `find_undeclared_requirement_citations`-style scoping"). This is the
+      same silent-success shape #3396 exists to fix, recurring one category
+      deeper, and Story 4's corpus validation as scoped (FP rate only: "how
+      many real specs would newly block ... true or false positive") cannot
+      surface it, because a false NEGATIVE produces zero blocks, zero flags,
+      and therefore contributes nothing to a false-positive-rate
+      measurement -- the corpus validation methodology as specified has no
+      mechanism to detect this class of miss at all. spec.md's Edge Cases
+      section discusses heading-title over/under-matching only in the
+      abstract ("What This Spec Must Do") and never names Constraints,
+      despite it being the dominant, empirically-verifiable real case, not a
+      hypothetical one.
+    remediation: >
+      Add an explicit Edge Case / Constraint naming the Constraints-heading
+      gap (cite the ~88% corpus figure) and require the plan phase to do one
+      of: (a) broaden the heading-match predicate used for C-XXX scoping
+      (e.g. also match "constraint" the way it matches "requirement", or
+      define a per-id-prefix heading vocabulary), or (b) explicitly narrow
+      FR-001/Key Entities to state that C-XXX bare-prose detection is
+      out of scope for this mission and justify why, rather than silently
+      implying full FR/NFR/C coverage while only ever exercising it against
+      FR-titled sections. Also extend Story 4's corpus-validation
+      methodology to sample for false negatives (specs with real bare-prose
+      C-XXX/NFR-XXX items that the detector fails to flag), not only false
+      positives, since the FP-only measurement cannot detect this class of
+      gap.
+
+  - id: SPEC-VERIFY-004
+    lens: falsifiability / traceability
+    severity: 2
+    title: "Context section promises a hash-discrepancy explanation in Clarifications that the Clarifications section does not contain"
+    evidence:
+      - artifact: "spec.md § Context (\"commit `3823f2b00` on this checkout — see Clarifications for the hash discrepancy versus the issue text's `ae7eba9b2`\")"
+      - artifact: "spec.md § Clarifications (single Q&A entry, about branching from #3395's branch only -- no hash-discrepancy entry present)"
+      - code: "verified `3823f2b00` is a real commit, ancestor of this checkout's HEAD (`git merge-base --is-ancestor 3823f2b00 HEAD` succeeds); `ae7eba9b2` is not a valid object in this repository (`git cat-file -t ae7eba9b2` fails)"
+    claim: >
+      spec.md's Context section explicitly defers explanation of a stated
+      hash discrepancy ("3823f2b00" here vs. the issue text's "ae7eba9b2")
+      to the Clarifications section, but the Clarifications section (a
+      single Q&A about the branch-from-#3395 decision) contains no such
+      entry. The commit this spec actually cites (`3823f2b00`) is verified
+      correct and is the real revert commit; the reader is left unable to
+      tell whether `ae7eba9b2` is a typo, a different fork's rebase of the
+      same change, or something requiring investigation, because the
+      promised explanation was never written.
+    remediation: >
+      Either add the missing entry to Clarifications explaining what
+      `ae7eba9b2` is (typo / rebased hash / issue-author's local commit) and
+      why `3823f2b00` is the authoritative reference for this checkout, or
+      remove the "see Clarifications" pointer from the Context section if no
+      further explanation is actually needed.

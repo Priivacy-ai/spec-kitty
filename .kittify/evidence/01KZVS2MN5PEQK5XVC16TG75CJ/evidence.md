@@ -1,0 +1,1 @@
+Architecture review of Core PR#3293 (b75a2522) and SaaS PR#795 (a725c489): boundary seams sound; findings on stale contract pin, dormant strict-admission flag, planned-WP work on PR heads, unreviewed 92-file repair checkpoint, no full CI on heads.

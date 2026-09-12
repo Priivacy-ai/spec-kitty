@@ -1,9 +1,12 @@
 ---
 title: 'PR #305 Review Resolution Plan'
 description: 'Resolution plan for the PR #305 review (specs 046/048/054): the agreed approach to the critical and major issues the review identified.'
-doc_status: draft
-updated: '2026-04-06'
+doc_status: deprecated
+updated: '2026-08-12'
 ---
+
+> ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Per-PR review working note for PR #305 (agent-profile-implementation); the agent-profile system shipped as mission `045-agent-profile-system` (#136 / #1975). Content preserved as an audit-trail record.
+
 # PR #305 Review Resolution Plan
 
 **Context**: A prior code review of PR #305 (specs 046, 048, 054) identified two

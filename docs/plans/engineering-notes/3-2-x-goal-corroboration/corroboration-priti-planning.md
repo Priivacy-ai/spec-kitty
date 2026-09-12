@@ -1,7 +1,7 @@
 ---
 title: 3.2.x Goal Corroboration — Planning / Tracking POV (planner-priti)
 description: "Planner Priti's corroboration of the 3.2.x goals from the planning/tracking lens: the git-meta and tracker record of missions, PRs, issues, and commit counts."
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-16'
 ---
 # 3.2.x Goal Corroboration — Planning / Tracking POV (planner-priti)
@@ -97,6 +97,7 @@ to 3.3.x); their volume is the noise floor against which the three goals stand o
 ## Per-Goal Corroboration Verdict
 
 ### G1 — SUPPORTED, with a depth qualifier
+
 Quantitatively undeniable as a **direction**: 26 in-range missions and 157 doctrine/charter/DRG
 path-commits, plus a 204-file doctrine test corpus and concrete *runtime-wiring* commits
 (`mission_step_contracts/test_executor.py`; step-contract-runtime-input #1523; DRG node-kind #1518;
@@ -109,6 +110,7 @@ just resolves" proof is an architect/test-level assertion (`naming-identity-ssot
 G1 as the *next* slice, not yet closed). So: **continuation confirmed; success-criterion closure pending.**
 
 ### G2 — SUPPORTED (strongest-evidenced)
+
 This is the spine of the release. 28 in-range missions, and the heaviest path-commit concentration in the
 whole codebase: status **77**, core **61**, missions **58**, coordination **42**, lanes **35**. The
 strangler vocabulary is explicit in subjects ("canonical mission_runtime surface + status-facade
@@ -121,6 +123,7 @@ proving the trajectory runs *into* 3.2.0, not stopping short of it. The ratchet 
 the goal claims. Net-new pivot? No — these are #1619/#1666/#1868/#1878 epic slices, multi-mission chains.
 
 ### G3 — SUPPORTED
+
 19 in-range missions plus the largest PR-bucket (37, releng/sonar/ci/lint/hooks/parallel) and 72
 workflow-file commits, 760 test-file commits. The two named devex governance artifacts —
 `HOW_TO_MAINTAIN.md` and the `docs/release-goals/` convention — **exist and landed in-range**, directly

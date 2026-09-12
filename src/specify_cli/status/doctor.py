@@ -11,16 +11,27 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from .models import Lane
+from kernel.clock import now_utc, parse_iso
+from .models import Lane, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
 
 logger = logging.getLogger(__name__)
+
+#: Lanes for which a WP is finished — a blanked runtime slot on one of these is
+#: not actionable (the work is over), so ``check_blanked_runtime_slots`` skips
+#: them. Mirrors ``check_orphan_workspaces``' terminal set.
+_TERMINAL_LANES: frozenset[Lane] = frozenset({Lane.DONE, Lane.CANCELED})
+
+#: The string-scalar runtime slots a ``WPInnerStateDelta`` can fold into a WP
+#: snapshot. Derived from the single canonical field list (C-005: no second
+#: copy) so a new scalar slot is covered automatically. An empty string in any
+#: of these on a non-terminal WP is corrupt canonical state (#2960 / FR-014).
+_BLANKABLE_RUNTIME_SLOTS: tuple[str, ...] = WPInnerStateDelta._SCALAR_FIELDS
 
 
 class Severity(StrEnum):
@@ -37,6 +48,8 @@ class Category(StrEnum):
     ISSUE_MATRIX = "issue_matrix"
     SPARSE_CHECKOUT = "sparse_checkout"
     UNINITIALIZED_STATUS = "uninitialized_status"
+    DUPLICATE_FRONTMATTER_KEY = "duplicate_frontmatter_key"
+    BLANKED_RUNTIME_SLOT = "blanked_runtime_slot"
 
 
 @dataclass
@@ -129,16 +142,10 @@ def check_uninitialized_status(
 
     root_cause = cycle_root_cause(feature_dir)
     if root_cause is not None:
-        message = (
-            f"Mission has {len(wp_files)} work package(s) defined but canonical "
-            f"status is not initialized: {root_cause}"
-        )
+        message = f"Mission has {len(wp_files)} work package(s) defined but canonical status is not initialized: {root_cause}"
         action = "Resolve the dependency cycle, then run `spec-kitty agent mission finalize-tasks`."
     else:
-        message = (
-            f"Mission has {len(wp_files)} work package(s) defined but canonical "
-            f"status is not initialized (event log missing/empty)."
-        )
+        message = f"Mission has {len(wp_files)} work package(s) defined but canonical status is not initialized (event log missing/empty)."
         action = "Run `spec-kitty agent mission finalize-tasks` to bootstrap the event log."
     return [
         Finding(
@@ -160,7 +167,7 @@ def check_stale_claims(
 ) -> list[Finding]:
     """Check for WPs stuck in claimed or in_progress."""
     findings: list[Finding] = []
-    now = datetime.now(UTC)
+    now = now_utc()
 
     work_packages = snapshot.get("work_packages", {})
     for wp_id, wp_state in work_packages.items():
@@ -171,7 +178,7 @@ def check_stale_claims(
             continue
 
         try:
-            transition_time = datetime.fromisoformat(last_transition_at)
+            transition_time = parse_iso(last_transition_at)
         except (ValueError, TypeError):
             continue
 
@@ -184,14 +191,9 @@ def check_stale_claims(
                     category=Category.STALE_CLAIM,
                     wp_id=wp_id,
                     message=(
-                        f"{wp_id} has been in 'claimed' for {age_days} days "
-                        f"(threshold: {claimed_threshold_days} days). "
-                        f"Actor: {wp_state.get('actor', 'unknown')}"
+                        f"{wp_id} has been in 'claimed' for {age_days} days (threshold: {claimed_threshold_days} days). Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Either begin work on {wp_id} (move to in_progress) "
-                        f"or release the claim (move back to planned)."
-                    ),
+                    recommended_action=(f"Either begin work on {wp_id} (move to in_progress) or release the claim (move back to planned)."),
                 )
             )
 
@@ -206,13 +208,48 @@ def check_stale_claims(
                         f"(threshold: {in_progress_threshold_days} days). "
                         f"Actor: {wp_state.get('actor', 'unknown')}"
                     ),
-                    recommended_action=(
-                        f"Check if {wp_id} is blocked (move to blocked with reason) "
-                        f"or complete the work (move to for_review)."
-                    ),
+                    recommended_action=(f"Check if {wp_id} is blocked (move to blocked with reason) or complete the work (move to for_review)."),
                 )
             )
 
+    return findings
+
+
+def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
+    """Flag non-terminal WPs whose runtime attribution slots are blanked (#2960).
+
+    An annotation carrying ``agent: ""`` (or any empty-string scalar runtime
+    slot) that reached the snapshot means recorded attribution was clobbered
+    with a blank — corrupt canonical state that must NOT read as Healthy
+    (FR-014). The write-boundary normalization in ``WPInnerStateDelta`` and the
+    reducer no-op guard prevent new blanks; this check is the read-side net that
+    catches state already corrupt on disk (e.g. a legacy log).
+
+    Terminal WPs (``done``/``canceled``) are skipped — a blank slot on finished
+    work is not actionable.
+    """
+    findings: list[Finding] = []
+    work_packages = snapshot.get("work_packages", {})
+    for wp_id, wp_state in work_packages.items():
+        if wp_state.get("lane") in _TERMINAL_LANES:
+            continue
+        for slot in _BLANKABLE_RUNTIME_SLOTS:
+            value = wp_state.get(slot)
+            if isinstance(value, str) and value == "":
+                findings.append(
+                    Finding(
+                        severity=Severity.ERROR,
+                        category=Category.BLANKED_RUNTIME_SLOT,
+                        wp_id=wp_id,
+                        message=(f"{wp_id} runtime slot '{slot}' is an empty string — recorded attribution was blanked (corrupt canonical state, #2960)."),
+                        recommended_action=(
+                            f"Re-record {wp_id}'s '{slot}' with a real value, or "
+                            f"drop the blanking annotation from the event log; the "
+                            f"reducer treats '' as a no-op so a fresh non-empty "
+                            f"annotation restores it."
+                        ),
+                    )
+                )
     return findings
 
 
@@ -285,9 +322,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                 category=Category.MATERIALIZATION_DRIFT,
                 wp_id=None,
                 message=msg,
-                recommended_action=(
-                    "Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."
-                ),
+                recommended_action=("Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."),
             )
         )
 
@@ -339,17 +374,26 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
     return findings
 
 
-def check_issue_matrix(feature_dir: Path) -> list[Finding]:
-    """Flag missions with issue references whose issue-matrix verdicts are missing."""
-    spec_path = feature_dir / "spec.md"
-    if not spec_path.exists():
-        return []
+def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = None) -> list[Finding]:
+    """Flag missions with issue references whose issue-matrix verdicts are missing.
 
+    ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
+    read surface for the issue-matrix artifact — the coordination worktree under
+    coord/lanes-with-coord topology, resolved by the caller through the shared
+    placement seam (:func:`mission_runtime.coord_read_dir_for`). Defaults to
+    ``feature_dir`` when ``None`` (coord-less missions and legacy callers).
+
+    Discovery scans every mission artifact that can carry a load-bearing GH
+    issue reference — ``spec.md``, ``plan.md``, ``research.md``,
+    ``analysis-report.md``, ``tasks/*.md``, ``contracts/*.md`` — not
+    ``spec.md`` alone (write-side-seam-matrix-tracer-01KYP3MH WP08 T029,
+    FR-004). All of those are PRIMARY-partition kinds, so discovery ALWAYS
+    reads ``feature_dir`` — never ``issue_matrix_dir``.
+    """
     try:
-        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
-        from specify_cli.tasks.issue_matrix import detect_issue_references
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-        refs = detect_issue_references(spec_path)
+        refs = discover_issue_references(feature_dir)
     except Exception as exc:
         logger.debug("Could not evaluate issue-matrix doctor check", exc_info=True)
         return [
@@ -357,7 +401,7 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=f"issue-matrix.md could not be evaluated: {exc}",
+                message=f"issue-matrix could not be evaluated: {exc}",
                 recommended_action="Fix the issue-matrix check before approval/merge.",
             )
         ]
@@ -365,20 +409,31 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
     if not refs:
         return []
 
-    matrix_path = feature_dir / "issue-matrix.md"
-    if not matrix_path.exists():
+    # T043 (C-008 / B-1 fix): presence is a dir-based check
+    # (:func:`issue_matrix_artifact_present`), not a ``.md``-only
+    # ``.exists()`` — the prior precheck made a JSON-only mission (B3) look
+    # like the matrix was missing before ``validate_issue_matrix`` (which
+    # already resolves JSON-first via WP05's canonical dir-based reader,
+    # :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`)
+    # ever ran.
+    from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+    from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_MD_FILENAME
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    matrix_dir = issue_matrix_dir or feature_dir
+    if not issue_matrix_artifact_present(matrix_dir):
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return [
             Finding(
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=f"spec.md references GitHub issues but issue-matrix.md is missing: {issue_list}.",
-                recommended_action="Create issue-matrix.md and record final verdicts before approval/merge.",
+                message=f"Mission references GitHub issues but the issue-matrix is missing: {issue_list}.",
+                recommended_action="Create the issue-matrix and record final verdicts before approval/merge.",
             )
         ]
 
-    result = validate_issue_matrix(matrix_path)
+    result = validate_issue_matrix(matrix_dir / ISSUE_MATRIX_MD_FILENAME)
     findings: list[Finding] = []
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = {row.issue for row in result.rows}
@@ -393,10 +448,7 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=(
-                    "issue-matrix.md is missing rows for referenced issue(s): "
-                    f"{', '.join(missing_issues)}."
-                ),
+                message=(f"issue-matrix.md is missing rows for referenced issue(s): {', '.join(missing_issues)}."),
                 recommended_action="Add one row per referenced issue before approval/merge.",
             )
         )
@@ -415,6 +467,37 @@ def check_issue_matrix(feature_dir: Path) -> list[Finding]:
             )
         )
 
+    return findings
+
+
+def check_duplicate_frontmatter_keys(scan_dir: Path) -> list[Finding]:
+    """Flag legacy dual-key artifacts (FR-008, #3372) — diagnostic only.
+
+    Thin delegation to the raw-text detector in
+    :mod:`specify_cli.status.dup_key_repair`. Detection CANNOT use the canonical
+    frontmatter boundary: it fails closed on duplicate keys (ruamel
+    ``DuplicateKeyError``), so loading a dual-key artifact raises rather than
+    reporting it. This check NEVER mutates; repair is opt-in via
+    ``spec-kitty doctor mission-state --fix`` (keep-last-non-empty, batch-atomic).
+    """
+    from specify_cli.status.dup_key_repair import detect_duplicate_key_artifacts
+
+    findings: list[Finding] = []
+    for finding in detect_duplicate_key_artifacts(scan_dir):
+        line_list = ", ".join(str(number) for number in finding.line_numbers)
+        findings.append(
+            Finding(
+                severity=Severity.WARNING,
+                category=Category.DUPLICATE_FRONTMATTER_KEY,
+                wp_id=None,
+                message=(
+                    f"{finding.path.name} has a duplicate frontmatter key "
+                    f"'{finding.key}' (lines {line_list}) — invalid YAML that "
+                    f"fails closed at the frontmatter boundary and will trip an upgrade."
+                ),
+                recommended_action=("Run 'spec-kitty doctor mission-state --fix' to repair duplicate-key artifacts (keep-last-non-empty, batch-atomic)."),
+            )
+        )
     return findings
 
 
@@ -462,10 +545,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     if report.primary.is_active:
         pattern_note = ""
         if report.primary.pattern_file_present:
-            pattern_note = (
-                f" (pattern file: {report.primary.pattern_file_path}, "
-                f"{report.primary.pattern_line_count} lines)"
-            )
+            pattern_note = f" (pattern file: {report.primary.pattern_file_path}, {report.primary.pattern_line_count} lines)"
         lines.append(f"Primary: {report.primary.path}{pattern_note}")
     active_wts = [w for w in report.worktrees if w.is_blocking]
     if active_wts:
@@ -476,7 +556,7 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
         "Why this matters: spec-kitty v3.0+ removed sparse-checkout "
         "support but did not ship a migration. This state can cause "
         "silent data loss during mission merge and broken lane worktrees "
-        "on agent action implement. See Priivacy-ai/spec-kitty#588."
+        "on agent action implement. See spec-kitty/spec-kitty#588."
     )
 
     findings.append(
@@ -547,13 +627,27 @@ def run_doctor(
         )
         result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
+        # FR-014 (#2960): a blanked runtime slot on an active WP is corrupt
+        # canonical state — must not read as Healthy.
+        result.findings.extend(check_blanked_runtime_slots(snapshot))
 
     result.findings.extend(check_reviewer_self_approval(feature_dir))
-    result.findings.extend(check_issue_matrix(feature_dir))
+    # coord-commit-integrity SURFACE A #1c: route the COORD-partition issue-matrix
+    # read through the shared placement seam (coord surface under
+    # coord/lanes-with-coord; primary ``feature_dir`` fallback when coord-less or
+    # the coord worktree is gone). ``spec.md`` stays on ``feature_dir`` (PRIMARY).
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+    result.findings.extend(check_issue_matrix(feature_dir, issue_matrix_dir=issue_matrix_dir))
 
     # Repo-level sparse-checkout finding (FR-002). Appended last so existing
     # findings keep their position — scripts scraping doctor output rely on
     # the order of prior findings; new ones are safe to add at the tail.
     result.findings.extend(check_sparse_checkout(repo_root))
+
+    # Legacy dual-key artifact finding (FR-008, #3372). Scoped to this mission's
+    # own artifact tree; appended at the tail for the same order-stability reason.
+    result.findings.extend(check_duplicate_frontmatter_keys(feature_dir))
 
     return result

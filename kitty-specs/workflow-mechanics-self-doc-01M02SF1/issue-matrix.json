@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#2860": {
+      "evidence_ref": "The 4-layer canonical homes #2860 built are what this mission populates; #2860 merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2985": {
+      "evidence_ref": "sync-drain defect; fixed+merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP02"
+    },
+    "#2995": {
+      "evidence_ref": "sync-drain defect; fixed+merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP02"
+    },
+    "#3437": {
+      "evidence_ref": "coverage critical-path-move shipped PR #3437 merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
+    },
+    "#3448": {
+      "evidence_ref": "Bucket-1 umbrella; merged as #3453",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#3450": {
+      "evidence_ref": "Filed not fixed by Bucket-1 G5; fix tracked at Follow-up: #3450",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3451": {
+      "evidence_ref": "Filed not fixed by Bucket-1 G5; fix tracked at Follow-up: #3451",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3452": {
+      "evidence_ref": "Filed not fixed by Bucket-1 G5; fix tracked at Follow-up: #3452",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3453": {
+      "evidence_ref": "Bucket-1 PR; merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#3464": {
+      "evidence_ref": "This mission migrates the Bucket-2 workflow/CI/status mechanics; manifest in WP06",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    },
+    "#883": {
+      "evidence_ref": "closed+unrelated; citation dropped per WP09 review",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP09"
+    }
+  },
+  "schema_version": 1
+}

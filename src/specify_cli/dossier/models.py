@@ -7,10 +7,11 @@ including ArtifactRef (individual artifact metadata) and MissionDossier
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from datetime import datetime, UTC
 from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 import uuid
+
+from kernel.clock import datetime, now_utc
 
 
 class ArtifactRef(BaseModel):
@@ -96,7 +97,7 @@ class ArtifactRef(BaseModel):
 
     # Timestamps
     indexed_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=now_utc,
         description="When this artifact was indexed",
     )
 
@@ -212,11 +213,11 @@ class MissionDossier(BaseModel):
 
     # Timestamps
     dossier_created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=now_utc,
         description="When dossier was created",
     )
     dossier_updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=now_utc,
         description="When dossier was last updated",
     )
 
@@ -350,7 +351,7 @@ class MissionDossierSnapshot(BaseModel):
 
     # Timestamp
     computed_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=now_utc,
         description="When snapshot was computed (UTC)",
     )
 
@@ -368,12 +369,18 @@ class MissionDossierSnapshot(BaseModel):
     @field_validator("parity_hash_sha256")
     @classmethod
     def validate_parity_hash_sha256(cls, v):
-        """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
+        """Validate parity_hash_sha256 is a SHA256 digest.
+
+        Accepts the canonical ``sha256:``-prefixed form (FR-003/FR-008, WP02)
+        as well as the bare 64-hex form still carried by baselines recorded
+        before the one-time re-baseline (WP05).
+        """
         if v is not None and v != "":
-            if len(v) != 64:
-                raise ValueError(f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters")
+            digest = v[len("sha256:") :] if v.startswith("sha256:") else v
+            if len(digest) != 64:
+                raise ValueError(f"parity_hash_sha256 must be a 64-char SHA256 digest; got {len(digest)} characters")
             try:
-                int(v, 16)
+                int(digest, 16)
             except ValueError as e:
                 raise ValueError(f"parity_hash_sha256 must be valid hexadecimal; got '{v}'") from e
         return v

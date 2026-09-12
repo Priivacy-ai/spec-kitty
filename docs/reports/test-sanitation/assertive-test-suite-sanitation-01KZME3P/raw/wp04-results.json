@@ -1,0 +1,1620 @@
+{
+  "causal_campaign": {
+    "all_selected_failed": true,
+    "campaign_count": 4,
+    "intended_oracle_failures": 64,
+    "manifest_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-causal-probes.json",
+    "manifest_sha256": "d7a0dae33db35f722bed3e3f91eaff719db8c80d17510faa05ef6bdf60130917",
+    "materialization_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay-spec.json",
+    "materialization_sha256": "d4dc56fb8d526ff0a1bc751339803c63a88de3beda258ab79b34df637f616872",
+    "orchestrator_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-replay.py",
+    "orchestrator_sha256": "658d33bedc1c399ffc379e191c29ce7aeb6036f8b2145be1475e1e6ed1a708f4",
+    "runner_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04_fault_plugin.py",
+    "runner_sha256": "dbb2a53398e39203d31eddf4001164b36830a67accde721107efb07d8da9c43e",
+    "selected_executions": 64,
+    "selected_survivors": 63
+  },
+  "definition_reconciliation": {
+    "added_definition_ids": [
+      "tests/agent/glossary/test_primitives.py::test_compatibility_context_is_canonical_context",
+      "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_bool_true_enables",
+      "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_string_disable_is_case_insensitive",
+      "tests/doctrine/missions/test_primitives.py::TestStepInputPopulation.test_mutable_defaults_are_instance_local",
+      "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_absent_levels_return_none",
+      "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+    ],
+    "added_definitions": 6,
+    "changed_test_paths": [
+      "tests/agent/cli/commands/test_tasks_helpers.py",
+      "tests/agent/glossary/test_integration_workflows.py",
+      "tests/agent/glossary/test_primitives.py",
+      "tests/agent/glossary/test_strictness.py",
+      "tests/architectural/test_shim_registry_schema.py",
+      "tests/auth/integration/test_transport_rewired.py",
+      "tests/charter/test_action_grain.py",
+      "tests/charter/test_mission_steps_facade.py",
+      "tests/charter/test_pack_manager.py",
+      "tests/charter/test_references_missing_failclosed.py",
+      "tests/core/test_adapters.py",
+      "tests/docs/test_related_validator.py",
+      "tests/doctrine/directives/test_repository.py",
+      "tests/doctrine/missions/test_action_index.py",
+      "tests/doctrine/missions/test_primitives.py",
+      "tests/doctrine/shared/test_scoping.py",
+      "tests/doctrine/shared/test_scoping_any_all.py",
+      "tests/doctrine/styleguides/test_repository.py",
+      "tests/doctrine/tactics/test_repository.py",
+      "tests/doctrine/test_org_pack_subdir.py",
+      "tests/doctrine/test_scoping.py",
+      "tests/git_ops/test_detection.py",
+      "tests/git_ops/test_git_ops.py",
+      "tests/git_ops/test_mark_status_pipe_table.py",
+      "tests/retrospective/test_retrospective_content.py",
+      "tests/review/test_artifacts.py",
+      "tests/review/test_baseline.py",
+      "tests/review/test_scope_source.py",
+      "tests/runtime/test_home_unit.py"
+    ],
+    "gross_removed_definitions": 110,
+    "ledgered_removed_definitions": 110,
+    "net_removed_collected_nodes": 104,
+    "removed_definitions": [
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_match",
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_no_match",
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_padded",
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_partial_id_not_matched",
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+      "tests/agent/cli/commands/test_tasks_helpers.py::test_parse_pipe_table_header_at_top",
+      "tests/agent/glossary/test_integration_workflows.py::TestErrorHandlingEdgeCases.test_null_context_raises_value_error",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_false_disables_glossary",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_true_enables_glossary",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_both_mission_and_step_strictness_coexist",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_default_is_true",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_empty_config_and_metadata",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_disabled",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_enabled",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_false",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_true",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_default",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_mission_config_false",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_disabled_overrides_mission_enabled",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_metadata_overrides_mission_config",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_DISABLED_upper_case",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_False_disables_glossary",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_disabled_case_insensitive",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_enabled_case_insensitive",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_false_disables_glossary",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_true_enables_glossary",
+      "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_unknown_metadata_value_treated_as_enabled",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_on_invalid_value",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_config_empty",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_glossary_section",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_strictness_in_glossary",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_max",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_medium",
+      "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_off",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_defaults_to_none",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_populates_retry_token_alias",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_conflicts_defaults_to_empty_list",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_effective_strictness_defaults_to_none",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_extracted_terms_defaults_to_empty_list",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_defaults_to_none",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_populates_checkpoint_token_alias",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_scope_refs_defaults_to_empty_list",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_input_populated_from_inputs",
+      "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_output_defaults_to_empty_dict",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_on_invalid_value",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_key_missing",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_metadata_empty",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_value_is_null",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_max",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_medium",
+      "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_off",
+      "tests/agent/glossary/test_strictness.py::TestShouldBlock.test_max_blocks_any_conflict",
+      "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_shims_not_a_list_raises",
+      "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_valid_full_entry_passes",
+      "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+      "tests/charter/test_action_grain.py::TestScanBuiltinCrossGrainDuplicates.test_all_four_shipped_types_are_disjoint",
+      "tests/charter/test_mission_steps_facade.py::test_mission_steps_facade_reexports_step_inputs",
+      "tests/charter/test_pack_manager.py::TestListAvailable.test_raises_value_error_for_unknown_kind",
+      "tests/charter/test_pack_manager.py::TestListAvailable.test_returns_nonempty_frozenset_for_directive",
+      "tests/charter/test_references_missing_failclosed.py::test_bundle_content_hash_files_is_single_element_charter_yaml",
+      "tests/core/test_adapters.py::test_cold_miss_without_staged_origin_returns_safe_default",
+      "tests/docs/test_related_validator.py::test_populated_tree_still_returns_report",
+      "tests/doctrine/directives/test_repository.py::TestDirectiveRepository.test_load_from_custom_shipped_dir",
+      "tests/doctrine/missions/test_action_index.py::TestLoadActionIndexFields.test_non_list_field_value_returns_empty_list",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_any_overlap_returns_true",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_tuple_returns_false",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_returns_true_not_false",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false_not_true",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_and_unfiltered_returns_true",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_artifact_empty_list_returns_true",
+      "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_empty_active_still_false",
+      "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_no_overlap_still_false",
+      "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_overlap_still_true",
+      "tests/doctrine/styleguides/test_repository.py::TestStyleguideRepository.test_load_from_custom_shipped_dir",
+      "tests/doctrine/tactics/test_repository.py::TestTacticRepository.test_load_from_custom_shipped_dir",
+      "tests/doctrine/test_org_pack_subdir.py::TestEnvVarExpansion.test_literal_absolute_path_regression",
+      "tests/doctrine/test_scoping.py::test_applies_to_languages_match_rejects_scoped_artifact_for_explicit_empty_scope",
+      "tests/doctrine/test_scoping.py::test_normalize_languages_deduplicates_and_skips_blanks",
+      "tests/doctrine/test_scoping.py::test_normalize_languages_none_returns_empty_tuple",
+      "tests/git_ops/test_detection.py::TestCaching.test_cache_can_be_cleared",
+      "tests/git_ops/test_detection.py::TestCaching.test_is_git_available_is_cached",
+      "tests/git_ops/test_detection.py::TestGitDetection.test_is_git_available_caching",
+      "tests/git_ops/test_git_ops.py::test_exclude_from_git_index_non_git_repo",
+      "tests/git_ops/test_git_ops.py::test_get_current_branch_not_git_repo",
+      "tests/git_ops/test_git_ops.py::test_has_remote_nonexistent_repo",
+      "tests/git_ops/test_git_ops.py::test_run_command_allows_nonzero_when_not_checking",
+      "tests/git_ops/test_git_ops.py::test_run_command_captures_stdout",
+      "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_does_not_touch_parallel_column",
+      "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_pending_status",
+      "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_status_column_when_present",
+      "tests/retrospective/test_retrospective_content.py::TestAnalysisAndReviewIngestors.test_analysis_report_absent_is_noop",
+      "tests/review/test_artifacts.py::test_next_cycle_number_empty_directory_still_returns_one",
+      "tests/review/test_baseline.py::TestConfigCustomTestCommand.test_missing_config_file",
+      "tests/review/test_scope_source.py::test_resolve_scope_source_with_no_config_file_at_all_routes_to_gate_coverage",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_delegates_fail_closed_to_kernel_authority",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_importlib_discovery",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_path_object",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_falls_back_to_legacy_specify_cli_missions",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_normalizes_to_doctrine_missions",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_nonexistent_raises",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_override",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_relocates_the_door",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root",
+      "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed"
+    ],
+    "unledgered_removed_definitions": []
+  },
+  "focused_smoke": {
+    "elapsed_seconds": 46.732,
+    "exit_code": 0,
+    "receipt_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-focused-smoke.json",
+    "receipt_sha256": "f5e1d54db5fbf09cf4d5794bd620e42c52def450478129667beef88f9a29918f",
+    "result": "6 passed",
+    "selected_nodeids": [
+      "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+      "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_enabled_by_default",
+      "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch::test_matching_language_returns_true",
+      "tests/git_ops/test_git_ops_unit.py::test_run_command_captures_stdout",
+      "tests/kernel/test_paths.py::TestGetPackageAssetRoot::test_importlib_discovery",
+      "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates"
+    ],
+    "stdout_sha256": "c3310537c7bfe1257eccbf5cc222ab61e24966c256514e185be0922b39b97709",
+    "timed_out": false
+  },
+  "group_consistency": {
+    "count_drift_rejected": true,
+    "duplicate_fingerprints_rejected": true,
+    "historical_pre_dedup_counts": {
+      "CONSOLIDATE": 61,
+      "DELETE": 23,
+      "KEEP": 25
+    },
+    "historical_pre_dedup_rows": 109,
+    "ledger_counts": {
+      "CONSOLIDATE": 57,
+      "DELETE": 9,
+      "KEEP": 25
+    },
+    "post_dedup_counts": {
+      "CONSOLIDATE": 57,
+      "DELETE": 9,
+      "KEEP": 25
+    },
+    "unique_fingerprints": 91,
+    "verification_command": ".venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-evidence-verify.py --receipt /tmp/wp04-evidence-verify.json",
+    "verifier_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-evidence-verify.py",
+    "verifier_sha256": "ebd00d8554da08cf88517f458412f2416017ce1415fa867af20fd7d25e7637fe"
+  },
+  "groups": [
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/core/test_adapters.py::test_cold_miss_without_staged_origin_returns_safe_default"
+      ],
+      "fingerprint": "02a98dcf33438043dcd9e4e8e3d120affd0692b6be3b4b971c4502822f28c45b",
+      "members": [
+        "tests/core/test_adapters.py::test_cold_miss_without_staged_origin_returns_safe_default",
+        "tests/core/test_adapters.py::test_no_consumer_returns_safe_default"
+      ],
+      "survivor": "tests/core/test_adapters.py::test_no_consumer_returns_safe_default",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "032f4300a9f22245f732296de3d832caf34179981347f481f93e032c0bb1e908",
+      "members": [
+        "tests/cli_gate/test_dashboard_modes.py::TestDashboardClassifyIntegration.test_classify_no_flags_is_safe",
+        "tests/cli_gate/test_doctor_modes.py::TestDoctorClassifyIntegration.test_classify_no_flags_is_safe"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_no_overlap_still_false"
+      ],
+      "fingerprint": "042f20c3dff2a9132c0b65f2525212ea19c9345057f50b2bfc58e3037789ea56",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_non_matching_language_returns_false",
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_no_overlap_still_false"
+      ],
+      "survivor": "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_non_matching_language_returns_false",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "05a174447421e22fae6097d7284f63a23102632f8a3d308fef477617a633945a",
+      "members": [
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestDefaultDoctrineService.test_case_r2_2_kittify_doctrine_present_points_there",
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestDefaultDoctrineService.test_case_r2_3_kittify_doctrine_empty_points_there"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "062c5337238ffc57b19d4fc3729ff6e2a9b2895931c841200ee505b41dfdac93",
+      "members": [
+        "tests/missions/test_mission_loading_integration.py::TestHybridYAML.test_hybrid_routes_to_v1",
+        "tests/missions/test_mission_loading_integration.py::TestLoadMissionDispatch.test_hybrid_config_returns_state_machine_mission"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_shims_not_a_list_raises"
+      ],
+      "fingerprint": "074da7eb40850e5419ae37ef3de4a9757fbf361049668e54902bd8fd30734a8b",
+      "members": [
+        "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_shims_not_a_list_raises",
+        "tests/specify_cli/compat/test_registry.py::TestValidateRegistryBranches.test_shims_not_a_list_raises_schema_error"
+      ],
+      "survivor": "tests/specify_cli/compat/test_registry.py::TestValidateRegistryBranches.test_shims_not_a_list_raises_schema_error",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_status_column_when_present"
+      ],
+      "fingerprint": "08d4fdffd05ca96d64b8f9778873f7d77bfd07666004735ce331a9ef1810eb40",
+      "members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_status_column_when_present",
+        "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_updates_dedicated_status_column_only"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_updates_dedicated_status_column_only",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_importlib_discovery"
+      ],
+      "fingerprint": "090805f26c479f9a86e8af7c6853b4433d3291cf6c9f270e2e7e7af1d20252d2",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_importlib_discovery",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_importlib_discovery"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_importlib_discovery",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "093b81106ff2fb4636397fbab08c92ddd883a17ecfa7aa3d5ef90dc3baf4143e",
+      "members": [
+        "tests/research/test_research_plan_missions_integration.py::TestPlanMissionV1.test_all_states_have_display_name",
+        "tests/research/test_research_plan_missions_integration.py::TestResearchMissionV1.test_all_states_have_display_name"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "0aadbdd4604b84d54684bf6c1f497e258c6c30d3fddeab0f3e0a2d06d1ab80e9",
+      "members": [
+        "tests/runtime/test_resolver_unit.py::TestConfiguredTemplateResolution.test_unsafe_mapped_filename_fails_before_file_resolution",
+        "tests/runtime/test_resolver_unit.py::TestConfiguredTemplateResolution.test_windows_unsafe_mapped_filename_fails_before_file_resolution"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_false_disables_glossary"
+      ],
+      "fingerprint": "0bb49c05570453fa1ffeff31af59180a543d2db38d5c612303cb3f79d18d108c",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_false_disables_glossary",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_bool_false_disables"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_bool_false_disables",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "122cdb7faad01863e33bd02c5849da4de23b6bf625c24d27706e642f57ed9aa3",
+      "members": [
+        "tests/review/test_gate_registry.py::_NoCommandScopeSource.test_command",
+        "tests/review/test_pre_review_gate_engine.py::test_scope_source_seam_is_injected_not_selected_by_repo_shape._StubScopeSource.test_command",
+        "tests/review/test_scope_source.py::_CapabilityWithoutPolicySource.test_command",
+        "tests/review/test_scope_source.py::_PolicyWithoutCapabilitySource.test_command"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/charter/test_mission_steps_facade.py::test_mission_steps_facade_reexports_step_inputs"
+      ],
+      "fingerprint": "18108afd0dcf03faa54edc1d08fde6b4aabc1d78e072306bf7912b1567a234ad",
+      "members": [
+        "tests/charter/test_mission_steps_facade.py::test_mission_steps_facade_reexports_step_inputs",
+        "tests/specify_cli/mission_step_contracts/test_executor.py::test_charter_mission_steps_facade_reexports_step_inputs"
+      ],
+      "survivor": "tests/specify_cli/mission_step_contracts/test_executor.py::test_charter_mission_steps_facade_reexports_step_inputs",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "181bbd4cef754e3fa7f38babff271fd5cf1d58a0bbc6a9093b646a80c736d774",
+      "members": [
+        "tests/contract/test_mission_number_type_coercion.py::test_coerce_mission_number_rejects_bool",
+        "tests/contract/test_mission_number_type_coercion.py::test_coerce_mission_number_rejects_non_int_types"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed"
+      ],
+      "fingerprint": "187d8dc8753eb2f21f72f1fd13125ccd19b9c9647d7b1b4e029fdf627c774da1",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_without_missions_tree_fails_closed",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_overlap_still_true"
+      ],
+      "fingerprint": "1a0e2acbf2f8eee6a8f5b15bc36bbe25cc22ad906f2ddf75e34f40fc6029b0a1",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_language_returns_true",
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_overlap_still_true"
+      ],
+      "survivor": "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_language_returns_true",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_does_not_touch_parallel_column"
+      ],
+      "fingerprint": "1c3676ad3b367d136a790e2172c1b6d172cb2cbc0c335a4aacb21f82aa953101",
+      "members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_does_not_touch_parallel_column",
+        "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_parallel_column_is_never_corrupted"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_parallel_column_is_never_corrupted",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/charter/test_pack_manager.py::TestListAvailable.test_raises_value_error_for_unknown_kind"
+      ],
+      "fingerprint": "201ca7090207c577d4ef9bc205fb3c2fbe6967f1f93dde056a2fd2b8ac312394",
+      "members": [
+        "tests/charter/test_pack_manager.py::TestListAvailable.test_raises_value_error_for_unknown_kind",
+        "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn.test_unknown_kind_raises_value_error"
+      ],
+      "survivor": "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn.test_unknown_kind_raises_value_error",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "207e559962f305cfe921b7f27a7b660cbf11e82cf30f1e05c15507705e3eccb7",
+      "members": [
+        "tests/git_ops/test_stale_detection_unit.py::test_get_default_branch_main",
+        "tests/git_ops/test_stale_detection_unit.py::test_get_default_branch_no_origin"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_relocates_the_door"
+      ],
+      "fingerprint": "21e81b21beea00c3b04c0ce6b5b7daf851d8160ab93c567a6257e8a682280432",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_relocates_the_door",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_relocates_the_door"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_relocates_the_door",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_mission_config_false"
+      ],
+      "fingerprint": "241d54423ecd07048f35ca812e32020a2ef232a261dce77b17870a3cf492b767",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_mission_config_false",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_null_falls_through_to_mission_config"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_null_falls_through_to_mission_config",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises"
+      ],
+      "fingerprint": "2528b6ab197449d99d23ed5f2fd73787d43e0caddbe7f5de46186639c5cb4ade",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_existing_invalid_dir_raises",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "293a72517c20bd85078be15d833f9b6ad6a3011a469c9259ca5f8b1d5034232f",
+      "members": [
+        "tests/missions/test_mission_v1_events_unit.py::TestReadEvents.test_nonexistent_file_returns_empty",
+        "tests/status/test_store.py::test_read_nonexistent_file"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_disabled_overrides_mission_enabled"
+      ],
+      "fingerprint": "2b8cd5818a5eebb682dc40d20d72dfa1990a5bf8ea4a06ace3df6139a9028525",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_disabled_overrides_mission_enabled",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_step_metadata_overrides_mission_config"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_step_metadata_overrides_mission_config",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/directives/test_repository.py::TestDirectiveRepository.test_load_from_custom_shipped_dir"
+      ],
+      "fingerprint": "2c8d4dbd27bc7ae250edf03f17a43b96389b753254c714553e64f0c12f7d2db0",
+      "members": [
+        "tests/doctrine/directives/test_repository.py::TestDirectiveRepository.test_list_all_from_shipped",
+        "tests/doctrine/directives/test_repository.py::TestDirectiveRepository.test_load_from_custom_shipped_dir"
+      ],
+      "survivor": "tests/doctrine/directives/test_repository.py::TestDirectiveRepository.test_list_all_from_shipped",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "2d838a9c9858c0552e7a27538d5ddee3d18a81aee93a14b6474610452932855f",
+      "members": [
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestContextDoctrineService.test_case_r2_2_kittify_doctrine_present",
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestContextDoctrineService.test_case_r2_3_kittify_doctrine_empty"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_off"
+      ],
+      "fingerprint": "305ccc7bfa2b46426f8e0c40ad30341a1eab7e7d4d9899b81692ff461cea859e",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_off",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_step_strictness_extracted_from_metadata"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_step_strictness_extracted_from_metadata",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_on_invalid_value"
+      ],
+      "fingerprint": "326453acabea1e928c6db4cc126eb548740c6d250c974a111ca1a6dc8e6b8873",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_on_invalid_value",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_invalid_strictness_returns_none"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_invalid_strictness_returns_none",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml"
+      ],
+      "fingerprint": "331d2d26df7b422111517cf0eabc9a767617cb9f331020dfd6befee35d98253b",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_mission_yaml",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "3410c7ee4f9ff8531214ba6cb574ede7c61fdccd15592f9680e4a8c202eed24c",
+      "members": [
+        "tests/init/test_init_minimal_integration.py::TestGlobalRuntimeEdgeCases.test_local_template_mode_bypasses_global",
+        "tests/init/test_init_minimal_integration.py::TestInitCreatesMinimalProject.test_has_global_runtime_true"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "3469f67e591044803beda5b3136d6f0c8dd77991f27085c47f1498abbc246f12",
+      "members": [
+        "tests/cli_gate/test_ci_determinism.py::TestNagNotRenderedWhenSuppressed.test_no_nag_flag_suppresses_nag",
+        "tests/cli_gate/test_ci_determinism.py::TestShouldSuppressNag.test_suppress_on_no_nag_flag"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_nonexistent_raises"
+      ],
+      "fingerprint": "3e0469e5ad25e2ef165fed06516ff61cd958c37a4c3b72f6c0de079167eb8862",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_env_nonexistent_raises",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_nonexistent_raises"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_env_nonexistent_raises",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "42ed99f0cbf44ea36b504a8c57ae0ea5a9717ba1ef5f01217a56bdf1ebd4fd5c",
+      "members": [
+        "tests/lanes/test_auto_rebase_managed_artifact_recognition.py::test_status_artifacts_are_residue_but_intercepted_before_this_arm",
+        "tests/lanes/test_auto_rebase_managed_artifact_recognition.py::test_take_theirs_recognizes_managed_artifacts"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_parse_pipe_table_header_at_top"
+      ],
+      "fingerprint": "4b5b60e801d9524665144f50e90279521636ca49d0600abb295842ff52c71c59",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_parse_pipe_table_header_at_top",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_parse_pipe_table_header_at_top",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "5146fac05deeb44e42e0272f3569a4f6490d11225f8e181e03be27b2276bee7b",
+      "members": [
+        "tests/charter/test_action_sequence_dispatch.py::TestMissionTypeProfileNoLiteralConstraint.test_custom_mission_type_succeeds_at_model_time",
+        "tests/charter/test_mission_type_profiles.py::TestMissionTypeProfileOpenStr.test_arbitrary_string_accepted"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_git_ops.py::test_run_command_allows_nonzero_when_not_checking"
+      ],
+      "fingerprint": "517f5434d050b9a10840ec9cded423124efcbdde73cb70dc828c9fca7009c98f",
+      "members": [
+        "tests/git_ops/test_git_ops.py::test_run_command_allows_nonzero_when_not_checking",
+        "tests/git_ops/test_git_ops_unit.py::test_run_command_allows_nonzero_when_not_checking"
+      ],
+      "survivor": "tests/git_ops/test_git_ops_unit.py::test_run_command_allows_nonzero_when_not_checking",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "53dff1ca3340f1cf85459bd57d8a021ef2d7879244c7cd07a0827bd1955d2cb8",
+      "members": [
+        "tests/cli_gate/test_dashboard_modes.py::TestDashboardClassifyIntegration.test_classify_unsafe_flag_is_unsafe",
+        "tests/cli_gate/test_doctor_modes.py::TestDoctorClassifyIntegration.test_classify_unsafe_flag_is_unsafe"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/missions/test_action_index.py::TestLoadActionIndexFields.test_non_list_field_value_returns_empty_list"
+      ],
+      "fingerprint": "5447e426faee3305b8b8a1e215ae807f7f8f2fdec3d8dd28c79f7bfd681ffdd8",
+      "members": [
+        "tests/doctrine/missions/test_action_index.py::TestLoadActionIndexFailLoud.test_non_list_field_value_raises",
+        "tests/doctrine/missions/test_action_index.py::TestLoadActionIndexFields.test_non_list_field_value_returns_empty_list"
+      ],
+      "survivor": "tests/doctrine/missions/test_action_index.py::TestLoadActionIndexFailLoud.test_non_list_field_value_raises",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "548f96fb6a085497c5de091bb2c3456b4367e41b1d4b453115fea260118d648e",
+      "members": [
+        "tests/cli/commands/test_merge_strategy.py::TestConfigYamlStrategyHonored.test_config_merge_strategy_squash",
+        "tests/cli/commands/test_merge_strategy.py::TestLoadMergeConfig.test_returns_merge_when_config_says_merge"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "560e3f6d4cfec99b77b0066e83d7d95e73d81284a4dbab586203a2d6c8c168a0",
+      "members": [
+        "tests/auth/test_token_manager.py::test_current_grant_session_invalid_propagates_session_invalid",
+        "tests/auth/test_token_manager.py::test_refresh_if_needed_clears_session_on_session_invalid"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_both_mission_and_step_strictness_coexist"
+      ],
+      "fingerprint": "5807157535051db81eb9d80d2b18e449295d4c29d9bff4114afec214a0652688",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_both_mission_and_step_strictness_coexist",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_both_levels_coexist"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_both_levels_coexist",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/styleguides/test_repository.py::TestStyleguideRepository.test_load_from_custom_shipped_dir"
+      ],
+      "fingerprint": "58d3535654965c51095a1cd61a7137f505494b60b01e6fe8c966d6b69c816ce4",
+      "members": [
+        "tests/doctrine/styleguides/test_repository.py::TestStyleguideRepository.test_list_all_from_shipped",
+        "tests/doctrine/styleguides/test_repository.py::TestStyleguideRepository.test_load_from_custom_shipped_dir"
+      ],
+      "survivor": "tests/doctrine/styleguides/test_repository.py::TestStyleguideRepository.test_list_all_from_shipped",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist"
+      ],
+      "fingerprint": "5a28b0c8c88ae8418a31098284e84061d7fa319c94a538fb08063d2204cfa146",
+      "members": [
+        "tests/auth/integration/test_transport_rewired.py::test_legacy_sync_auth_module_does_not_exist",
+        "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone"
+      ],
+      "survivor": "tests/sync/test_auth.py::test_legacy_sync_auth_module_is_gone",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_valid_full_entry_passes"
+      ],
+      "fingerprint": "60055e86229ad9f74caf03fcdb071c59d267e71b66c991ecd29653004e84bfd1",
+      "members": [
+        "tests/architectural/test_shim_registry_schema.py::TestOptionalFields.test_missing_optional_fields_is_valid",
+        "tests/architectural/test_shim_registry_schema.py::TestTopLevelStructure.test_valid_full_entry_passes"
+      ],
+      "survivor": "tests/architectural/test_shim_registry_schema.py::TestOptionalFields.test_missing_optional_fields_is_valid",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_git_ops.py::test_run_command_captures_stdout"
+      ],
+      "fingerprint": "608a072af54975369d0edc79e98232a56d824533ed1e4167a39afba5188d14c7",
+      "members": [
+        "tests/git_ops/test_git_ops.py::test_run_command_captures_stdout",
+        "tests/git_ops/test_git_ops_unit.py::test_run_command_captures_stdout"
+      ],
+      "survivor": "tests/git_ops/test_git_ops_unit.py::test_run_command_captures_stdout",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "682c6a0ee490092c08ab8be4ce28b61c6cb070a5076a71e15eaf3fdb9dc0371e",
+      "members": [
+        "tests/doctrine/missions/test_step_projection.py::TestDefaultMemoization.test_repeated_calls_return_the_same_cached_instance",
+        "tests/runtime/test_runtime_seam.py::TestMemoizedDefaultNoHotPathIO.test_default_returns_identical_cached_instance"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "68a4e3edbcfc6de7dcd02335b206cf93d54bb47e606e477699ac9beb7a76e88c",
+      "members": [
+        "tests/doctrine/drg/test_validator.py::TestAntiPatternNodeIsRejectedValidation.test_anti_pattern_node_with_inbound_rejects_edge_passes",
+        "tests/doctrine/drg/test_validator.py::TestRejectsTargetValidation.test_rejects_edge_to_anti_pattern_target_passes"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/charter/test_pack_manager.py::TestListAvailable.test_returns_nonempty_frozenset_for_directive"
+      ],
+      "fingerprint": "725d400ea2e69824d3d912dfd55229cd4c2c872ac8e186818439e67cff838e38",
+      "members": [
+        "tests/charter/test_pack_manager.py::TestListAvailable.test_returns_nonempty_frozenset_for_directive",
+        "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn.test_returns_frozenset_for_directive"
+      ],
+      "survivor": "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn.test_returns_frozenset_for_directive",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/tactics/test_repository.py::TestTacticRepository.test_load_from_custom_shipped_dir"
+      ],
+      "fingerprint": "746e79c24d13637f025bb875cac27875fb24aae1bd36011bb099c50ff2e67caa",
+      "members": [
+        "tests/doctrine/tactics/test_repository.py::TestTacticRepository.test_list_all_from_shipped",
+        "tests/doctrine/tactics/test_repository.py::TestTacticRepository.test_load_from_custom_shipped_dir"
+      ],
+      "survivor": "tests/doctrine/tactics/test_repository.py::TestTacticRepository.test_list_all_from_shipped",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "7be0ba9354f51496d555e2fe6fa7ff00944f89c00b9e86bc34f4456e459fd244",
+      "members": [
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_empty_kittify_doctrine_still_resolves",
+        "tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_returns_kittify_doctrine_when_present"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine"
+      ],
+      "fingerprint": "7e2185cc175a0502384c3be4104d87947e7586a10e7024487c681dc3ce6747f0",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_direct_legacy_missions_remaps_to_sibling_doctrine",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_match"
+      ],
+      "fingerprint": "7f41e64e1d7904cb843138e6428bd6316acaac25ab1428c23390cbfb78d38662",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_match",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_match",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_no_match"
+      ],
+      "fingerprint": "7f98516a7b0d670130d8a36fae669ab59cba7d1449d611e1a726c3110e132a79",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_no_match",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_no_match",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_tuple_returns_false",
+        "tests/doctrine/test_scoping.py::test_applies_to_languages_match_rejects_scoped_artifact_for_explicit_empty_scope"
+      ],
+      "fingerprint": "80510e44483f7a09a408b5c06b95ab15e72b4966a572cfb0264951fdd7161be4",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_tuple_returns_false",
+        "tests/doctrine/test_scoping.py::test_applies_to_languages_match_rejects_scoped_artifact_for_explicit_empty_scope"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_pending_status"
+      ],
+      "fingerprint": "84fbd8a604b0c51c8d86c58bac13472db463aef41feb41ca0b0d7ef046bd75ef",
+      "members": [
+        "tests/git_ops/test_mark_status_pipe_table.py::TestUpdatePipeTableStatus.test_updates_pending_status",
+        "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_pending_status_writes_empty_marker"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_materialization.py::TestUpdatePipeTableStatus.test_pending_status_writes_empty_marker",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/charter/test_action_grain.py::TestScanBuiltinCrossGrainDuplicates.test_all_four_shipped_types_are_disjoint"
+      ],
+      "fingerprint": "876d35879bb934cdb56e0ad817062f0f0134703ca7ab579a9109fbbc580973b8",
+      "members": [
+        "tests/charter/test_action_grain.py::TestScanBuiltinCrossGrainDuplicates.test_all_four_shipped_types_are_disjoint",
+        "tests/doctrine/drg/test_cross_grain_integrity.py::TestCrossGrainIntegrityGate.test_all_shipped_mission_types_are_cross_grain_disjoint"
+      ],
+      "survivor": "tests/doctrine/drg/test_cross_grain_integrity.py::TestCrossGrainIntegrityGate.test_all_shipped_mission_types_are_cross_grain_disjoint",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates"
+      ],
+      "fingerprint": "8b27903b789a73d5a9cf5e120fa45dd21b85099a3b09a1de3192c0b780f0a822",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_template_root_legacy_package_asset_root_with_command_templates",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_git_ops.py::test_has_remote_nonexistent_repo"
+      ],
+      "fingerprint": "93d5c5d508eb2367eb505a4811b37f81063839c0129f0fd8c1052e3ea333e9da",
+      "members": [
+        "tests/git_ops/test_git_ops.py::test_has_remote_nonexistent_repo",
+        "tests/git_ops/test_git_ops_unit.py::test_has_remote_nonexistent_repo"
+      ],
+      "survivor": "tests/git_ops/test_git_ops_unit.py::test_has_remote_nonexistent_repo",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_partial_id_not_matched"
+      ],
+      "fingerprint": "96ed406e2246bed2ae6869ca655415200cb8ae392d506bb0250d2c09a351d176",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_partial_id_not_matched",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_partial_id_not_matched",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "9c8233e0d3b859b15dbec33efdc49f03e447f1aac2671b89187a84d48b3700d6",
+      "members": [
+        "tests/research/test_research_plan_missions_integration.py::TestPlanMissionV1.test_passes_json_schema_validation",
+        "tests/research/test_research_plan_missions_integration.py::TestResearchMissionV1.test_passes_json_schema_validation"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/review/test_scope_source.py::test_resolve_scope_source_with_no_config_file_at_all_routes_to_gate_coverage"
+      ],
+      "fingerprint": "a672f227fffe51650d5705faf2ae5d83dab9d27e37511e40f9e7c38c6772f437",
+      "members": [
+        "tests/review/test_scope_source.py::test_resolve_scope_source_returns_gate_coverage_for_a_pytest_shaped_repo",
+        "tests/review/test_scope_source.py::test_resolve_scope_source_with_no_config_file_at_all_routes_to_gate_coverage"
+      ],
+      "survivor": "tests/review/test_scope_source.py::test_resolve_scope_source_returns_gate_coverage_for_a_pytest_shaped_repo",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts"
+      ],
+      "fingerprint": "aaafc4d99be4469b319c53e33a4a24167f7d3828b2cffcd9a4acff2b20bbe95e",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+        "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py::test_issue_matrix_approval_blocker_requires_resolved_verdicts",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root"
+      ],
+      "fingerprint": "b74cde990c15c1bb331c3cb935450ca8c31894107f57fb3b271159e1b6cadfb4",
+      "members": [
+        "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRootPacksRoot.test_packs_root_wins_over_template_root",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_empty_active_still_false"
+      ],
+      "fingerprint": "b90d5168f48a46ae7ac89c6c0f7e594d16fb5c52d4d7af694492d2400adb4f47",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_returns_false",
+        "tests/doctrine/shared/test_scoping_any_all.py::TestNonSentinelScopingUnchanged.test_concrete_lang_empty_active_still_false"
+      ],
+      "survivor": "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_returns_false",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/test_scoping.py::test_normalize_languages_none_returns_empty_tuple"
+      ],
+      "fingerprint": "bb4e79bc2766b0ca18b711edb2ea40f362649a44da5f753fca17dda12369e207",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages.test_none_returns_empty_tuple",
+        "tests/doctrine/test_scoping.py::test_normalize_languages_none_returns_empty_tuple"
+      ],
+      "survivor": "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages.test_none_returns_empty_tuple",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_git_ops.py::test_exclude_from_git_index_non_git_repo"
+      ],
+      "fingerprint": "bc2ded11b2fd2b7f4d53513d834ecd4799639a31a90f8583702378db9276e0c9",
+      "members": [
+        "tests/git_ops/test_git_ops.py::test_exclude_from_git_index_non_git_repo",
+        "tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo"
+      ],
+      "survivor": "tests/git_ops/test_git_ops_unit.py::test_exclude_from_git_index_non_git_repo",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_integration_workflows.py::TestErrorHandlingEdgeCases.test_null_context_raises_value_error"
+      ],
+      "fingerprint": "bdb721c043064cca61492dc0a58f3ff746f361d2b0561fc99c2bfe7a3274ff80",
+      "members": [
+        "tests/agent/glossary/test_integration_workflows.py::TestErrorHandlingEdgeCases.test_null_context_raises_value_error",
+        "tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling.test_none_context_raises_value_error"
+      ],
+      "survivor": "tests/agent/glossary/test_pipeline.py::TestPipelineErrorHandling.test_none_context_raises_value_error",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/docs/test_related_validator.py::test_populated_tree_still_returns_report"
+      ],
+      "fingerprint": "c75103ff134f11d1db1ee61a1cf6ffe314b16192ce2b6b32a6129ea0779ac674",
+      "members": [
+        "tests/docs/test_related_validator.py::test_clean_tree_has_no_dangling_edges",
+        "tests/docs/test_related_validator.py::test_populated_tree_still_returns_report"
+      ],
+      "survivor": "tests/docs/test_related_validator.py::test_clean_tree_has_no_dangling_edges",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "cbc89d3e3055c7d42e399887e34faa2e23aacbef6b9f8274ed6f9ee8c56e68d7",
+      "members": [
+        "tests/agent/test_context_validation_unit.py::TestRequireMainRepo.test_allows_execution_from_main_repo.test_command",
+        "tests/agent/test_context_validation_unit.py::TestRequireMainRepo.test_blocks_execution_from_worktree.test_command",
+        "tests/agent/test_context_validation_unit.py::TestRequireWorktree.test_allows_execution_from_worktree.test_command",
+        "tests/agent/test_context_validation_unit.py::TestRequireWorktree.test_blocks_execution_from_main_repo.test_command"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_max"
+      ],
+      "fingerprint": "cd565bf1adc254295fbb995f8c669ce2bc5c98014ba8a7d889b673aece5ff01d",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_max",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_mission_strictness_extracted_from_config"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_mission_strictness_extracted_from_config",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/doctrine/test_org_pack_subdir.py::TestEnvVarExpansion.test_literal_absolute_path_regression"
+      ],
+      "fingerprint": "cd73f45bcdc58f74e440ea4de05f4c27b59d9f6ad6721f5d370c68dae96f99ad",
+      "members": [
+        "tests/doctrine/test_org_pack_subdir.py::TestEffectiveRootNoSubdir.test_absolute_local_path_no_subdir",
+        "tests/doctrine/test_org_pack_subdir.py::TestEnvVarExpansion.test_literal_absolute_path_regression"
+      ],
+      "survivor": "tests/doctrine/test_org_pack_subdir.py::TestEffectiveRootNoSubdir.test_absolute_local_path_no_subdir",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/review/test_artifacts.py::test_next_cycle_number_empty_directory_still_returns_one"
+      ],
+      "fingerprint": "ce793d371c71072494db1296ac7cd9bba2153a9bbf50d0ae649bd9894aa63282",
+      "members": [
+        "tests/review/test_artifacts.py::test_next_cycle_number_empty_dir",
+        "tests/review/test_artifacts.py::test_next_cycle_number_empty_directory_still_returns_one"
+      ],
+      "survivor": "tests/review/test_artifacts.py::test_next_cycle_number_empty_dir",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/git_ops/test_detection.py::TestCaching.test_is_git_available_is_cached",
+        "tests/git_ops/test_detection.py::TestGitDetection.test_is_git_available_caching"
+      ],
+      "fingerprint": "d06b68997031c314a33c01909d3bf0b576e43555c8870cdcfcd0ec68722a7ba5",
+      "members": [
+        "tests/git_ops/test_detection.py::TestCaching.test_is_git_available_is_cached",
+        "tests/git_ops/test_detection.py::TestGitDetection.test_is_git_available_caching"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/retrospective/test_retrospective_content.py::TestAnalysisAndReviewIngestors.test_analysis_report_absent_is_noop"
+      ],
+      "fingerprint": "d227ea8b7a8b60430f507510a1c745aca1444ab42fdbb123aa775646982e1c75",
+      "members": [
+        "tests/retrospective/test_retrospective_content.py::TestAnalysisAndReviewIngestors.test_analysis_report_absent_is_noop",
+        "tests/retrospective/test_retrospective_content.py::TestWorkflowFailuresIngestor.test_absent_file_produces_no_findings"
+      ],
+      "survivor": "tests/retrospective/test_retrospective_content.py::TestWorkflowFailuresIngestor.test_absent_file_produces_no_findings",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "d661a82446d38737f8ec031bea2ded8dd765faed057a1207badc2e26ea9f109a",
+      "members": [
+        "tests/agent/cli/commands/test_tracker.py::test_tracker_hidden_when_rollout_disabled_root_app",
+        "tests/agent/cli/commands/test_tracker.py::test_tracker_not_registered_when_flag_disabled"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "e59aa734b15e8627898d971f839e55c465095929a97130a67a1718ce230da215",
+      "members": [
+        "tests/auth/test_token_manager.py::test_current_grant_rejection_clears_and_propagates",
+        "tests/auth/test_token_manager.py::test_refresh_if_needed_clears_session_on_server_invalid_grant"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_default_is_true"
+      ],
+      "fingerprint": "e8005e36106465dfed36b863704ef224826403bc46540fdbaa5b7f26d74ab8dc",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_default_is_true",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_enabled_by_default"
+      ],
+      "survivor": "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_enabled_by_default",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/charter/test_references_missing_failclosed.py::test_bundle_content_hash_files_is_single_element_charter_yaml"
+      ],
+      "fingerprint": "e91c843e78476fb5b722b149d616d525dc43e78179137b63b621b40def4b0ed5",
+      "members": [
+        "tests/charter/test_bundle_manifest_model.py::test_bundle_content_hash_files_is_charter_yaml_only",
+        "tests/charter/test_references_missing_failclosed.py::test_bundle_content_hash_files_is_single_element_charter_yaml"
+      ],
+      "survivor": "tests/charter/test_bundle_manifest_model.py::test_bundle_content_hash_files_is_charter_yaml_only",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/glossary/test_strictness.py::TestShouldBlock.test_max_blocks_any_conflict"
+      ],
+      "fingerprint": "ed6b88bba91534b2c5b648ce80df4bad2c276c1bc798f61abaf595b391a65e79",
+      "members": [
+        "tests/agent/glossary/test_strictness.py::TestShouldBlock.test_max_blocks_any_conflict",
+        "tests/agent/glossary/test_strictness.py::TestShouldBlock.test_max_blocks_low"
+      ],
+      "survivor": "tests/agent/glossary/test_strictness.py::TestShouldBlock.test_max_blocks_low",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_padded"
+      ],
+      "fingerprint": "f0c69ac9a4199d82affaddbe48c8b2274bcea150d01ac634aef490a662347d62",
+      "members": [
+        "tests/agent/cli/commands/test_tasks_helpers.py::test_is_pipe_table_task_row_padded",
+        "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded"
+      ],
+      "survivor": "tests/specify_cli/cli/commands/agent/test_tasks_outline.py::test_is_pipe_table_task_row_padded",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "retained: distinct input, boundary, platform, route, or production seam",
+      "deleted_members": [],
+      "fingerprint": "fc8b9015b4553e69f35dc256763d5f693dd6ef362d4c0c4bff03eb4c9a90fc2c",
+      "members": [
+        "tests/research/test_research_plan_missions_integration.py::TestPlanMissionV1.test_is_detected_as_v1",
+        "tests/research/test_research_plan_missions_integration.py::TestResearchMissionV1.test_is_detected_as_v1"
+      ],
+      "survivor": null,
+      "verdict": "KEEP"
+    },
+    {
+      "basis": "strict AST body identity plus same production path/input/oracle/route; deleted members had no unique causal kill",
+      "deleted_members": [
+        "tests/review/test_baseline.py::TestConfigCustomTestCommand.test_missing_config_file"
+      ],
+      "fingerprint": "fedb73496d68bb2d8f98b343062246b8b8b1b51c67bffb40ff80d1c74881eeef",
+      "members": [
+        "tests/review/test_baseline.py::TestConfigCustomTestCommand.test_default_command",
+        "tests/review/test_baseline.py::TestConfigCustomTestCommand.test_missing_config_file"
+      ],
+      "survivor": "tests/review/test_baseline.py::TestConfigCustomTestCommand.test_default_command",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "metadata/config/default glossary enablement precedence",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_true_enables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_empty_config_and_metadata",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_disabled",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_enabled",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_false",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_true",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_default",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_metadata_overrides_mission_config",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_DISABLED_upper_case",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_False_disables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_disabled_case_insensitive",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_enabled_case_insensitive",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_false_disables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_true_enables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_unknown_metadata_value_treated_as_enabled"
+      ],
+      "fingerprint": "semantic:glossary-enablement",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_bool_true_enables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_empty_config_and_metadata",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_disabled",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_explicit_enabled",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_false",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_mission_config_enabled_true",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_null_metadata_falls_through_to_default",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_step_metadata_overrides_mission_config",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_DISABLED_upper_case",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_False_disables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_disabled_case_insensitive",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_enabled_case_insensitive",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_false_disables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_string_true_enables_glossary",
+        "tests/agent/glossary/test_primitives.py::TestIsGlossaryEnabled.test_unknown_metadata_value_treated_as_enabled"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_enabled_by_default",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_step_metadata_overrides_mission_config",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_bool_false_disables",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_bool_true_enables",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_string_disable_is_case_insensitive",
+        "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract.test_null_falls_through_to_mission_config"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "mission strictness extraction and invalid/absent fallback",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_config_empty",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_glossary_section",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_strictness_in_glossary",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_medium",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_off"
+      ],
+      "fingerprint": "semantic:glossary-mission-strictness",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_config_empty",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_glossary_section",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_none_when_no_strictness_in_glossary",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_medium",
+        "tests/agent/glossary/test_primitives.py::TestMissionStrictness.test_returns_strictness_off"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_mission_strictness_extracted_from_config",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_invalid_strictness_returns_none",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_absent_levels_return_none"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "context default isolation, step-input population, and retry/checkpoint aliases",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_populates_retry_token_alias",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_conflicts_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_effective_strictness_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_extracted_terms_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_populates_checkpoint_token_alias",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_scope_refs_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_input_populated_from_inputs",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_output_defaults_to_empty_dict"
+      ],
+      "fingerprint": "semantic:glossary-context-defaults-aliases",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_checkpoint_token_populates_retry_token_alias",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_conflicts_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_effective_strictness_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_extracted_terms_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_defaults_to_none",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_retry_token_populates_checkpoint_token_alias",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_scope_refs_defaults_to_empty_list",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_input_populated_from_inputs",
+        "tests/agent/glossary/test_primitives.py::TestPrimitiveExecutionContextDefaults.test_step_output_defaults_to_empty_dict"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/missions/test_primitives.py::TestTokenAliasing.test_retry_token_populates_checkpoint_token",
+        "tests/doctrine/missions/test_primitives.py::TestTokenAliasing.test_checkpoint_token_populates_retry_token",
+        "tests/doctrine/missions/test_primitives.py::TestStepInputPopulation.test_step_input_copies_inputs_on_init",
+        "tests/doctrine/missions/test_primitives.py::TestStepInputPopulation.test_empty_inputs_yields_empty_step_input",
+        "tests/doctrine/missions/test_primitives.py::TestStepInputPopulation.test_mutable_defaults_are_instance_local"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "step strictness extraction and invalid/absent fallback",
+      "deleted_members": [
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_on_invalid_value",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_key_missing",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_metadata_empty",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_value_is_null",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_max",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_medium"
+      ],
+      "fingerprint": "semantic:glossary-step-strictness",
+      "members": [
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_on_invalid_value",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_key_missing",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_metadata_empty",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_none_when_value_is_null",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_max",
+        "tests/agent/glossary/test_primitives.py::TestStepStrictness.test_returns_strictness_medium"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_step_strictness_extracted_from_metadata",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_invalid_strictness_returns_none",
+        "tests/doctrine/missions/test_primitives.py::TestStrictnessResolution.test_absent_levels_return_none"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "unscoped, overlap, and non-overlap boolean boundaries",
+      "deleted_members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_any_overlap_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_returns_true_not_false",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false_not_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_and_unfiltered_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_artifact_empty_list_returns_true"
+      ],
+      "fingerprint": "semantic:scoping-match-boundaries",
+      "members": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_any_overlap_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_returns_true_not_false",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_no_overlap_returns_false_not_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_and_unfiltered_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_artifact_empty_list_returns_true"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_unscoped_artifact_none_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_empty_active_scope_returns_false",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_matching_language_returns_true",
+        "tests/doctrine/shared/test_scoping.py::TestAppliesToLanguagesMatch.test_non_matching_language_returns_false"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "deduplication and blank-token removal",
+      "deleted_members": [
+        "tests/doctrine/test_scoping.py::test_normalize_languages_deduplicates_and_skips_blanks"
+      ],
+      "fingerprint": "semantic:scoping-normalization",
+      "members": [
+        "tests/doctrine/test_scoping.py::test_normalize_languages_deduplicates_and_skips_blanks"
+      ],
+      "replacement_survivors": [
+        "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages.test_deduplicates",
+        "tests/doctrine/shared/test_scoping.py::TestNormalizeLanguages.test_blank_strings_excluded"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "removed test called functools cache_clear without asserting a product-visible effect",
+      "deleted_members": [
+        "tests/git_ops/test_detection.py::TestCaching.test_cache_can_be_cleared"
+      ],
+      "fingerprint": "semantic:git-cache-clear-nonoracle",
+      "members": [
+        "tests/git_ops/test_detection.py::TestCaching.test_cache_can_be_cleared"
+      ],
+      "replacement_survivors": [
+        "tests/git_ops/test_detection.py::TestGitDetection.test_is_git_available"
+      ],
+      "survivor": null,
+      "verdict": "DELETE"
+    },
+    {
+      "basis": "non-repository branch lookup returns None",
+      "deleted_members": [
+        "tests/git_ops/test_git_ops.py::test_get_current_branch_not_git_repo"
+      ],
+      "fingerprint": "semantic:git-current-branch-nonrepo",
+      "members": [
+        "tests/git_ops/test_git_ops.py::test_get_current_branch_not_git_repo",
+        "tests/git_ops/test_git_ops_unit.py::test_get_current_branch_not_git_repo"
+      ],
+      "replacement_survivors": [
+        "tests/git_ops/test_git_ops_unit.py::test_get_current_branch_not_git_repo"
+      ],
+      "survivor": "tests/git_ops/test_git_ops_unit.py::test_get_current_branch_not_git_repo",
+      "verdict": "CONSOLIDATE"
+    },
+    {
+      "basis": "runtime facade delegation plus canonical asset-root type/existence contract",
+      "deleted_members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_delegates_fail_closed_to_kernel_authority",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_path_object",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_falls_back_to_legacy_specify_cli_missions",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_normalizes_to_doctrine_missions",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_override"
+      ],
+      "fingerprint": "semantic:runtime-asset-root-semantic",
+      "members": [
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_delegates_fail_closed_to_kernel_authority",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_returns_path_object",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_falls_back_to_legacy_specify_cli_missions",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_checkout_root_normalizes_to_doctrine_missions",
+        "tests/runtime/test_home_unit.py::TestGetPackageAssetRoot.test_template_root_env_override",
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_returns_path_object"
+      ],
+      "replacement_survivors": [
+        "tests/runtime/test_home_unit.py::test_package_asset_root_compatibility_surface_delegates",
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+        "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_returns_path_object"
+      ],
+      "survivor": "tests/kernel/test_paths.py::TestGetPackageAssetRoot.test_returns_existing_directory",
+      "verdict": "CONSOLIDATE"
+    }
+  ],
+  "keep_contract_reconciliation": {
+    "keep_rows": 25,
+    "source_equivalent_residuals": 18
+  },
+  "manifest": {
+    "authoritative_census_sha256": "c15ef616766752ac1d30ddac8d24b7929f4f874d45cc131392d443c1de9d5d8b",
+    "exact_groups_total": 173,
+    "promoted_semantic_groups": 9,
+    "promoted_semantic_groups_adjudicated": 9,
+    "wp04_exact_groups": 82,
+    "wp04_exact_groups_adjudicated": 82
+  },
+  "pre_review_gate": {
+    "attribution": "timeout",
+    "configured_timeout_seconds": 300.0,
+    "elapsed_seconds": 300.011,
+    "exit_code": 124,
+    "observed_failure_diagnostic": {
+      "base": {
+        "elapsed_seconds": 48.996,
+        "exit_code": 1,
+        "receipt_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-base-pre-review-failure.json",
+        "receipt_sha256": "813010b3f5ff402ed2f60e76af9b84a390e139bb06c2a28a151e24f9fe371384",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "4d6e7d912842f96b349320286caf04b4737b7ad8426a371f399b4d2284eb81ea",
+        "timed_out": false
+      },
+      "base_commit": "71e83274387f4e4d1ceb72af33ead6b6abbf57cf",
+      "basis": "the canonical raw progress stream marked its deterministic 70th collected node F; identical exact-node base and HEAD commands both reproduce the failure",
+      "cause": "terminal-width wrapping splits the asserted substring `does not exist` across a newline as `does \\nnot exist`",
+      "classification": "base-red/head-red; pre-existing and not caused by WP04",
+      "head": {
+        "elapsed_seconds": 47.396,
+        "exit_code": 1,
+        "receipt_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-pre-review-failure.json",
+        "receipt_sha256": "c8f22b2df228435e5b43cc3ac1934b555ada0be12e947d98d9feb3363136be2f",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "ccb0d367a031a6b16e547426fb70a83e4e69e3fe8c6c790bab6957f68a554c32",
+        "timed_out": false
+      },
+      "nodeid": "tests/agent/cli/commands/test_charter_synthesize_cli.py::TestSynthesizeErrorPaths::test_pack_config_error_surfaces_diagnostic_body",
+      "selector_and_environment_identical": true
+    },
+    "receipt_path": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-pre-review-gate.json",
+    "receipt_sha256": "acd8e81fbe67e7dc5384773cc870d7f1431b5363b07274a614faf3c07f47163b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "aededa02ebbec6e87f426c5611279e0f3e414c504898c740e89b823d79d14b7c",
+    "timed_out": true
+  },
+  "schema_version": "wp04-results/v2",
+  "selected_cohort": {
+    "base": {
+      "collected": 706,
+      "collection_receipt": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-base-changed-paths-collect.json",
+      "passed": 704,
+      "run_receipt": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-base-changed-paths-run.json",
+      "selected_paths": [
+        "tests/agent/cli/commands/test_tasks_helpers.py",
+        "tests/agent/glossary/test_integration_workflows.py",
+        "tests/agent/glossary/test_primitives.py",
+        "tests/agent/glossary/test_strictness.py",
+        "tests/architectural/test_shim_registry_schema.py",
+        "tests/auth/integration/test_transport_rewired.py",
+        "tests/charter/test_action_grain.py",
+        "tests/charter/test_mission_steps_facade.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_references_missing_failclosed.py",
+        "tests/core/test_adapters.py",
+        "tests/docs/test_related_validator.py",
+        "tests/doctrine/directives/test_repository.py",
+        "tests/doctrine/missions/test_action_index.py",
+        "tests/doctrine/missions/test_primitives.py",
+        "tests/doctrine/shared/test_scoping.py",
+        "tests/doctrine/shared/test_scoping_any_all.py",
+        "tests/doctrine/styleguides/test_repository.py",
+        "tests/doctrine/tactics/test_repository.py",
+        "tests/doctrine/test_org_pack_subdir.py",
+        "tests/doctrine/test_scoping.py",
+        "tests/git_ops/test_detection.py",
+        "tests/git_ops/test_git_ops.py",
+        "tests/git_ops/test_mark_status_pipe_table.py",
+        "tests/retrospective/test_retrospective_content.py",
+        "tests/review/test_artifacts.py",
+        "tests/review/test_baseline.py",
+        "tests/review/test_scope_source.py",
+        "tests/runtime/test_home_unit.py"
+      ],
+      "skipped": 2
+    },
+    "basis": "all 29 test paths changed by WP04 at base; 27 surviving paths at HEAD",
+    "head": {
+      "collected": 602,
+      "collection_receipt": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-head-changed-paths-collect.json",
+      "named_skips": [
+        "tests/review/test_baseline.py::TestConfigCustomTestCommand::test_capture_baseline_posix_shell_syntax_returns_sentinel_on_windows",
+        "tests/runtime/test_home_unit.py::TestGetKittifyHomeWindows::test_windows_default_path"
+      ],
+      "passed": 600,
+      "run_receipt": "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp04-head-changed-paths-run.json",
+      "selected_paths": [
+        "tests/agent/cli/commands/test_tasks_helpers.py",
+        "tests/agent/glossary/test_integration_workflows.py",
+        "tests/agent/glossary/test_primitives.py",
+        "tests/agent/glossary/test_strictness.py",
+        "tests/architectural/test_shim_registry_schema.py",
+        "tests/auth/integration/test_transport_rewired.py",
+        "tests/charter/test_action_grain.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_references_missing_failclosed.py",
+        "tests/core/test_adapters.py",
+        "tests/docs/test_related_validator.py",
+        "tests/doctrine/directives/test_repository.py",
+        "tests/doctrine/missions/test_action_index.py",
+        "tests/doctrine/missions/test_primitives.py",
+        "tests/doctrine/shared/test_scoping.py",
+        "tests/doctrine/shared/test_scoping_any_all.py",
+        "tests/doctrine/styleguides/test_repository.py",
+        "tests/doctrine/tactics/test_repository.py",
+        "tests/doctrine/test_org_pack_subdir.py",
+        "tests/git_ops/test_detection.py",
+        "tests/git_ops/test_git_ops.py",
+        "tests/git_ops/test_mark_status_pipe_table.py",
+        "tests/retrospective/test_retrospective_content.py",
+        "tests/review/test_artifacts.py",
+        "tests/review/test_baseline.py",
+        "tests/review/test_scope_source.py",
+        "tests/runtime/test_home_unit.py"
+      ],
+      "skipped": 2
+    },
+    "node_reduction_percent": 14.731,
+    "removed_nodes": 104,
+    "timing_note": "wall time is informational; commands and raw output are durable in the named receipts"
+  },
+  "verdict_counts": {
+    "CONSOLIDATE": 57,
+    "DELETE": 9,
+    "KEEP": 25
+  }
+}

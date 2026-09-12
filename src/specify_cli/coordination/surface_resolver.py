@@ -46,6 +46,7 @@ coord-aware resolver against a coord root nested
 ``.worktrees/<m>-coord/.worktrees/<m>-coord/…`` (the #1772 double-resolution
 bug); building the path directly avoids that.
 """
+
 from __future__ import annotations
 
 import enum
@@ -61,14 +62,13 @@ from mission_runtime import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
-from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
     _canonicalize_primary_read_handle,
+    _compose_primary_feature_dir,
     candidate_feature_dir_for_mission,
     coord_feature_dir,
-    primary_feature_dir_for_mission,
     probe_coord_state,
     read_primary_meta,
     stored_topology_from_meta,
@@ -94,6 +94,7 @@ _WORKTREES_SEGMENT = ".worktrees"
 _COORD_SUFFIX = "-coord"
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 
+
 def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
     """True when *topology* places the status surface on a coordination ref.
 
@@ -108,6 +109,7 @@ def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
     the canonical predicate directly.
     """
     return routes_through_coordination(topology)
+
 
 # Option B loud primary fallback (FR-001 / FR-003 / #1716): when the coordination
 # worktree root is materialized but carries no mission dir, the resolver returns
@@ -159,10 +161,7 @@ class WorktreeRegistryUnavailable(RuntimeError):
     def __init__(self, *, repo_root: Path, detail: str) -> None:
         self.repo_root = repo_root
         self.detail = detail
-        super().__init__(
-            f"Could not read the git worktree registry at {repo_root}: {detail}. "
-            "Topology cannot be determined from path shape alone; fail closed."
-        )
+        super().__init__(f"Could not read the git worktree registry at {repo_root}: {detail}. Topology cannot be determined from path shape alone; fail closed.")
 
 
 # ``StatusReadPathNotFound`` resolves to ``Any`` under this project's mypy
@@ -222,11 +221,7 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         )
 
     def __str__(self) -> str:  # pragma: no cover - trivial formatting
-        return (
-            f"Coordination branch {self.coordination_branch!r} for mission "
-            f"{self.mission_slug!r} is declared in meta.json but deleted from "
-            f"git. {self.next_step}"
-        )
+        return f"Coordination branch {self.coordination_branch!r} for mission {self.mission_slug!r} is declared in meta.json but deleted from git. {self.next_step}"
 
 
 def read_worktree_registry(repo_root: Path) -> frozenset[Path]:
@@ -253,11 +248,7 @@ def read_worktree_registry(repo_root: Path) -> frozenset[Path]:
     except OSError as exc:  # git missing / not executable
         raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=str(exc)) from exc
     if result.returncode != 0:
-        detail = (
-            result.stderr.strip()
-            or result.stdout.strip()
-            or f"exit {result.returncode}"
-        )
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=detail)
     registered: set[Path] = set()
     for line in result.stdout.splitlines():
@@ -367,10 +358,38 @@ def is_registered_coord_worktree(
     Convenience predicate over :func:`classify_worktree_topology`; see it for
     the ``repo_root`` / ``registry`` semantics and the fail-closed posture.
     """
-    return (
-        classify_worktree_topology(path, repo_root=repo_root, registry=registry)
-        is WorktreeTopology.COORD_WORKTREE
-    )
+    return classify_worktree_topology(path, repo_root=repo_root, registry=registry) is WorktreeTopology.COORD_WORKTREE
+
+
+def _roots_own_checkout(repo_root: Path) -> bool:
+    """Return whether *repo_root* is itself the root of the repository git finds.
+
+    ``git rev-parse`` answers for ANY directory inside a repository, so on a host
+    where an ancestor of *repo_root* happens to be some unrelated checkout
+    (#154), the walk-up finds THAT repo and a ref lookup below would judge this
+    mission's declared coordination branch against a stranger's ref space. A
+    linked worktree still roots its own checkout (``--show-toplevel`` names the
+    worktree); a bare repo roots its git dir AT ``repo_root``.
+    """
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if top.returncode == 0:
+            return Path(top.stdout.strip()).resolve() == repo_root.resolve()
+        # No work tree here: either not a repository at all, or a bare repo.
+        gitdir = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--absolute-git-dir"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return gitdir.returncode == 0 and Path(gitdir.stdout.strip()).resolve() == repo_root.resolve()
+    except OSError:
+        return False
 
 
 def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
@@ -379,9 +398,12 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
     Used to split #1889 row R2 (branch exists, worktree not yet materialized)
     from row R3 (branch DELETED). A registry read cannot tell these apart — only
     the ref existence does. Fails closed: when git is unreadable OR ``repo_root``
-    is not a git repository at all, the branch is treated as present (R2/R2′
-    path), because the materialization guard one level up still fail-closes; we
-    never *invent* a deleted-branch error from a non-repo context.
+    is not the root of its own git repository — including an ad-hoc directory
+    that merely sits INSIDE some enclosing checkout, where the enclosing repo's
+    refs say nothing about this mission's branch (#154) — the branch is treated
+    as present (R2/R2′ path), because the materialization guard one level up
+    still fail-closes; we never *invent* a deleted-branch error from a
+    non-repo / foreign-repo context.
     """
     try:
         inside = subprocess.run(
@@ -392,14 +414,14 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
         )
     except OSError:
         return True
-    if inside.returncode != 0:
-        # Not a git repository (e.g. an ad-hoc tmp dir): we cannot assert the
-        # branch was deleted, so do not fire R3. Treat as present.
+    if inside.returncode != 0 or not _roots_own_checkout(repo_root):
+        # Not a git repository (e.g. an ad-hoc tmp dir), or only a guest of an
+        # enclosing one: we cannot assert the branch was deleted from THIS
+        # mission's repo, so do not fire R3. Treat as present.
         return True
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet",
-             f"refs/heads/{coord_branch}"],
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
             check=False,
             capture_output=True,
             text=True,
@@ -415,7 +437,9 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
     try:
         remotes = subprocess.run(
             ["git", "-C", str(repo_root), "for-each-ref", "--format=%(refname)", "refs/remotes/"],
-            check=False, capture_output=True, text=True,
+            check=False,
+            capture_output=True,
+            text=True,
         )
     except OSError:
         return True
@@ -424,7 +448,7 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
         for line in remotes.stdout.splitlines():
             if not line.startswith(prefix):
                 continue
-            _, _, branch = line[len(prefix):].partition("/")  # <remote>/<branch...>
+            _, _, branch = line[len(prefix) :].partition("/")  # <remote>/<branch...>
             if branch == coord_branch:
                 return True
     return False
@@ -525,11 +549,7 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
         repo_root=repo_root,
         mission_slug=mission_slug,
         mid8="",
-        coord_candidate=repo_root
-        / ".worktrees"
-        / f"{mission_slug}-coord"
-        / KITTY_SPECS_DIR
-        / mission_slug,
+        coord_candidate=repo_root / ".worktrees" / f"{mission_slug}-coord" / KITTY_SPECS_DIR / mission_slug,
         primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
     )
 
@@ -560,14 +580,40 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
     circuit cannot be safely overridden — the downstream primary re-anchor still
     surfaces the malformed-meta diagnostic.
     """
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
         primary_meta, _ = read_primary_meta(repo_root, mission_slug)
-    except (ValueError, OSError):
+    except (ValueError, OSError, MissionMetaReadError):
+        # MissionMetaReadError (FR-007 / #3162): read_primary_meta is routed
+        # through the ONE fail-closed reader, so a corrupt/non-object primary
+        # meta now emits the typed error instead of a raw ValueError -- the
+        # documented degrade-to-True arm below must keep absorbing it.
         return True
     stored = stored_topology_from_meta(primary_meta)
     if stored is None:
         return True
     return _topology_uses_coord_surface(stored)
+
+
+def _primary_mission_is_completed(primary_dir: Path) -> bool:
+    """Return whether PRIMARY merge evidence makes that surface authoritative.
+
+    Merge-marker only (squad pass 1 on PR #845): an unmerged coord mission
+    whose WPs are all terminal keeps writing to its coord worktree, so
+    re-anchoring reads to primary there would serve stale state. Non-raising:
+    corrupt primary meta (``MissionMetaReadError``) reads as not-merged and the
+    resolver falls through to its ordinary surface decision.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.status import StoreError, is_mission_merged
+
+    if not (primary_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_merged(primary_dir))
+    except (StoreError, MissionMetaReadError):
+        return False
 
 
 def _effective_surface_topology(
@@ -624,9 +670,7 @@ def resolve_status_surface(
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
     """
-    return resolve_status_surface_with_anchor(
-        repo_root, mission_slug, topology
-    ).surface_path
+    return resolve_status_surface_with_anchor(repo_root, mission_slug, topology).surface_path
 
 
 def resolve_status_surface_with_anchor(
@@ -694,10 +738,27 @@ def resolve_status_surface_with_anchor(
     # must never hand back. (For unresolvable handles the candidate's name
     # equals the raw handle, so the not-found behaviour is unchanged.)
     mission_slug = feature_dir.name
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed (defaults stated explicitly). A malformed worktree meta propagates
-    # the typed corrupt-meta error, exactly as before the canonical conversion.
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    primary_dir: Path = _compose_primary_feature_dir(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
+    if _primary_mission_is_completed(primary_dir):
+        # Merge evidence makes primary authoritative — even when only the coord
+        # husk carries a status.events.jsonl (pinned by
+        # test_merged_primary_wins_even_when_only_coord_has_events): after a
+        # merge the primary tree is the record; a stale coord log must not
+        # resurrect husk reads. The primary-side empty-read seam the squad
+        # flagged is accepted and documented here — the runtime bridge's own
+        # merged gate returns terminal before any surface read matters.
+        return ResolvedStatusSurface(
+            surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=primary_dir,
+        )
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError.
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    meta = load_meta_fail_closed(feature_dir)
 
     # FR-006 (structural #2062 — the surface read-leg close): the husk
     # short-circuit below trusts the worktree's OWN ``meta.json`` (which EVERY real
@@ -713,14 +774,8 @@ def resolve_status_surface_with_anchor(
     # C-006: a genuine coord mission (stored topology COORD / LANES_WITH_COORD) OR an
     # un-backfilled legacy mission (no stored topology) keeps the husk short-circuit
     # — a real coord worktree is still the authoritative read.
-    feature_dir_is_husk = any(
-        part == _WORKTREES_SEGMENT for part in feature_dir.parts
-    )
-    if (
-        meta is not None
-        and feature_dir_is_husk
-        and _husk_is_authoritative_surface(repo_root, mission_slug)
-    ):
+    feature_dir_is_husk = any(part == _WORKTREES_SEGMENT for part in feature_dir.parts)
+    if meta is not None and feature_dir_is_husk and _husk_is_authoritative_surface(repo_root, mission_slug):
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=feature_dir,
@@ -736,14 +791,37 @@ def resolve_status_surface_with_anchor(
     # the write path then inherits via ``_identity_for_request``). Re-anchor the
     # config read on the canonical primary dir so the surface authority is
     # config-determined, never topology-determined-then-config-lost.
-    primary_dir: Path = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
-    )
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005): RECORDED FOUNDATION SITE 4/4, deliberately UNROUTED. This module
+    # is the canonical surface authority the status read ultimately depends on
+    # (``mission_runtime.resolution._resolve_status_surface_dir`` /
+    # ``mission_context_for`` consume ``resolve_status_surface`` from this
+    # module to assemble the execution-context workspace fragment): a raw
+    # compose here produces the topology/config signal (``coordination_branch``,
+    # husk-authority) that FEEDS that surface decision, so it must precede it,
+    # not route through it. It does not literally recurse — ``PlacementSeam.
+    # read_dir``'s ``resolve_artifact_surface`` / ``declared_read_surface``
+    # classification chokepoint never calls into this module at all (a
+    # separate call path), and this module is already whole-module sanctioned
+    # via ``_READ_SANCTIONED_MODULES``. WP08 deleted the public wrapper this
+    # site imported; calls the module-private ``_compose_primary_feature_dir``
+    # leaf directly instead.
+    #
+    # Foundation-count note: this "4/4" in-code count (``core/paths.py`` x2,
+    # ``core/git_ops.py``, this module) is a DIFFERENT grouping than the
+    # 5-entry ``_FOUNDATION_SANCTION_SEED`` machine-checked table in
+    # ``tests/architectural/test_no_read_side_bypass.py`` — that table swaps
+    # this whole-module-sanctioned entry for two individually-tracked sites
+    # (``retrospective/writer.py``, ``status/aggregate.py``) instead, per its
+    # own reconciling comment above ``_FOUNDATION_SANCTIONED``. Six underlying
+    # sites total, two different countable subsets by design — not a typo.
     if meta is None:
-        # FR-006: canonical reader contract (a) — None on missing, ValueError on
-        # malformed (defaults stated explicitly).
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
+        # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+        # MissionMetaReadError instead of raw ValueError.
+        from specify_cli.core.paths import load_meta_fail_closed
+
+        meta = load_meta_fail_closed(primary_dir)
     if meta is None:
         if primary_dir.exists():
             return ResolvedStatusSurface(
@@ -755,9 +833,7 @@ def resolve_status_surface_with_anchor(
                 surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
                 primary_anchor=feature_dir,
             )
-        raise FileNotFoundError(
-            f"meta.json not found for mission {mission_slug!r} at {feature_dir}"
-        )
+        raise FileNotFoundError(f"meta.json not found for mission {mission_slug!r} at {feature_dir}")
 
     # Config is now in hand. The canonical primary anchor is the topology-blind
     # primary dir (the create→first-write window authority the transaction
@@ -801,9 +877,7 @@ def resolve_status_surface_with_anchor(
     # logic expects).
     mid8: str = _coord_mid8(meta, mission_slug, repo_root)
     composed_coord_dir: Path = coord_feature_dir(repo_root, mission_slug, mid8)
-    coord_state = probe_coord_state(
-        repo_root, mission_slug, mid8, coordination_branch=coord_branch
-    )
+    coord_state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
 
     # #1889 row R3 / #1848: the coord worktree is absent AND the declared
     # coordination branch has been DELETED from git. A deleted coord branch with

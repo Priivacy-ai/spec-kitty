@@ -7,7 +7,7 @@ import html
 import json
 import re
 from dataclasses import dataclass
-from datetime import date
+from kernel.clock import now_utc
 from pathlib import Path
 from urllib.parse import quote
 
@@ -15,12 +15,32 @@ from urllib.parse import quote
 DEFAULT_BASE_URL = "https://docs.spec-kitty.ai/"
 DEFAULT_IMAGE = "assets/images/logo_small.webp"
 
+#: Bare site title used when a page carries no usable ``<title>``. A rendered
+#: page whose title equals this is indistinguishable from every other page and
+#: is a violation of NFR-001 — ``seo_verify`` imports this constant rather than
+#: retyping the string, so there is one authority for "the default title".
+DEFAULT_TITLE = "Spec Kitty Documentation"
+
+#: Boilerplate description used as a last-resort backstop when a page supplies
+#: none. It is deliberately **detectable** (C-B3): both the source gate and the
+#: built-output verifier treat a page carrying this exact string as equivalent
+#: to a page carrying no description at all. Making the backstop look like an
+#: authored description would let it mask the very defect it exists to reveal.
+FALLBACK_DESCRIPTION = (
+    "Spec Kitty documentation for CLI workflows, governed missions, AI harnesses, and 3.2 upgrades."
+)
+
 TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 DESCRIPTION_RE = re.compile(
     r'<meta\s+name="description"\s+content="(.*?)"\s*/?>',
     re.IGNORECASE | re.DOTALL,
 )
-HEAD_CLOSE_RE = re.compile(r"</head>", re.IGNORECASE)
+#: Matches ``</head>`` **together with the whitespace in front of it**. Consuming
+#: that whitespace is what makes injection a fixed point: ``SEO_BLOCK_RE`` strips
+#: the block *and* its leading whitespace, so an insertion that added its own
+#: indentation on top of the page's would drift by a couple of characters on the
+#: second pass. Normalizing here means strip-then-reinsert is byte-stable (C-B2).
+HEAD_CLOSE_RE = re.compile(r"\s*</head>", re.IGNORECASE)
 SEO_BLOCK_RE = re.compile(
     r"\n?\s*<!-- spec-kitty-seo:start -->.*?<!-- spec-kitty-seo:end -->\n?",
     re.IGNORECASE | re.DOTALL,
@@ -57,25 +77,58 @@ def should_index(relative_path: str, markup: str) -> bool:
         return False
     if rel.startswith("assets/"):
         return False
+    # kitty-specs are dogfooded mission artifacts (spec/plan/tasks/... per
+    # mission) surfaced in the site for provenance, not curated public pages:
+    # they legitimately share a per-mission description and carry glossary-linked
+    # titles. They are internal, so they stay out of search indexing — and, as
+    # the single indexability authority (I-08), out of the SEO rules (og:title,
+    # duplicate-description) and the sitemap too.
+    if rel.startswith("kitty-specs/") or "/kitty-specs/" in rel:
+        return False
     if 'http-equiv="refresh"' in markup.lower():
         return False
     robots = ROBOTS_RE.search(markup)
     return not (robots and "noindex" in robots.group(1).lower())
 
 
-def extract_title(markup: str) -> str:
+def _normalize(value: str) -> str:
+    """Collapse whitespace and resolve entities in an extracted attribute."""
+    return html.unescape(re.sub(r"\s+", " ", value)).strip()
+
+
+def find_title(markup: str) -> str | None:
+    """Return the page's own ``<title>``, or ``None`` when it has none.
+
+    Unlike :func:`extract_title` this never substitutes :data:`DEFAULT_TITLE`,
+    so callers that must distinguish "absent" from "defaulted" (the built-output
+    verifier's NFR-001 rule) can do so without a second parser.
+    """
     match = TITLE_RE.search(markup)
     if not match:
-        return "Spec Kitty Documentation"
-    title = html.unescape(re.sub(r"\s+", " ", match.group(1))).strip()
-    return title.replace(" | Spec Kitty Documentation", "").strip() or "Spec Kitty Documentation"
+        return None
+    title = _normalize(match.group(1))
+    return title.replace(f" | {DEFAULT_TITLE}", "").strip() or None
+
+
+def find_description(markup: str) -> str | None:
+    """Return the page's own ``<meta name="description">``, or ``None``.
+
+    The optional-returning counterpart to :func:`extract_description`: it is the
+    single authority both this module (to decide whether the backstop tag is
+    needed, C-B1) and ``seo_verify`` (to apply V-06) read a description with.
+    """
+    match = DESCRIPTION_RE.search(markup)
+    if not match:
+        return None
+    return _normalize(match.group(1)) or None
+
+
+def extract_title(markup: str) -> str:
+    return find_title(markup) or DEFAULT_TITLE
 
 
 def extract_description(markup: str) -> str:
-    match = DESCRIPTION_RE.search(markup)
-    if not match:
-        return "Spec Kitty documentation for CLI workflows, governed missions, AI harnesses, and 3.2 upgrades."
-    return html.unescape(re.sub(r"\s+", " ", match.group(1))).strip()
+    return find_description(markup) or FALLBACK_DESCRIPTION
 
 
 def breadcrumb_items(page: Page, base_url: str) -> list[dict[str, object]]:
@@ -116,7 +169,7 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
                 "name": "Spec Kitty Mission Runs",
                 "description": page.description,
                 "url": page.url,
-                "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+                "isPartOf": {"@type": "WebSite", "name": DEFAULT_TITLE, "url": docs_url},
                 "about": [
                     "Spec Kitty mission runs",
                     "spec-driven development",
@@ -141,7 +194,7 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
                 "description": page.description,
                 "url": page.url,
                 "inLanguage": "en",
-                "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+                "isPartOf": {"@type": "WebSite", "name": DEFAULT_TITLE, "url": docs_url},
                 "about": [
                     "Spec Kitty terminology",
                     "spec-driven development",
@@ -166,7 +219,7 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
             "description": page.description,
             "url": page.url,
             "inLanguage": "en",
-            "isPartOf": {"@type": "WebSite", "name": "Spec Kitty Documentation", "url": docs_url},
+            "isPartOf": {"@type": "WebSite", "name": DEFAULT_TITLE, "url": docs_url},
             "about": [
                 "Spec Kitty mission run",
                 mission_slug,
@@ -196,7 +249,16 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
     ]
 
 
-def seo_block(page: Page, base_url: str, image_path: str) -> str:
+def seo_block(page: Page, base_url: str, image_path: str, *, emit_description: bool = False) -> str:
+    """Render the injected SEO block for ``page``.
+
+    ``emit_description`` adds a ``<meta name="description">`` tag to the block.
+    It is a **backstop** (C-B1): callers pass ``True`` only when the page does
+    not already carry a description tag of its own, so DocFX's frontmatter-derived
+    output stays the single canonical authority wherever it exists. The tag lives
+    *inside* the delimited block, so the existing strip-then-reinsert cycle keeps
+    the pass idempotent (C-B2).
+    """
     image_url = normalize_base_url(base_url) + quote(image_path.lstrip("/"), safe="/.-_~")
     json_ld = [
         {
@@ -208,7 +270,7 @@ def seo_block(page: Page, base_url: str, image_path: str) -> str:
             "inLanguage": "en",
             "isPartOf": {
                 "@type": "WebSite",
-                "name": "Spec Kitty Documentation",
+                "name": DEFAULT_TITLE,
                 "url": normalize_base_url(base_url),
             },
             "publisher": {
@@ -229,22 +291,26 @@ def seo_block(page: Page, base_url: str, image_path: str) -> str:
     escaped_desc = html.escape(page.description, quote=True)
     escaped_url = html.escape(page.url, quote=True)
     escaped_image = html.escape(image_url, quote=True)
-    return f"""
-      <!-- spec-kitty-seo:start -->
-      <link rel="canonical" href="{escaped_url}">
-      <meta property="og:site_name" content="Spec Kitty Documentation">
-      <meta property="og:type" content="article">
-      <meta property="og:title" content="{escaped_title}">
-      <meta property="og:description" content="{escaped_desc}">
-      <meta property="og:url" content="{escaped_url}">
-      <meta property="og:image" content="{escaped_image}">
-      <meta name="twitter:card" content="summary">
-      <meta name="twitter:title" content="{escaped_title}">
-      <meta name="twitter:description" content="{escaped_desc}">
-      <meta name="twitter:image" content="{escaped_image}">
-      <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False, separators=(",", ":"))}</script>
-      <!-- spec-kitty-seo:end -->
-"""
+    lines = ["", "      <!-- spec-kitty-seo:start -->"]
+    if emit_description:
+        lines.append(f'      <meta name="description" content="{escaped_desc}">')
+    lines += [
+        f'      <link rel="canonical" href="{escaped_url}">',
+        f'      <meta property="og:site_name" content="{html.escape(DEFAULT_TITLE, quote=True)}">',
+        '      <meta property="og:type" content="article">',
+        f'      <meta property="og:title" content="{escaped_title}">',
+        f'      <meta property="og:description" content="{escaped_desc}">',
+        f'      <meta property="og:url" content="{escaped_url}">',
+        f'      <meta property="og:image" content="{escaped_image}">',
+        '      <meta name="twitter:card" content="summary">',
+        f'      <meta name="twitter:title" content="{escaped_title}">',
+        f'      <meta name="twitter:description" content="{escaped_desc}">',
+        f'      <meta name="twitter:image" content="{escaped_image}">',
+        "      <script type=\"application/ld+json\">"
+        f"{json.dumps(json_ld, ensure_ascii=False, separators=(',', ':'))}</script>",
+        "      <!-- spec-kitty-seo:end -->",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def noindex_block() -> str:
@@ -255,6 +321,17 @@ def noindex_block() -> str:
 """
 
 
+def _replace_head_close(markup: str, replacement: str) -> str:
+    """Insert ``replacement`` in place of the first ``</head>``.
+
+    Substitutes via a callable so ``re.sub`` treats ``replacement`` literally:
+    the block embeds JSON-LD and author-written descriptions, and backslash
+    sequences (``\\1``, ``\\g``) in a replacement *string* would be interpreted
+    as group references and silently corrupt the output.
+    """
+    return HEAD_CLOSE_RE.sub(lambda _match: replacement, markup, count=1)
+
+
 def process_html(site_dir: Path, base_url: str, image_path: str) -> list[Page]:
     pages: list[Page] = []
     for path in sorted(site_dir.rglob("*.html")):
@@ -262,6 +339,9 @@ def process_html(site_dir: Path, base_url: str, image_path: str) -> list[Page]:
         markup = path.read_text(encoding="utf-8")
         markup = SEO_BLOCK_RE.sub("", markup)
         if should_index(relative_path, markup):
+            # Read *after* the previous block was stripped, so a description this
+            # module injected on an earlier pass is not mistaken for the page's
+            # own — that is what keeps repeated runs byte-identical (C-B2).
             page = Page(
                 path=path,
                 relative_path=relative_path,
@@ -269,17 +349,29 @@ def process_html(site_dir: Path, base_url: str, image_path: str) -> list[Page]:
                 description=extract_description(markup),
                 url=canonical_url(base_url, relative_path),
             )
-            block = seo_block(page, base_url, image_path)
+            block = seo_block(
+                page,
+                base_url,
+                image_path,
+                emit_description=find_description(markup) is None,
+            )
             pages.append(page)
         else:
             block = noindex_block()
-        markup = HEAD_CLOSE_RE.sub(block + "  </head>", markup, count=1)
+        markup = _replace_head_close(markup, block + "  </head>")
         path.write_text(markup, encoding="utf-8")
     return pages
 
 
 def write_sitemap(site_dir: Path, pages: list[Page]) -> None:
-    today = date.today().isoformat()
+    # FR-011 (kernel-clock-single-door): the door has no date-only producer
+    # (plan Sec 1.1). Prior site was local-time `date.today()` -- a naive
+    # local-time read masquerading as a date. Routed onto the door's aware
+    # `now_utc().date()`, which flips local -> UTC date: BYTE-CHANGING when
+    # the build host's local date differs from the UTC date at build time
+    # (e.g. near midnight). See research/migration-notes.md (WP14) for the
+    # adjudication record and pinning test.
+    today = now_utc().date().isoformat()
     urls = "\n".join(
         f"  <url><loc>{html.escape(page.url)}</loc><lastmod>{today}</lastmod></url>" for page in pages
     )

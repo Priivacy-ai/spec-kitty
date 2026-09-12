@@ -54,7 +54,7 @@ The Divio system identifies four distinct types of documentation, each serving a
 - Practical steps
 - Doesn't explain underlying concepts
 
-**Spec Kitty example**: "How to Review a Work Package" - steps to review, without explaining why review matters
+**Spec Kitty example**: "How to Review a work package" - steps to review, without explaining why review matters
 
 ### 3. Reference (Information-Oriented)
 
@@ -242,12 +242,12 @@ For background on why conflicts occur, see [Git Worktrees Explained](git-worktre
 
 ## Try It
 
-- [Claude Code Workflow](../guides/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/tutorials/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Use the Dashboard](../guides/use-dashboard.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Reference
 

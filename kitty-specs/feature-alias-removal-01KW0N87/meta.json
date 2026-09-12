@@ -1,7 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-feature-alias-removal-01KW0N87",
   "created_at": "2026-06-26T00:28:37.566452+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Remove hidden --feature alias from user-facing CLI commands",
   "mission_id": "01KW0N879YNT6HYB6DX1JE6STX",
   "mission_number": null,
@@ -12,5 +11,5 @@
   "slug": "feature-alias-removal-01KW0N87",
   "status_phase": "1",
   "target_branch": "feat/feature-alias-removal",
-  "topology": "coord"
+  "topology": "lanes"
 }

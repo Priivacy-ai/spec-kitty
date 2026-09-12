@@ -18,9 +18,13 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
-from mission_runtime import CommitTarget
+from mission_runtime import (
+    CommitTarget,
+    MissionArtifactKind,
+    resolve_write_target_or_degrade,
+)
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
@@ -34,6 +38,7 @@ from runtime.next._internal_runtime.events import (
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
     RuntimeEventEmitter,
+    seed_runtime_emitter,
 )
 from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
@@ -86,22 +91,54 @@ class DecisionGitLog:
         self._worktree_root = worktree_root
         self._destination_ref = destination_ref
         self._mission_slug = mission_slug
+        # FR-001: validate mission_slug before joining into a FS path (traversal
+        # guard) — validated FIRST so an unsafe slug fails closed with ValueError
+        # before any placement resolution (below) is attempted on it.
+        _safe_slug = assert_safe_path_segment(mission_slug)
         # T010: the CommitTarget is resolved by the calling surface
         # (runtime_bridge) which knows the coordination topology — it is passed
         # in, not re-derived here. When a legacy caller supplies only the string
-        # destination_ref, fall back to a ref-only target on that ref: the decision
-        # log always lands on the per-mission coordination branch, and safe_commit
-        # reads only ``target.ref`` (the vestigial ``.kind`` carrier is dropped,
-        # WP04 drain; the VO field defaults transitionally until WP16 removes it).
-        self._target = target or CommitTarget(ref=destination_ref)
+        # destination_ref (no injected ``target``), the DEFAULT is now derived
+        # through the placement port (coord-write-placement-closure-01KYCF83
+        # WP03 / FR-003) instead of trusting the ambient ``destination_ref``
+        # verbatim: ``decisions.events.jsonl`` classifies to ``DECISION_LOG`` (a
+        # COORD-partition kind, WP02), so ``resolve_placement_only`` resolves the
+        # SAME coordination-branch ref the classifier owns — never a re-derivation
+        # inline here. Only when the mission cannot be resolved (no meta.json yet,
+        # or an ad-hoc fixture outside a resolvable mission) does this degrade to
+        # the ambient ``destination_ref`` — mirroring the established degrade-path
+        # idiom in ``coordination.status_transition._resolve_write_target``.
+        self._target = target or self._resolve_default_target(
+            repo_root, mission_slug, destination_ref
+        )
         # WP04/FR-004: mission_id must be a ULID or None (fail-closed). Never
         # substitute the slug — a slug in a mission_id field is a contract violation.
         self._mission_id = mission_id
         self._inner = inner
-        # FR-001: validate mission_slug before joining into a FS path (traversal guard).
-        _safe_slug = assert_safe_path_segment(mission_slug)
         self._decisions_file = (
             worktree_root / KITTY_SPECS_DIR / _safe_slug / "decisions.events.jsonl"
+        )
+
+    @staticmethod
+    def _resolve_default_target(
+        repo_root: Path, mission_slug: str, destination_ref: str
+    ) -> CommitTarget:
+        """Derive the default commit target via the placement port (FR-003).
+
+        ``decisions.events.jsonl`` is the ``DECISION_LOG`` kind (a
+        COORD-partition kind, WP02) — uses the shared helper to resolve
+        through the placement port, with caller-supplied degrade ref for
+        the bootstrap-window (no ``meta.json`` yet, or ad-hoc fixture).
+
+        This method preserves fail-open behavior: the mission events are
+        logged regardless of resolution success (fail-open policy at
+        call site).
+        """
+        return resolve_write_target_or_degrade(
+            repo_root,
+            mission_slug,
+            kind=MissionArtifactKind.DECISION_LOG,
+            degrade_ref=destination_ref,
         )
 
     # ------------------------------------------------------------------
@@ -152,6 +189,10 @@ class DecisionGitLog:
         self, payload: TimeoutExpiredPayload
     ) -> None:
         self._inner.emit_decision_timeout_expired(payload)
+
+    def seed_from_snapshot(self, snapshot: Any) -> None:
+        """Delegate optional seeding; producer failures cannot block mission work."""
+        seed_runtime_emitter(self._inner, snapshot)
 
     # ------------------------------------------------------------------
     # Internal helpers

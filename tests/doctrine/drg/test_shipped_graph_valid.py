@@ -6,7 +6,7 @@ Replaces the coverage that previously lived in
 ``tests/doctrine/test_shipped_doctrine_cycle_free.py``, which both imported
 from the deleted charter transitive-reference module.
 
-:func:`doctrine.drg.validator.assert_valid` rejects:
+:func:`charter.offering.drg.validator.assert_valid` rejects:
 
 - dangling edges (target URN not in nodes)
 - duplicate edges
@@ -19,12 +19,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.validator import assert_valid
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 def test_shipped_graph_loads_and_validates(built_in_graph: DRGGraph) -> None:

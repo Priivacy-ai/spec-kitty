@@ -15,11 +15,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..enums import SurfaceKind
+from ..enums import ToolSurfaceKind
 from ..model import SurfacePlan
 from .claude import _validate_bundle
 from .model import (
     TARGET_COPILOT,
+    BundleEntry,
     BundleValidationResult,
     PluginBundle,
 )
@@ -34,19 +35,19 @@ from .projection import (
 # at root (NOT under ``hooks/``), and ``.mcp.json`` at root.
 _MANIFEST_NAME = "plugin.json"
 
-_COPILOT_LAYOUT: dict[SurfaceKind, str] = {
-    SurfaceKind.COMMAND_SKILL: "skills",
-    SurfaceKind.DOCTRINE_SKILL: "skills",
-    SurfaceKind.AGENT_PROFILE: "agents",
-    SurfaceKind.HOOK: "",
-    SurfaceKind.NATIVE_CONFIG: "",
+_COPILOT_LAYOUT: dict[ToolSurfaceKind, str] = {
+    ToolSurfaceKind.COMMAND_SKILL: "skills",
+    ToolSurfaceKind.DOCTRINE_SKILL: "skills",
+    ToolSurfaceKind.AGENT_PROFILE: "agents",
+    ToolSurfaceKind.HOOK: "",
+    ToolSurfaceKind.NATIVE_CONFIG: "",
 }
 
-_REQUIRED_KINDS: frozenset[SurfaceKind] = frozenset(
+_REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
-        SurfaceKind.COMMAND_SKILL,
-        SurfaceKind.DOCTRINE_SKILL,
-        SurfaceKind.AGENT_PROFILE,
+        ToolSurfaceKind.COMMAND_SKILL,
+        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.AGENT_PROFILE,
     }
 )
 
@@ -62,7 +63,14 @@ class CopilotBundleProjector:
     distribution_target = TARGET_COPILOT
     # Copilot / VS Code keep the manifest at the package root.
     manifest_relative_path = _MANIFEST_NAME
-    layout: dict[SurfaceKind, str] = _COPILOT_LAYOUT
+    layout: dict[ToolSurfaceKind, str] = _COPILOT_LAYOUT
+
+    def entries(self, plan: Sequence[SurfacePlan], project_root: Path) -> tuple[BundleEntry, ...]:
+        """Select the canonical members without writing the staging tree."""
+        return bundle_entries_for_plans(
+            plan, project_root, layout=self.layout,
+            agent_filename=_agent_filename, bundle_kinds=BUNDLE_SURFACE_KINDS,
+        )
 
     def project(
         self,
@@ -71,13 +79,7 @@ class CopilotBundleProjector:
         output_dir: Path,
     ) -> PluginBundle:
         """Project all bundleable surfaces into the Copilot/VS Code layout."""
-        entries = bundle_entries_for_plans(
-            plan,
-            project_root,
-            layout=self.layout,
-            agent_filename=_agent_filename,
-            bundle_kinds=BUNDLE_SURFACE_KINDS,
-        )  # project_root scopes bundling to the project tree.
+        entries = self.entries(plan, project_root)
         manifest = plugin_manifest_payload(self.distribution_target)
         write_bundle(output_dir, entries, _MANIFEST_NAME, manifest)
         return PluginBundle(
@@ -89,7 +91,7 @@ class CopilotBundleProjector:
     def validate(
         self,
         bundle: PluginBundle,
-        required_surface_kinds: set[SurfaceKind] | None = None,
+        required_surface_kinds: set[ToolSurfaceKind] | None = None,
     ) -> BundleValidationResult:
         """Validate that every required surface kind is present in ``bundle``."""
         required = (

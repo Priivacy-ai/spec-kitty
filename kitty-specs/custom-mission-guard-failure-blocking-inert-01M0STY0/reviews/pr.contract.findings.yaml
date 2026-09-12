@@ -1,0 +1,84 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: pr-contract-001
+    lens: "Contract vs implementation (FR-010 malformed-manifest handling)"
+    severity: 4
+    title: >-
+      FR-010's "close the org-tier schema-validation crash risk" is not effective on the
+      real gather_artifact_presence path — a schema-invalid manifest at either tier still
+      raises a bare, uncaught pydantic.ValidationError through all three call sites
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_io.py:841-912 (_presence_filenames_for, org branch at :904, built-in branch at :909)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1051 (gather_artifact_presence calls _presence_filenames_for first)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1114-1122 (blocking_artifact_names / required_artifacts_for resolved only afterward)"
+      - code: "src/specify_cli/runtime/resolver.py:557-680 (_load_expected_artifact_manifest — the ONLY call path FR-010's try/except ValidationError -> ManifestSchemaError fix actually wraps)"
+      - code: "kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/spec.md:455-478 (FR-010 text: 'Neither tier raises ManifestSchemaError for schema-invalid content on this mission's call path... wrap ExpectedArtifactManifest.model_validate(...) ... for both the built-in and the new org-tier branch')"
+    claim: >-
+      FR-010 (spec.md:455-478) states the mission closes the org-tier
+      schema-validation crash risk that WP02's org-tier awareness newly introduces, and
+      implements this by wrapping `ExpectedArtifactManifest.model_validate(...)` in
+      `try/except pydantic.ValidationError: raise ManifestSchemaError(...)` inside
+      `resolver.py::_load_expected_artifact_manifest` (verified present and correctly
+      implemented, both tiers, at resolver.py:598-627).
+      However, this mission's own WP02 also adds a SECOND, parallel org-tier-reachable
+      `ExpectedArtifactManifest.model_validate(org_parsed)` call in
+      `runtime_bridge_io.py::_presence_filenames_for` (line 904, org branch; line 909,
+      built-in branch — the built-in branch is pre-existing on origin/main and already
+      unguarded there, but the org branch is new to this mission) — and this second call
+      site has NO try/except at all, so it raises a bare, unwrapped
+      `pydantic.ValidationError` when the manifest fails schema validation.
+      `gather_artifact_presence` (runtime_bridge_io.py:1051) calls
+      `_presence_filenames_for` BEFORE it resolves `blocking_artifact_names` via
+      `required_artifacts_for` (the fixed path), so for a mission_family whose manifest
+      is schema-invalid, the unwrapped `_presence_filenames_for` branch is hit first and
+      the fixed `required_artifacts_for` branch is never reached.
+      Since `gather_artifact_presence` is the single function all three call sites this
+      mission threads `repo_root` through actually use (CLI pre-check, WP-iteration
+      pre-check, composed-action guard), FR-010's fix is dead on the dominant real path: a
+      custom-family org-tier manifest with a schema error (e.g. an `extra="forbid"`-
+      rejected field) still crashes a live `spec-kitty next` invocation with the exact raw
+      `pydantic.ValidationError` FR-010 says it eliminates, rather than the intended
+      descriptive `ManifestSchemaError`.
+      Empirically verified on this branch's tip (06e7a8bdb, tree clean before and after):
+      calling `gather_artifact_presence(feature_dir, mission_family="software-dev",
+      step_id="specify", repo_root=<project with an org-pack manifest missing the
+      required `mission_type` field replaced by an extra-forbidden field>)` raises
+      `pydantic_core._pydantic_core.ValidationError` uncaught, while calling
+      `required_artifacts_for("specify", "software-dev", repo_root=<same project>)`
+      directly correctly raises `specify_cli.dossier.manifest.ManifestSchemaError` as
+      FR-010 promises — proving the two call paths this mission touches disagree, and the
+      one actually used by `next` is the unfixed one. The same holds for the built-in
+      tier (verified with a built-in-tree-only repro): `_presence_filenames_for`'s
+      built-in branch (line 909) is also unguarded, though that specific branch predates
+      this mission and is not itself something FR-010 claims to fix — FR-010 explicitly
+      scopes its "close the org-tier … crash risk" claim to the org-tier branch only, and
+      it is exactly that org-tier branch (newly added by this mission's WP02, at line 904)
+      that remains unfixed on the path that matters.
+      This is not the mission's silent-success defect class (the failure is loud, not
+      silent) — it fails closed, safely. But it is a genuine FR-fidelity gap: the FR-010
+      "Design decision" text in spec.md claims a single edit to
+      `_load_expected_artifact_manifest` closes the crash risk it describes, without
+      acknowledging that `_presence_filenames_for` performs the identical unguarded
+      operation earlier in the exact same request, on the exact same newly-org-tier-aware
+      data.
+    remediation: >-
+      Wrap `ExpectedArtifactManifest.model_validate(org_parsed)` (line 904) and
+      `ExpectedArtifactManifest.model_validate(config.parsed)` (line 909) in
+      `runtime_bridge_io.py::_presence_filenames_for` in the same
+      `try/except pydantic.ValidationError: raise ManifestSchemaError(...) from exc`
+      pattern already implemented in `resolver.py::_load_expected_artifact_manifest`
+      (reuse the same org-tier-vs-built-in origin-string branching logic), OR
+      factor manifest loading+validation into one shared helper both
+      `_presence_filenames_for` and `_load_expected_artifact_manifest` call, so there is
+      exactly one place this exception-wrapping contract can be implemented, and no
+      second unguarded `model_validate()` call can reintroduce the crash FR-010 claims to
+      have closed. Add a regression test that calls `gather_artifact_presence` (not
+      `required_artifacts_for` in isolation) with a schema-invalid org-tier manifest and
+      asserts `ManifestSchemaError`, not `pydantic.ValidationError`, is raised — the
+      current WP02 test suite (`tests/specify_cli/runtime/test_configured_artifact_name.py::TestManifestSchemaErrorPerTier`)
+      only exercises `required_artifacts_for` directly and would not have caught this.

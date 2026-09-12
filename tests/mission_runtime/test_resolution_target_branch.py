@@ -19,6 +19,7 @@ These tests pin two invariants for the canonical resolver
    mode-correct branch, and the write guard refuses the unauthorized mainline
    write with the stable ``PROTECTED_BRANCH_REFUSED`` code — no silent fallback.
 """
+
 from __future__ import annotations
 
 import json
@@ -75,14 +76,7 @@ def _write_review_wp(feature_dir: Path) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     (tasks_dir / "WP01-review.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Review target\n"
-        "dependencies: []\n"
-        "execution_mode: planning_artifact\n"
-        "owned_files: []\n"
-        "---\n"
-        "# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Review target\ndependencies: []\nexecution_mode: planning_artifact\nowned_files: []\n---\n# WP01\n",
         encoding="utf-8",
     )
 
@@ -114,9 +108,7 @@ def repo(tmp_path: Path) -> Path:
     _git(r, "config", "user.name", "Test")
     _git(r, "config", "commit.gpgsign", "false")
     (r / ".kittify").mkdir()
-    (r / ".kittify" / "config.yaml").write_text(
-        "agents:\n  available:\n    - claude\n", encoding="utf-8"
-    )
+    (r / ".kittify" / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
     return r
 
 
@@ -199,3 +191,74 @@ def test_non_mainline_write_target_allowed(repo: Path) -> None:
     verdict = WorkflowMutationPolicy.assert_allowed(change_set)
 
     assert isinstance(verdict, Allowed)
+
+
+# ---------------------------------------------------------------------------
+# Effective-root target-branch threading (PR #3691 adversarial-review fixes)
+#
+# When a caller passes ``effective_root`` (a linked worktree that owns its own
+# copy of the mission), the resolver prefers the caller surface's stored
+# ``target_branch`` but must fall back through the canonical
+# ``get_feature_target_branch`` adapter — which reads the PRIMARY surface's
+# meta.json — instead of the bare repo default. Falling back to the default
+# directly would silently drop the mission's declared branch whenever the
+# caller-surface meta lacks the field (the WP00/FR-004 bug class).
+# ---------------------------------------------------------------------------
+
+
+def _add_caller_worktree(repo: Path, tmp_path: Path) -> Path:
+    """Create a real linked worktree of ``repo`` and return its root."""
+    caller = tmp_path / "caller-worktree"
+    _git(repo, "worktree", "add", "-q", "-b", "caller-wt", str(caller), "main")
+    return caller
+
+
+def test_effective_root_prefers_caller_surface_stored_target(repo: Path, tmp_path: Path) -> None:
+    """The caller-owned worktree's stored target_branch wins when present."""
+    _build_mission(repo, target_branch="feat/primary-stored")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "fixture")
+    caller = _add_caller_worktree(repo, tmp_path)
+
+    caller_meta = caller / "kitty-specs" / _MISSION_SLUG / "meta.json"
+    meta = json.loads(caller_meta.read_text(encoding="utf-8"))
+    meta["target_branch"] = "feat/caller-stored"
+    caller_meta.write_text(json.dumps(meta), encoding="utf-8")
+
+    ctx = resolve_action_context(
+        repo,
+        action="tasks",
+        feature=_MISSION_SLUG,
+        cwd=caller,
+        effective_root=caller,
+    )
+
+    assert ctx.target_branch == "feat/caller-stored"
+
+
+def test_effective_root_falls_back_to_primary_stored_target(repo: Path, tmp_path: Path) -> None:
+    """A caller surface whose meta lacks target_branch falls back to PRIMARY's.
+
+    Regression: the first cut of the effective-root path degraded to the bare
+    repo-default branch here, silently dropping the primary surface's stored
+    ``target_branch`` (diff-coverage lines 2278/2280-2281).
+    """
+    _build_mission(repo, target_branch="feat/primary-stored")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "fixture")
+    caller = _add_caller_worktree(repo, tmp_path)
+
+    caller_meta = caller / "kitty-specs" / _MISSION_SLUG / "meta.json"
+    meta = json.loads(caller_meta.read_text(encoding="utf-8"))
+    del meta["target_branch"]
+    caller_meta.write_text(json.dumps(meta), encoding="utf-8")
+
+    ctx = resolve_action_context(
+        repo,
+        action="tasks",
+        feature=_MISSION_SLUG,
+        cwd=caller,
+        effective_root=caller,
+    )
+
+    assert ctx.target_branch == "feat/primary-stored"

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "home-pin-census-owner-adoption-01M05C50",
+  "mission_id": "01M05C50C35B0QXW60PCAZKH78",
+  "mission_branch": "kitty/mission-home-pin-census-owner-adoption-01M05C50",
+  "target_branch": "kitty/fix-home-pin-census-owner-adoption-3121",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/cli/commands/test_sync_status_drain_blockers.py"
+      ],
+      "predicted_surfaces": [
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-16T13:34:44.751499+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9ed22309eb4520ad39c83b241703b16d2316427c"
+}

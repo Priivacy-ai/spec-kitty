@@ -26,7 +26,7 @@ import asyncio
 import logging
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 
 import pytest
@@ -63,7 +63,7 @@ def _make_expired_session(
     access_token: str = "at_seed_v1",
     session_id: str = "sess_seed",
 ) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -99,7 +99,7 @@ class _CountingRefreshFlow:
     async def refresh(self, session: StoredSession) -> StoredSession:
         _CountingRefreshFlow.call_count += 1
         await asyncio.sleep(_CountingRefreshFlow.delay_seconds)
-        now = datetime.now(UTC)
+        now = now_utc()
         return StoredSession(
             user_id=session.user_id,
             email=session.email,
@@ -197,7 +197,7 @@ async def test_concurrent_refresh_one_network_call(
     in-memory copy and is non-expired, and adopts it without a
     network call.
     """
-    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://spec-kitty-dev.fly.dev")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://team.spec-kitty.ai")
 
     # Seed the encrypted store with an expired session.
     storage = FileFallbackStorage(base_dir=auth_store_root)

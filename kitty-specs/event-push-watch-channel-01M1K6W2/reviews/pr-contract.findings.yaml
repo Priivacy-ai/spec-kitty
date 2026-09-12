@@ -1,0 +1,59 @@
+phase: pr
+lens: contract
+findings:
+  - id: PR-CONTRACT-001
+    severity: 4
+    title: Pass-through Tail envelopes never carry tail_offset/tail_invariant — FR-004's resume mechanism is unusable from the CLI's own output
+    location: "src/specify_cli/cli/commands/events.py:180-190 (tail_command, both --once and streaming print loops); src/specify_cli/status/tail_reader.py:283-297 (poll_once, ordinary events list built from json.loads(chunk) with no sibling-key injection)"
+    claim: >
+      FR-004 (spec.md:327, High priority) requires the reader to "emit, in each envelope, both
+      its current offset AND the FR-005 content-invariant value ... for that offset, so that I
+      can persist both and supply them on restart." plan.md's binding "Tail Envelope & Cursor
+      Schema" section (plan.md:389-391) and WP04's own task file (tasks/WP04-cli-shell-events-tail.md:84)
+      both commit to the identical, specific shape: "Pass-through envelope: the existing
+      StatusEvent JSON dict unmodified, plus tail_offset: int and tail_invariant: str sibling
+      keys." The shipped code never does this. poll_once()'s ordinary drain loop
+      (tail_reader.py:283-297) appends `parsed = json.loads(chunk)` to `events` unmodified — no
+      offset/invariant is attached. events.py's two print loops (`for event in result.events:
+      print(json.dumps(event))` at line 182-183, and `for event in stream: print(json.dumps(event))`
+      at line 189-190) print that raw dict verbatim. Only the log_truncated signal
+      (_truncation_signal(), tail_reader.py:178-186) carries tail_offset/tail_invariant — ordinary
+      events never do. A real external consumer of `spec-kitty events tail --json` therefore has
+      no documented, in-band way to learn the offset+invariant it is supposed to persist and
+      supply on restart via --from-offset/--from-invariant: the entire cross-restart resume story
+      FR-004/FR-013 exist to serve is unreachable through the CLI's own stdout contract.
+      tests/cli/test_events_tail.py's own resume-success test proves this by construction: it
+      derives resume_offset via `log_path.stat().st_size` (raw filesystem introspection) and
+      resume_invariant via a direct internal call to `events_cli.poll_once()` (test_events_tail.py:263-264)
+      — never by reading either value off the CLI's own printed stdout — because there is nothing
+      there to read. This is a test that cannot catch the defect it exists to validate (the CLI-level
+      resume flow), matching the "test that cannot catch what it exists to catch" severity-4 class.
+    evidence: |
+      Live-drove the actual CLI end to end (not just read the code):
+        $ printf '{"type":"e1","n":1}\n{"type":"e2","n":2}\n' > "$LOG"
+        $ SPECIFY_REPO_ROOT=<scratch-project> .venv/bin/spec-kitty events tail --mission testmission-01ABCDEFGHJKMNPQRS --once
+        {"type": "e1", "n": 1}
+        {"type": "e2", "n": 2}
+      No "tail_offset"/"tail_invariant" key anywhere in the output, for either --once or a bounded
+      streaming invocation (--max-events N). Confirmed the same absence directly against the core:
+        events = poll_once(path, TailCursor(0, EMPTY_DIGEST)).events
+        # -> [{"type": "e1", "n": 1}, {"type": "e2", "n": 2}]  (no offset/invariant keys)
+      Confirmed the log_truncated signal DOES carry them (tail_reader.py _truncation_signal()),
+      establishing the injection mechanism exists for one envelope type but was never applied to
+      the pass-through type plan.md/WP04 equally required it for.
+      grep -n "tail_offset\|tail_invariant" src/specify_cli/status/tail_reader.py
+        182:        "tail_offset": 0,
+        183:        "tail_invariant": EMPTY_DIGEST,
+      (only inside _truncation_signal(); no other occurrence in tail_reader.py or events.py).
+    remediation: >
+      In events.py's two print sites (--once's `for event in result.events:` and the streaming
+      `for event in stream:`), inject `tail_offset`/`tail_invariant` sibling keys onto every
+      pass-through envelope before printing, sourced from the cursor poll_once()/tail_events()
+      just advanced to (poll_once() already returns the new cursor in PollResult.cursor; the
+      per-event offset needs poll_once() or the shell to track incremental per-line offsets rather
+      than only the end-of-poll cursor, since a single poll can drain multiple lines). Add a CLI-level
+      test asserting the printed JSON for an ordinary event contains "tail_offset"/"tail_invariant"
+      that a real external process could read and persist, then rewrite
+      test_resume_success_path_emits_only_events_at_or_after_offset to derive its resume token from
+      that stdout output instead of from log_path.stat()/a direct poll_once() call.
+complete: true

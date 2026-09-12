@@ -8,7 +8,7 @@ import sys
 import time
 import types
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_epoch, now_utc, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -53,7 +53,7 @@ def _private_teamspace() -> Team:
 
 
 def _make_session(*, access_expires_in: int = 900) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user_seed",
         email="seed@example.com",
@@ -237,7 +237,7 @@ def test_naive_refresh_expiry_is_hot_path_miss(tmp_path: Path) -> None:
     storage.write(_make_session())
     payload = {
         "schema_version": 1,
-        "generated_at": time.time(),
+        "generated_at": now_epoch(),
         "max_age_seconds": 30,
         "durable_fingerprint": session_hot_path._durable_fingerprint(
             store_dir / "session.json"
@@ -338,7 +338,7 @@ async def test_hot_path_materializes_before_refresh_and_preserves_single_flight(
         async def refresh(self, session: StoredSession) -> StoredSession:
             type(self).call_count += 1
             await asyncio.sleep(0.01)
-            now = datetime.now(UTC)
+            now = now_utc()
             return StoredSession(
                 user_id=session.user_id,
                 email=session.email,

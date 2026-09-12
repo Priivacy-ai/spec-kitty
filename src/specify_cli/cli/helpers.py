@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import NoReturn
 
 import click
 import typer
 from rich.align import Align
 from rich.text import Text
 from typer.core import TyperGroup
+
+from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
 from specify_cli.cli.console import CliConsole, console
 from specify_cli.core.config import BANNER
@@ -47,7 +51,7 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
     if argv is None:
         argv = sys.argv[1:]
 
-    suppress_flags = frozenset({"--no-nag", "--json", "--quiet", "--help", "-h", "--version", "-v"})
+    suppress_flags = frozenset({"--no-nag", "--json", "--plan-json", "--quiet", "--help", "-h", "--version", "-v"})
     if any(tok in suppress_flags for tok in argv):
         return True
 
@@ -71,6 +75,22 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        command_args = list(args)
+        remaining = super().parse_args(ctx, args)
+        if command_args:
+            name, command, upgrade_args = self.resolve_command(ctx, command_args)
+            if name == "migrate":
+                ctx.meta["defer_root_bootstrap"] = True
+            if name == "upgrade" and command is not None:
+                from specify_cli.upgrade.intent import parse_upgrade_intent
+
+                ctx.meta["upgrade_intent"] = parse_upgrade_intent(command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir())
+        return remaining
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return sorted(super().list_commands(ctx))
 
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         if _should_use_simple_help():
@@ -136,9 +156,6 @@ def _should_render_banner_for_invocation(argv: list[str] | None = None) -> bool:
         return False
 
     tokens = [token.strip().lower() for token in (argv if argv is not None else sys.argv[1:]) if token.strip()]
-    if "--version" in tokens or "-v" in tokens:
-        return True
-
     command = next((token for token in tokens if not token.startswith("-")), None)
     return command == "init"
 
@@ -195,7 +212,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
 
     try:
         # Deferred imports to avoid circular imports at module load time.
-        from datetime import UTC, datetime  # noqa: PLC0415
+        from kernel.clock import now_utc  # noqa: PLC0415
 
         from specify_cli.compat import Decision  # noqa: PLC0415
         from specify_cli.compat import Invocation  # noqa: PLC0415
@@ -238,7 +255,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
         try:
             nag_cache = NagCache.default()
             existing = nag_cache.read()
-            now = datetime.now(UTC)
+            now = now_utc()
             if existing is not None:
                 updated_record = replace(existing, last_shown_at=now)
             else:
@@ -262,9 +279,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
 def callback(ctx: typer.Context) -> None:
     """Display the banner when CLI is invoked without a subcommand."""
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
-        show_banner()
-        console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
-        console.print()
+        click.echo(ctx.get_help(), color=ctx.color)
 
     # Teamspace CLI auth/upgrade readiness coordinator
     # (Priivacy-ai/spec-kitty#1093). First-gated on is_saas_sync_enabled();
@@ -288,6 +303,7 @@ def callback(ctx: typer.Context) -> None:
             from specify_cli.core.version_checker import (  # noqa: PLC0415 — deferred import
                 maybe_emit_no_upgrade_notice,
             )
+
             maybe_emit_no_upgrade_notice(command_name)
     except Exception:  # noqa: BLE001 — notifier must never block the CLI
         pass
@@ -302,6 +318,47 @@ def get_project_root_or_exit(start: Path | None = None) -> Path:
         console.print("[dim]Tip: Initialize a project with 'spec-kitty init <name>' if one does not exist.[/dim]")
         raise typer.Exit(1)
     return project_root
+
+
+def git_resolution_failure_message(
+    exc: NotInsideRepositoryError | GitCommonDirUnavailableError,
+    project_root: Path,
+) -> str:
+    """Build the actionable message for a charter-resolution git failure (#4123).
+
+    ``spec-kitty init`` deliberately allows non-git init (canonical invariant
+    01KQ84P1AJ8H3FPJN9J5C12CBY: non-git init is allowed; silent non-git init
+    is not), so a user whose only mistake is a missing ``git init`` must be
+    told exactly that -- never handed a raw traceback or a "re-run init"
+    misdirection.
+    """
+    if isinstance(exc, NotInsideRepositoryError):
+        return f"This project is not inside a git repository. Run `git init` (and an initial commit) in {project_root} -- see the spec-kitty init output."
+    # GitCommonDirUnavailableError's own message already names the recovery
+    # ("Install a supported git binary and retry"), so it is surfaced verbatim.
+    return str(exc)
+
+
+def exit_git_resolution_failure(
+    exc: NotInsideRepositoryError | GitCommonDirUnavailableError,
+    project_root: Path,
+    *,
+    json_output: bool = False,
+) -> NoReturn:
+    """Render the git-resolution failure actionable message and exit 1 (#4123).
+
+    Shared command-layer catch for the ``charter.resolution`` errors that
+    escape when a ``spec-kitty init``-ed project was never ``git init``-ed.
+    Callers that need their own console/JSON envelope (e.g. the charter
+    subcommands' ``--json`` contract) build the text with
+    :func:`git_resolution_failure_message` instead.
+    """
+    message = git_resolution_failure_message(exc, project_root)
+    if json_output:
+        typer.echo(json.dumps({"error": "git_resolution_failed", "message": message}), err=True)
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(1) from exc
 
 
 def check_version_compatibility(project_root: Path, command_name: str) -> None:
@@ -357,7 +414,9 @@ def check_version_compatibility(project_root: Path, command_name: str) -> None:
 __all__ = [
     "BannerGroup",
     "callback",
+    "exit_git_resolution_failure",
     "get_project_root_or_exit",
+    "git_resolution_failure_message",
     "show_banner",
     "_render_nag_if_needed",
     "_should_suppress_nag",

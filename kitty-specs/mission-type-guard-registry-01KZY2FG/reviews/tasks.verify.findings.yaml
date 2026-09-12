@@ -1,0 +1,179 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: TASKS-VERIFY-001
+    lens: mission-specific (T001 present-branch genuine-RED check)
+    severity: 4
+    title: "T001 step 2's `research.md`-present assertion is not genuinely RED at the base commit — it passes today by coincidence"
+    evidence:
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T001 step 2 (lines 165-172)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:351-374 (evaluate_guards dispatch — mission_family=\"plan\" is not \"research\"/\"documentation\", falls through to _evaluate_software_dev_guards)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:554-566 (_evaluate_software_dev_guards — step_id=\"research\" matches none of its branches, falls to the unconditional `return []` at line 566)"
+    claim: >
+      T001 step 2 requires two assertions for `mission_family="plan", step_id="research"`:
+      research.md absent -> `["Required artifact missing: research.md"]`, and research.md
+      present -> `[]`. The prompt's own text asserts "Both assertions must be RED today" and
+      explains only the absent case. Empirically re-run against the current checkout (HEAD ==
+      baseline commit per the mission's own no-drift claim, independently confirmed this
+      session): calling `evaluate_guards` for mission_family="plan", step_id="research" returns
+      `[]` regardless of whether "research.md" is in `present_artifacts` — the software-dev
+      fallthrough's bare `return []` default fires either way, since "research" is not one of
+      software-dev's own step ids. So the absent-case assertion (expects the missing-artifact
+      message, gets `[]`) is genuinely RED, but the present-case assertion (expects `[]`, gets
+      `[]`) already PASSES at the base commit — it is not a RED pin at all, it is a
+      passing-at-base assertion that happens to be bundled into what the WP calls a "RED"
+      commit. This directly contradicts the WP's own explicitly-stated PLAN-VERIFY-002
+      discipline one paragraph earlier in the same file ("no passing-at-base assertion is
+      committed as part of a 'RED' commit") and its own Review Guidance instruction ("do not
+      let Commit 1/2 pass at the base commit for the wrong reason"). A reviewer following the
+      prompt's own reasoning (which only justifies the absent-case) would not catch this.
+    remediation: >
+      Correct T001 step 2's text: state plainly that only the absent-artifact assertion is a
+      genuine RED pin at the base commit, and that the present-artifact assertion is a
+      companion assertion that already passes at base (for the wrong reason — an unconditional
+      fallthrough, not real artifact-presence logic) and only becomes a *meaningful* assertion
+      once T003/T004 land. Either (a) keep it as documented but relabel it so the reviewer does
+      not treat it as a red-verification target, or (b) restructure it so it is genuinely RED at
+      base, e.g. by asserting the pre-fix behavior differs from the post-fix behavior via a
+      combined scenario, or by deferring the present-artifact assertion to run only through
+      `gather_artifact_presence` (see TASKS-VERIFY-002) where reverting the real fix does change
+      the outcome.
+
+  - id: TASKS-VERIFY-002
+    lens: revert discipline
+    severity: 4
+    title: "T004's `_PRESENCE_FILE_TAGS` addition (research.md) has zero test coverage anywhere in WP01's scope — reverting it is undetectable"
+    evidence:
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § Test Strategy 'Revert discipline' bullet (lines 358-361) and § T004 Validation (lines 275-279)"
+      - code: "tests/runtime/test_bridge_cores.py:33-42 (module imports — no `gather_artifact_presence` / `io_seam` import anywhere in this file)"
+      - code: "src/runtime/next/runtime_bridge_io.py:753-792 (gather_artifact_presence — the only production code path that reads `_PRESENCE_FILE_TAGS`)"
+    claim: >
+      WP01's Test Strategy section states as a stated acceptance requirement (not an
+      aspiration) that "the `research.md` presence tag ... has a test added in T001/T002 that
+      fails if that specific change is reverted." This is false. T001's `plan`/`research`
+      present-branch assertion (see TASKS-VERIFY-001) constructs
+      `ArtifactPresenceSnapshot(present_artifacts=frozenset({"research.md"}), ...)` directly by
+      hand in the test — it never calls `gather_artifact_presence`, the only function that
+      reads `_PRESENCE_FILE_TAGS`. Confirmed by grep: `tests/runtime/test_bridge_cores.py`
+      imports only `runtime_bridge`, `runtime_bridge_cores`, and `ArtifactPresenceSnapshot`
+      (the dataclass), never `gather_artifact_presence` or the `io_seam`/`runtime_bridge_io`
+      module. `tests/runtime/test_bridge_composition.py` (WP01's other owned test file) also
+      never calls the real `gather_artifact_presence` for this case — its guard-dispatch tests
+      monkeypatch `evaluate_guards` to a stub (per NFR-001's own text). Neither owned test file,
+      nor any test outside WP01's scope (`tests/runtime/test_bridge_io.py`'s
+      `test_gather_artifact_presence_reads_file_presence` only asserts `spec.md`/`plan.md`
+      presence, not `research.md`), exercises T004's actual change. If T004 is reverted (i.e.
+      `_PRESENCE_FILE_TAGS` never gets `"research.md"` added), `gather_artifact_presence` would
+      silently omit `research.md` from `present_artifacts` for every real `plan`-type mission on
+      disk, and zero tests in this WP's targeted surface would go red.
+    remediation: >
+      Add a real, disk-backed assertion (either as a new T004 step, or by adding
+      `tests/runtime/test_bridge_io.py` to WP01's owned_files list) that writes a
+      `research.md` file to a `tmp_path`, calls
+      `gather_artifact_presence(tmp_path, mission_family="plan", step_id="research")`, and
+      asserts `"research.md" in snapshot.present_artifacts` — mirroring the existing
+      `test_gather_artifact_presence_reads_file_presence` pattern for spec.md/plan.md. Until
+      then, correct the Test Strategy "Revert discipline" bullet to not claim coverage that does
+      not exist.
+
+  - id: TASKS-VERIFY-003
+    lens: per-AC test strategy concrete
+    severity: 4
+    title: "FR-002 / User Story 2 Acceptance Scenario 2 (plan-family `specify` step) and the `plan`-step artifact check are never RED-pinned by T001/T002"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1-3 (lines 109-124)"
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T001 steps 1-2 (lines 156-176) and § T003 step 4 (lines 240-250)"
+      - code: "src/runtime/next/runtime_bridge_cores.py (pre-implementation; `_evaluate_plan_guards` to be added per T003 step 4 as a 5-way if/elif on `specify` / `research` / `plan` / `review` / else)"
+    claim: >
+      T003 step 4 specifies `_evaluate_plan_guards` as a 5-way branch: `specify` ->
+      `_check_artifact_present(snapshot, SPEC_ARTIFACT)`, `research` -> checked (per
+      TASKS-VERIFY-001/002), `plan` -> `_check_artifact_present(snapshot, PLAN_ARTIFACT)`,
+      `review` -> `[]`, else -> fail-closed. T001's actual steps only add assertions for
+      `step_id="review"` (step 1) and `step_id="research"` (step 2). No T001/T002 step ever
+      asserts `mission_family="plan", step_id="specify"` or `step_id="plan"` — 2 of the 5
+      branches, including the entire "plan"-step artifact-presence check and the fail-closed
+      else-branch, are shipped with zero RED-first coverage. This directly drops spec.md's own
+      User Story 2 Acceptance Scenario 2 ("Given a plan-type mission that has NOT yet produced
+      spec.md at the specify step ... the guard failure list names the missing artifact"),
+      which is an explicit, named acceptance scenario in the gated spec, not an incidental case.
+      A plausible implementer slip (e.g. swapping `SPEC_ARTIFACT`/`PLAN_ARTIFACT` between the
+      `specify` and `plan` branches, or leaving the `plan`-step branch unrouted) would ship
+      silently — the existing `software-dev` family's own `specify`/`plan` pattern
+      (test_bridge_cores.py:224-230) is the exact template this WP fails to mirror for the
+      `plan` family's `specify`/`plan` branches.
+    remediation: >
+      Add two more steps to T001 (or a T001b) mirroring the existing
+      `test_specify_guard_missing_and_present` / plan-guard pattern already in
+      `test_bridge_cores.py:224-230`: assert
+      `evaluate_guards(_snapshot(mission_family="plan", step_id="specify")) ==
+      ["Required artifact missing: spec.md"]` (absent) and `== []` when `spec.md` is present;
+      likewise for `step_id="plan"` against `plan.md`. Confirm both are genuinely RED at base
+      the same way T001 step 1 already demonstrates for `review` (same fallthrough-to-`[]`
+      reasoning applies here too, so these should be real RED pins, not another coincidental
+      pass — verify empirically, not by assumption).
+
+  - id: TASKS-VERIFY-004
+    lens: per-AC test strategy concrete
+    severity: 3
+    title: "NFR-004 (doctor mission-type <2s budget) has no automated regression test, unlike the doctor-identity precedent it claims to mirror"
+    evidence:
+      - artifact: "tasks/WP02-doctor-mission-type-command.md § T012 step 2 (lines 263-265) and § Test Strategy (lines 277-279)"
+      - artifact: "spec.md NFR-004"
+      - code: "tests/doctor/test_identity_audit.py:642-666 (`test_nfr_002_timing_200_missions` — builds a synthetic 200-mission repo, asserts `elapsed < 3.0` for the identity-audit precedent's own NFR-002 timing budget)"
+    claim: >
+      WP02's Objectives section and Context & Constraints both state the command is "modeled
+      directly on `spec-kitty doctor identity`" and instruct the implementer to read the
+      precedent modules "in full ... not just their docstrings." The precedent
+      (`tests/doctor/test_identity_audit.py`) backs its own analogous NFR (NFR-002, the same
+      <2s-class performance budget) with an automated, CI-enforced regression test:
+      `test_nfr_002_timing_200_missions`, which builds a synthetic 200-mission fixture and
+      asserts `elapsed < 3.0`. WP02's T012 step 2, by contrast, only instructs the implementer
+      to "time `spec-kitty doctor mission-type --json`... and confirm it completes in under 2
+      seconds... record the actual measured time in the Activity Log" — a one-off manual
+      measurement with no corresponding pytest assertion anywhere in T008's test file or
+      T012's steps. Neither T008 nor T012 adds an automated test that would catch a future
+      performance regression, so NFR-004 has no regression gate despite the WP claiming to
+      mirror the precedent "exactly."
+    remediation: >
+      Add an automated timing test to `test_doctor_mission_type.py` mirroring
+      `test_nfr_002_timing_200_missions`'s shape: build a synthetic N-mission
+      `kitty-specs/` fixture tree, invoke the mission-type audit, and assert
+      `elapsed < 2.0` (per NFR-004's stated budget). Keep T012's manual timing note as a
+      belt-and-suspenders check, but make it a real regression-gated assertion, not the only
+      evidence of NFR-004 compliance.
+
+  - id: TASKS-VERIFY-005
+    lens: red-first stated per WP (charter C-011, reviewer verifiability)
+    severity: 3
+    title: "Neither WP tells the reviewer HOW to mechanically re-verify red-on-base for T001/T002/T008's assertions — only prose reasoning, which TASKS-VERIFY-001 shows can be wrong"
+    evidence:
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § ATDD Commit Sequence (lines 144-146) and § Review Guidance (line 382)"
+      - artifact: "tasks/WP02-doctor-mission-type-command.md § Review Guidance (line 298)"
+    claim: >
+      Both WPs instruct the reviewer to "Confirm RED->GREEN on this WP's own base->final commit
+      for every T001/T002 [or T008] assertion (C-011)" but neither WP gives a concrete,
+      reviewer-executable command sequence (e.g. checking out the base commit / Commit 1 in a
+      scratch worktree and re-running the specific pytest node-ids) anywhere in the Review
+      Guidance sections. The only concrete pytest invocation in either WP
+      (`pytest tests/runtime/test_bridge_cores.py -k plan_review -q`, WP01 T001 step 1) is
+      implementer-facing self-check guidance for exactly one of the five T001/T002 assertions;
+      the other four (T001 step 2's two assertions, T002's three assertions) are backed only by
+      prose explanation of why they should be RED, with no runnable recipe for a reviewer to
+      independently confirm it. TASKS-VERIFY-001 demonstrates this is not a hypothetical
+      concern: the prose reasoning for one of those four assertions (T001 step 2's
+      present-artifact case) is itself incorrect, and a reviewer without a mechanical
+      re-verification step has no way to catch that short of re-deriving the fallthrough logic
+      by hand.
+    remediation: >
+      Add a short, concrete reviewer recipe to each WP's Review Guidance section, e.g.:
+      `git worktree add /tmp/review-<wp> <planning_base_branch> && cd /tmp/review-<wp> && git
+      checkout <commit-1-sha> -- tests/runtime/test_bridge_cores.py
+      tests/runtime/test_bridge_composition.py && .venv/bin/python -m pytest
+      tests/runtime/test_bridge_cores.py tests/runtime/test_bridge_composition.py -k
+      "<new-test-names>" -q` (expect fail), then repeat against the WP's final commit (expect
+      pass) — for every assertion added in T001/T002 (WP01) and T008 (WP02), not only the one
+      currently spelled out.

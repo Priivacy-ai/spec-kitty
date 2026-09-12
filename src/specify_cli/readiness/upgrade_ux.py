@@ -31,7 +31,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from kernel.clock import datetime, timedelta, now_utc, Clock, DEFAULT_CLOCK
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
@@ -291,7 +291,7 @@ def _append_upgrade_attempt_record(
         )
         record = UpgradeAttemptRecord(
             attempt_id=str(ulid.ULID()),
-            timestamp=datetime.now(UTC),
+            timestamp=now_utc(),
             install_method=runtime.install_method,
             intent="upgrade",
             outcome=outcome,
@@ -654,6 +654,7 @@ def run_upgrade_ux(
     prompt: PromptCallback | None = None,
     upgrade_runner: Callable[[], int] | None = None,
     installer_detector: Callable[[], object] | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> UpgradeUxOutcome:
     """Drive the upgrade-readiness UX for one CLI invocation.
 
@@ -667,10 +668,14 @@ def run_upgrade_ux(
         suppressed: Result of ``_should_suppress_nag()`` from the caller.
             When True, this function returns immediately without prompting,
             without invoking a subprocess, and without writing the cache.
-        now: Current UTC datetime (defaults to ``datetime.now(UTC)``).
+        now: Current UTC datetime; explicit-value test seam, takes
+            precedence over ``clock`` when given.
         env: Environment mapping (defaults to ``os.environ``).
         prompt: Injectable prompt callback for testing.
         upgrade_runner: Injectable subprocess runner for testing.
+        clock: Injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+            FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used
+            only when ``now`` is omitted.
         installer_detector: Injectable installer detector (returns an
             ``InstallMethod``).
 
@@ -684,7 +689,7 @@ def run_upgrade_ux(
         return _inactive_outcome()
 
     if now is None:
-        now = datetime.now(UTC)
+        now = clock.now()
     if env is None:
         env = dict(os.environ)
     if prompt is None:

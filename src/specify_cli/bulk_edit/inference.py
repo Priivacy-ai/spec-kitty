@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.status import read_wp_frontmatter
+from kernel.paths import to_posix
+from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 
 # ---------------------------------------------------------------------------
 # Weight tables
@@ -166,7 +168,7 @@ def scan_spec_file(feature_dir: Path) -> InferenceResult:
 
 
 def _normalize_owned_file(path: str) -> str:
-    normalized = path.strip().replace("\\", "/")
+    normalized = to_posix(path.strip())
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return normalized
@@ -175,7 +177,13 @@ def _normalize_owned_file(path: str) -> str:
 def is_bulk_edit_planning_owned_file(path: str, mission_slug: str) -> bool:
     """Return True when an owned_files entry points at planning artifacts."""
     normalized = _normalize_owned_file(path)
-    if normalized == "occurrence_map.yaml" or normalized.endswith("/occurrence_map.yaml"):
+    # Filename-scoped by design, and deliberately broader than the lane-guard
+    # predicate ``core.constants.is_occurrence_map_path``: this *classifies* an
+    # author-declared owned_files entry (a free-form path, not a guarded lane
+    # write) as bulk-edit planning output, so the map is recognized by name at
+    # any depth (#3559). Only the filename comes from the SSOT constant; the
+    # path scoping stays distinct from the guard on purpose.
+    if normalized == OCCURRENCE_MAP_FILENAME or normalized.endswith(f"/{OCCURRENCE_MAP_FILENAME}"):
         return True
 
     mission_prefix = f"kitty-specs/{mission_slug}"

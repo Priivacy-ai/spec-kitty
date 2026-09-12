@@ -5,10 +5,12 @@ All CLI-originated output must route through the single
 so that (a) ``--json`` output is plain by construction and (b) colour is a
 property of the shared object, not the environment (ADR 2026-07-14-1).
 
-No module under ``src/specify_cli/cli/`` may construct a raw
-``rich.console.Console(...)`` — only the seam module itself, and only the seam
-class ``CliConsole(...)`` may be instantiated elsewhere (for the few
-deliberately-special consoles, e.g. a fixed ``width=``). Type annotations
+No module under ``src/specify_cli/cli/`` — nor, since #2635, under
+``src/specify_cli/retrospective/`` (whose standalone ``retrospect`` app and
+``_render_rich`` helper emit CLI output, including a ``--json`` payload) — may
+construct a raw ``rich.console.Console(...)``: only the seam module itself, and
+only the seam class ``CliConsole(...)`` may be instantiated elsewhere (for the
+few deliberately-special consoles, e.g. a fixed ``width=``). Type annotations
 (``console: Console``) are fine — they are not constructions.
 """
 
@@ -23,6 +25,7 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CLI_ROOT = _REPO_ROOT / "src" / "specify_cli" / "cli"
+_RETROSPECTIVE_ROOT = _REPO_ROOT / "src" / "specify_cli" / "retrospective"
 _SEAM = _CLI_ROOT / "console.py"
 
 
@@ -45,12 +48,13 @@ def _raw_console_constructions(path: Path) -> list[str]:
     return hits
 
 
-def test_cli_layer_constructs_no_raw_console() -> None:
+def test_cli_layer_constructs_no_raw_console(tmp_path: Path) -> None:
     offenders: list[str] = []
-    for path in sorted(_CLI_ROOT.rglob("*.py")):
-        if path == _SEAM:
-            continue  # the seam owns the one CliConsole(Console) definition
-        offenders.extend(_raw_console_constructions(path))
+    for root in (_CLI_ROOT, _RETROSPECTIVE_ROOT):
+        for path in sorted(root.rglob("*.py")):
+            if path == _SEAM:
+                continue  # the seam owns the one CliConsole(Console) definition
+            offenders.extend(_raw_console_constructions(path))
 
     assert not offenders, (
         "CLI modules must route output through the canonical "
@@ -58,18 +62,15 @@ def test_cli_layer_constructs_no_raw_console() -> None:
         "raw rich Console(). Offending constructions:\n" + "\n".join(offenders)
     )
 
-
-def test_detector_bites_on_a_planted_raw_console(tmp_path: Path) -> None:
-    """Non-vacuity: a planted raw ``Console()`` construction must be flagged."""
+    # Controlled incompatible change: the same scanner must reject a raw
+    # constructor while accepting the supported seam and annotation forms.
     planted = tmp_path / "planted.py"
     planted.write_text("console = Console()\n", encoding="utf-8")
     assert _raw_console_constructions(planted)
 
     clean = tmp_path / "clean.py"
     clean.write_text(
-        "from specify_cli.cli.console import console\n"
-        "special = CliConsole(width=200)\n"
-        "def f(c: Console) -> None: ...\n",
+        "from specify_cli.cli.console import console\nspecial = CliConsole(width=200)\ndef f(c: Console) -> None: ...\n",
         encoding="utf-8",
     )
     assert not _raw_console_constructions(clean)

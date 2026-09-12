@@ -21,6 +21,12 @@ from typing import Any
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
 
+def _edge_relation_value(edge: Any) -> str:
+    """Return the string value of an edge's ``relation``, or '' when unset."""
+    relation = getattr(edge, "relation", None)
+    return getattr(relation, "value", str(relation) if relation else "")
+
+
 class ReferenceIntegrityChecker:
     """Detect dangling edges and superseded ADR references."""
 
@@ -59,10 +65,7 @@ class ReferenceIntegrityChecker:
                 continue
             if target not in node_urns:
                 source: str = getattr(edge, "source", None) or ""
-                relation = getattr(edge, "relation", None)
-                relation_val: str = getattr(
-                    relation, "value", str(relation) if relation else ""
-                )
+                relation_val = _edge_relation_value(edge)
                 findings.append(
                     LintFinding(
                         category="reference_integrity",
@@ -89,29 +92,42 @@ class ReferenceIntegrityChecker:
         self, drg: Any, _node_urns: set[str], feature_scope: str | None
     ) -> list[LintFinding]:
         """Flag WP->ADR edges where the referenced ADR has been superseded."""
-        # Build set of ADR URNs that have outgoing "replaces" edges
-        # (i.e. they are older ADRs replaced by a newer one)
-        superseded_adrs: set[str] = set()
-        for edge in getattr(drg, "edges", []):
-            relation = getattr(edge, "relation", None)
-            relation_val: str = getattr(
-                relation, "value", str(relation) if relation else ""
-            )
-            if relation_val == "replaces":
-                # The *source* of a "replaces" edge is the newer ADR.
-                # The *target* is the older (superseded) ADR.
-                target: str = getattr(edge, "target", None) or ""
-                if target:
-                    superseded_adrs.add(target)
-
+        superseded_adrs = self._collect_superseded_adrs(drg)
         if not superseded_adrs:
             return []
 
-        # Find WP->ADR edges where the ADR is superseded
         findings: list[LintFinding] = []
+        for source, target in self._iter_wp_to_superseded_edges(drg, superseded_adrs):
+            findings.append(
+                self._build_superseded_finding(source, target, feature_scope)
+            )
+        return findings
+
+    @staticmethod
+    def _collect_superseded_adrs(drg: Any) -> set[str]:
+        """Return ADR URNs that have outgoing ``"replaces"`` edges.
+
+        The *source* of a "replaces" edge is the newer ADR; the *target* is
+        the older (superseded) ADR.
+        """
+        superseded_adrs: set[str] = set()
+        for edge in getattr(drg, "edges", []):
+            if _edge_relation_value(edge) != "replaces":
+                continue
+            target: str = getattr(edge, "target", None) or ""
+            if target:
+                superseded_adrs.add(target)
+        return superseded_adrs
+
+    @staticmethod
+    def _iter_wp_to_superseded_edges(
+        drg: Any, superseded_adrs: set[str]
+    ) -> list[tuple[str, str]]:
+        """Return ``(source, target)`` pairs for WP edges into a superseded ADR."""
+        pairs: list[tuple[str, str]] = []
         for edge in getattr(drg, "edges", []):
             source: str = getattr(edge, "source", None) or ""
-            target = getattr(edge, "target", None) or ""
+            target: str = getattr(edge, "target", None) or ""
 
             # Source must be a WP node
             if not source.startswith("wp:"):
@@ -121,21 +137,24 @@ class ReferenceIntegrityChecker:
             if target not in superseded_adrs:
                 continue
 
-            findings.append(
-                LintFinding(
-                    category="reference_integrity",
-                    type="superseded_adr_reference",
-                    id=f"edge:{source}->{target}",
-                    severity="medium",
-                    message=(
-                        f"Work package '{source}' references ADR '{target}' "
-                        f"which has been superseded by a newer ADR."
-                    ),
-                    feature_id=feature_scope,
-                    remediation_hint=(
-                        "Update the WP to reference the superseding ADR instead."
-                    ),
-                )
-            )
+            pairs.append((source, target))
+        return pairs
 
-        return findings
+    @staticmethod
+    def _build_superseded_finding(
+        source: str, target: str, feature_scope: str | None
+    ) -> LintFinding:
+        return LintFinding(
+            category="reference_integrity",
+            type="superseded_adr_reference",
+            id=f"edge:{source}->{target}",
+            severity="medium",
+            message=(
+                f"Work package '{source}' references ADR '{target}' "
+                f"which has been superseded by a newer ADR."
+            ),
+            feature_id=feature_scope,
+            remediation_hint=(
+                "Update the WP to reference the superseding ADR instead."
+            ),
+        )

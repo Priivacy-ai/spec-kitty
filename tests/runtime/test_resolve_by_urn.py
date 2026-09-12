@@ -65,7 +65,7 @@ class TestEquivalence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=empty_home,
             ),
-            patch("doctrine.resolver.get_kittify_home", return_value=empty_home),
+            patch("charter.offering.resolver.get_kittify_home", return_value=empty_home),
         ):
             name_result = resolve_template(
                 "spec-template.md", project, mission="software-dev"
@@ -94,7 +94,7 @@ class TestEquivalence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=empty_home,
             ),
-            patch("doctrine.resolver.get_kittify_home", return_value=empty_home),
+            patch("charter.offering.resolver.get_kittify_home", return_value=empty_home),
         ):
             name_result = resolve_template(
                 "tasks-template.md", project, mission="software-dev"
@@ -254,7 +254,7 @@ class TestFailClosed:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=empty_home,
             ),
-            patch("doctrine.resolver.get_kittify_home", return_value=empty_home),
+            patch("charter.offering.resolver.get_kittify_home", return_value=empty_home),
             pytest.raises(TemplateURNError, match="could not be resolved"),
         ):
             resolve_template_by_urn(

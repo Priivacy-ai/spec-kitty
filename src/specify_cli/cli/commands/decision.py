@@ -528,7 +528,26 @@ def cmd_widen(
     dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be called without calling it"),
 ) -> None:
     """[internal] Call the widen endpoint for a decision. Not for end users."""
+    from specify_cli.decisions.ownership import (
+        is_well_formed_decision_id,
+        ownership_refusal,
+        resolve_decision_ownership,
+    )
     from specify_cli.saas_client import SaasClient, SaasClientError
+
+    # FR-005 — one shape check, at the CLI boundary, reusing ONE existing ULID
+    # regex (Q7). This is the boundary where the value's provenance changes from
+    # keyboard to store, and it is **defence-in-depth only**: it does not
+    # establish ownership, and a bare regex would leave the consent-laundering
+    # defect entirely open. SC-003: an id that fails it never reaches a
+    # constructed request line, because nothing downstream of here runs.
+    if not is_well_formed_decision_id(decision_id):
+        typer.echo(
+            "Error: decision_id must be a 26-character Crockford-base32 ULID "
+            "(digits and A-Z excluding I, L, O, U)",
+            err=True,
+        )
+        raise typer.Exit(1)
 
     invited_raw = [n.strip() for n in invited.split(",") if n.strip()]
     if not invited_raw:
@@ -540,7 +559,20 @@ def cmd_widen(
         typer.echo("Error: --invited must contain Teamspace user IDs, not display names", err=True)
         raise typer.Exit(1) from None
 
+    # FR-001/FR-002 — establish ownership from local files under the acting root
+    # only, and do it BEFORE any URL is built. Resolved once and shared by both
+    # branches so dry-run reports the same verdict the live path enforces.
+    repo_root = locate_project_root() or Path.cwd()
+    ownership = resolve_decision_ownership(repo_root, decision_id, mission_slug=mission_slug)
+    refusal = ownership_refusal(ownership)
+
     if dry_run:
+        # Q5 — dry-run WARNS, it does not refuse. Dry-run transmits nothing, so it
+        # is not an egress path and refusing would remove its inspection value.
+        # But the verdict must be surfaced, or dry-run becomes a way to get the id
+        # formatted for copy-paste into a real invocation without ever seeing the
+        # mismatch. It rides in the payload rather than on stderr because this
+        # command's dry-run contract is "stdout is one JSON document".
         typer.echo(json.dumps(
             {
                 "dry_run": True,
@@ -548,14 +580,30 @@ def cmd_widen(
                 "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
                 "invited": invited_list,
                 "mission_slug": mission_slug,
+                "ownership": {
+                    "acting_root": str(ownership.repo_root),
+                    "missions_searched": list(ownership.missions_searched),
+                    "owned": ownership.owned,
+                    "owning_mission_slug": ownership.owning_mission_slug,
+                    "unreadable_ledgers": list(ownership.unreadable_ledgers),
+                    "warning": refusal,
+                },
                 "payload": {"invited_user_ids": invited_list},
             },
             indent=2,
         ))
         raise typer.Exit(0)
 
+    # No fall-through. "Found nothing" is *ownership not established*, and falling
+    # through to the acting root here — in the broad form or in the narrow "this
+    # checkout has no kitty-specs/ at all, so allow it" form — reinstates exactly
+    # the leak this check closes.
+    if refusal is not None:
+        typer.echo(f"Error: {refusal}", err=True)
+        raise typer.Exit(1)
+
     try:
-        client = SaasClient.from_env(repo_root=locate_project_root() or Path.cwd())
+        client = SaasClient.from_env(repo_root=repo_root)
         response = client.post_widen(decision_id=decision_id, invited=invited_list)
         typer.echo(json.dumps(
             {

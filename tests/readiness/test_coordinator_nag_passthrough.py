@@ -10,7 +10,7 @@ Mission: cli-startup-readiness-coordinator-skeleton-01KS7JRV
 from __future__ import annotations
 
 import sys
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -41,7 +41,7 @@ def test_A_nag_renders_on_stderr_under_allow_with_nag(
 ) -> None:
     """When compat.plan returns ALLOW_WITH_NAG and conditions permit, the nag
     renders on stderr through the coordinator path."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
@@ -109,7 +109,7 @@ def test_B_nag_suppressed_when_json_in_argv(
 ) -> None:
     """When --json is in argv, the nag is suppressed even if compat.plan
     would have returned ALLOW_WITH_NAG."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status", "--json"])
@@ -147,7 +147,7 @@ def test_C_planner_exception_does_not_propagate(
 ) -> None:
     """A planner exception inside the wrapped nag is swallowed by
     _render_nag_if_needed's own try/except; the coordinator does not raise."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
@@ -168,7 +168,7 @@ def test_D_legacy_nag_cache_update_preserves_upgrade_readiness_preferences(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Legacy nag display must not erase WS3 snooze/auto-upgrade fields."""
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.delenv("SPEC_KITTY_NO_NAG", raising=False)
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])

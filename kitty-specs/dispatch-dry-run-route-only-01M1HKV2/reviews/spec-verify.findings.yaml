@@ -1,0 +1,72 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: SPEC-VERIFY-001
+    lens: writes-nothing test strength & glossary chokepoint gate correctness
+    severity: 4
+    title: >-
+      SC-002's "document/line count unchanged" test is unimplementable as
+      worded, and the naive fallback a WP author would reach for is vacuous
+      — because the glossary event log filename is keyed on invocation_id,
+      which FR-004 deliberately drops from the dry-run payload
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-002 (line 211-213)"
+      - artifact: "spec.md § FR-004 (line 158) — dry-run payload reuses InvocationPayload's field set 'minus invocation_id and close_contract'"
+      - artifact: "spec.md § Success Criteria, SC-001 (line 207-210) — contrast: kitty-ops/ uses a directory-tree byte-identical snapshot, not a per-file line-count check"
+      - code: "src/glossary/chokepoint.py:206-215 (_build_event_context) — mission_id = f\"profile-invocation-{invocation_id}\", event_context.run_id = invocation_id"
+      - code: "src/glossary/events.py:100-113 (get_event_log_path) — path is `.kittify/events/glossary/{sanitize(mission_id)}.events.jsonl`, i.e. filename is keyed on invocation_id"
+      - code: "src/specify_cli/invocation/executor.py:307 (_new_ulid()) — a fresh ULID is generated on every invoke() call, dry-run included, so every call (dry-run or real) would target a DIFFERENT event-log filename if the write ever fired"
+    claim: >-
+      SC-002 says the test asserts "the glossary event store's document/line
+      count is unchanged" before/after N dry-run calls. But the glossary
+      event log is not one shared, growing file the way kitty-ops/ops-index.jsonl
+      is — its path is `.kittify/events/glossary/profile-invocation-<invocation_id>.events.jsonl`,
+      derived fresh per invocation (chokepoint.py's _build_event_context sets
+      mission_id = f"profile-invocation-{invocation_id}", and events.py's
+      get_event_log_path folds that mission_id straight into the filename).
+      Since invoke() mints a brand-new ULID on every call (executor.py:307,
+      unconditionally, dry-run or not), a real (non-suppressed) write from a
+      regressed dry-run path would land in a NEW, uniquely-named file each
+      time — never increment the line count of any single pre-existing file.
+      A test literally written to SC-002's spec ("assert line count of THE
+      store is unchanged") has no fixed file to point at: to name the file it
+      would need the invocation_id used by that specific call, but FR-004
+      explicitly strips invocation_id from the dry-run response payload, so
+      the test harness cannot recover it from the call under test. The two
+      ways a WP author resolves this ambiguity are both broken: (a) pick some
+      fixed/expected filename to check the line count of — it will report
+      "unchanged" (0 lines, file never existed) on every run regardless of
+      whether the suppression logic actually works, because a real bug writes
+      to a *different* file, not that one; or (b) sum line counts across every
+      file already present under `.kittify/events/glossary/` before/after — this
+      only detects a regression if it happens to write into an *existing*
+      file, but the invocation-keyed naming scheme means a regressed write
+      creates a brand-new file, which a "sum existing files' line counts"
+      check will not include unless it re-globs the directory, at which point
+      the assertion has silently become a directory-listing check anyway (and
+      the spec never says to do that). SC-001 avoids this exact trap for
+      kitty-ops/ by using a directory-tree byte-identical snapshot (which
+      trivially catches ANY new file regardless of its name) rather than a
+      named-file line count — but SC-002 does not apply the same technique to
+      the glossary event store, even though both directories share the same
+      per-invocation-unique-filename architecture. As worded, an
+      implementation that fully regresses FR-003 (always writes the
+      TermCandidateObserved event, dry-run or not) can still pass a
+      good-faith SC-002 test, which is precisely the silent-success failure
+      mode this mission exists to close.
+    remediation: >-
+      Rewrite SC-002 to use the same directory-level technique as SC-001:
+      assert that `.kittify/events/glossary/` contains the same set of files
+      (by name, or by total file count if the directory is guaranteed empty
+      at test start) before and after N dry-run calls on an
+      unrecognized-token request — i.e. "no new file is created under
+      `.kittify/events/glossary/`" — rather than "line count of the store is
+      unchanged." If a per-file line-count assertion is still wanted as a
+      belt-and-suspenders check, the test must capture the invocation_id from
+      a call made WITHOUT --dry-run (or from the chokepoint's return value
+      directly) to know which filename to inspect; SC-002 should say so
+      explicitly, since FR-004 rules out getting it from the dry-run payload
+      itself.

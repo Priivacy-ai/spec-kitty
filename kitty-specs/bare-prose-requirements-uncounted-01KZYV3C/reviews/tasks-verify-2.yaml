@@ -1,0 +1,20 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: "tasks.md line 878's Subtask Index WP06 row now reads 'T029, T030, T030a, T031, T032a, T032, T033' (no implied range), verified to match both WP06's frontmatter subtasks list and the WP06 body's actual subtask order (T029, T030, T030a, T031, T032a, T032, T033) at kitty-specs/.../tasks.md lines 520-596."
+
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: "tasks.md's '#3395 overlap' section now names tasks_map_requirements.py as directly touched by both WP06/T032a and #3395 (confirmed live: git diff --stat main...origin/op/3394-requirement-citation-scope -- src/specify_cli/cli/commands/agent/tasks_map_requirements.py shows 1 file changed, 14 insertions, 2 deletions = 16 lines, matching the cited figure) and adds a new 'sharper collision' paragraph disclosing the byte_contracts.json map_requirements_success overlap, verified live via git diff on that fixture path which confirms #3395 adds requirement_extraction_warnings: [] to the exact same expected_stdout string WP06/T030a re-freezes, with an explicit instruction to preserve that field."
+
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: "T032a in tasks.md and WP06's prompt file now correctly state spec_content is read in _mr_resolve_read_dirs (Phase C, confirmed at tasks_map_requirements.py line 306, def at line 268) not in _mr_plan (Phase D, def at line 328, MappingRequest(...) constructed inside it) where it was previously claimed to be local; live read of _MapReqState (class def line 84) confirms it currently stores only derived products (all_spec_ids, functional_ids, requirement_extraction_warnings) and not raw spec_content, matching the fix's claim, and the new _MapReqState.spec_content field is correctly described as work still to be done (add a new field...), not as already-implemented code."
+
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: "tasks/WP04-bridge-cores-import-boundary.md now carries an explicit 'ATDD/C-011 applicability (mirrors WP02's and WP08's own disclosure)' section stating C-011's literal failing-first form does not apply (no production behaviour change) and naming the manual negative-case verification as substitute evidence, and tasks.md's WP04 section carries the matching parenthetical — verified to mirror WP02's and WP08's existing disclosure pattern in structure and content."

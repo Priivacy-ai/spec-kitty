@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "467fbeab4d77e1177f74aae006ed6f888fcd7152",
-  "coordination_branch": "kitty/mission-tmp-literal-offender-burndown-01KWWRW2",
   "created_at": "2026-07-06T22:30:38.125043+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Burn down the 99 grandfathered /tmp-literal test offenders + retire the ratchet baseline",
   "mission_id": "01KWWRW2SCV749ECB3J4E2MV1C",
   "mission_number": 167,
@@ -14,7 +13,7 @@
   "slug": "tmp-literal-offender-burndown-01KWWRW2",
   "status_phase": "1",
   "target_branch": "fix/tmp-literal-offender-burndown",
-  "topology": "coord",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-07-06T23:17:51.570761+00:00"
 }

@@ -40,6 +40,20 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
+
+@pytest.fixture(autouse=True)
+def _force_interactive_interview(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drive the interview's *interactive* path under pytest's piped stdin.
+
+    These tests exercise the widen affordance ([w] keystroke) over a non-TTY
+    pipe. Since #2876/#2910 the interview honors the non-interactive contract
+    (non-TTY -> take defaults, never prompt), so a test that needs the
+    interactive prompt loop must opt in via the documented
+    ``SPEC_KITTY_FORCE_INTERACTIVE`` escape hatch.
+    """
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+
+
 _app = typer.Typer()
 _app.command()(specify)
 

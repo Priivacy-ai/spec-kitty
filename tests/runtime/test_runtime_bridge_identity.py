@@ -5,6 +5,20 @@ Covers T014 (red-first: flat-path persists ULID; empty-mid8 fails closed):
   - _resolve_mission_ulid returns ULID when meta carries mission_id
   - _wrap_with_decision_git_log for flat mission uses ULID from meta (not slug)
   - _wrap_with_decision_git_log for coord mission with no ULID fails closed
+
+2026-08-04 (PR #3175 landing fold, marker-correctness gates): the WP08
+(#3155) corrupt-meta regression class that used to live in this file drove
+real ``git init``/``git commit`` via ``subprocess`` (see
+``TestMissionRoutesThroughCoordinationCorruptMeta`` in
+``test_runtime_bridge_identity_git_repo.py``) while every test *left* in this
+module only exercises ``unittest.mock.patch`` — no subprocess, no git. Two
+``tests/architectural/test_pytest_marker_correctness.py`` gates fired on the
+mixed file: Rule 1 (a subprocess/git user must carry ``git_repo``) and Rule 2
+(a ``fast``-marked file must NOT invoke subprocess). Splitting the corrupt-meta
+class into its own git_repo-marked file lets this module keep the accurate
+``fast`` marker for the genuinely mock-only, sub-second tests below, per the
+Rule 2 fix-hint's explicit split option (docs/context/testing-taxonomy.md →
+'Fast'/'Git Repo').
 """
 
 from __future__ import annotations

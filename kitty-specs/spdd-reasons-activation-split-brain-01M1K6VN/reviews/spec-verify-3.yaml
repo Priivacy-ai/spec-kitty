@@ -1,0 +1,143 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      Verified the entire corrected call chain hop-by-hop against the live tree.
+      init.py:889 is exactly `report = command_installer.install(project_path,
+      agent_key)`, inside `elif agent_key in ("codex", "vibe", "pi", "letta")` —
+      matches spec verbatim. command_installer.py:260 is exactly `def
+      _render_command_skill(...)`; its body calls `command_renderer.render(...)`
+      at lines 264-266 — matches. command_renderer.py:384 is exactly `def
+      render(` — matches. Inside `render`, the import `from charter.spdd_reasons
+      import apply_spdd_blocks_for_project` is at line 441 and the call
+      `raw_text = apply_spdd_blocks_for_project(raw_text, repo_root)` is at line
+      443 — matches the cited "441-443" span. Negative confirmed: `grep -n
+      "command_installer\|_render_command_skill\|command_renderer\.render\|apply_spdd_blocks_for_project"
+      src/specify_cli/skills/installer.py` returns zero hits (exit code 1) —
+      `install_skills_for_agent` (init.py:910, defined installer.py:236) is
+      genuinely a separate `shutil.copytree`/`copy2` CanonicalSkill pipeline
+      that never touches this chain. The FR-004 Acceptance criterion sentence
+      was also corrected to say "exercised via the `command_installer.install`/
+      `spec-kitty init` path" — confirmed only one occurrence of
+      `install_skills_for_agent` remains in the whole document, inside the
+      corrected FR-004 text itself (as the thing it explicitly distinguishes
+      from), not as a live claim. Every hop checks out exactly as written.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      User Story 3's intro paragraph (spec.md lines 386-394) now lists all five
+      consumers, explicitly adding "and `resolver.py`'s own
+      `collect_governance_diagnostics` (re-exported from `charter/__init__.py`)"
+      and reads "not silently hidden from any of these five surfaces" (was
+      "four"). Confirmed consistent with Decision Record 3 ("five real, verified
+      call sites", listing the same fifth site at resolver.py:937-952) and
+      Acceptance Scenario 4 ("the five real consumers ... and `resolver.py`'s
+      own `collect_governance_diagnostics`"). Full-document grep for
+      "four"/"five" turned up no other stale occurrence: the remaining "four"
+      hits (line 46 "four... disjunctive selectors", line 319 "four SPDD
+      selectors", line 270 "missed by the original four-site count", line 273
+      "Unlike the other four") all correctly refer to the four activation
+      selectors or to historical narrative about the pre-fix count, not to a
+      live surface-count claim. Count now agrees in all three (now four)
+      places it appears.
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >
+      Decision Record 3 now cites `src/charter/activation/compact.py:293-317`.
+      Verified against the live file: `def _resolve_governance_summary(` is at
+      line 293; the function's final statement, `return
+      resolution.template_set, paradigms, tools, diagnostics,
+      resolver_directives`, is at line 317, immediately followed by a blank
+      line and the next `def _append_section` at 320. The corrected citation
+      exactly bounds the function body.
+  - id: SPEC-VERIFY3-CITATIONS
+    status: resolved
+    reason: >
+      Independently re-derived all four swept citations from the live tree,
+      without trusting either the original audit or the sweep commit's
+      numbers:
+      (1) `compiler.py` `_resolve_config_activated_roots`: `def` at line 153;
+      body's closing `)` of the `return ConfigActivatedRoots(...)` is at line
+      240; next `def _direct_root_urns` starts at 242 (241 blank). True span
+      153-240 — matches what's currently written (153-240), and correctly
+      narrower than the original audit's 153-242 (which included the trailing
+      blank line and encroached toward the next def).
+      (2) `action_doctrine_bundle.py` `_load_action_doctrine_bundle`: `def` at
+      line 142; file is exactly 280 lines total with no further `def` after
+      it, ending on the closing paren of its final `return` statement at line
+      280. True span 142-280 — matches what's currently written.
+      (3) `org_pack_discovery.py` `_load_doctrine_selection`: `def` at line
+      178; it is the last function in the file, which is exactly 223 lines,
+      ending on `return selection.model_copy(update=updates)` at line 223.
+      True span 178-223 — matches what's currently written.
+      (4) `query.py` (`src/charter/offering/drg/query.py`) `resolve_transitive_refs`:
+      `def` at line 331; no further `def` follows; file is exactly 405 lines,
+      ending on `return ResolveTransitiveRefsResult(unresolved=unresolved,
+      by_kind=buckets)` at line 405. True span 331-405 — matches what's
+      currently written, and correctly resolves the original audit's vague
+      "extends past 380" into an exact bound.
+      All four of the follow-up sweep's (701b6667b) corrected numbers are
+      independently confirmed exact. None wrong.
+  - id: SPEC-VERIFY3-WEAKENING-CHECK
+    status: resolved
+    reason: >
+      Diffed spec.md across both fix commits (`git diff 29f1dae42^ HEAD` and
+      `git diff 701b6667b^ 701b6667b`). Every hunk in both diffs is a citation
+      or count correction (line-range numbers, the FR-004 entry-point function
+      name, the four→five surface count, one docstring line-number reference
+      594→595) or an additive clause (the fifth consumer named in User Story
+      3's intro). No Acceptance Scenario, FR, NFR, or Constraint had scope
+      narrowed, a requirement dropped, or an assertion softened. No weakening
+      found.
+  - id: SPEC-VERIFY3-CITATION-SPOTCHECK
+    status: resolved
+    reason: >
+      Spot-checked citations beyond the four flagged findings, prioritizing
+      other multi-line function-range citations likely to drift the same way:
+      resolver.py `_resolve_directive_base` (675-737) — def at 675, final
+      `return sorted(activated_directives), "activation"` at exactly 737,
+      next def at 740: exact match. resolver.py:848
+      (`selected_paradigms = list(doctrine.selected_paradigms)`) inside
+      `resolve_project_governance`: exact match. resolver.py:937/951/952
+      (`collect_governance_diagnostics` def, its `exc.issues` return, its
+      `resolution.diagnostics` return): all three exact matches.
+      action_doctrine_bundle.py:189-191 (`project_directives`/
+      `selected_tactics`/`selected_paradigms` assignment) and :230-234
+      (`roots = (...)` tuple, opening to closing paren): both exact matches.
+      delivery_table.py (`src/charter/activation/context_renderers/
+      delivery_table.py`, cited by bare filename in the doc):238 (the
+      `NodeKind.DIRECTIVE`/`project_directives` truthiness-guard line) and
+      :211-220 (the `start_urns` build through the `resolve_transitive_refs`
+      call's closing paren): both exact matches. Two looser, non-function-
+      boundary citations were also checked and found acceptably scoped
+      though not tightly bounded — `activation.py:96-185` (named as covering
+      three specific functions but the range also spans two small unnamed
+      helpers, `_directive_id_matches`/`_is_directive_038`, that the named
+      functions call) and `init.py:1220-1227` (the `_save_vcs_config`/
+      `save_agent_config` block, actual code at 1217-1229) — both point at
+      the right file and the right conceptual area, consistent with the
+      "partial-function citations pointing at a call site" caveat in the
+      brief; neither is wrong enough to mislead an implementer, so I concur
+      with treating them as non-material. No new severity≥2 citation defect
+      found among those checked.
+  - id: SPEC-VERIFY3-SILENT-SUCCESS
+    status: resolved
+    reason: >
+      Re-read FR-004 (absent `.kittify/config.yaml` → explicit pinned `False`,
+      with a required code comment naming it a deliberate carve-out), FR-005
+      (malformed config or a dangling `charter:` pointer → must raise,
+      matching `PackContext.from_config`'s `CharterPackConfigError`/YAML-
+      loader-exception behavior, "never silently returning `False` or `True`"),
+      and NFR-001 ("every new/changed code path ... must, when it cannot
+      determine activation, either raise ... or return the explicitly-pinned
+      safe default ... never an unexplained silent `False`/`True`/empty
+      result. Fails if: any new path returns a default value for an error
+      condition without the choice being named in a code comment and covered
+      by a test."). All three are present, unweakened by the fix rounds, and
+      collectively still state explicitly what each path does when it cannot
+      determine activation. No silent-success gap reintroduced.

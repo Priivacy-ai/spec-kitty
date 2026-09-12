@@ -25,6 +25,7 @@ from pathlib import Path
 import re
 
 from specify_cli.coordination.status_transition import read_events_transactional
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.status import (
     Lane,
     StatusEvent,
@@ -97,6 +98,7 @@ def _read_transactional_wp_lane(
     mission_slug: str,
     wp_id: str,
     repo_root: Path,
+    effective_root: Path | None = None,
 ) -> Lane:
     """Read the WP lane from the same status target transactional writes use."""
     return _wp_lane_from_status_events(
@@ -104,6 +106,7 @@ def _read_transactional_wp_lane(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             repo_root=repo_root,
+            **effective_root_kwargs(effective_root),
         ),
         wp_id,
     )

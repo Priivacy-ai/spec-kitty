@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "mission_slug": "frozen-baseline-toll-reduction-01M0A42D",
+  "mission_id": "01M0A42DRQNAS2ZF8ME2J4WGJX",
+  "mission_branch": "kitty/mission-frozen-baseline-toll-reduction-01M0A42D",
+  "target_branch": "fix/frozen-baseline-toll-reduction",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_ratchet_baselines.py",
+        "tests/architectural/test_ratchet_positional_anchor_ban.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/_refresh_dead_symbol_hashes.py",
+        "tests/architectural/test_refresh_dead_symbol_hashes.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-18T10:43:16.619971+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b7b91d0241e47012486c4aca079555c99abdaf88"
+}

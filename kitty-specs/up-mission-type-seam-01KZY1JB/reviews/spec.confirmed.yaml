@@ -1,0 +1,303 @@
+# review-findings/v1 — R3 output: merged findings whose refute-verdict is confirmed.
+# Source: spec.merged.yaml (8/8 findings confirmed by spec-refute-1.yaml; 0 refuted).
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: up-mission-type-seam-01KZY1JB
+findings:
+  - id: SPEC-GOV-001
+    lens: directive
+    severity: 3
+    title: "CL-004's dead-code sweep of mission-type CLI surfaces missed an adjacent duplicate/shadowed command in the exact file FR-006/FR-007/FR-008 touch"
+    evidence:
+      - artifact: "spec.md § CL-004, § FR-010"
+      - code: "src/specify_cli/cli/commands/mission_type.py:150 (@app.command(\"list\") -> list_cmd, uses discover_missions/.kittify/missions/)"
+      - code: "src/specify_cli/cli/commands/mission_type.py:1429 (@app.command(\"list\") -> list_mission_types, the charter-based one)"
+      - code: "src/specify_cli/cli/commands/mission_type.py:38-46,122-127 (discover_missions import, _print_available_missions)"
+    claim: >
+      CL-004 establishes the mission's own precedent for finding and removing dead code via
+      "repo-wide search" before touching an area (resolve_mission_steps). The same file this
+      mission's FR-006/FR-007/FR-008 modify (src/specify_cli/cli/commands/mission_type.py)
+      registers two @app.command("list") handlers on the same Typer app: list_cmd (line 150,
+      built on the legacy specify_cli.mission.discover_missions() scanner over
+      .kittify/missions/) and list_mission_types (line 1429, the charter/doctrine-aware one
+      FR-008 targets). Verified with a runner.invoke() smoke test against the .venv's typer:
+      the second registration silently wins with no error/warning — list_cmd,
+      _print_available_missions, and their only remaining caller of
+      specify_cli.mission.discover_missions() are confirmed unreachable dead code in the exact
+      surface this mission is opening. Left unaddressed, the plan/tasks WP that touches this
+      file inherits ambiguity about which "list" implementation is live, risking wasted
+      analysis or accidental edits to the shadowed path.
+    remediation: >
+      Extend CL-004 (or add a sibling clarification) to cover this duplicate registration:
+      delete list_cmd/_print_available_missions and the now-unused discover_missions import in
+      mission_type.py in the same PR as the FR-006/FR-007/FR-008 work, per the
+      canonical-source-unification standing order (chase unification, not parity with a dead
+      quirk) — the same standard already applied to resolve_mission_steps. If deliberately
+      deferred instead, say so explicitly with a one-line rationale per
+      RECONCILE_CHANGE_SCOPE_TENSIONS rather than leaving it unmentioned.
+
+  - id: SPEC-GOV-002
+    lens: terminology
+    severity: 1
+    title: "Key Entities section header retains template-inherited 'feature' wording"
+    evidence:
+      - artifact: "spec.md line 287 (### Key Entities *(include if feature involves data)*)"
+      - code: "packs/built-in/missions/software-dev/templates/spec-template.md:113"
+      - code: ".kittify/overrides/missions/software-dev/templates/spec-template.md:113"
+    claim: >
+      The spec's Terminology Note (§ end of spec.md) asserts "No feature* aliases are
+      introduced by any requirement in this spec." That claim holds for every requirement
+      (FR/NFR/C are all correctly Mission-scoped, no feature* CLI flags/params introduced).
+      However the literal word "feature" survives once in the artifact, in the inherited
+      "### Key Entities *(include if feature involves data)*" section-header instruction —
+      confirmed present verbatim in both the canonical built-in spec-template.md and the
+      project's own doctrine override, so this is a pre-existing canonical-template defect,
+      not something this spec's author introduced. Nit-level only: it is boilerplate
+      instructional text, not user-facing product language, and has zero effect on
+      implementation.
+    remediation: >
+      Not this mission's fix to make (the defect lives in the canonical template, out of this
+      mission's declared scope). Flag it as a canonical-template terminology-guard gap for a
+      separate small fix (spec-template.md's "Key Entities" header should read "include if the
+      mission involves data" or similar) rather than silently carrying it forward — per the
+      charter's "flag the drift instead of picking silently" instruction in AGENTS.md.
+
+  - id: SPEC-ARCH-001
+    lens: "Architectural-gate citation accuracy (mission-derived)"
+    severity: 3
+    title: >-
+      CL-001's "reds two independent assertions" claim about
+      test_no_inert_schema_slots.py overstates the gate — only one live
+      assertion would fire
+    evidence:
+      - artifact: "spec.md § CL-001 (Rejected alternatives, Option (b))"
+      - code: "tests/architectural/test_no_inert_schema_slots.py:62-75 (test_live_tree_has_no_new_inert_slots — the only test in the file that walks the live tree)"
+      - code: "tests/architectural/_inert_slots.py:770-786 (code_only_drift), :374-399 (find_code_only_suppressions), :402-414 (code_producer_writes) — defined but not called by any test"
+      - code: "tests/architectural/_inert_slots_baseline.yaml:437-442 (the action_sequence code_only_suppressions row, verdict: genuine-producer)"
+    claim: >-
+      CL-001 justifies rejecting "move the action_sequence projection out of
+      src/doctrine/missions/mission_type_repository.py into the charter
+      layer" by asserting the move "reds two independent assertions in that
+      architectural gate (a 'new' unaccounted-for inert slot, and a 'stale'
+      baseline row with no matching producer)." Verification confirms the
+      first assertion is real: action_sequence's only current producer in the
+      scanned tree (src/doctrine/ + packs/built-in/) is the single line
+      `payload["action_sequence"] = projected_sequence or raw.get(...)` in
+      mission_type_repository.py (confirmed by grep — no built-in
+      mission-type YAML under packs/built-in/missions/mission_types/*.yaml
+      authors an `action_sequence:` key), so removing it would make
+      `test_live_tree_has_no_new_inert_slots`'s `assert new == []` fail.
+      The second assertion does not exist as a live gate today: a
+      repo-wide grep for `code_only_drift`, `find_code_only_suppressions`,
+      `code_producer_writes`, `MAX_MASKING_SUPPRESSIONS`,
+      `test_every_recorded_code_producer_actually_writes_the_slot`, and
+      `test_every_named_owner_resolves` (all named in _inert_slots.py's own
+      docstrings/comments as guarding the code_only_suppressions ledger)
+      finds zero matches outside `_inert_slots.py` and
+      `_inert_slots_baseline.yaml` — no pytest test currently calls this
+      machinery. The `action_sequence` row does exist in the baseline's
+      `code_only_suppressions:` block (verdict: genuine-producer,
+      citing mission_type_repository.py as producer), but nothing
+      re-derives or checks that verdict today, so a move that falsified it
+      would not currently red anything on that second front. CL-001's
+      first-order conclusion (reject Option (b)) still holds because the
+      one real assertion is sufficient, but the rationale as written
+      overstates the gate's coverage — a risk if WP01's ADR (CL-002)
+      repeats the "two independent assertions" framing verbatim into a
+      permanent decision record.
+    remediation: >-
+      In the plan/tasks-phase ADR (WP01, CL-002) and/or a spec correction,
+      restate CL-001's rejected-alternative rationale to cite only the one
+      live assertion (test_no_inert_schema_slots.py::test_live_tree_has_no_new_inert_slots's
+      `assert new == []`). If the code_only_suppressions drift-detection
+      (code_only_drift/code_producer_writes) is meant to be a second,
+      independently enforced backstop, note in the ADR that it is currently
+      unwired to any test and file that as separate follow-up debt rather
+      than presenting it as already-enforced protection.
+
+  - id: SPEC-ARCH-002
+    lens: "Architectural-gate citation accuracy (mission-derived)"
+    severity: 2
+    title: >-
+      CL-004's corroborating citation at mission_type_profiles.py:859-860
+      is inside _resolve_template_set_slot, not the action-sequence resolver
+    evidence:
+      - artifact: "spec.md § CL-004 (docstring correction, 'Corroborating' sentence)"
+      - code: "src/charter/mission_type_profiles.py:762 (def _resolve_action_slot, spans 762-807)"
+      - code: "src/charter/mission_type_profiles.py:841 (def _resolve_template_set_slot, spans 841-886)"
+      - code: "src/charter/mission_type_profiles.py:858-860 (the pack_context=None / 'pre-cutover parity contract' text, inside _resolve_template_set_slot's docstring)"
+    claim: >-
+      CL-004 states, as corroboration for the docstring fix, that
+      "mission_type_profiles.py:859-860 states action-sequence resolution
+      today uses pack_context=None ... (builtin-only, matching the
+      pre-cutover parity contract)." The quoted text at lines 858-860 is
+      inside `_resolve_template_set_slot`'s docstring (def at line 841,
+      next def _resolve_step_contracts_slot at line 887) and literally
+      describes **template_set** resolution
+      (`MissionStepRepository.resolve_all_for_mission_type(mission_type,
+      pack_context=None)`), not action-sequence resolution.
+      `_resolve_action_slot` is a distinct function spanning lines
+      762-807. Both slots happen to be builtin-only today, so the
+      underlying point (WP06 is not an org/project seam) survives via the
+      still-accurate primary corroboration one sentence earlier
+      (`_resolve_action_slot` calling `MissionTypeRepository.default()`),
+      but the specific line citation misattributes a template_set-slot
+      docstring sentence to action-sequence resolution.
+    remediation: >-
+      Correct CL-004's "Corroborating" sentence to either drop the
+      859-860 citation or relabel it accurately as evidence about
+      template_set resolution (a sibling, similarly builtin-only
+      projection), not action-sequence resolution — before it is copied
+      into the WP01 ADR or any implementer-facing doc.
+
+  - id: SPEC-VERIFY-001
+    lens: "mission-derived (Edge Case ADR-scope verification)"
+    severity: 4
+    title: "Edge Cases cites the field-merge ADR for a full-artifact-precedence question it does not govern, and misses the actually-applicable sibling precedent"
+    evidence:
+      - artifact: "spec.md § Edge Cases (org-layer/project-layer id collision)"
+      - artifact: "spec.md § CL-002 item 3 / FR-012 (plan phase 'must confirm this against that ADR rather than inventing new precedence rules')"
+      - code: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md:1-181 (full file read; zero occurrences of 'MissionType' or 'mission-type' or 'MissionStepRepository')"
+      - code: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md:70-97 (Decision: 'Option C: field-level merge' — fields absent from the higher layer 'fall through to the lower layer's value')"
+      - code: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md:118-131 (Code changes scoped to 'BaseDoctrineRepository._apply_org_overrides/_apply_project_overrides' and 'AgentProfileRepository')"
+      - code: "src/doctrine/missions/mission_step_repository.py:1-25 (docstring: 'Layer precedence in full — project > org (earliest pack_root wins) > built-in', a full per-compound-key replace, not a field-merge)"
+      - code: "src/doctrine/missions/mission_type_repository.py:22 (class MissionTypeRepository — does not inherit BaseDoctrineRepository)"
+    claim: >
+      The Edge Cases section states org/project mission-type layer precedence is "consistent with
+      the existing doctrine-layer merge model referenced by
+      docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md" and directs the plan phase to
+      "confirm this against that ADR rather than inventing new precedence rules." Reading the full
+      181-line ADR shows zero mentions of MissionType, mission-type, or MissionStepRepository. Its
+      Decision section (lines 70-97) adopts field-level MERGE with collision warnings — fields a
+      higher layer's YAML omits fall through and inherit the lower layer's value — and its
+      Code-changes section (lines 118-131) scopes that behavior explicitly to
+      `BaseDoctrineRepository._apply_org_overrides`/`_apply_project_overrides` and
+      `AgentProfileRepository`. `MissionTypeRepository` is a standalone class that does not inherit
+      `BaseDoctrineRepository`, so the ADR's normative code changes never touch it. The spec's own
+      CL-001 already identifies the actually applicable precedent one paragraph earlier — the
+      sibling `_PackContextLike` Protocol lives in `MissionStepRepository`
+      (`src/doctrine/missions/mission_step_repository.py:41-61`), whose module docstring (lines
+      1-25) states a *different* semantic model: full per-compound-key replacement ("project > org
+      (earliest pack_root wins) > built-in"), not field-level merge. This is not a cosmetic
+      citation slip: field-merge and full-replace give different answers for the exact scenario the
+      Edge Case is asking about — a project-layer mission-type YAML that partially overrides an
+      org-layer entry with the same id. Under field-merge (what the cited ADR actually mandates for
+      the repositories it covers), an omitted `action_sequence` in the project-layer override would
+      silently inherit the org layer's value. Under full-replace (what the sibling
+      `MissionStepRepository` — and, by CL-001's own account, this mission's actual model — already
+      does), the project-layer file is expected to be self-contained, and an omitted
+      `action_sequence` should trip FR-004's loud failure instead. A plan-phase author following the
+      spec's literal instruction to "confirm against that ADR" will find it silent on mission types
+      and may import the wrong (field-merge) semantic by analogy, producing a resolver that silently
+      inherits fields across layers — the opposite of CL-006/NFR-002's silent-success ban this
+      mission exists to enforce.
+    remediation: >
+      Replace the Edge Case's ADR citation with a citation to
+      `src/doctrine/missions/mission_step_repository.py`'s own precedence docstring (the sibling
+      module CL-001 already reuses `_PackContextLike` from) as the actual governing precedent, and
+      state explicitly that the new mission-type lookup adopts full per-compound-key replacement
+      (matching MissionStepRepository), not the field-level merge the 2026-05-16 ADR mandates for
+      BaseDoctrineRepository/AgentProfileRepository. If field-merge semantics are actually desired
+      for mission-type roster overrides, that must be stated as a new, explicit decision (with its
+      own short rationale) rather than asserted as "consistent with" an ADR that does not cover this
+      artifact kind.
+
+  - id: SPEC-VERIFY-002
+    lens: "mission-derived (FR-004 falsifiability / exception-type looseness)"
+    severity: 3
+    title: "FR-004's 'named error' commits to message content but never to an exception type, class name, or hierarchy"
+    evidence:
+      - artifact: "spec.md § FR-004"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 2 ('mission creation refuses with the same class of error')"
+      - code: "src/charter/mission_type_profiles.py:800 (existing precedent: `raise UnknownMissionTypeError(mission_type, registered_ids=registered)` for an analogous 'configuration inconsistency' case in the same module)"
+    claim: >
+      FR-004 and User Story 2's Acceptance Scenario 1 require the resolver to "raise a named error
+      identifying the mission-type id and the layer it was resolved from," with the message example
+      "mission type `qa` resolved from layer `org` has an empty action sequence." Because the
+      message must contain both the id and the layer, the AC does rule out a bare
+      `Exception("bad")` — that specific hypothetical is already excluded by the wording. However,
+      the spec never commits to an exception TYPE, class name, or hierarchy — nothing says whether
+      this must be a new named exception class (following the existing local precedent
+      `UnknownMissionTypeError` at `mission_type_profiles.py:800`, used for an analogous
+      "configuration inconsistency" case in the very same module), a subclass of an existing error
+      family, or is acceptable as a bare built-in `ValueError`/`Exception` carrying only the right
+      string. User Story 2 AC2 says mission creation must refuse "with the same class of error" —
+      implying a shared, nameable exception class is expected to exist and propagate through both
+      call sites (resolution and `mission create`) — but no FR or NFR defines that class, so an
+      implementer and a reviewer have no shared basis to agree the ACs are met beyond substring
+      matching on the message, which is brittle and doesn't let other code paths catch this failure
+      mode distinctly from unrelated errors.
+    remediation: >
+      Add to FR-004 (or NFR-002) that the loud failure MUST be raised as a specific, named exception
+      class (e.g. `MissionTypeEmptyActionSequenceError`), state whether it should live alongside or
+      extend the existing `UnknownMissionTypeError` pattern in `mission_type_profiles.py`, and
+      require both the red-first regression test (CL-003/NFR-005) and the `mission create` refusal
+      path (US2 AC2) to assert on that exception type — not merely on message substring — so "same
+      class of error" is mechanically verifiable.
+
+  - id: SPEC-VERIFY-003
+    lens: "mission-derived (NFR-005 red-first order verifiability)"
+    severity: 3
+    title: "NFR-005's stricter-than-C-011 ordering requirement has no stated verification mechanism a reviewer can mechanically apply"
+    evidence:
+      - artifact: "spec.md § NFR-005"
+      - artifact: ".kittify/charter/charter.md § ATDD-First Discipline (binding per C-011), lines 591-604"
+    claim: >
+      NFR-005 requires the red-first regression test to be "committed RED against the pre-fix
+      behavior BEFORE the commit that introduces the loud-failure fix" and states "Reviewers verify
+      RED on the pre-fix commit and GREEN on the final commit, per the charter's ATDD-first
+      discipline (C-011)." The charter's C-011 section, however, defines a two-endpoint check only:
+      "the test was RED on the WP's `planning_base_branch` AND GREEN on the WP's final commit." That
+      check runs the FINAL test file against the pre-WP base branch and against the final commit —
+      it says nothing about, and cannot distinguish, whether the test-adding commit and the
+      fix-introducing commit are two separate commits in the correct order within the WP's own
+      history, versus a single commit that adds both the test and the fix together (which would
+      trivially also show RED-at-base / GREEN-at-final). NFR-005's stronger claim — an actual
+      intermediate RED state reachable by checking out a specific commit mid-WP — is exactly the
+      property CL-003 calls "the mission's own dominant risk," so an unenforceable verification
+      method for the guarantee that most directly protects the mission's central risk is a
+      meaningful gap: as written, a reviewer applying only the C-011 method has no operational way to
+      confirm NFR-005's ordering claim, making it an aspiration rather than a checkable gate.
+    remediation: >
+      Add an explicit verification step to NFR-005 beyond the C-011 two-endpoint check: e.g.
+      "reviewers must identify the commit SHA that introduces the CL-003 regression test, check it
+      out in isolation (without the fix commit), and confirm the test fails there" — or equivalent
+      git-history inspection instructions — so the red-before-fix ordering claim is mechanically
+      falsifiable by a reviewer rather than resting on implementer honesty.
+
+  - id: SPEC-VERIFY-004
+    lens: "baseline honesty"
+    severity: 3
+    title: "SC-003 / User Story 3's 'existing test suite passing' language has no carve-out for pre-existing baseline-red tests unrelated to this mission"
+    evidence:
+      - artifact: "spec.md § SC-003"
+      - artifact: "spec.md § User Story 3, Independent Test"
+      - artifact: "AGENTS.md § 'Test-run baseline-red gotcha' (categories 1-3, e.g. #2736, #2772, #1834)"
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 9 ('Red-main & release discipline ... never green-wash')"
+    claim: >
+      SC-003 states "100% of existing built-in mission-type behavior across the four CLI surfaces
+      ... is unchanged (measured by the existing test suite for those surfaces passing unmodified
+      except for the new CL-003/CL-004 tests)," and User Story 3's Independent Test says to "confirm
+      all built-in-type behavior ... is byte-identical to pre-mission behavior." Neither statement
+      carries the standard carve-out the repo's own operating discipline requires: AGENTS.md's
+      "Test-run baseline-red gotcha" section explicitly documents that a broad-ish pytest run over
+      this ~17,000-test suite routinely surfaces reds unrelated to any given change (named examples:
+      #2736, #2772, #1834), and the charter's Standing Order #9 forbids treating an honest
+      pre-existing red as something to hide or silently work around. Neither `spec.md` search hit
+      ("baseline"/"pre-existing"/"red main"/"already red") returns any acknowledgment of this in the
+      mission-type test surface named by FR-006–FR-009. As worded, SC-003's "100%... passing" is an
+      absolute claim that a reviewer could misapply against an unrelated pre-existing red discovered
+      in `tests/charter/test_mission_type_*.py` or `tests/doctrine/missions/test_mission_type_*.py`
+      during this mission's work, holding the mission itself responsible for a defect it did not
+      introduce (or, in the other direction, an implementer could be tempted to "fix" or silently
+      skip a pre-existing red to satisfy the letter of SC-003 — exactly the green-washing Standing
+      Order #9 forbids).
+    remediation: >
+      Add a carve-out clause to SC-003 (and User Story 3's Independent Test) along the lines of
+      "excluding any test already red on the mission's `planning_base_branch` for reasons unrelated
+      to this change, per the repo's baseline-red attribution policy" — pointing implementers and
+      reviewers at the existing AGENTS.md/CLAUDE.md classification procedure instead of leaving
+      "100%... passing" as an unqualified absolute.

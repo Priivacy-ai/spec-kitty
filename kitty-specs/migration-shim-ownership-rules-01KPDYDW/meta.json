@@ -1,5 +1,6 @@
 {
   "created_at": "2026-04-17T14:44:57.361636+00:00",
+  "flattened": false,
   "friendly_name": "migration shim ownership rules",
   "mission_id": "01KPDYDWVF8W838HNJK7FC3S7T",
   "mission_number": 88,
@@ -8,6 +9,7 @@
   "slug": "migration-shim-ownership-rules-01KPDYDW",
   "status_phase": "1",
   "target_branch": "kitty/mission-migration-shim-ownership-rules-01KPDYDW",
+  "topology": "lanes",
   "vcs": "git",
   "vcs_locked_at": "2026-04-19T12:59:36.496232+00:00"
 }

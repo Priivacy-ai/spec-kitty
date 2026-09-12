@@ -8,10 +8,10 @@ wiring never calls is the gate-silent-death failure mode (WP14 DoD).
 
 The non-uniform flip:
 
-* **R1 anti-sprawl ratchet** and **R2 related-validator** flip via their wired
-  ``--strict`` flag (the workflow now passes it). Each detector class reds on its
-  own seeded violation, one class per test so a single always-RED gate cannot
-  mask the others.
+* **R2 related-validator** flips via its wired ``--strict`` flag (the workflow
+  passes it) and reds on its own seeded dangling-edge violation. (The R1
+  anti-sprawl structure ratchet was retired — #2851 follow-up — so its
+  per-class RED proofs are gone; the structure policy is now curated in bulk.)
 * **R3 lockfile drift** flips via *code*: the ``INVENTORY-LOCKFILE-DRIFT`` finding
   is now ``error`` severity (was ``warning``) and the check runs default-on, so a
   drifted inventory reds ``check_docs_freshness`` — the aggregate exit keys off
@@ -22,6 +22,25 @@ The non-uniform flip:
 
 Each clean-tree counterpart asserts the gate is **green** on a correct tree, so
 the RED is attributable to the seeded violation and not a perpetually-red gate.
+
+**Diff-scope proof (#3147, WP02 T012).** The bottom section preserves the
+original diff-scoped ``--changed-from`` proof for R2 (related-validator) and
+the body-link gate through the SAME CLI path ``docs-freshness.yml`` invokes on
+``pull_request``, over real (throwaway) git repos. The sibling audience and
+description gates added to that wiring by #3316 carry the same four-case proof
+in ``test_audience_resolves.py`` and ``test_description_length_gate.py``.
+Per B-WP02 in
+``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``
+this is a **four**-case proof, not three — the fourth (resolved-zero-docs) is
+the load-bearing distinction the naive "empty changed-set -> ERROR" reading
+would get wrong:
+
+(a) a seeded violation IN the changed-set still reds (the check BITES);
+(b) a pre-existing violation OUTSIDE the changed-set does NOT red (exit 0);
+(c) an unresolvable/unfetched base ref errors (non-zero, distinct from both);
+(d) a resolved diff touching zero in-scope docs files (the common shape for a
+    non-docs-md PR, since ``docs-freshness.yml`` also triggers on
+    ``src/specify_cli/**``, ``pyproject.toml``, etc.) exits 0 — NOT an error.
 """
 
 from __future__ import annotations
@@ -37,64 +56,27 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.docs import anti_sprawl_ratchet as ratchet  # noqa: E402
 from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
 from scripts.docs import description_length_check as desc_gate  # noqa: E402
 from scripts.docs import related_validator  # noqa: E402
 from scripts.docs import relative_link_fixer  # noqa: E402
+from scripts.docs._published_pages import (  # noqa: E402
+    MINIMUM_EXPECTED_PAGES as _MINIMUM_EXPECTED_PAGES,
+)
+from tests.docs.conftest import (  # noqa: E402
+    commit_all_changes,
+    init_git_repo_with_base,
+)
 
 pytestmark = pytest.mark.architectural
 
-_GOOD_ADR: Final[str] = (
-    "---\ntitle: Example Decision\nstatus: Accepted\ndate: 2026-06-27\n---\n\n"
-    "# Example Decision\n\nBody.\n"
-)
+_GOOD_ADR: Final[str] = "---\ntitle: Example Decision\nstatus: Accepted\ndate: 2026-06-27\n---\n\n# Example Decision\n\nBody.\n"
 _GOOD_DESC: Final[str] = "x" * 100
 
 
 def _write(path: Path, text: str = "# stub\n") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-
-
-def _build_clean_tree(root: Path) -> Path:
-    """A single-root 13-section Common Docs tree with zero ruler violations."""
-    docs = root / "docs"
-    _write(docs / "index.md")
-    for section in ratchet.CANONICAL_SECTIONS:
-        if section == "index":
-            continue
-        _write(docs / section / "index.md")
-    _write(docs / "adr" / "3.x" / "2026-06-27-1-example.md", _GOOD_ADR)
-    return root
-
-
-# --------------------------------------------------------------------------- #
-# R1 — anti-sprawl ratchet: each detector class reds independently under --strict
-# --------------------------------------------------------------------------- #
-
-
-def test_r1_clean_tree_is_green_under_strict(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    assert ratchet.main(["--root", str(root), "--strict"]) == 0
-
-
-def test_r1_second_doc_root_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    _write(root / "handbook" / "index.md")  # a competing docs root marker
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
-
-
-def test_r1_missing_section_index_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    (root / "docs" / "orphaned").mkdir()  # section dir without index.md
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
-
-
-def test_r1_unfrontmattered_adr_reds(tmp_path: Path) -> None:
-    root = _build_clean_tree(tmp_path / "repo")
-    _write(root / "docs" / "adr" / "3.x" / "bad.md", "# ADR without frontmatter\n")
-    assert ratchet.main(["--root", str(root), "--strict"]) == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -110,10 +92,7 @@ def test_r2_clean_tree_is_green_under_strict(tmp_path: Path) -> None:
         root / "docs" / "a.md",
         "---\nrelated:\n- docs/target.md\n---\n# A\n",
     )
-    assert (
-        related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 0
-    )
+    assert related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"]) == 0
 
 
 def test_r2_dangling_related_edge_reds(tmp_path: Path) -> None:
@@ -123,10 +102,7 @@ def test_r2_dangling_related_edge_reds(tmp_path: Path) -> None:
         root / "docs" / "a.md",
         "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
     )
-    assert (
-        related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 1
-    )
+    assert related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"]) == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -145,9 +121,7 @@ def _stub_external_subchecks(monkeypatch: pytest.MonkeyPatch) -> None:
         return 0
 
     def _clean_ref(argv: list[str]) -> int:
-        Path(argv[argv.index("--report") + 1]).write_text(
-            json.dumps({"findings": []}), encoding="utf-8"
-        )
+        Path(argv[argv.index("--report") + 1]).write_text(json.dumps({"findings": []}), encoding="utf-8")
         return 0
 
     monkeypatch.setattr(orchestrator, "_invoke_version_leakage", _clean_leakage)
@@ -168,15 +142,11 @@ def _stage_lockfile_workspace(root: Path, *, drift: bool) -> Path:
     )
     if drift:
         # Tamper a page's frontmatter so the regeneration != committed lockfile.
-        (docs / "guides" / "g.md").write_text(
-            "---\ntype: reference\n---\n# Guide\n", encoding="utf-8"
-        )
+        (docs / "guides" / "g.md").write_text("---\ntype: reference\n---\n# Guide\n", encoding="utf-8")
     return root
 
 
-def test_r3_clean_lockfile_is_green(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_r3_clean_lockfile_is_green(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _stage_lockfile_workspace(tmp_path / "repo", drift=False)
     _stub_external_subchecks(monkeypatch)
     monkeypatch.setattr(orchestrator, "_SAAS_SYNC_PRESET", True)
@@ -188,24 +158,25 @@ def test_r3_clean_lockfile_is_green(
     monkeypatch.chdir(root)
     rc = orchestrator.main(
         [
-            "--inventory", "inventory.yaml",
-            "--docs-root", "docs",
-            "--reference", "ref.md",
-            "--agent-reference", "agent.md",
-            "--link-check", "none",
+            "--inventory",
+            "inventory.yaml",
+            "--docs-root",
+            "docs",
+            "--reference",
+            "ref.md",
+            "--agent-reference",
+            "agent.md",
+            "--link-check",
+            "none",
             "--ci",
         ]
     )
     assert rc == 0
 
 
-def test_r3_lockfile_drift_reds_with_error_severity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_r3_lockfile_drift_reds_with_error_severity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _stage_lockfile_workspace(tmp_path / "repo", drift=True)
-    findings = orchestrator._check_inventory_lockfile_drift(
-        root / "inventory.yaml", root / "docs"
-    )
+    findings = orchestrator._check_inventory_lockfile_drift(root / "inventory.yaml", root / "docs")
     # The flip teeth: drift is reported AND it is error-severity (red-first —
     # fails against the pre-flip warning code).
     assert findings, "expected lockfile drift findings"
@@ -221,11 +192,16 @@ def test_r3_lockfile_drift_reds_with_error_severity(
     monkeypatch.chdir(root)
     rc = orchestrator.main(
         [
-            "--inventory", "inventory.yaml",
-            "--docs-root", "docs",
-            "--reference", "ref.md",
-            "--agent-reference", "agent.md",
-            "--link-check", "none",
+            "--inventory",
+            "inventory.yaml",
+            "--docs-root",
+            "docs",
+            "--reference",
+            "ref.md",
+            "--agent-reference",
+            "agent.md",
+            "--link-check",
+            "none",
             "--ci",
         ]
     )
@@ -237,38 +213,73 @@ def test_r3_lockfile_drift_reds_with_error_severity(
 # --------------------------------------------------------------------------- #
 
 
+def _stage_published_docs(root: Path, pages: dict[str, str]) -> Path:
+    """Stage a ``docs`` tree the description gate will accept as published.
+
+    The gate resolves its page set from ``docfx.json`` and refuses any set below
+    the non-vacuity floor — a gate validating a handful of pages is exactly the
+    silent under-collection it exists to prevent, so there is deliberately no
+    override. Filler pages carry distinct in-band descriptions so the only
+    violation is the seeded one, keeping each RED attributable.
+    """
+    docs = root / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "docfx.json").write_text(
+        json.dumps({"build": {"content": [{"files": ["**.md"], "exclude": ["**/_*.md"]}]}}),
+        encoding="utf-8",
+    )
+    for index in range(_MINIMUM_EXPECTED_PAGES + 20):
+        _write(
+            docs / "filler" / f"page_{index:05d}.md",
+            f'---\ndescription: "Filler page {index:05d} {"y" * 60}"\n---\n# Filler\n',
+        )
+    for relative, text in pages.items():
+        _write(docs / relative, text)
+    return docs
+
+
 def test_description_gate_reds_on_out_of_band(tmp_path: Path) -> None:
     root = tmp_path / "repo"
-    _write(
-        root / "docs" / "short.md",
-        f'---\ndescription: "{"x" * 49}"\n---\n# Short\n',
-    )
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 1
-    )
+    docs = _stage_published_docs(root, {"short.md": f'---\ndescription: "{"x" * 49}"\n---\n# Short\n'})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
 
 
 def test_description_gate_green_on_in_band(tmp_path: Path) -> None:
     root = tmp_path / "repo"
-    _write(
-        root / "docs" / "ok.md",
-        f'---\ndescription: "{_GOOD_DESC}"\n---\n# OK\n',
-    )
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 0
-    )
+    docs = _stage_published_docs(root, {"ok.md": f'---\ndescription: "{_GOOD_DESC}"\n---\n# OK\n'})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
 
 
-def test_description_gate_excludes_content_invariant_adrs(tmp_path: Path) -> None:
-    """ADR bodies carry no description (C-002) and must not red the gate."""
+def test_description_gate_covers_adrs(tmp_path: Path) -> None:
+    """ADRs are in scope: a bare-``status`` ADR body now reds the gate.
+
+    This assertion is the exact inverse of the one it replaces. The gate used to
+    exclude ``docs/adr/`` wholesale, justified by a byte-identity
+    content-invariance proof (C-002) that was itself retired upstream on
+    2026-06-29 (``ccd278061``). With that rationale expired and descriptions
+    backfilled across the ADR tree, an ADR *without* one is a violation like any
+    other published page.
+    """
     root = tmp_path / "repo"
-    _write(root / "docs" / "adr" / "3.x" / "2026-06-27-1-x.md", _GOOD_ADR)
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 0
-    )
+    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": _GOOD_ADR})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
+
+
+def test_description_gate_green_when_adrs_are_described(tmp_path: Path) -> None:
+    """The counterpart green: a described ADR does not red the gate."""
+    root = tmp_path / "repo"
+    described = _GOOD_ADR.replace("status: Accepted", f'status: Accepted\ndescription: "{_GOOD_DESC}"')
+    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": described})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
+
+
+def test_description_gate_reds_on_an_empty_page_set(tmp_path: Path) -> None:
+    """A gate that resolves no pages fails — it never reports a vacuous green."""
+    root = tmp_path / "repo"
+    docs = root / "docs"
+    docs.mkdir(parents=True)
+    (docs / "docfx.json").write_text(json.dumps({"build": {"content": [{"files": ["nowhere/**.md"]}]}}), encoding="utf-8")
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root)]) != 0
 
 
 def test_body_link_gate_reds_on_dead_link(tmp_path: Path) -> None:
@@ -284,3 +295,159 @@ def test_body_link_gate_green_when_links_resolve(tmp_path: Path) -> None:
     _write(root / "docs" / "target.md", "# Target\n")
     _write(root / "docs" / "page.md", "See [target](target.md).\n")
     assert relative_link_fixer.main(["--check", "--repo-root", str(root)]) == 0
+
+
+# --------------------------------------------------------------------------- #
+# Diff-scope proof (#3147, WP02 T012) — the SAME CLI path docs-freshness.yml
+# invokes on pull_request, with --changed-from wired. Four cases per B-WP02:
+# in-scope BITE, out-of-scope PASS, base-unresolvable ERROR, resolved-zero-
+# docs PASS (the fourth is the load-bearing distinction B-WP02 exists for).
+# --------------------------------------------------------------------------- #
+
+_UNRESOLVABLE_BASE_REF = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+
+class TestBodyLinkGateDiffScope:
+    """``relative_link_fixer.py --check --changed-from`` — the WP18 body-link gate."""
+
+    def test_in_scope_violation_reds(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md", "# Home\n")
+        base_sha = init_git_repo_with_base(root)
+        _write(root / "docs" / "page.md", "See [gone](../missing/none.md).\n")
+        commit_all_changes(root, "add broken link")
+
+        rc = relative_link_fixer.main(["--check", "--repo-root", str(root), "--changed-from", base_sha])
+        assert rc == 1
+
+    def test_out_of_scope_preexisting_violation_passes(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md", "# Home\n")
+        # Pre-existing dead link, part of the base commit.
+        _write(root / "docs" / "broken.md", "See [gone](../missing/none.md).\n")
+        base_sha = init_git_repo_with_base(root)
+        # The PR itself touches only an unrelated file.
+        _write(root / "docs" / "other.md", "# Other\n")
+        commit_all_changes(root, "add unrelated doc")
+
+        rc = relative_link_fixer.main(["--check", "--repo-root", str(root), "--changed-from", base_sha])
+        assert rc == 0
+
+    def test_base_unresolvable_errors(self, tmp_path: Path) -> None:
+        # B-WP02's load-bearing third case: distinct from both the in-scope
+        # RED (1) and the out-of-scope/zero-docs PASS (0).
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md", "# Home\n")
+        init_git_repo_with_base(root)
+
+        rc = relative_link_fixer.main(
+            [
+                "--check",
+                "--repo-root",
+                str(root),
+                "--changed-from",
+                _UNRESOLVABLE_BASE_REF,
+            ]
+        )
+        assert rc not in (0, 1)
+
+    def test_resolved_zero_docs_passes(self, tmp_path: Path) -> None:
+        # B-WP02's fourth case: a non-docs-md PR resolves fine and touches
+        # zero in-scope docs files — must PASS, never error.
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md", "# Home\n")
+        base_sha = init_git_repo_with_base(root)
+        (root / "README.md").write_text("# readme change\n", encoding="utf-8")
+        commit_all_changes(root, "non-docs change")
+
+        rc = relative_link_fixer.main(["--check", "--repo-root", str(root), "--changed-from", base_sha])
+        assert rc == 0
+
+
+class TestRelatedValidatorDiffScope:
+    """``related_validator.py --strict --changed-from`` — the R2 related-edge gate."""
+
+    def test_in_scope_dangling_edge_reds(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md")
+        base_sha = init_git_repo_with_base(root)
+        _write(
+            root / "docs" / "a.md",
+            "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
+        )
+        commit_all_changes(root, "add dangling related edge")
+
+        rc = related_validator.main(
+            [
+                "--docs-root",
+                str(root / "docs"),
+                "--repo-root",
+                str(root),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+        assert rc == 1
+
+    def test_out_of_scope_preexisting_dangling_edge_passes(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        # Pre-existing dangling edge, part of the base commit.
+        _write(
+            root / "docs" / "a.md",
+            "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
+        )
+        base_sha = init_git_repo_with_base(root)
+        _write(root / "docs" / "other.md")
+        commit_all_changes(root, "add unrelated doc")
+
+        rc = related_validator.main(
+            [
+                "--docs-root",
+                str(root / "docs"),
+                "--repo-root",
+                str(root),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+        assert rc == 0
+
+    def test_base_unresolvable_errors(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md")
+        init_git_repo_with_base(root)
+
+        rc = related_validator.main(
+            [
+                "--docs-root",
+                str(root / "docs"),
+                "--repo-root",
+                str(root),
+                "--strict",
+                "--changed-from",
+                _UNRESOLVABLE_BASE_REF,
+            ]
+        )
+        assert rc not in (0, 1)
+
+    def test_resolved_zero_docs_passes(self, tmp_path: Path) -> None:
+        root = tmp_path / "repo"
+        _write(root / "docs" / "index.md")
+        base_sha = init_git_repo_with_base(root)
+        (root / "README.md").write_text("# readme change\n", encoding="utf-8")
+        commit_all_changes(root, "non-docs change")
+
+        rc = related_validator.main(
+            [
+                "--docs-root",
+                str(root / "docs"),
+                "--repo-root",
+                str(root),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+        assert rc == 0

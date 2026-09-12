@@ -46,6 +46,7 @@ sweep did and lets a reviewer re-run ``--dry-run`` to verify completeness.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
@@ -57,8 +58,14 @@ import yaml
 # Defaults                                                                     #
 # --------------------------------------------------------------------------- #
 
-DEFAULT_OCCURRENCE_MAP = (
-    "kitty-specs/common-docs-structural-move-01KW3SBK/occurrence_map.yaml"
+# No longer hard-pinned to one mission: the ``SPEC_KITTY_OCCURRENCE_MAP`` env
+# var overrides, and the literal below is only a last-resort fallback that keeps
+# the symbol defined + resolvable for importing callers (relative_link_fixer).
+# Every mission step passes an explicit ``--occurrence-map``, so this default is
+# consumed only by ad-hoc invocations (FR-010 / C-007 un-pin).
+DEFAULT_OCCURRENCE_MAP = os.environ.get(
+    "SPEC_KITTY_OCCURRENCE_MAP",
+    "kitty-specs/common-docs-structural-move-01KW3SBK/occurrence_map.yaml",
 )
 DEFAULT_ROOTS: tuple[str, ...] = ("src", "tests", "docs")
 TEXT_SUFFIXES = frozenset({".py", ".md", ".txt", ".rst", ".yaml", ".yml"})
@@ -149,17 +156,24 @@ def load_moves(occurrence_map_path: Path) -> list[tuple[str, str]]:
 def resolve_destination(old: str, to: str, repo_root: Path) -> str:
     """Resolve the *real* on-disk destination for a moved ``old`` path.
 
-    The map's ``to`` is the destination root; the landing may preserve the
-    subtree as a subdir, rename it (``_`` ↔ ``-``), or — for explicit
-    disambiguations — land it under an overridden name.  Falls back to the bare
-    ``to`` (flattened landing) when no subdir variant exists.
+    The map's ``to`` is normally the destination *root*; the landing may
+    preserve the subtree as a subdir, rename it (``_`` ↔ ``-``), or — for
+    explicit disambiguations — land it under an overridden name.  Falls back to
+    the bare ``to`` (flattened landing) when no subdir variant exists.
+
+    For a file-level move, ``to`` may instead be the full destination *file*
+    path (an occurrence_map that maps ``old`` file → ``new`` file directly). In
+    that case ``to`` is used verbatim; appending ``old``'s basename would double
+    the filename (``…/x.md/x.md``).
     """
 
     if old in DEST_OVERRIDES:
         return DEST_OVERRIDES[old]
     base = old.rsplit("/", 1)[-1]
     if _is_file_path(old):
-        return f"{to}/{base}"
+        # `to` is either the destination directory root (append the basename)
+        # or the full destination file path (use verbatim — no doubling).
+        return to if _is_file_path(to) else f"{to}/{base}"
     candidates = [base]
     if "_" in base:
         candidates.append(base.replace("_", "-"))

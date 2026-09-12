@@ -4,7 +4,7 @@ consolidate-charter-bundle (IC-04 / WP04, T028c): ``sync()``'s prose->triad
 scrape -- parsing ``charter.md`` and writing ``governance.yaml`` /
 ``directives.yaml`` / ``metadata.yaml`` -- is RETIRED. ``governance``/
 ``directives`` are hand-authored sections directly inside the git-tracked
-``charter.yaml`` now (``charter.sync.load_governance_config`` /
+``charter.yaml`` now (``charter.activation.sync.load_governance_config`` /
 ``load_directives_config``). ``sync()`` is RETAINED only for its callers'
 contract (canonical-root resolution via ``ensure_charter_bundle_fresh``, the
 ``charter sync`` CLI command): it still performs the ``charter.md``
@@ -21,7 +21,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from charter.hasher import hash_content
-from charter.sync import sync
+from charter.activation.sync import sync
 
 pytestmark = pytest.mark.fast
 # Sample charter content for testing

@@ -19,7 +19,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
 )
@@ -328,10 +328,13 @@ def test_apply_reads_live_from_accessor_at_call_time(
     without any hardcoded roster in the migration module — proving the
     written set is derived, not a frozen literal (C-004).
     """
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated mission_types/ from src/charter/offering/missions/mission_types to
+    # packs/built-in/missions/mission_types.
     shipped_dir = (
         Path(__file__).resolve().parents[2]
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "mission_types"
     )

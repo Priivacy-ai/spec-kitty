@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -44,10 +44,7 @@ class StateGitignoreMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any of the 5 new runtime entries are missing."""
-        gitignore_path = project_path / ".gitignore"
-        if not gitignore_path.exists():
-            return True
-        content = gitignore_path.read_text()
+        content = read_ignore_file_text(project_path / ".gitignore")
         return any(entry not in content for entry in _NEW_RUNTIME_ENTRIES)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:

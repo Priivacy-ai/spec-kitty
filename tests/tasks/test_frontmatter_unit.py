@@ -81,6 +81,24 @@ class TestReadMalformedInput:
         assert frontmatter == {}
         assert "Body" in body
 
+    def test_list_frontmatter_raises(self, tmp_path: Path, fm: FrontmatterManager) -> None:
+        """Frontmatter parsing to a YAML list (not a mapping) raises
+        FrontmatterError — not the downstream TypeError that used to escape
+        read()'s contract and abort callers mid-scan (#2883 item 4). A WP
+        filename is used since that is the path that hit ``["dependencies"] = []``.
+        """
+        f = tmp_path / "WP01.md"
+        f.write_text("---\n- a\n- b\n---\nbody\n", encoding="utf-8")
+        with pytest.raises(FrontmatterError, match="not a mapping"):
+            fm.read(f)
+
+    def test_scalar_frontmatter_raises(self, tmp_path: Path, fm: FrontmatterManager) -> None:
+        """Frontmatter parsing to a bare scalar (not a mapping) raises FrontmatterError."""
+        f = tmp_path / "spec.md"
+        f.write_text("---\njust a bare string\n---\nbody\n", encoding="utf-8")
+        with pytest.raises(FrontmatterError, match="not a mapping"):
+            fm.read(f)
+
 
 class TestReadValidInput:
     """FrontmatterManager.read() parses well-formed frontmatter correctly."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -103,6 +103,22 @@ class TestGlossaryHealth:
 
         with patch.object(gloss_module, "_collect_all_senses_with_errors", side_effect=RuntimeError("boom")):
             gloss_module.GlossaryHandler.handle_glossary_health(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        data = _read_response(handler)
+        assert data["total_terms"] == 0
+        assert data["high_severity_drift_count"] == 0
+        assert data["entity_pages_generated"] is False
+        assert data["last_conflict_at"] is None
+
+    def test_health_returns_zero_counts_without_project_dir(self, tmp_path):
+        """Returns safe zero-count payload when project_dir is not configured."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+        handler.project_dir = None
+
+        gloss_module.GlossaryHandler.handle_glossary_health(handler)
 
         handler.send_response.assert_called_once_with(200)
         data = _read_response(handler)
@@ -421,6 +437,19 @@ class TestGlossaryTerms:
         records = _read_response(handler)
         assert records == []
 
+    def test_terms_returns_empty_list_without_project_dir(self, tmp_path):
+        """Returns [] without raising when project_dir is not configured."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+        handler.project_dir = None
+
+        gloss_module.GlossaryHandler.handle_glossary_terms(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        records = _read_response(handler)
+        assert records == []
+
     def test_terms_record_shape(self, tmp_path):
         """Each record has exactly the expected keys."""
         from specify_cli.dashboard.handlers import glossary as gloss_module
@@ -528,6 +557,53 @@ class TestCollectAllSenses:
             f"recovery should keep alpha + gamma and skip beta; got {surfaces}"
         )
 
+    def test_recovered_term_provenance_timestamp_is_aware_utc(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-011 (kernel-clock-single-door, WP13c): per-term recovery stamps
+        ``Provenance.timestamp`` via the door's aware-UTC ``now_utc()``, not
+        a naive local ``datetime.now()``.
+
+        A naive ``datetime.now()`` here has no UTC offset once serialized by
+        any downstream ``Provenance`` renderer (e.g.
+        ``glossary.models.term_sense_to_dict``'s ``.isoformat()`` call) --
+        this pins ``tzinfo``/the exact frozen instant so a reversion to the
+        naive form is caught even though this handler's own JSON response
+        does not itself render the timestamp.
+
+        C-009 mutation verified: reverting the site to a naive
+        ``datetime.now()`` makes ``provenance.timestamp.tzinfo`` ``None``,
+        failing the assertion below.
+        """
+        import kernel.clock as clock_module
+        from kernel.clock import UTC, FrozenClock
+        from specify_cli.dashboard.handlers.glossary import _collect_all_senses
+
+        frozen_instant = datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC)
+        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=frozen_instant))
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: First letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "  - surface: beta\n"
+            "    definition: Second letter\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "    bogus_extra_field: rejected\n",
+            encoding="utf-8",
+        )
+
+        result = _collect_all_senses(tmp_path)
+
+        recovered = next(t for t in result if t.surface.surface_text == "alpha")
+        assert recovered.provenance.timestamp.tzinfo is not None
+        assert recovered.provenance.timestamp == frozen_instant
+
 
 class TestGlossaryPage:
     """Tests for handle_glossary_page() → GET /glossary."""
@@ -555,7 +631,11 @@ class TestGlossaryPage:
         assert b"<!DOCTYPE html>" in body or b"<html" in body
         text = body.decode("utf-8")
         assert 'id="validation-banner"' in text
-        assert "fetch('/api/glossary-health')" in text
+        # The glossary JS (which performs the /api/glossary-health fetch) is
+        # served same-origin from static/dashboard/glossary.js — the dashboard
+        # CSP (style-src/script-src 'self') blocks an inline block (#71).
+        assert '<script src="/static/dashboard/glossary.js"></script>' in text
+        assert '<link rel="stylesheet" href="/static/dashboard/glossary.css">' in text
         assert '<label for="search" class="sr-only">Search glossary terms</label>' in text
 
     def test_glossary_page_uses_cached_bytes(self, tmp_path):
@@ -571,6 +651,148 @@ class TestGlossaryPage:
         handler1.wfile.seek(0)
         handler2.wfile.seek(0)
         assert handler1.wfile.read() == handler2.wfile.read()
+
+    def test_glossary_page_uses_dashboard_shell_and_light_theme(self, tmp_path):
+        """Glossary page keeps dashboard navigation and does not leak dark mode."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        handler = _make_handler(tmp_path)
+
+        gloss_module.GlossaryHandler.handle_glossary_page(handler)
+
+        handler.wfile.seek(0)
+        body = handler.wfile.read().decode("utf-8")
+        assert 'class="sidebar"' in body
+        assert 'href="/" title="Dashboard Overview"' in body
+        assert 'class="sidebar-item active" href="/glossary"' in body
+        assert 'id="validation-banner"' in body
+        # Styles/behaviour are same-origin assets now (#71) — see
+        # test_glossary_page_returns_200_with_html above.
+        assert '<script src="/static/dashboard/glossary.js"></script>' in body
+        assert '<link rel="stylesheet" href="/static/dashboard/glossary.css">' in body
+        assert '<label for="search" class="sr-only">Search glossary terms</label>' in body
+        assert "prefers-color-scheme: dark" not in body
+
+
+class TestGlossaryHelpers:
+    """Exercise helper paths that feed the glossary dashboard endpoints."""
+
+    def test_count_orphaned_terms_counts_uncovered_glossary_nodes(self, tmp_path):
+        """Glossary nodes without an incoming vocabulary edge count as orphans."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text(
+            """
+nodes:
+  - urn: glossary:alpha
+  - urn: glossary:beta
+  - urn: mission:mission-1
+edges:
+  - relation: vocabulary
+    target: glossary:alpha
+  - relation: ownership
+    target: glossary:beta
+""".strip(),
+            encoding="utf-8",
+        )
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 1
+
+    def test_count_orphaned_terms_returns_zero_for_non_mapping_graph(self, tmp_path):
+        """Non-dict graph payloads are treated as unavailable."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text("- not-a-dict\n", encoding="utf-8")
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_count_orphaned_terms_returns_zero_when_no_glossary_nodes_exist(self, tmp_path):
+        """A DRG without glossary nodes reports no orphans."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text(
+            """
+nodes:
+  - urn: mission:mission-1
+edges:
+  - relation: ownership
+    target: mission:mission-1
+""".strip(),
+            encoding="utf-8",
+        )
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_count_orphaned_terms_returns_zero_on_yaml_error(self, tmp_path):
+        """Unreadable YAML does not break the dashboard helper."""
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir.mkdir(parents=True)
+        (doctrine_dir / "graph.yaml").write_text("nodes: [\n", encoding="utf-8")
+
+        assert gloss_module._count_orphaned_terms(tmp_path) == 0
+
+    def test_collect_all_senses_skips_scopes_that_fail(self, monkeypatch, tmp_path):
+        """A single broken seed file does not prevent collecting other scopes."""
+        from glossary.scope import GlossaryScope
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        first_scope = list(GlossaryScope)[0]
+        expected = _make_term("alpha", "definition", "active", 0.9)
+
+        def fake_load_seed_file(scope, repo_root):
+            assert repo_root == tmp_path
+            if scope is first_scope:
+                return [expected]
+            raise RuntimeError(f"missing seed for {scope.value}")
+
+        monkeypatch.setattr("glossary.scope.load_seed_file", fake_load_seed_file)
+
+        assert gloss_module._collect_all_senses(tmp_path) == [expected]
+
+    def test_collect_all_senses_returns_empty_list_when_scope_module_fails(
+        self, monkeypatch, tmp_path
+    ):
+        """Import failures degrade to an empty response payload."""
+        import builtins
+
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "glossary.scope":
+                raise ImportError("boom")
+            return real_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        assert gloss_module._collect_all_senses(tmp_path) == []
+
+    def test_collect_all_senses_raises_when_root_level_recovery_refused(self, tmp_path):
+        """The compatibility helper still raises when no safe recovery exists."""
+        from glossary.exceptions import SeedFileValidationError
+        from specify_cli.dashboard.handlers import glossary as gloss_module
+
+        seed_dir = tmp_path / ".kittify" / "glossaries"
+        seed_dir.mkdir(parents=True)
+        (seed_dir / "spec_kitty_core.yaml").write_text(
+            "version: 1\n"
+            "terms:\n"
+            "  - surface: alpha\n"
+            "    definition: Valid term in invalid file shape\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SeedFileValidationError):
+            gloss_module._collect_all_senses(tmp_path)
 
 
 class TestRouterRegistration:

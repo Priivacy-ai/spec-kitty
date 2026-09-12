@@ -1,7 +1,7 @@
 """Tests for term resolution logic (WP04 T016)."""
 
 import pytest
-from datetime import datetime
+from kernel.clock import datetime
 from pathlib import Path
 
 from glossary.models import TermSurface, TermSense, Provenance, SenseStatus

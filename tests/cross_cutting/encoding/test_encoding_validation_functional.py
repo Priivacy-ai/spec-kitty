@@ -20,8 +20,11 @@ from specify_cli.text_sanitization import (
 )
 import contextlib
 
+from tests._perf_helpers import assert_timing_budget
+
 
 pytestmark = [pytest.mark.integration]
+
 
 class TestCharacterDetection:
     """Test 1.1: Detect All Problematic Character Types"""
@@ -87,9 +90,7 @@ class TestTextSanitization:
     def test_sanitize_text_replaces_characters_correctly(self):
         """Verify sanitization replaces characters without corrupting text."""
         original = "User\u2019s \u201cfavorite\u201d feature costs $100 \u00b1 $10 at 72\u00b0F"
-        expected = (
-            'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
-        )
+        expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
 
         result = sanitize_markdown_text(original)
 
@@ -247,6 +248,7 @@ class TestDryRunMode:
 class TestPerformance:
     """Performance requirements verification"""
 
+    @pytest.mark.performance
     def test_single_file_validation_performance(self):
         """Verify single file validation completes in < 50ms."""
         import time
@@ -257,16 +259,19 @@ class TestPerformance:
             content = ("User\u2019s test " * 100) * 10  # ~10KB
             test_file.write_text(content)
 
-            start = time.time()
+            start = time.monotonic()
             sanitize_file(test_file, backup=False, dry_run=True)
-            elapsed = (time.time() - start) * 1000  # Convert to ms
+            elapsed = (time.monotonic() - start) * 1000  # Convert to ms
 
-            assert elapsed < 50, f"Single file validation took {elapsed:.1f}ms, should be < 50ms"
+            assert_timing_budget(elapsed, 50, name="single_file_validation_ms")
 
     def test_directory_scan_performance(self):
-        """Verify directory scan of 100 files completes in < 2 seconds."""
-        import time
+        """Verify directory scan of 100 files finds every file (functional half).
 
+        Split from the original timing+functional test (#4015): the 2s
+        wall-clock budget now lives in
+        ``test_directory_scan_stays_under_two_seconds`` (nightly-only).
+        """
         with TemporaryDirectory() as tmpdir:
             base = Path(tmpdir)
 
@@ -277,12 +282,32 @@ class TestPerformance:
                 file = subdir / f"file{i}.md"
                 file.write_text(f"File {i} with User\u2019s test")
 
-            start = time.time()
             results = sanitize_directory(base, pattern="**/*.md", backup=False, dry_run=True)
-            elapsed = time.time() - start
 
             assert len(results) == 100, f"Should find 100 files, got {len(results)}"
-            assert elapsed < 2.0, f"Directory scan took {elapsed:.2f}s, should be < 2s"
+
+    @pytest.mark.performance
+    def test_directory_scan_stays_under_two_seconds(self):
+        """Verify directory scan of 100 files completes in < 2 seconds (nightly).
+
+        Split from ``test_directory_scan_performance`` (#4015); budget preserved.
+        """
+        import time
+
+        with TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+
+            for i in range(100):
+                subdir = base / f"dir{i // 10}"
+                subdir.mkdir(exist_ok=True)
+                file = subdir / f"file{i}.md"
+                file.write_text(f"File {i} with User\u2019s test")
+
+            start = time.monotonic()
+            sanitize_directory(base, pattern="**/*.md", backup=False, dry_run=True)
+            elapsed = time.monotonic() - start
+
+            assert_timing_budget(elapsed, 2.0, name="directory_scan_100_files")
 
 
 # Edge case tests
@@ -315,9 +340,7 @@ class TestEdgeCases:
 
             # Should either handle gracefully or report error
             if error:
-                assert "encoding" in error.lower() or "decode" in error.lower(), (
-                    f"Error should mention encoding issue: {error}"
-                )
+                assert "encoding" in error.lower() or "decode" in error.lower(), f"Error should mention encoding issue: {error}"
             else:
                 # If no error, file should still exist
                 assert binary_file.exists()
@@ -364,9 +387,7 @@ class TestEdgeCases:
 
                 # Should report error
                 assert error is not None, "Should report permission error"
-                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), (
-                    f"Error should mention permission issue: {error}"
-                )
+                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), f"Error should mention permission issue: {error}"
             finally:
                 # Restore permissions for cleanup
                 with contextlib.suppress(BaseException):

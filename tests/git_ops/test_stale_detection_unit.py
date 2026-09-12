@@ -5,7 +5,7 @@ Tests the dynamic default branch detection and staleness checks.
 """
 
 import subprocess
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, timedelta, now_utc
 from pathlib import Path
 
 import pytest
@@ -290,7 +290,7 @@ def test_check_wp_staleness_old_commit(git_repo_with_main: Path):
     )
 
     # Calculate timestamp 12 hours ago as Unix timestamp
-    old_timestamp = str(int((datetime.now(UTC) - timedelta(hours=12)).timestamp()))
+    old_timestamp = str(int((now_utc() - timedelta(hours=12)).timestamp()))
 
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = f"@{old_timestamp}"
@@ -327,7 +327,7 @@ def _make_old_commit(repo: Path, branch: str = "kitty/mission-feature-lane-a") -
     (repo / "feature.txt").write_text("Old work")
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
 
-    old_timestamp = str(int((datetime.now(UTC) - timedelta(hours=12)).timestamp()))
+    old_timestamp = str(int((now_utc() - timedelta(hours=12)).timestamp()))
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = f"@{old_timestamp}"
     env["GIT_COMMITTER_DATE"] = f"@{old_timestamp}"
@@ -419,7 +419,7 @@ def test_check_wp_staleness_recent_commit(git_repo_with_main: Path):
     )
 
     # Calculate timestamp 2 minutes ago as Unix timestamp
-    recent_timestamp = str(int((datetime.now(UTC) - timedelta(minutes=2)).timestamp()))
+    recent_timestamp = str(int((now_utc() - timedelta(minutes=2)).timestamp()))
 
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = f"@{recent_timestamp}"
@@ -477,7 +477,7 @@ def test_stale_detection_with_master_branch_old_commit(git_repo_with_master: Pat
     )
 
     # Calculate timestamp 15 minutes ago as Unix timestamp
-    old_timestamp = str(int((datetime.now(UTC) - timedelta(minutes=15)).timestamp()))
+    old_timestamp = str(int((now_utc() - timedelta(minutes=15)).timestamp()))
 
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = f"@{old_timestamp}"

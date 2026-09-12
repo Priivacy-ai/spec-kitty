@@ -44,6 +44,7 @@ def _req(
     spec_functional_ids: frozenset[str] = frozenset({"FR-001", "FR-002"}),
     existing_all_refs: dict[str, list[str]] | None = None,
     tasks_md_refs: dict[str, list[str]] | None = None,
+    bare_prose_requirement_ids: frozenset[str] = frozenset(),
 ) -> MappingRequest:
     return MappingRequest(
         spec_all_ids=spec_all_ids,
@@ -53,6 +54,7 @@ def _req(
         tasks_md_refs=tasks_md_refs or {},
         mode=mode,
         replace=replace,
+        bare_prose_requirement_ids=bare_prose_requirement_ids,
     )
 
 
@@ -280,7 +282,9 @@ def _mapping_mission(root: Path, slug: str) -> Path:
         "# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8"
     )
     (feature_dir / "spec.md").write_text(
-        "# Spec\n\nFR-001 do a thing.\nFR-002 do another.\n", encoding="utf-8"
+        "# Spec\n\n## Functional Requirements\n\n"
+        "- FR-001: do a thing.\n- FR-002: do another.\n",
+        encoding="utf-8",
     )
     return feature_dir
 
@@ -354,3 +358,105 @@ def test_sentinel_to_write_drives_the_written_refs_and_coverage(
     # The written frontmatter itself follows the sentinel ``to_write``.
     body = (fd / "tasks" / "WP01-fixture.md").read_text(encoding="utf-8")
     assert "FR-002" in body and "FR-001" not in body
+
+
+# ---------------------------------------------------------------------------
+# #3394 review F1: non-blocking requirement-extraction-warning signal
+# ---------------------------------------------------------------------------
+
+
+def test_map_requirements_surfaces_undeclared_requirement_citations_without_failing(
+    tmp_path: Path,
+) -> None:
+    """A spec whose Functional Requirements section is written as bare,
+    unbulleted, unbolded sentences (FR-001, FR-002) yields zero declared ids
+    for THOSE tokens -- ``map-requirements`` must still succeed (exit 0) when
+    the operator maps WP01 against a SEPARATE, properly-declared FR-100, but
+    the JSON payload must name the undeclared tokens instead of staying
+    silent about them (review F1).
+    """
+    fd = _mapping_mission(tmp_path, f"undeclared-fr-warn-{_MID8}")
+    (fd / "spec.md").write_text(
+        "# Spec\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n- FR-100: The declared one.\n",
+        encoding="utf-8",
+    )
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name):
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-100",
+             "--mission", fd.name, "--no-auto-commit", "--json"],
+        )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    warnings = payload["requirement_extraction_warnings"]
+    assert warnings, "expected a non-empty requirement_extraction_warnings"
+    warning_text = " ".join(warnings)
+    assert "FR-001" in warning_text
+    assert "FR-002" in warning_text
+
+
+# ---------------------------------------------------------------------------
+# WP06 (#3396) T032/T032a: bare-prose requirement ids wired through
+# MappingRequest -> plan_mapping -> MappingPlan, then surfaced by the
+# map-requirements CLI's JSON payload (Story 1 AC1/AC2, non-clean-coverage
+# leg of the Success criterion).
+# ---------------------------------------------------------------------------
+
+
+def test_plan_mapping_surfaces_bare_prose_requirement_ids() -> None:
+    """``plan_mapping`` reads ``req.bare_prose_requirement_ids`` (already
+    computed by the shell) and surfaces it, sorted, under the SAME field name
+    on the returned ``MappingPlan`` -- never merged into ``unmapped_fr``."""
+    plan = plan_mapping(
+        _req(
+            new_mappings={"WP01": ["NFR-001"]},
+            mode="wp_refs",
+            replace=True,
+            bare_prose_requirement_ids=frozenset({"FR-002", "FR-001"}),
+        )
+    )
+    assert plan.bare_prose_requirement_ids == ["FR-001", "FR-002"]
+
+
+def test_plan_mapping_bare_prose_requirement_ids_empty_by_default() -> None:
+    """The default ``MappingRequest.bare_prose_requirement_ids`` (empty
+    frozenset) round-trips to an empty ``MappingPlan`` list -- pre-existing
+    callers that never populate it are unaffected."""
+    plan = plan_mapping(_req(new_mappings={"WP01": ["FR-001"]}, mode="wp_refs", replace=True))
+    assert plan.bare_prose_requirement_ids == []
+
+
+def test_map_requirements_cli_surfaces_bare_prose_requirement_ids(
+    tmp_path: Path,
+) -> None:
+    """Story 1 AC1/AC2 at the CLI-command level: a spec.md whose Functional
+    Requirements section writes FR-001/FR-002 as bare, unbulleted, unbolded
+    prose alongside a properly-declared NFR-001 table row makes
+    ``map-requirements`` name FR-001/FR-002 explicitly in the
+    ``bare_prose_requirement_ids`` JSON field -- constructed here against the
+    issue's exact repro shape and asserted on the REAL command's stdout (not
+    a sentinel), proving the wiring survives the full
+    ``_mr_resolve_read_dirs`` -> ``_mr_plan`` -> ``plan_mapping`` ->
+    ``_mr_emit_output`` call chain."""
+    fd = _mapping_mission(tmp_path, f"bare-prose-repro-{_MID8}")
+    (fd / "spec.md").write_text(
+        "# Spec\n\n"
+        "### Functional Requirements\n\n"
+        "FR-001 the loader must reject an unknown pack.\n"
+        "FR-002 the error must name the offending path.\n\n"
+        "| ID | Requirement |\n"
+        "|----|-------------|\n"
+        "| NFR-001 | Resolution completes within 200ms |\n",
+        encoding="utf-8",
+    )
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name):
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "NFR-001",
+             "--mission", fd.name, "--no-auto-commit", "--json"],
+        )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]

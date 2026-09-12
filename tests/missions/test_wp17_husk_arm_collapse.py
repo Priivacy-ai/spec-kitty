@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     candidate_feature_dir_for_mission,
@@ -94,14 +95,16 @@ def test_corrupt_meta_raises_typed_error_not_classified_primary(tmp_path: Path) 
 
     The guarded read-side seam reads primary meta first; a malformed ``meta.json``
     cannot be classified, so the read path surfaces the typed corrupt-meta
-    ``ValueError`` (the historical default ``load_meta`` contract). The absent-field
-    collapse must NOT fold this arm into a silent PRIMARY classification — doing so
-    is the over-collapse mutant this kills.
+    :class:`MissionMetaReadError` (the historical default ``load_meta`` contract
+    was a raw ``ValueError``; ``read_primary_meta`` is routed through the ONE
+    fail-closed reader ``load_meta_fail_closed`` since the #3162 pass). The
+    absent-field collapse must NOT fold this arm into a silent PRIMARY
+    classification — doing so is the over-collapse mutant this kills.
     """
     _init_repo(tmp_path)
     _write_malformed_meta(tmp_path / "kitty-specs" / SLUG_WITH_MID8)
 
-    with pytest.raises(ValueError, match="Malformed JSON"):
+    with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
         resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True)
 
 
@@ -269,18 +272,6 @@ def test_keep_c005_probe_coord_state_empty_and_deleted(tmp_path: Path) -> None:
     assert probe_coord_state(tmp_path, other, MID8) is CoordState.UNMATERIALIZED
 
 
-# --------------------------------------------------------------------------- #
-# (c) 6th-predicate consolidation proof — AST/symbol assertions (FR-005).
-# --------------------------------------------------------------------------- #
-def _module_function_names(path: Path) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    return {
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-    }
-
-
 def _module_called_names(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     names: set[str] = set()
@@ -288,33 +279,6 @@ def _module_called_names(path: Path) -> set[str]:
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             names.add(node.func.id)
     return names
-
-
-def test_6th_predicate_symbol_deleted() -> None:
-    """(c) FR-005: the local ``_topology_routes_through_coord`` predicate is GONE.
-
-    The 6th coord-routing predicate lived in this owned file (WP02 could not reach
-    it). After the repoint it must no longer be DEFINED anywhere in the module — the
-    "6 → 1" consolidation is otherwise silently incomplete. AST symbol scan, never a
-    grep that could collide with a comment.
-    """
-    defined = _module_function_names(_READ_PATH_RESOLVER)
-    assert "_topology_routes_through_coord" not in defined, (
-        "the 6th coord-routing predicate _topology_routes_through_coord must be "
-        "deleted (callers repointed to the canonical routes_through_coordination)"
-    )
-
-
-def test_6th_predicate_callers_route_through_canonical() -> None:
-    """(c) FR-005: the read path calls the canonical ``routes_through_coordination``.
-
-    Negative-control mate of the deletion: the predicate's former callers must now
-    route through the ONE canonical predicate, so the consolidation is real (not a
-    deletion that orphaned the coord-routing decision). AST call-name scan.
-    """
-    called = _module_called_names(_READ_PATH_RESOLVER)
-    assert "routes_through_coordination" in called
-    assert "_topology_routes_through_coord" not in called
 
 
 def test_canonical_predicate_decides_read_path_routing() -> None:

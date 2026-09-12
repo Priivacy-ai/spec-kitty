@@ -29,6 +29,7 @@ import pytest
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 runner = CliRunner()
+_PROJECT_UUID = "8a4a7da6-a97c-4bb4-893a-b31664abfee4"
 
 
 def _make_mission(
@@ -111,7 +112,17 @@ def _invoke_orchestrator(args: list[str], repo_root: Path) -> dict[str, object]:
     ):
         result = runner.invoke(orchestrator_app, args, catch_exceptions=False)
     assert result.exit_code in (0, 1), result.output
-    return json.loads(result.output)
+    assert result.output.strip(), (
+        f"orchestrator emitted no JSON: output={result.output!r}, "
+        f"exception={result.exception!r}"
+    )
+    try:
+        return json.loads(result.output)
+    except json.JSONDecodeError as exc:
+        raise AssertionError(
+            f"orchestrator emitted invalid JSON: output={result.output!r}, "
+            f"exception={result.exception!r}"
+        ) from exc
 
 
 def test_status_snapshot_emits_canonical_mission_fields(tmp_path: Path) -> None:

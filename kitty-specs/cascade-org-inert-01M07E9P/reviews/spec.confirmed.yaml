@@ -1,0 +1,134 @@
+schema: review-findings-confirmed/v1
+phase: spec
+mission: cascade-org-inert-01M07E9P
+note: >
+  All 6 merged findings were confirmed by reviews/spec-refute-1.yaml (batch 1, all verdicts
+  confirmed) -- none refuted. This file is therefore identical in content to spec.merged.yaml;
+  it exists as the FR-004-style fixer input per the review-protocol.md file contract.
+findings:
+  - id: SPEC-GOV-001
+    lens_group: gov
+    lens: base-branch-drift-disclosure-completeness
+    severity: 2
+    title: "Base-Branch Drift section cites the wrong file as evidence for the missing symbol"
+    evidence:
+      - artifact: "spec.md § Base-Branch Drift, lines 19-22 (\"Reason for the dependency\")"
+      - code: "src/charter/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
+    claim: >
+      The spec cites src/charter/_drg_helpers.py as the file where resolve_existing_org_roots
+      is verified absent on main, but the symbol is actually defined in
+      src/doctrine/drg/org_pack_config.py:474. _drg_helpers.py only mentions the symbol's name
+      in a docstring cross-reference; it neither defines nor imports it, on either branch, and
+      already existed on main pre-#3525 in a different form.
+    remediation: >
+      Cite src/doctrine/drg/org_pack_config.py as the file where the symbol is verified absent
+      on main, with a note that _drg_helpers.py (the consumer) also changes substantially.
+
+  - id: SPEC-ARCH-001
+    lens_group: arch
+    lens: Layering
+    severity: 4
+    title: "FR-001's resolve_layer_roots widening ignores its third consumer (charter list --all-layers), which shares the same dict[str, Path] contract"
+    evidence:
+      - artifact: "spec.md § User Story 3, FR-001 title, FR-001 AC2"
+      - code: "src/specify_cli/cli/commands/charter/_layer_roots.py:31-34"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:447"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:221"
+      - code: "src/specify_cli/cli/commands/charter/list_cmd.py:165,200,219,48-77"
+      - code: "src/charter/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
+    claim: >
+      resolve_layer_roots has a third call site (list_cmd.py:165, charter list --all-layers) that
+      feeds layer_roots["org"] into list_available_detailed/_template_tier_roots, whose contract is
+      a single Path per layer. FR-001's ACs never exercise this consumer over a multi-pack chain,
+      and SC-004's regression list omits list_cmd.py, leaving the plan phase two ways to go wrong
+      with no AC to catch either.
+    remediation: >
+      Add list_cmd.py as a named third consumer of resolve_layer_roots in FR-001; either thread the
+      widened shape through it with a regression test, or explicitly scope it out with a stated
+      rationale and a follow-up tracker reference.
+
+  - id: SPEC-ARCH-002
+    lens_group: arch
+    lens: Contracts
+    severity: 4
+    title: "FR-002's stated fix (swap _load_action_doctrine_bundle for _resolve_action_bundle) is a no-op as scoped, and the spec's claim that the plain-text charter context path is unaffected is factually wrong"
+    evidence:
+      - artifact: "spec.md § User Story 4 \"Why this priority\", FR-002 AC5"
+      - code: "src/specify_cli/cli/commands/charter/context.py:84-85 (org_root = org_roots[0] if org_roots else None)"
+      - code: "src/specify_cli/cli/commands/charter/context.py:113-119 (build_charter_context(..., org_root=org_root))"
+      - code: "src/specify_cli/cli/commands/charter/context.py:128-134 (build_charter_context_json(..., org_root=org_root))"
+      - code: "src/charter/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
+      - code: "src/charter/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
+      - code: "src/charter/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
+    claim: >
+      The CLI command precomputes one truncated org_root and passes it to BOTH build_charter_context
+      (plain-text) and build_charter_context_json (JSON). build_charter_context already routes
+      through _resolve_action_bundle, but that wrapper only self-resolves when it receives
+      org_root=None — an explicit (already-truncated) org_root is honoured verbatim. So the
+      plain-text path is truncated to pack 1 today too, and FR-002 AC5's swap-only fix does not by
+      itself fix the JSON path either, since the CLI still hands in the pre-truncated org_root.
+    remediation: >
+      Correct User Story 4's priority framing (plain-text path equally affected); change context.py
+      to stop precomputing org_root = org_roots[0] and pass org_root=None through, letting
+      charter-layer self-resolution do the widening; the internal _load_action_doctrine_bundle ->
+      _resolve_action_bundle swap is necessary but not sufficient alone.
+
+  - id: SPEC-VERIFY-001
+    lens_group: verify
+    lens: falsifiability
+    severity: 3
+    title: "Three numbered \"Acceptance Criteria\" entries are recommendations/open questions, not testable pass/fail criteria"
+    evidence:
+      - artifact: "spec.md § FR-002 Acceptance Criteria, item 5 (line 286)"
+      - artifact: "spec.md § FR-003 Acceptance Criteria, item 3 (line 307)"
+      - artifact: "spec.md § FR-003 Acceptance Criteria, item 4 (line 320)"
+    claim: >
+      FR-002 AC5 and FR-003 AC3/AC4 are numbered inside the "Acceptance Criteria" lists for their
+      FRs, but none states an observable pass/fail condition — they are design guidance and an
+      unresolved question for the plan phase. Mixing these into the numbered AC list risks a
+      spurious "recommendation was followed" test or under-weighting the worktree open question.
+    remediation: >
+      Move these three items out of the numbered Acceptance Criteria list into a separate
+      "Design Notes / Open Questions" subsection under each FR, leaving only genuinely testable
+      pass/fail criteria numbered as ACs.
+
+  - id: SPEC-VERIFY-002
+    lens_group: verify
+    lens: AC quadrant completeness per FR (mission-derived)
+    severity: 2
+    title: "FR-003 (rebaseline) has no multi-pack-chain acceptance criterion or acknowledgment of the omission"
+    evidence:
+      - artifact: "spec.md § FR-003 Acceptance Criteria (lines 301-332)"
+      - artifact: "spec.md § User Story 5 (lines 187-220) — no multi-pack scenario stated"
+      - code: "src/specify_cli/dossier/manifest.py:253-260 (ManifestRegistry.load_manifest already calls _resolve_existing_org_roots(repo_root), a plural/multi-pack-aware resolver, once repo_root is non-None)"
+    claim: >
+      FR-001, FR-002, and FR-004 each cover all four quadrants (healthy single-pack, multi-pack
+      chain, malformed pack, no org pack) with an explicit AC. FR-003 has no AC or acknowledgment
+      for the multi-pack-chain quadrant. Multi-pack support is very likely inherited "for free" from
+      FR-003's own fix (ManifestRegistry.load_manifest already calls the plural resolver), but the
+      spec never states this reasoning, unlike its practice elsewhere of naming omissions.
+    remediation: >
+      Add a line to FR-003's Acceptance Criteria stating explicitly that multi-pack-chain coverage
+      is expected to be inherited from ManifestRegistry.load_manifest's existing
+      _resolve_existing_org_roots call once repo_root is threaded correctly, and that the plan
+      phase should add a two-pack regression test only if it finds this inheritance does not hold.
+
+  - id: SPEC-VERIFY-003
+    lens_group: verify
+    lens: baseline honesty
+    severity: 3
+    title: "SC-004's \"green post-fix\" test-suite claim does not acknowledge the known #3284 baseline-red set"
+    evidence:
+      - artifact: "spec.md § SC-004 (lines 470-472)"
+      - artifact: "CLAUDE.md § Test-run baseline-red gotcha (repo-level, project instructions)"
+      - artifact: "kitty-specs/assertive-test-suite-sanitation-01KZME3P/tracer-tooling-friction.md:10 (24 failed / 2 errors baseline, #3284 records 23 of the 24 failures + 2 errors)"
+    claim: >
+      SC-004 states the suite will be "green post-fix" but the spec nowhere acknowledges the repo's
+      known baseline-red condition (issue #3284, OPEN: 23 failures + 2 errors) or CLAUDE.md's
+      instruction to classify red results against that known set before attributing them to this
+      mission. If even one targeted test file has a #3284-tracked red, "green post-fix" is not
+      achievable by this mission's own fix and would misread a pre-existing red as a regression.
+    remediation: >
+      Add a line to SC-004 stating that any test already tracked as a known-red #3284 baseline
+      failure is out of scope for "green post-fix" and must be classified per CLAUDE.md's
+      baseline-red-gotcha policy rather than silently assumed green.

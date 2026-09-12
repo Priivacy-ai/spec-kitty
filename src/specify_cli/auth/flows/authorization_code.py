@@ -22,16 +22,18 @@ refresh-token expiry directly from the server response — it never hardcodes
 a TTL and never computes the expiry locally. See ``_build_session`` for the
 prefer-absolute-then-relative fallback logic.
 
-Per D-5 the SaaS base URL is never hardcoded here; callers must pass it in
-via the constructor, typically from
-:func:`specify_cli.auth.config.get_saas_base_url`.
+Per D-5 (revised #3980) the SaaS base URL is resolved, never hardcoded here:
+callers pass it in via the constructor, typically from
+:func:`specify_cli.auth.config.get_saas_base_url` (env override or the
+packaged default).
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, UTC
 from typing import Any, cast
+
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from urllib.parse import urlencode
 
 from ..config import get_saas_base_url
@@ -82,9 +84,8 @@ class AuthorizationCodeFlow:
         Args:
             saas_base_url: Base URL of the spec-kitty SaaS (no trailing slash).
                 When ``None``, the flow calls
-                :func:`specify_cli.auth.config.get_saas_base_url` itself, so
-                operators must set ``SPEC_KITTY_SAAS_URL`` in the environment
-                (per D-5, no hardcoded URL exists anywhere in the CLI).
+                :func:`specify_cli.auth.config.get_saas_base_url` itself
+                (env override or the packaged default, #3980).
                 Callers that already have the URL in hand (such as
                 ``_auth_login.py``) pass it in directly to avoid two env-var
                 reads per login.
@@ -275,7 +276,7 @@ class AuthorizationCodeFlow:
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
@@ -301,6 +302,7 @@ class AuthorizationCodeFlow:
             storage_backend=self._storage_backend,
             last_used_at=now,
             auth_method="authorization_code",
+            issuer_url=self._saas_base_url,
         )
 
     @staticmethod
@@ -352,4 +354,4 @@ def _parse_iso_utc(value: str) -> datetime:
     parsing so both forms round-trip identically.
     """
     normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
-    return datetime.fromisoformat(normalized)
+    return parse_iso(normalized)

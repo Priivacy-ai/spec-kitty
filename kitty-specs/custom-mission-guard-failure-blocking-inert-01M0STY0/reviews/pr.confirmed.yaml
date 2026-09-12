@@ -1,0 +1,48 @@
+# review-findings/v1 — confirmed set after R3 refute. Cites pr.merged.yaml and pr.refute-1.yaml as evidence.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+source:
+  - pr.merged.yaml      # R2 dedup of the three lens files
+  - pr.refute-1.yaml    # R3 refuter verdict: confirmed
+refute_note: >
+  The refuter attacked this on four fronts and could not break it: it independently reproduced the
+  divergence with three monkeypatched probes (built-in tier, forced org tier, and the guarded loader
+  for contrast), traced production reachability to two unconditional call sites, and explicitly
+  falsified the hypothesis that this is the already-deferred #3412 item — that one is YAML-SYNTAX
+  failure degrading silently via resolve_org_expected_artifacts, whereas this is SCHEMA-INVALID but
+  syntactically valid YAML failing model_validate() after the mapping parsed. Different path,
+  different failure mode. Severity 4 independently affirmed.
+findings:
+  - id: pr-merged-001
+    merged_from: [pr-contract-001, pr-tests-001]
+    lens: contract/silent-success + tests/coverage
+    severity: 4
+    verdict: confirmed
+    title: >
+      FR-010's ManifestSchemaError guard is dead on the production path — gather_artifact_presence
+      hits an unwrapped model_validate() in _presence_filenames_for first, so a schema-invalid
+      manifest raises a bare pydantic.ValidationError through all three call sites
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_io.py:904 (org-tier branch — unwrapped model_validate; its own docstring cites FR-008/WP02)"
+      - code: "src/runtime/next/runtime_bridge_io.py:909 (built-in branch — unwrapped model_validate)"
+      - code: "src/runtime/next/runtime_bridge_io.py:1051 (gather_artifact_presence calls _presence_filenames_for FIRST)"
+      - code: "src/runtime/next/runtime_bridge.py:781 (_check_cli_guards — unconditional call site, every step's guard check)"
+      - code: "src/runtime/next/runtime_bridge_composition.py:486 (_check_composed_action_guard — second unconditional call site)"
+      - code: "src/specify_cli/runtime/resolver.py:557-680 (_load_expected_artifact_manifest — the ONLY path FR-010's try/except wraps; correct at both branches)"
+      - code: "tests/specify_cli/runtime/test_configured_artifact_name.py:524-593 (TestManifestSchemaErrorPerTier exercises required_artifacts_for only)"
+      - artifact: "spec.md:455-478 (FR-010 requires the wrap for BOTH the built-in and the new org-tier branch)"
+    claim: >
+      A schema-invalid expected-artifacts.yaml at either tier escapes gather_artifact_presence as a bare
+      pydantic_core.ValidationError instead of the domain ManifestSchemaError FR-010 promises. Reproduced
+      independently three times by three different agents. Production-reachable through two unconditional
+      guard entry points; nothing upstream validates manifest SCHEMA before _presence_filenames_for
+      (resolve_org_expected_artifacts only checks the file parses as YAML). Impact is a crash on every
+      guard check for the affected mission family, not a single step.
+    remediation: >
+      Wrap both model_validate() calls in _presence_filenames_for (org-tier :904, built-in :909) in the same
+      try/except ValidationError -> ManifestSchemaError used in resolver.py, or route both through the
+      already-guarded loader. Add a red-first test that drives gather_artifact_presence itself with a
+      schema-invalid manifest at EACH tier — its absence is why this survived four reviews.

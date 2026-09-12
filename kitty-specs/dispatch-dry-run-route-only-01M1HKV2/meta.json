@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-09-02T17:49:32.523910+00:00",
+  "flattened": false,
+  "friendly_name": "dispatch: side-effect-free routing query mode",
+  "mission_id": "01M1HKV2FARCBJGF3Y14W5J9P3",
+  "mission_number": null,
+  "mission_slug": "dispatch-dry-run-route-only-01M1HKV2",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances dispatch: side-effect-free routing query mode on feat/dispatch-dry-run-route-only-3840 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "dispatch: side-effect-free routing query mode",
+  "slug": "dispatch-dry-run-route-only-01M1HKV2",
+  "target_branch": "feat/dispatch-dry-run-route-only-3840",
+  "topology": "single_branch"
+}

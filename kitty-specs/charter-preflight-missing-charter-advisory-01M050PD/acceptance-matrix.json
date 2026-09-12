@@ -1,0 +1,122 @@
+{
+  "mission_slug": "charter-preflight-missing-charter-advisory-01M050PD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The shared next/implement hook opts into the canonical missing-charter advisory and emits its warning instead of aborting.",
+      "proof_type": "automated_test",
+      "evidence": "Real next/implement hook tests reproduce the absent-charter state. Command-wrapper tests test_next_json_advancing_preserves_advisory_on_stderr and test_next_query_preserves_advisory_on_stderr cover advancing/query and human/JSON routing while asserting clean stdout. Baseline live hook exited 1; fixed paths continue.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Initial red-first consumer tests: 4bc73dbc6 then 4493699b0. Wrapper/cold-import red tests: 3f5ab1082 then implementation 3dc72aa04."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A canonically safe missing stack with legacy charter.md prose remains advisory, while charter.md never changes the pass/block decision.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/charter_preflight/test_runner.py covers missing and built_in_only DRG variants with and without charter.md, plus test_charter_md_never_exempts_stale_or_invalid_residue for stale/invalid canonical states.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Canonical _is_optional_missing_charter_stack executes before the display-only _is_legacy_charter_bundle wording selector."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Legacy advisories are distinct, visible at every live consumer, and name an executable no-interview migration command.",
+      "proof_type": "automated_test",
+      "evidence": "test_legacy_warning_remediation_command_generates_charter_yaml executes `charter generate --no-from-interview`; next wrapper tests cover all four advancing/query + human/JSON modes with stderr/clean-stdout assertions; implement asserts stderr; dashboard command asserts persistence/rendering.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Warning metadata alone was rejected as fakeable by the first adversarial squad; command-boundary delivery is now tested."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Stale, invalid, and other partial canonical charter states continue to fail closed regardless of charter.md presence.",
+      "proof_type": "automated_test",
+      "evidence": "test_charter_md_never_exempts_stale_or_invalid_residue parameterizes synced stale, DRG stale, and DRG invalid with charter.md present; existing invalid next/implement tests retain exit-1 and no-worktree-allocation assertions.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Direct adversarial probe [missing, missing, stale] + charter.md now returns passed=False instead of rewriting checks to skipped."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "One shared hook owns mutation-consumer opt-in and warning emission; one runner predicate owns canonical advisory qualification.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/charter_runtime/preflight/hook.py::run_preflight_or_abort is shared by next and implement; src/specify_cli/charter_runtime/preflight/runner.py::_is_optional_missing_charter_stack is the single advisory predicate; no consumer-local exemption logic exists.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Dashboard uses the same runner contract and separately persists advisory presentation state."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Legacy copy selection performs one charter.md existence check without eagerly loading the heavyweight charter package on next startup.",
+      "proof_type": "automated_test",
+      "evidence": "test_legacy_bundle_detection_costs_at_most_one_additional_exists_call pins one Path.exists call; test_runner_cold_import_under_500ms runs a fresh-process import and rejects the former ~1.1s eager charter.bundle regression.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "CHARTER_MD remains canonical and is imported lazily only inside the post-qualification copy selector."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Pre-existing invalid, stale, partial, and passing charter-preflight coverage remains green.",
+      "proof_type": "automated_test",
+      "evidence": "63/63 focused tests passed; full contract suite 297 passed/5 skipped; full architecture suite 1487 passed/2 skipped/2 xfailed; charter-path authority 4/4.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Architecture emitted one pre-existing shrink-census warning only."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "Canonical freshness states alone decide advisory qualification; charter.md can select warning copy only.",
+      "proof_type": "automated_test",
+      "evidence": "Built-in-only passes with and without prose; missing/missing/stale and stale/invalid variants with prose remain blocked; direct probes confirm identical pass/block outcomes across prose presence.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Doctrine C-001/FR-016 path-authority gate passes 4/4."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Qualification and consumer delivery each have one shared implementation point.",
+      "proof_type": "code_review",
+      "evidence": "runner._is_optional_missing_charter_stack owns qualification; hook.emit_advisory_warnings owns formatting; run_preflight_or_abort is shared by next/implement; next wrapper only preserves routing; dashboard only persists presentation.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "Regression tests cover canonical pass/block behavior and visible delivery at every consumer boundary.",
+      "proof_type": "automated_test",
+      "evidence": "Runner tests cover missing, built_in_only, stale and invalid with prose; actual next wrapper covers four modes; implement hook asserts stderr/no allocation; dashboard command asserts persistence; remediation command is executed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-16T19:43:15+00:00",
+      "notes": "Two red/green commit pairs preserve failure-before-fix evidence."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant": "Adding or removing display-only charter.md cannot change passed or blocked_reason for identical canonical layer states.",
+      "result": "pass"
+    },
+    {
+      "invariant": "Stale, invalid, or other partial canonical residue is never rewritten to skipped by the missing-charter advisory.",
+      "result": "pass"
+    },
+    {
+      "invariant": "A passed advisory is not discarded by advancing/query human/JSON next, implement, or dashboard; JSON stdout remains machine-clean.",
+      "result": "pass"
+    }
+  ]
+}

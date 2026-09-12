@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from charter.activation.mission_type_key import read_mission_type
 from typing import Any, Dict
 
 __all__ = ["run_diagnostics"]
@@ -19,19 +20,18 @@ def _ensure_specify_cli_on_path() -> None:
 
 def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     """Resolve mission key from a feature's meta.json."""
-    try:
-        from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
-        meta = load_meta(feature_dir)
-        if meta:
-            mission_type = str(meta.get("mission_type", "")).strip()
-            if mission_type:
-                return mission_type
-            legacy_mission = str(meta.get("mission", "")).strip()
-            if legacy_mission:
-                return legacy_mission
-    except Exception:
-        pass
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        # Best-effort diagnostics probe: a corrupt meta.json degrades to
+        # "mission unknown" rather than breaking the diagnostics report.
+        return None
+    # rc3 M5 (FR-002): canonical field only via the one shared reader — the
+    # legacy `mission` fallback is retired.
+    if meta:
+        return read_mission_type(meta)
     return None
 
 

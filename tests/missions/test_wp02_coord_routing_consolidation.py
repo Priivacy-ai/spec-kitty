@@ -261,8 +261,13 @@ def test_resolve_topology_relay_exception_arm(
     # read_topology raises FileNotFoundError and the relay arm runs.
     empty_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     empty_dir.mkdir(parents=True, exist_ok=True)
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): patch
+    # target moved from the deleted public wrapper to the module-private
+    # ``_compose_primary_feature_dir`` leaf -- ``resolution.py``'s internal
+    # PRIMARY-dir composition (WP03 T016) already called the leaf directly,
+    # never the wrapper, before this WP.
     monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver._compose_primary_feature_dir",
         lambda _root, _slug: empty_dir,
     )
     # The coordination-branch value the relay classifies from is read separately.
@@ -337,55 +342,3 @@ def test_husk_short_circuit_unreadable_meta_degrades_true(
 
     monkeypatch.setattr(surface_resolver, "read_primary_meta", _boom)
     assert surface_resolver._husk_is_authoritative_surface(tmp_path, _MISSION_SLUG) is True
-
-
-# --------------------------------------------------------------------------- #
-# Single-frozenset / single-predicate structural pin (FR-005, S1192).
-# --------------------------------------------------------------------------- #
-def test_single_canonical_frozenset_and_predicate() -> None:
-    """FR-005: the coord-routing set is defined exactly ONCE and exported once.
-
-    The canonical set lives only in ``mission_runtime.context``; the four former
-    duplicate definitions (``resolution`` / ``surface_resolver`` / ``runtime_bridge``
-    / the inline ``status_transition`` literal) are gone. Asserted by an AST scan
-    for a ``frozenset({... COORD ... LANES_WITH_COORD ...})`` literal across the
-    owned files — exactly one survives, in ``context.py``.
-    """
-    import ast
-
-    repo_root = Path(__file__).resolve().parents[2]
-    owned = [
-        repo_root / "src/mission_runtime/context.py",
-        repo_root / "src/mission_runtime/resolution.py",
-        repo_root / "src/runtime/next/runtime_bridge.py",
-        repo_root / "src/specify_cli/coordination/surface_resolver.py",
-        repo_root / "src/specify_cli/coordination/status_transition.py",
-    ]
-
-    def _is_coord_routing_frozenset(node: ast.AST) -> bool:
-        # frozenset({MissionTopology.COORD, MissionTopology.LANES_WITH_COORD})
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
-            return False
-        if node.func.id != "frozenset" or not node.args:
-            return False
-        arg = node.args[0]
-        if not isinstance(arg, ast.Set):
-            return False
-        members = {
-            elt.attr
-            for elt in arg.elts
-            if isinstance(elt, ast.Attribute)
-        }
-        return {"COORD", "LANES_WITH_COORD"} <= members
-
-    hits: list[str] = []
-    for path in owned:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if _is_coord_routing_frozenset(node):
-                hits.append(path.name)
-
-    assert hits == ["context.py"], (
-        f"coord-routing frozenset must be defined exactly once (in context.py); "
-        f"found in: {hits}"
-    )

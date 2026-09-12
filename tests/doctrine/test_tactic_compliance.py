@@ -1,6 +1,6 @@
 """Integration tests for tactic schema and content compliance.
 
-Validates all tactic files in src/doctrine/tactics/ for:
+Validates all tactic files in src/charter/offering/tactics/ for:
 A. Schema validity against tactic.schema.yaml  — shipped and _proposed
 B. Reference resolution — every referenced artifact must exist  — shipped only
 C. Token discipline — step-level references repeated in >=70% of steps

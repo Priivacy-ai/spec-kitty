@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from kernel.paths import to_posix
 
 if TYPE_CHECKING:
     from specify_cli.skills.registry import SkillRegistry
@@ -148,7 +149,7 @@ class GlobalizeSkillPackMigration(BaseMigration):
         save_manifest(manifest, project_path)
 
         preserved_paths = sorted(
-            str(path.relative_to(project_path)).replace("\\", "/")
+            to_posix(path.relative_to(project_path))
             for path in archived_paths
         )
 

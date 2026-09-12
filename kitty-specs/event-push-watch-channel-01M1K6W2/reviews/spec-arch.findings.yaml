@@ -1,0 +1,140 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: event-push-watch-channel-01M1K6W2
+findings:
+  - id: SPEC-ARCH-001
+    lens: reflexivity
+    severity: 4
+    title: >-
+      FR-005's truncation check compares only the CURRENT poll's file size to the
+      last-seen offset; a rollback-then-regrow that completes inside one poll
+      interval is invisible to it — a third failure mode beyond shape (a)/(b)
+    evidence:
+      - artifact: "spec.md § FR-005 (\"current file size on the next poll is smaller than\
+          \ O\"), § Edge Cases (shape a/shape b), § Key Entities → Tail cursor (\"\
+          plus enough state to detect truncation (last-seen file size)\"), § NFR-002 (100–\
+          1000ms poll bound), § NFR-003 (silent success prohibited)"
+      - code: "src/specify_cli/coordination/transaction.py:921 (_rollback truncates the\
+          \ existing inode in place via fh.truncate(), it does not os.replace())"
+      - code: "src/specify_cli/status/store.py:358-397 (_append_serialized_atomic grows\
+          \ the file via os.replace, preserving prior bytes verbatim as a prefix)"
+    claim: >-
+      FR-005/FR-007's only truncation signal is "current file size < last-seen offset
+      O", sampled once per poll (bound: NFR-002, 100-1000ms). This correctly catches a
+      shrink that is STILL below O at the moment of the next poll (shape b, as tested by
+      US2 AC1/AC2). It does not catch a shrink that recovers past O again before the next
+      poll samples it: if, within a single poll window, a rollback truncates the file
+      below O and a subsequent write (locked or unlocked; both write paths exist per the
+      Clarifications §2 six-writer survey and ledger SK-131) grows the file back to size
+      >= O, the reader observes size >= O at its next poll and treats [O, new_size) as
+      ordinary new growth to parse. But those bytes are not a continuation of the
+      sequence the reader previously validated at offset O — they are unrelated
+      post-rollback content that happens to occupy the same byte range. Because JSONL
+      rows carry no length prefix and no self-describing offset, if that region parses as
+      valid JSON (a real possibility — it is genuine JSONL emitted by the writer, just
+      logically different rows than the reader expects), the reader silently emits
+      content built on a false continuity assumption with no error, no `log_truncated`
+      signal, and no exit code — exactly the "absorbed into ordinary no-new-data output"
+      failure NFR-003 was written to forbid, just triggered by a size-only check rather
+      than by the shape (a)/(b) cases the spec explicitly named and tested. Neither AC in
+      US2 exercises this "truncate-then-regrow-within-one-poll" timing, so an
+      implementation built strictly to the letter of FR-005/US2's ACs would pass every
+      stated test while still leaving this gap open. This is a real timing window given
+      the repo's own coordination pattern: a `BookkeepingTransaction` rollback followed
+      by an immediate retry-and-succeed emit is a normal, expected sequence, not a
+      contrived scenario.
+    remediation: >-
+      Extend the Tail cursor / FR-005 to carry a lightweight content invariant in
+      addition to size — e.g. remember (a hash of, or the raw bytes of) the last-consumed
+      line at the boundary offset O, and on every poll re-verify that the byte range
+      immediately preceding O in the current file still matches before trusting anything
+      read from O onward. Any mismatch (including "matches but final size differs from
+      what growth-only would predict") must be treated as truncation per FR-005/NFR-003,
+      not as ordinary growth. Add an explicit US2 acceptance scenario covering
+      "truncate-then-regrow completing between two polls" so the ATDD test (C-006) forces
+      an implementation that actually closes this window rather than one that only
+      satisfies the size<O snapshot check.
+  - id: SPEC-ARCH-002
+    lens: envelope/contract concreteness (mission-specific)
+    severity: 3
+    title: >-
+      Key Entities defers the `log_truncated` envelope schema to the plan phase, but
+      User Story 2 AC1 states it as a concrete literal — the two are in tension
+    evidence:
+      - artifact: "spec.md § Key Entities → Envelope (\"The exact JSON schema for the\
+          \ two new signal shapes is an implementation-phase decision this spec does not\
+          \ pre-empt beyond requiring they be distinguishable… (e.g. a \"type\"\
+          \ discriminator…)\")"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (\"emits an explicit\
+          \ `{\"type\": \"log_truncated\", ...}` signal envelope on the JSON stream\")"
+      - artifact: "spec.md § FR-005 (\"log_truncated-shaped envelope\"), § FR-007 (\"shape\
+          \ (b) truncation\"), § SC-002 (\"log_truncated-shaped signal\") — every\
+          \ other mention in the document uses hedged \"-shaped\"/\"e.g.\" language;\
+          \ US2 AC1 alone drops the hedge"
+    claim: >-
+      Five of six mentions of the truncation-signal shape in this document (Key
+      Entities, FR-005, FR-007, SC-002, and the Edge Cases "shape (b)" prose) consistently
+      hedge with "-shaped" or an explicit "e.g." disclaimer, and Key Entities states in
+      terms that the exact schema (field name and value) is an implementation-phase
+      decision not pre-empted here. User Story 2's Acceptance Scenario 1 is the lone
+      exception: it states the envelope as an unhedged JSON literal, `{"type":
+      "log_truncated", ...}`. Per this repo's ATDD-first discipline (C-006), the US2 test
+      is written first, before the plan phase makes its schema decision — so whichever
+      author writes that test necessarily hard-codes `envelope["type"] ==
+      "log_truncated"` from the AC's literal text, which retroactively fixes the exact
+      schema Key Entities claims is still open. If a later plan/tasks author instead
+      picks a different-but-still-"distinguishable" shape (e.g. `{"signal":
+      "truncated"}` or `{"type": "truncated_resync"}`), consistent with Key Entities'
+      explicit deferral, that implementation would contradict the already-committed ATDD
+      test built from AC1 — forcing rework inside the work package that owns FR-005. This
+      is a genuine ambiguity, not a benign illustrative example: the spec gives two
+      different authors (the US2 test author and the schema-design author) conflicting
+      instructions about whether the literal string is binding.
+    remediation: >-
+      Resolve the tension one of two ways: (a) promote `{"type": "log_truncated"}` to a
+      genuine minimal contract in Key Entities — state explicitly that the discriminator
+      field MUST be named `type` and MUST take the literal value `"log_truncated"`, and
+      narrow "does not pre-empt" to cover only ADDITIONAL fields beyond that; or (b)
+      reword US2 AC1 to match the hedge used everywhere else in the document (e.g. "a
+      distinguishable `log_truncated`-shaped signal envelope; exact field names are a
+      plan-phase decision") so the ATDD test built from it does not silently lock in a
+      schema the spec claims is still undecided. Pick one before plan phase begins.
+  - id: SPEC-ARCH-003
+    lens: migrations
+    severity: 2
+    title: >-
+      Key Entities' "Tail cursor" ownership hedge leaves a narrow door open to
+      command-side persisted resume state that FR-004's own concrete mechanism does not use
+    evidence:
+      - artifact: "spec.md § Key Entities → Tail cursor (\"Not persisted by the\
+          \ command itself unless FR-004's resume mechanism requires it; owned by\
+          \ whichever side (consumer or command invocation) FR-004's design settles on.\")"
+      - artifact: "spec.md § FR-004 (concrete mechanism given is a `--from-offset <N>`\
+          \ input flag and/or emitting the current offset in each envelope — both\
+          \ consumer-owned, stateless-on-the-command-side mechanisms)"
+      - artifact: "spec.md § FR-010 (pure reader, no write-back to \"any other mission\
+          \ artifact under any code path\")"
+    claim: >-
+      FR-004's actual described mechanism (a CLI input flag plus an offset field emitted
+      per envelope) is stateless on the command side and puts persistence entirely on the
+      calling consumer, consistent with C-001's single-process/no-daemon minimalism and
+      with FR-010's "pure reader" guarantee. However, the Key Entities "Tail cursor" note
+      explicitly leaves open a second branch — "owned by ... command invocation" — that
+      this spec never rules out. If a later plan/tasks author reads that hedge as license
+      for `events tail` to write its own on-disk resume-cursor file (e.g. under
+      `.kittify/` or a user cache directory, which may not be a "mission artifact" and so
+      would not obviously trip FR-010's specific prohibition), that introduces a new
+      on-disk state format this spec never anticipated, with no stated versioning or
+      migration story for it — a small but real gap for the "migrations" lens to have
+      caught rather than silently backfilled during plan/tasks.
+    remediation: >-
+      Tighten the Key Entities "Tail cursor" sentence to state affirmatively that the
+      `events tail` process itself is stateless and never persists cursor/resume state to
+      disk anywhere (not just "any other mission artifact") — persistence is exclusively
+      the calling consumer's responsibility via the `--from-offset` input and the
+      per-envelope offset output. Remove the "or command invocation" ownership branch so
+      no future on-disk cursor format, and no associated migration question, can be read
+      as spec-sanctioned.

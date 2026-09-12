@@ -1,7 +1,7 @@
 ---
 title: '06 — Domains & Splits: Technical Concretization'
 description: 'Technical concretization of the consolidated domain model for the runtime and state overhaul: the proposed domains and splits, grounded in package fan-out findings.'
-doc_status: draft
+doc_status: deprecated
 updated: '2026-06-03'
 related:
 - docs/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md

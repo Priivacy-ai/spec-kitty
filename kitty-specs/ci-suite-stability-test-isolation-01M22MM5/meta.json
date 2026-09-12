@@ -1,0 +1,32 @@
+{
+  "accept_commit": "dedfef616c92aa42471b6e6bda56dcee6e2cc9fc",
+  "acceptance_history": [
+    {
+      "accept_commit": "dedfef616c92aa42471b6e6bda56dcee6e2cc9fc",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-09T18:08:58.803292+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "10241d736ffe4ad98e989fd7fb8c003e87c524c9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-09T18:08:58.803292+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "10241d736ffe4ad98e989fd7fb8c003e87c524c9",
+  "baseline_merge_commit": "c30bd41c219bcc767e95ee92571b3a9daa161885",
+  "created_at": "2026-09-09T08:30:19.817852+00:00",
+  "flattened": true,
+  "friendly_name": "CI suite stability & test-isolation",
+  "mission_id": "01M22MM54V1RN1EQ014DM6WPJG",
+  "mission_number": null,
+  "mission_slug": "ci-suite-stability-test-isolation-01M22MM5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Reinstated CI surfaced a real runtime TOCTOU race (#4017): concurrent installed-CLI invocations sharing one spec-kitty-home abort with 'Global asset input changed' because the runtime's asset-input recheck observes the HOME destination tree (an output), not just package sources. It also left a residual of mixed and timing-only budget guards (#4015, now incl. the flaky wall-clock/NFR gates bullet) on the per-PR path. This mission narrows the asset-input observation scope so the race cannot occur and un-quarantines the concurrency tests, and sweeps the timing-guard residual (split mixed tests, a shared timing-budget helper, delete persistently-flaky low-value gates). Parent epic #1931.",
+  "purpose_tldr": "Fix the ensure_runtime shared-home concurrency crash (#4017) and finish moving flaky wall-clock budget guards off the per-PR path (#4015).",
+  "slug": "ci-suite-stability-test-isolation-01M22MM5",
+  "status_phase": "1",
+  "target_branch": "issue-4017-ci-suite-stability",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-09T09:20:32.227988+00:00"
+}

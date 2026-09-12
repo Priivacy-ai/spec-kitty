@@ -193,3 +193,101 @@ class TestDependencyGateReadOnly:
             text=True,
         ).stdout.strip()
         assert git_status == ""
+
+
+class TestIssueMatrixCompletenessGate:
+    """T030/T031 (WP08, FR-004, #1738): the merge-time completeness gate."""
+
+    def test_no_references_discovered_passes(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+        gate = next(g for g in result.gates if g.gate_name == "issue_matrix_completeness")
+        assert gate.verdict == GateVerdict.PASS
+        assert gate.blocking is False
+
+    def test_reference_in_spec_md_with_no_matrix_fails_closed_blocking(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        (feature_dir / "spec.md").write_text(
+            "Addresses issue #1582.\n", encoding="utf-8"
+        )
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+        gate = next(g for g in result.gates if g.gate_name == "issue_matrix_completeness")
+        assert gate.verdict == GateVerdict.FAIL
+        assert gate.blocking is True
+        assert "#1582" in gate.details
+        assert result.overall_pass is False
+
+    def test_reference_only_in_wp_file_with_no_matrix_fails(self, tmp_path):
+        """FR-004 headline case: WP08 discovery scans tasks/*.md too, not
+        just spec.md — a reference living only in a WP file must still be
+        enforced by this gate."""
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        (feature_dir / "tasks" / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n"
+            "This WP closes #4242.\n"
+        )
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+        gate = next(g for g in result.gates if g.gate_name == "issue_matrix_completeness")
+        assert gate.verdict == GateVerdict.FAIL
+        assert "#4242" in gate.details
+
+    def test_reference_with_matching_matrix_row_passes(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        (feature_dir / "spec.md").write_text(
+            "Addresses issue #1582.\n", encoding="utf-8"
+        )
+        (feature_dir / "issue-matrix.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "rows": {
+                        "#1582": {
+                            "verdict": "fixed",
+                            "evidence_ref": "tests/test_demo.py",
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+        gate = next(g for g in result.gates if g.gate_name == "issue_matrix_completeness")
+        assert gate.verdict == GateVerdict.PASS
+        assert result.overall_pass is True
+
+    def test_warn_mode_fails_but_does_not_block_overall(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        (feature_dir / "spec.md").write_text(
+            "Addresses issue #1582.\n", encoding="utf-8"
+        )
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="warn"), tmp_path,
+        )
+        gate = next(g for g in result.gates if g.gate_name == "issue_matrix_completeness")
+        assert gate.verdict == GateVerdict.FAIL
+        assert gate.blocking is False
+        assert result.overall_pass is True
+        assert any("issue_matrix_completeness" in w for w in result.warnings)

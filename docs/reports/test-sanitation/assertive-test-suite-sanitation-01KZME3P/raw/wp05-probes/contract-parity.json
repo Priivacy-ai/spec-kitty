@@ -1,0 +1,13 @@
+{
+  "schema": "wp05-causal-probe/v1",
+  "base_commit": "c1c79d53937abf11b1c8435311a9eaa47f4d8d8f",
+  "mutation_ids": ["live-prohibited-terminology-versus-private-parity-driver"],
+  "historical_patch_sha256": "ca9d643ad1729a86793648a6062821fbb613f7e0ef5f518d29d1e598994516fe",
+  "materialize_command": ".venv/bin/python - <<'PY'\nfrom pathlib import Path\np = Path('src/specify_cli/sync/background.py')\nterm = 'cere' + 'mony'\np.write_text(p.read_text(encoding='utf-8') + f'\\n# WP05 disposable live terminology fault: {term}\\n', encoding='utf-8')\nPY",
+  "test_command_encoding": "base64",
+  "test_command": "LnZlbnYvYmluL3B5dGVzdCAtcSAtcCBubzpjYWNoZXByb3ZpZGVyIHRlc3RzL2FyY2hpdGVjdHVyYWwvdGVzdF9jb250cmFjdF9yZWdpc3RyeV9wYXJpdHkucHkgJ3Rlc3RzL2FyY2hpdGVjdHVyYWwvdGVzdF9ub19sZWdhY3lfdGVybWlub2xvZ3kucHk6OnRlc3RfZm9yYmlkZGVuX3Rlcm1fZG9lc19ub3RfYXBwZWFyW2NlcmVtb255XSc=",
+  "red": {"exit_code": 1, "salient_output_encoding": "base64", "salient_output": "Rm9yYmlkZGVuIGxlZ2FjeSB0ZXJtICdjZXJlbW9ueScgcmVhcHBlYXJlZCBpbiBhY3RpdmUgc291cmNlOyBzcmMvc3BlY2lmeV9jbGkvc3luYy9iYWNrZ3JvdW5kLnB5OjkyMg==", "summary": "all five private parity-driver nodes passed; enforcing live gate failed; 1 failed, 5 passed in 193.71s"},
+  "restore_command": "git restore -- src/specify_cli/sync/background.py",
+  "clean_command": "test -z \"$(git status --porcelain)\"",
+  "green": {"exit_code": 0, "salient_output": "6 passed in 233.24s"}
+}

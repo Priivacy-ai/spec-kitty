@@ -35,11 +35,13 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.reducer import (
+    reduce,
+)
+from spec_kitty_events.diary import (
     _REPLACE_SLOTS,
     _RUNTIME_SLOTS,
     _apply_annotation_delta,
     _wp_state_from_event,
-    reduce,
 )
 from specify_cli.status.resolved_binding import ResolvedBinding
 

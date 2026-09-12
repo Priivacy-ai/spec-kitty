@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-07-26T18:33:44.097001+00:00",
+  "flattened": false,
+  "friendly_name": "FoundationalValues and Creed Band",
+  "mission_id": "01KYFV8NX0RTYNNCSW33N2WCS1",
+  "mission_number": null,
+  "mission_slug": "foundational-values-creed-band-01KYFV8N",
+  "mission_type": "software-dev",
+  "purpose_context": "Mission D of five, split from doctrine-canonical-structure-remediation-01KYEYSD. Delivers the increments of the FoundationalValues/creed programme that survive Phase 0: the AMMERSE definition unification and accreditation, the corpus import and value-set artefact with a non-AMMERSE N!=7 fixture, the N-generic first-order matrix and validator, the perturbation-stability probe, the polarity lint, the advisory-homonym unification, the ResolvedContext partition, and the ranking function. I14 and I17 are CLOSED -- the #2538 rig does not exist, so gate G3 is unreachable and its ~1,372-1,596 authored cells are out.",
+  "purpose_tldr": "Ship the reachable band of the creed programme, minus everything behind dead gates.",
+  "slug": "foundational-values-creed-band-01KYFV8N",
+  "target_branch": "feat/foundational-values-creed-band",
+  "topology": "single_branch"
+}

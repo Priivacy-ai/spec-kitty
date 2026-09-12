@@ -1,13 +1,13 @@
 """Unit tests for the additive ``selected_<kind>`` parity fields on
-:class:`charter.schemas.DoctrineSelectionConfig` and their byte-stable
-emission via :func:`charter.schemas.emit_yaml` (WP01 of mission
+:class:`charter.activation.schemas.DoctrineSelectionConfig` and their byte-stable
+emission via :func:`charter.activation.schemas.emit_yaml` (WP01 of mission
 ``charter-mediated-doctrine-selection-01KRTZCA``).
 
 Coverage:
   * Defaulting: a freshly-constructed ``DoctrineSelectionConfig`` exposes
     all five new fields as empty lists.
   * Byte-stability (NFR-005): emitted YAML omits the empty new fields
-    because they live in :data:`charter.schemas._OPTIONAL_EMPTY_OMIT_KEYS`.
+    because they live in :data:`charter.activation.schemas._OPTIONAL_EMPTY_OMIT_KEYS`.
   * Round-trip: populating a new field survives ``emit_yaml`` →
     ``YAML().load(...)``.
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.schemas import (
+from charter.activation.schemas import (
     DoctrineSelectionConfig,
     GovernanceConfig,
     _OPTIONAL_EMPTY_OMIT_KEYS,
@@ -94,7 +94,7 @@ def test_prune_keeps_populated_new_selected_fields() -> None:
 
 def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
     governance = GovernanceConfig(
-        doctrine=DoctrineSelectionConfig(
+        charter=DoctrineSelectionConfig(
             selected_styleguides=["caveman-comments"],
             selected_toolguides=["ruff-strict"],
         )
@@ -114,16 +114,16 @@ def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
     assert "selected_mission_step_contracts" not in text
 
     data = YAML(typ="safe").load(text)
-    doctrine = data["doctrine"]
-    assert doctrine["selected_styleguides"] == ["caveman-comments"]
-    assert doctrine["selected_toolguides"] == ["ruff-strict"]
+    charter = data["charter"]
+    assert charter["selected_styleguides"] == ["caveman-comments"]
+    assert charter["selected_toolguides"] == ["ruff-strict"]
 
 
 def test_governance_config_carries_activations_field(tmp_path: Path) -> None:
     """T008: ``GovernanceConfig.activations`` lives at the top level (not on
     ``DoctrineSelectionConfig``); defaults to empty; round-trips through
     ``emit_yaml`` with an entry; stays out of YAML when empty (NFR-005)."""
-    from charter.activations import ActivationEntry
+    from charter.activation.activations import ActivationEntry
 
     # Defaulting
     gov = GovernanceConfig()

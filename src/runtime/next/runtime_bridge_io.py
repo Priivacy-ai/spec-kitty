@@ -76,6 +76,7 @@ every other compat-tracked intra-seam call in this module.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -86,7 +87,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
-from mission_runtime import CommitTarget
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    PlacementSeam,
+    kind_for_mission_file,
+    placement_seam,
+)
 from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
@@ -94,16 +102,21 @@ from runtime.next._internal_runtime import (
     NullEmitter,
     start_mission_run,
 )
-from runtime.next._internal_runtime.schema import MissionTemplate, load_mission_template_file
+from runtime.next._internal_runtime.schema import (
+    MissionRuntimeError,
+    MissionTemplate,
+    load_mission_template_file,
+)
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, StatusReadPathNotFound
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 # Local literal duplicates of runtime_bridge's module constants — avoids a
 # circular top-level import back into runtime_bridge for four small string
@@ -115,6 +128,17 @@ MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
 _FEATURE_RUNS_FILE = "feature-runs.json"
 STATE_FILE = "state.json"
+
+# WP06 (FR-010/FR-011, IC-06): named diagnostics for Walk B's previously
+# swallowed template-load and sidecar-co-presence failures. A real
+# ``logging.Logger`` -- not ``warnings.warn`` -- because ``warnings.warn``
+# deduplicates per call site by default: a long-running process (`spec-kitty
+# next` driving many mission resolutions) would see an identical malformed
+# org-tier fixture warned about once, then silently lose the signal on every
+# later resolution of the same broken file. ``logging.warning`` fires every
+# time, matching the always-visible behavior Walk A's `DiscoveryWarning`
+# channel already gives operators.
+_logger = logging.getLogger(__name__)
 
 
 class _FeatureRunEntry(TypedDict, total=False):
@@ -135,6 +159,49 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_slug: str
 
 
+class RunIdentityMigrationRequired(MissionRuntimeError):
+    """A legacy run has no identity proving that it belongs to this mission."""
+
+    error_code = "RUN_IDENTITY_MIGRATION_REQUIRED"
+
+
+class RunStateMissing(MissionRuntimeError):
+    """A live ``feature-runs.json`` entry points at a run whose ``state.json`` is gone.
+
+    FR-016 (mission fsm-write-path-integrity-01M1TZV6, WP05): resolving such an
+    entry used to fall through to "start a new run", silently orphaning the
+    run's journal and cursor history. It is now loud and structured so the
+    operator can repair the index or the run directory deliberately.
+    """
+
+    error_code = "RUN_STATE_MISSING"
+
+    def __init__(self, *, mission_id: str | None, mission_slug: str, run_id: str, run_dir: Path) -> None:
+        self.mission_id = mission_id
+        self.mission_slug = mission_slug
+        self.run_id = run_id
+        self.run_dir = run_dir
+        super().__init__(
+            f"Run {run_id!r} for mission {mission_slug!r} (mission_id={mission_id!r}) is indexed in "
+            f"{_FEATURE_RUNS_FILE} but {run_dir / STATE_FILE} is missing. Restore the run directory "
+            f"or remove the stale index entry (`spec-kitty doctor`); the run will not be silently restarted."
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        # Local annotation re-narrows the specify_cli.* base's result from Any
+        # (follow_imports = "skip" mypy override for the runtime layer).
+        payload: dict[str, Any] = super().to_dict()
+        payload.update(
+            {
+                "mission_id": self.mission_id,
+                "mission_slug": self.mission_slug,
+                "run_id": self.run_id,
+                "run_dir": str(self.run_dir),
+            }
+        )
+        return payload
+
+
 # ---------------------------------------------------------------------------
 # Feature -> Run index (T017)
 # ---------------------------------------------------------------------------
@@ -143,6 +210,85 @@ class _FeatureRunEntry(TypedDict, total=False):
 def _feature_runs_path(repo_root: Path) -> Path:
     """Untracked helper (no test binds this name) — repo_root -> index path."""
     return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
+
+
+# WP05 / FR-016 / C-003: the index is keyed by the canonical ULID ``mission_id``
+# (083 identity model). A mission with no ``mission_id`` yet is keyed under the
+# ``legacy-<slug>`` precedent already used for the transactional status lock
+# (``coordination/status_transition.py``). The bare slug is NEVER a key any more
+# (decision ``01M1V8J842E7CJR6MGZ0MW3DQF``; ``design-notes/WP05-run-state.md``).
+_LEGACY_RUN_KEY_PREFIX = "legacy-"
+
+
+def run_index_key(mission_slug: str, mission_id: str | None) -> str:
+    """Return the canonical ``feature-runs.json`` key for a mission."""
+    if mission_id:
+        return mission_id
+    return f"{_LEGACY_RUN_KEY_PREFIX}{mission_slug}"
+
+
+def _canonicalize_run_index(
+    index: dict[str, _FeatureRunEntry],
+) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Rekey pre-WP05 slug-keyed entries under their canonical key (Q9: in-place, on touch).
+
+    Idempotent and lossless: an entry already under its canonical key is left
+    alone, and an entry whose canonical slot is already occupied stays where it
+    is rather than overwriting the occupant. The second element reports whether
+    anything moved, so callers persist only when there is something to persist.
+    """
+    rekeyed: dict[str, _FeatureRunEntry] = {}
+    changed = False
+    for key, entry in index.items():
+        slug = entry.get("mission_slug") or key
+        canonical = run_index_key(slug, entry.get("mission_id"))
+        target = key if canonical == key or canonical in index or canonical in rekeyed else canonical
+        if target != key:
+            entry = {**entry, "mission_slug": slug}
+            changed = True
+        rekeyed[target] = entry
+    return rekeyed, changed
+
+
+def _load_run_index(repo_root: Path) -> tuple[dict[str, _FeatureRunEntry], bool]:
+    """Load the index through the canonical view; report whether it needed rekeying."""
+    from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+
+    return _canonicalize_run_index(_rb._load_feature_runs(repo_root))
+
+
+def _entry_for_mission(index: dict[str, _FeatureRunEntry], *, mission_slug: str, mission_id: str | None) -> _FeatureRunEntry | None:
+    """Resolve identity without treating an unbound legacy run as absent.
+
+    Identity backfill updates mission metadata, not the runtime index. A
+    no-ID entry cannot distinguish that upgrade from reuse of the same slug,
+    so require explicit ownership repair instead of restarting or adopting it.
+    """
+    entry = index.get(run_index_key(mission_slug, mission_id))
+    if entry is None and mission_id:
+        for candidate in index.values():
+            if not candidate.get("mission_id") and candidate.get("mission_slug") == mission_slug:
+                raise RunIdentityMigrationRequired(
+                    f"Legacy run {candidate['run_id']!r} for mission {mission_slug!r} has no mission_id, "
+                    f"but mission metadata now identifies {mission_id!r}. Verify ownership before resuming: "
+                    f"in .kittify/runtime/{_FEATURE_RUNS_FILE}, move the verified run entry to key "
+                    f"{mission_id!r} and set its mission_id to that value. If it belongs to a different "
+                    "mission, preserve it under that mission's verified identity. No new run was started."
+                )
+    return entry
+
+
+def _require_run_state(entry: _FeatureRunEntry, *, mission_slug: str, mission_id: str | None) -> Path:
+    """Return the entry's run directory, or raise :class:`RunStateMissing` when its cursor is gone."""
+    run_dir = Path(entry["run_dir"])
+    if not (run_dir / STATE_FILE).exists():
+        raise RunStateMissing(
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            run_id=entry["run_id"],
+            run_dir=run_dir,
+        )
+    return run_dir
 
 
 def load_feature_runs(path: Path) -> dict[str, _FeatureRunEntry]:
@@ -229,15 +375,36 @@ def _build_run_ref(
 
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Build a DiscoveryContext that finds the runtime mission template."""
+    """Build a DiscoveryContext that finds the runtime mission template.
+
+    Populates ``org_roots`` (FR-008, DEC-006 site 1 -- the construction site
+    that feeds Walk A for both ``spec-kitty next`` and query-mode runs) via
+    the lazy ``charter.drg.resolve_org_roots`` facade, mirroring the five
+    existing ``specify_cli/**`` call sites and WP03's identical pattern in
+    the template resolvers (DEC-004: never a direct ``doctrine.*`` import
+    from ``src/runtime/next/**``). No ``try/except`` wraps the call --
+    ``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` are deliberately
+    raised and must propagate (DEC-005, NFR-001). With no org packs
+    configured, ``resolve_org_roots`` returns ``[]`` and this is a verified
+    no-op (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution
+    hot path (``spec-kitty next``, query-mode) that may run many times per
+    invocation -- an unparseable config.yaml with no readable org intent
+    must not spam a UserWarning per call (see load_pack_registry's
+    docstring). A genuinely declared-but-broken org pack still raises a
+    loud UserWarning regardless.
+    """
     import specify_cli  # noqa: PLC0415
 
     # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
     # The doctrine mission catalog is not behaviorally equivalent yet.
     package_root = Path(specify_cli.__file__).resolve().parent / "missions"
+
+    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],
+        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
     )
 
 
@@ -291,16 +458,108 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
     return unique
 
 
-def _template_key_for_file(path: Path) -> str | None:
+def _builtin_missions_root() -> Path:
+    """The package-shipped ``missions/`` directory.
+
+    Same expression ``_build_discovery_context`` (WP04) uses for
+    ``builtin_roots`` — recomputed locally rather than imported from there to
+    avoid coupling to a function this WP does not own (plan.md IC-06's
+    `owned_files` note: WP04 owns `_build_discovery_context`, this WP owns
+    `_template_key_for_file`/`_resolve_runtime_template_in_root`). Both
+    expressions must stay in sync by construction — there is exactly one
+    place `specify_cli`'s package-relative missions directory is defined.
+    """
+    import specify_cli  # noqa: PLC0415
+
+    return (Path(specify_cli.__file__).resolve().parent / "missions").resolve()
+
+
+def _is_builtin_missions_dir(parent: Path) -> bool:
+    """True when ``parent`` is a direct child of the package's ``missions/``
+    directory (FR-011 Acceptance Scenario 2) — i.e. one of the four built-in
+    mission directories (``plan``, ``research``, ``documentation``,
+    ``software-dev``) that already legitimately ship both sidecar files.
+    Structural (parent-of-parent identity against the one canonical built-in
+    root), not a hardcoded name list, so it stays correct if a fifth
+    built-in mission is ever added.
+    """
+    try:
+        resolved_parent = parent.resolve()
+    except OSError:
+        return False
+    return resolved_parent.parent == _builtin_missions_root()
+
+
+def _warn_non_builtin_sidecar_pairs(candidates: list[Path], mission_type: str) -> None:
+    """FR-011: name a diagnostic when a non-built-in tier ships both
+    ``mission.yaml`` and ``mission-runtime.yaml`` for the same mission key.
+
+    Built-in mission directories already legitimately ship both and MUST
+    stay silent (Acceptance Scenario 2) — filtered via
+    ``_is_builtin_missions_dir``. Purely observational: does not raise, and
+    does not change which file the existing sidecar preference (C-005, the
+    ``candidate.name == MISSION_YAML`` branch in
+    ``_resolve_runtime_template_in_root`` below) resolves to. Runs once, up
+    front, over the already-computed candidate list, independent of which
+    candidate the main resolution loop happens to match first — the
+    mission-runtime.yaml candidate is checked ahead of mission.yaml in
+    ``_candidate_templates_for_root``'s ordering and resolves (and returns)
+    before the loop ever reaches the mission.yaml candidate, so a
+    diagnostic hook placed only inside that loop would never fire for a
+    directory-shaped root.
+    """
+    seen_parents: set[Path] = set()
+    for candidate in candidates:
+        parent = candidate.parent
+        if parent in seen_parents:
+            continue
+        mission_yaml = parent / MISSION_YAML
+        mission_runtime_yaml = parent / MISSION_RUNTIME_YAML
+        if not (mission_yaml.is_file() and mission_runtime_yaml.is_file()):
+            continue
+        seen_parents.add(parent)
+        if _is_builtin_missions_dir(parent):
+            continue
+        _logger.warning(
+            "Walk B: non-built-in tier at %s ships both %s and %s for mission %r; %s wins (existing sidecar preference unchanged).",
+            parent,
+            MISSION_YAML,
+            MISSION_RUNTIME_YAML,
+            mission_type,
+            MISSION_RUNTIME_YAML,
+        )
+
+
+def _template_key_for_file(path: Path, *, tier: str = "unknown") -> str | None:
+    """Load a mission key from ``path``, or ``None`` on any load failure.
+
+    FR-010: a load failure is also routed into a named
+    :func:`logging.Logger.warning` naming the offending path (and, when the
+    caller supplies one, the resolution tier/root it was found under) so a
+    malformed org-tier (or any-tier) ``mission.yaml``/``mission-runtime.yaml``
+    is diagnosable instead of silently discarded. The return-value contract
+    is unchanged — callers that depend on ``None`` meaning "skip this
+    candidate" (``_resolve_runtime_template_in_root``) keep working exactly
+    as before; only the caller-invisible logging side channel is new.
+    """
     try:
         template = load_mission_template_file(path)
         return template.mission.key
-    except Exception:
+    except Exception as exc:
+        _logger.warning(
+            "Walk B: failed to load mission template at %s (tier=%s): %s",
+            path,
+            tier,
+            exc,
+        )
         return None
 
 
 def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | None:
-    for candidate in _candidate_templates_for_root(root, mission_type):
+    candidates = _candidate_templates_for_root(root, mission_type)
+    _warn_non_builtin_sidecar_pairs(candidates, mission_type)
+
+    for candidate in candidates:
         if not candidate.exists() or not candidate.is_file():
             continue
 
@@ -312,7 +571,7 @@ def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | N
                 paths_to_try = [runtime_sidecar, candidate]
 
         for path in paths_to_try:
-            template_key = _template_key_for_file(path)
+            template_key = _template_key_for_file(path, tier=str(root))
             if template_key == mission_type:
                 return path.resolve()
 
@@ -323,8 +582,8 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     """Resolve the runtime template path for a mission key.
 
     Uses deterministic runtime discovery precedence for mission-runtime YAML:
-    explicit -> env -> project override -> project legacy -> project config
-    -> user global -> built-in.
+    explicit -> env -> project override -> project legacy -> org (FR-009) ->
+    project config -> user global -> built-in.
 
     For the built-in ``software-dev`` mission, the packaged runtime template is
     canonical after this composition rewrite. Stale user-global mission packs
@@ -335,20 +594,23 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
 
     context = _rb._build_discovery_context(repo_root)
     env_value = os.environ.get(context.env_var_name, "")
+    # Org tier (FR-009) sits immediately after the project-legacy entry
+    # (`.kittify/missions`) and before the project-config/global/builtin
+    # tiers below -- the same relative position Walk A's `_build_tiers`
+    # gives the org tier. Reuses `context.org_roots`, already populated by
+    # `_build_discovery_context` above, rather than calling
+    # `resolve_org_roots` a second time.
     project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
         _split_env_paths(env_value),
         [repo_root / KITTIFY_DIR / "overrides" / "missions"],
         [repo_root / KITTIFY_DIR / "missions"],
+        list(context.org_roots),
         _project_config_pack_paths(repo_root),
     ]
     global_tier = [context.user_home / KITTIFY_DIR / "missions"]
     builtin_tier = list(context.builtin_roots)
-    tiers = (
-        project_tiers + [builtin_tier, global_tier]
-        if mission_type == MISSION_TYPE_SOFTWARE_DEV
-        else project_tiers + [global_tier, builtin_tier]
-    )
+    tiers = project_tiers + [builtin_tier, global_tier] if mission_type == MISSION_TYPE_SOFTWARE_DEV else project_tiers + [global_tier, builtin_tier]
 
     for roots in tiers:
         for root in roots:
@@ -374,10 +636,10 @@ def _workflow_runtime_template(
 
     del mission_type
     mission_dir = _rb._resolve_runtime_feature_dir(repo_root, mission_slug)
-    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
-    # missing meta.json to None; malformed content still raises (on_malformed
-    # defaults to "raise"), matching the prior unguarded json.loads.
-    meta = load_meta(mission_dir)
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
+    # meta.json still absorbs to None; a corrupt or non-object one raises the
+    # typed MissionMetaReadError instead of a raw ValueError.
+    meta = load_meta_fail_closed(mission_dir)
     if meta is None:
         return None, None
 
@@ -407,18 +669,21 @@ def _existing_run_ref(
     repo_root: Path,
     mission_type: str,
 ) -> MissionRunRef | None:
-    """Return an existing run without creating a new one."""
+    """Return an existing run without creating a new one.
+
+    Read-only: the canonical (rekeyed) view of the index is computed in
+    memory and never persisted here, so query mode stays non-mutating for
+    ``feature-runs.json``. A live entry with a missing cursor raises
+    :class:`RunStateMissing` (FR-016) rather than masquerading as "no run".
+    """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-
-    if mission_slug not in index:
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
+    if entry is None:
         return None
-
-    entry = index[mission_slug]
-    run_dir = Path(entry["run_dir"])
-    if not (run_dir / STATE_FILE).exists():
-        return None
+    _require_run_state(entry, mission_slug=mission_slug, mission_id=mission_id)
 
     stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
     return _rb._build_run_ref(
@@ -445,9 +710,7 @@ def _start_ephemeral_query_run(
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
     try:
         template_key = _rb._runtime_template_key(mission_type, repo_root)
-        template_override, template_path_override = _workflow_runtime_template(
-            mission_slug, mission_type, repo_root, template_key
-        )
+        template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
         context = _rb._build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
@@ -475,30 +738,37 @@ def get_or_start_run(
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
-    Run mapping stored in .kittify/runtime/feature-runs.json:
-    { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
+    Run mapping stored in .kittify/runtime/feature-runs.json, keyed by the
+    canonical ``mission_id`` (``legacy-<slug>`` for a mission without one):
+    { "01HULID...": { "run_id": "abc", "run_dir": "...", "mission_slug": "042-test-mission" } }
+
+    This is the index's single writer: a pre-WP05 slug-keyed index is rekeyed
+    in place on the first touch (Q9, ``01M1V8J842E7CJR6MGZ0MW3DQF``). A live
+    entry whose ``state.json`` is gone raises :class:`RunStateMissing` -- it is
+    never silently replaced by a fresh run (FR-016).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
+    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, rekeyed = _load_run_index(repo_root)
+    index_key = run_index_key(mission_slug, resolved_mission_id)
 
-    if mission_slug in index:
-        entry = index[mission_slug]
-        run_dir = Path(entry["run_dir"])
-        if (run_dir / STATE_FILE).exists():
-            stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-            return _rb._build_run_ref(
-                run_id=entry["run_id"],
-                run_dir=entry["run_dir"],
-                mission_type=stored_mission_type,
-            )
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=resolved_mission_id)
+    if entry is not None:
+        _require_run_state(entry, mission_slug=mission_slug, mission_id=resolved_mission_id)
+        if rekeyed:
+            save_feature_runs(_feature_runs_path(repo_root), index)
+        stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
+        return _rb._build_run_ref(
+            run_id=entry["run_id"],
+            run_dir=entry["run_dir"],
+            mission_type=stored_mission_type,
+        )
 
     # Start a new run
     run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
     template_key = _rb._runtime_template_key(mission_type, repo_root)
-    template_override, template_path_override = _workflow_runtime_template(
-        mission_slug, mission_type, repo_root, template_key
-    )
+    template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
     context = _rb._build_discovery_context(repo_root)
 
     run_ref = start_mission_run(
@@ -512,10 +782,9 @@ def get_or_start_run(
         template_path_override=template_path_override,
     )
 
-    # Persist to index
+    # Persist to index under the canonical key (slug is display-only)
     resolved_mission_type = _rb._mission_key_for_run_ref(run_ref, mission_type)
-    resolved_mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
-    index[mission_slug] = {
+    index[index_key] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
         "mission_type": resolved_mission_type,
@@ -533,20 +802,20 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_run_dir_for_mission(
-    repo_root: Path, mission_slug: str
-) -> Path | None:
+def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
     """Return the persisted run directory for ``mission_slug``, read-only.
 
     Looks the run up in the durable ``feature-runs.json`` index without
     starting a new run (unlike :func:`get_or_start_run`). Returns ``None`` when
     no run has been recorded yet. This keeps OC construction at the claim sites
-    free of any run-start side effect (NFR-004).
+    free of any run-start side effect (NFR-004). The canonical (rekeyed) view
+    is computed in memory only; nothing is persisted here.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
-    index = _rb._load_feature_runs(repo_root)
-    entry = index.get(mission_slug)
+    mission_id = _rb._resolve_mission_ulid(mission_slug, repo_root)
+    index, _rekeyed = _load_run_index(repo_root)
+    entry = _entry_for_mission(index, mission_slug=mission_slug, mission_id=mission_id)
     if not entry:
         return None
     run_dir_raw = entry.get("run_dir")
@@ -555,25 +824,34 @@ def _resolve_run_dir_for_mission(
     return Path(run_dir_raw)
 
 
-def _resolve_tech_stack_for_profile(
-    repo_root: Path, profile_id: str | None
-) -> frozenset[str]:
+def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
     """Best-effort resolution of the in-scope tech stack for ``profile_id``.
 
     The tech stack is sourced from the resolved agent profile's
     ``applies_to_languages`` / specialization-context languages (charter/meta
     per data-model §7). This is best-effort: any resolution failure yields an
     empty frozenset rather than raising, so populating an
-    :class:`~charter.invocation_context.OperationalContext` never blocks a
+    :class:`~charter.activation.invocation_context.OperationalContext` never blocks a
     claim or decision. The lookup is read-only and creates no worktree or
     status side effects (NFR-004).
     """
     if not profile_id:
         return frozenset()
     try:
-        from doctrine.agent_profiles import AgentProfileRepository  # noqa: PLC0415
+        # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): route
+        # through the charter-mediated factory's lineage/mutation accessor
+        # rather than constructing ``AgentProfileRepository`` directly.
+        # ``resolve_profile()`` (lineage composition via ``specializes_from``)
+        # is not available on the gated ``agent_profiles`` dict — a dict has
+        # no such method — so this call site needs the raw accessor, not the
+        # filtered property (contracts/charter-doctrine-service-contract.md
+        # "Lineage/mutation accessor semantics").
+        from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
+            build_activation_aware_doctrine_service,
+        )
 
-        repo = AgentProfileRepository(project_dir=repo_root / KITTIFY_DIR / "doctrine")
+        service = build_activation_aware_doctrine_service(repo_root)
+        repo = service.agent_profile_repository
         profile = repo.resolve_profile(profile_id)
     except Exception:
         return frozenset()
@@ -625,9 +903,9 @@ def build_operational_context_for_claim(
             when ``None``.
 
     Returns:
-        A populated :class:`~charter.invocation_context.OperationalContext`.
+        A populated :class:`~charter.activation.invocation_context.OperationalContext`.
     """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+    from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     resolved_profile = active_profile
@@ -635,9 +913,7 @@ def build_operational_context_for_claim(
         try:
             run_dir = _rb._resolve_run_dir_for_mission(repo_root, mission_slug)
             if run_dir is not None:
-                resolved_profile = _rb._resolve_step_agent_profile(
-                    run_dir, current_activity
-                )
+                resolved_profile = _rb._resolve_step_agent_profile(run_dir, current_activity)
         except Exception:
             resolved_profile = None
 
@@ -667,16 +943,14 @@ def _build_operational_context_for_decision(
     ``step_id`` / ``mission_state`` as the current activity, and derives the
     tech stack from the resolved profile. Read-only; no side effects (NFR-004).
     """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+    from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     activity = step_id or mission_state
     resolved_profile: str | None = None
     if step_id is not None:
         try:
-            resolved_profile = _rb._resolve_step_agent_profile(
-                Path(run_ref.run_dir), step_id
-            )
+            resolved_profile = _rb._resolve_step_agent_profile(Path(run_ref.run_dir), step_id)
         except Exception:
             resolved_profile = None
 
@@ -694,17 +968,114 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
-_PRESENCE_FILE_TAGS: tuple[str, ...] = (
-    "spec.md",
-    "plan.md",
-    "tasks.md",
-    "source-register.csv",
-    "findings.md",
-    "report.md",
-    "gap-analysis.md",
-    "audit-report.md",
-    "release.md",
-)
+def _presence_filenames_for(mission_family: str, repo_root: Path | None = None) -> frozenset[str]:
+    """Resolve the per-type presence filename set for *mission_family* (FR-011, #3597).
+
+    Sources filenames from the single per-type ``expected-artifacts.yaml``
+    ``path_pattern`` authority (WP04's seam, #3599) -- the same authority
+    :func:`specify_cli.runtime.resolver.required_artifacts_for` /
+    :func:`~specify_cli.runtime.resolver.resolve_configured_artifact_name`
+    draw from -- instead of the previously-closed 10-tuple literal this
+    function replaces (``_PRESENCE_FILE_TAGS``).
+
+    **Retired mirror (WP02, #3770, FR-005):** this function used to duplicate
+    the org->built-in precedence + ``model_validate`` load logic locally. It
+    now delegates to :func:`charter.activation.manifest_loader.load_manifest`
+    (WP01's relocated, cached authority) for the manifest, and keeps ONLY the
+    :func:`~charter.offering.missions.step_projection.project_artifact_name_set`
+    -> ``frozenset`` projection step below.
+
+    Family-scoped (every step's ``required_always`` + ``required_by_step``
+    + ``optional_always`` path_patterns, unioned via
+    ``project_artifact_name_set``), deliberately NOT filtered to the
+    caller's ``step_id`` (byte-compat, NFR-003): the guard vocabulary
+    calling this port is not uniform across mission families or dispatch
+    paths. Software-dev's own manifest keys (mission.yaml state ids:
+    specify/plan/tasks_outline/tasks_packages/tasks_finalize/...) match its
+    CLI-native guard's ``step_id`` 1:1, but neither the *composed* ``"tasks"``
+    action (no such manifest key -- disambiguated only by
+    ``legacy_step_id``) nor the ``plan`` mission family's composed action
+    names (``specify``/``plan``, vs. its own manifest's ``goals``/``draft``
+    step keys) resolve correctly if this port filtered to one
+    caller-supplied ``step_id``. Scanning the whole family set instead --
+    exactly what the old global 10-tuple effectively did for every family
+    it was blindly reused across -- avoids silently turning either mismatch
+    into a spurious block. (A step-scoped design was tried during the WP04
+    implementation and reverted after it red
+    ``tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`` by
+    incorrectly blocking the software-dev composed ``tasks`` guard and the
+    ``plan``-family ``specify``/``plan`` guards even when their artifacts
+    were present.)
+
+    A custom mission family gates on its own filenames (AC-10) as long as
+    it ships an ``expected-artifacts.yaml`` -- present -> passes, absent ->
+    blocks -- regardless of which step is being gathered for; a family
+    with no manifest resolves to an EMPTY ``frozenset()`` (never ``None`` --
+    that is this projection's own absence output, distinct from the
+    ``blocking_artifact_names`` tri-state :func:`_expected_artifacts_manifest_resolves`
+    governs; see that function's docstring). The distinct guard-table
+    *dispatch* fail-closed concern for a genuinely unregistered family is a
+    separate, retained mechanism: ``runtime_bridge_cores.evaluate_guards_strict``
+    still raises ``UnregisteredMissionFamilyError`` when ``_GUARD_TABLES``
+    has no entry for the family (per the ADR).
+
+    Every one of the 10 built-in filenames the old tuple hardcoded still
+    resolves identically (NFR-003) -- see
+    ``tests/specify_cli/runtime/test_configured_artifact_name.py`` for the
+    per-(family, artifact_key) byte-compat characterization.
+
+    FR-008: when *repo_root* is given and resolves to 1+ existing configured
+    org roots, an org-pack ``<org_root>/missions/<mission_family>/expected-artifacts.yaml``
+    takes precedence over the built-in file, whole-file -- never field-merged
+    with it -- exactly as the authority implements (contract C-4). *repo_root*
+    defaults to ``None`` (today's exact behavior: no org lookup, built-in
+    tree only).
+
+    Raises:
+        ManifestSchemaError: A *found*, syntactically-valid manifest that
+            fails schema validation (``extra="forbid"``) -- propagated
+            unchanged from the authority, for BOTH tiers. Not caught here:
+            this projection must not re-swallow it.
+        MalformedManifestError: A *found* manifest that fails to parse as
+            YAML at all -- propagated unchanged from the authority
+            (built-in tier only, today).
+    """
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
+    from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+
+    manifest = load_manifest(mission_family, repo_root=repo_root)
+    if manifest is None:
+        return frozenset()
+    name_set = project_artifact_name_set(manifest) or {}
+    return frozenset(name_set.values())
+
+
+def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path | None) -> bool:
+    """True when an expected-artifacts manifest resolves for *mission_family*
+    at either tier -- org first (FR-008), built-in fallback.
+
+    The single per-:func:`gather_artifact_presence`-call source for
+    ``ArtifactPresenceSnapshot.blocking_artifact_names``'s ``None`` vs. real
+    ``frozenset`` distinction (SPEC-FRESH-001, C-002).
+
+    **WP-dedup (#3847) note:** this used to re-read the manifest itself via
+    its own uncached ``_resolve_org_manifest_mapping`` (org tier) plus a bare
+    built-in-tier presence check -- independent of, and redundant with,
+    :func:`_presence_filenames_for`'s manifest load earlier in the same
+    :func:`gather_artifact_presence` call. It now reuses the SAME cached
+    authority :func:`_presence_filenames_for` already delegates to
+    (:func:`charter.activation.manifest_loader.load_manifest`), so the org
+    file (and the built-in tier) is read at most once per call instead of
+    twice. The tri-state contract is unchanged: ``load_manifest`` returns
+    ``None`` for genuine absence at both tiers (-> ``False`` here), a real
+    manifest for a valid, present manifest (-> ``True``), and raises
+    ``ManifestSchemaError``/``MalformedManifestError`` for a present-but-bad
+    manifest -- identical to the exceptions the old org/built-in reads
+    raised, just surfaced here instead of (redundantly) re-derived.
+    """
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
+
+    return load_manifest(mission_family, repo_root=repo_root) is not None
 
 
 @dataclass(frozen=True)
@@ -729,6 +1100,18 @@ class ArtifactPresenceSnapshot:
     both its own WP02 compat reach AND this port's already-green
     ``tests/runtime/test_bridge_io.py`` (which does not stub
     ``_should_advance_wp_step``) stay intact.
+
+    ``blocking_artifact_names`` (WP01, FR-001/FR-002/FR-006, #3704 Part 1)
+    IS populated by :func:`gather_artifact_presence` — ``None`` when no
+    expected-artifacts manifest is reachable for ``mission_family`` at any
+    tier, or a real (possibly empty) ``frozenset`` naming the blocking
+    artifacts for ``step_id`` when a manifest was resolved. Consumed by
+    ``runtime_bridge_cores.evaluate_guards_strict`` for its dispatch-miss
+    branch. This WP populates the field via a **minimal test-only stub**
+    that only distinguishes "no manifest" from "manifest present" — WP02
+    replaces the stub with real org-tier-aware resolution; the default of
+    ``None`` keeps every existing construction call site (including test
+    fixtures) compiling unchanged.
     """
 
     present_artifacts: frozenset[str]
@@ -737,6 +1120,76 @@ class ArtifactPresenceSnapshot:
     step_id: str
     legacy_step_id: str | None = None
     wp_advance_ready: bool | None = None
+    blocking_artifact_names: frozenset[str] | None = None
+
+
+#: The seam failures a presence read degrades on. ``ActionContextError`` is the
+#: seam refusing explicit placement outside ``single_branch``;
+#: ``StatusReadPathNotFound`` (incl. ``CoordinationBranchDeleted``) is a
+#: coord-partition probe failing on coordination-branch liveness;
+#: ``MissionSelectorAmbiguous`` is the seam's declared selector failure on
+#: ``feature_dir.name``. None is a fact about the PRIMARY artifact being asked
+#: for, so none may escape a fact port whose two production callers invoke it
+#: outside their ``try``.
+_PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
+
+
+def _artifact_presence_seam(feature_dir: Path, repo_root: Path | None) -> PlacementSeam | None:
+    """Return the placement seam whose STATUS home is ``feature_dir``, else ``None``.
+
+    Bootstrap supplies the resolved STATUS home, so the ordinary
+    topology-aware seam matches for a linked/coord caller. An owned
+    ``single_branch`` checkout matches only under explicit placement, which
+    is *verified* the same way rather than assumed from the first mismatch.
+    ``None`` means the caller's directory is not a recognised STATUS home:
+    every artifact then resolves to the supplied directory (the pre-#3910
+    behaviour) instead of a guessed placement — see
+    :data:`_PRESENCE_SEAM_DEGRADES` for why a seam failure lands here too.
+    """
+    if repo_root is None:
+        return None
+    try:
+        seam = placement_seam(repo_root, feature_dir.name)
+        if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return seam
+        owned = placement_seam(repo_root, feature_dir.name, effective_root=repo_root)
+        if owned.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
+            return owned
+    except _PRESENCE_SEAM_DEGRADES as exc:
+        _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
+        return None
+    _logger.debug("artifact presence: %s is not a recognised STATUS home, keeping supplied directory", feature_dir)
+    return None
+
+
+class _ArtifactPresenceHomes:
+    """Per-``gather_artifact_presence`` memo of artifact kind -> read directory.
+
+    One seam resolution per kind per call (the module's one-read-per-call
+    discipline, cf. ``_presence_filenames_for``), instead of one per filename.
+    Classified inputs read from their canonical home; unclassified/custom
+    filenames, callers without a recognised seam, and any degraded seam read
+    keep the supplied directory.
+    """
+
+    def __init__(self, feature_dir: Path, seam: PlacementSeam | None) -> None:
+        self._feature_dir = feature_dir
+        self._seam = seam
+        self._by_kind: dict[MissionArtifactKind, Path] = {}
+
+    def read_dir(self, name: str) -> Path:
+        kind = kind_for_mission_file(self._feature_dir / name)
+        if self._seam is None or kind is None:
+            return self._feature_dir
+        home = self._by_kind.get(kind)
+        if home is None:
+            try:
+                home = self._seam.read_dir(kind)
+            except _PRESENCE_SEAM_DEGRADES as exc:
+                _logger.debug("artifact presence: read of %s degraded to supplied directory: %s", kind, exc)
+                home = self._feature_dir
+            self._by_kind[kind] = home
+        return home
 
 
 def gather_artifact_presence(
@@ -745,13 +1198,14 @@ def gather_artifact_presence(
     mission_family: str,
     step_id: str,
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
     Mirrors the exact set of filesystem/status/bulk-edit/requirement-mapping
     reads ``_check_cli_guards`` / ``_check_composed_action_guard`` perform
-    across all three mission families (software-dev / research /
-    documentation), so a downstream pure ``evaluate_guards(snapshot)`` can
+    across all four mission families (software-dev / research /
+    documentation / plan), so a downstream pure ``evaluate_guards(snapshot)`` can
     reproduce identical ``guard_failures`` content and ordering (SC-007)
     without touching disk again. The guard-helper calls below
     (``_check_requirement_mapping_ready``, ``_occurrence_gate_failures``,
@@ -771,16 +1225,28 @@ def gather_artifact_presence(
     with a same-named directory in practice). Flagged for WP06 to
     cross-check against each guard branch's exact predicate before this
     snapshot replaces the guards' own reads.
+
+    ``repo_root`` enables kind-aware artifact placement as well as org-tier
+    manifest resolution. Classified planning inputs use their canonical home;
+    lifecycle facts continue to use ``feature_dir`` (the STATUS authority).
+    Unclassified/custom filenames, callers without ``repo_root``, and callers
+    whose ``feature_dir`` is not a recognised STATUS home retain their
+    supplied directory; no alternate copies are searched. This is a total
+    function: a seam refusal or a coordination-branch liveness failure while
+    resolving a home degrades to the supplied directory rather than raising
+    (:class:`_ArtifactPresenceHomes`).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
     present: set[str] = set()
-    for tag in _PRESENCE_FILE_TAGS:
-        if (feature_dir / tag).is_file():
+    for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
+        if (homes.read_dir(tag) / tag).is_file():
             present.add(tag)
 
-    tasks_dir = feature_dir / "tasks"
+    planning_dir = homes.read_dir("spec.md")
+    tasks_dir = homes.read_dir("tasks") / "tasks"
     tasks_dir_is_dir = tasks_dir.is_dir()
     wp_files = sorted(tasks_dir.glob("WP*.md")) if tasks_dir_is_dir else []
     if wp_files:
@@ -831,12 +1297,19 @@ def gather_artifact_presence(
         "wp_lane_raw": wp_lane_raw,
         "wp_dependencies_present": wp_dependencies_present,
         "wp_dependency_records": tuple(wp_dependency_records),
-        "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(feature_dir)),
-        "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(feature_dir)),
+        "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(planning_dir)),
+        "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(planning_dir)),
+        "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(planning_dir)),
         "source_documented_count": _rb._count_source_documented_events(feature_dir),
         "publication_approved": bool(_rb._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
     }
+
+    blocking_artifact_names: frozenset[str] | None = None
+    if _expected_artifacts_manifest_resolves(mission_family, repo_root):
+        from specify_cli.runtime.resolver import required_artifacts_for  # noqa: PLC0415
+
+        blocking_artifact_names = frozenset(required_artifacts_for(step_id, mission_family, repo_root=repo_root))
 
     return ArtifactPresenceSnapshot(
         present_artifacts=frozenset(present),
@@ -844,6 +1317,7 @@ def gather_artifact_presence(
         mission_family=mission_family,
         step_id=step_id,
         legacy_step_id=legacy_step_id,
+        blocking_artifact_names=blocking_artifact_names,
     )
 
 

@@ -49,7 +49,7 @@ def _disable_saas_sync_for_finalize_bootstrap_tests(
     preflight. Leaving the flag enabled lets a machine-local daemon owner
     record short-circuit finalize-tasks before these assertions run.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:
@@ -132,11 +132,6 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> d
             return_value=_fake_commit_result
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
-        "specify_cli.status.fire_dossier_sync": MagicMock(),
-        f"{MODULE}.emit_wp_created": MagicMock(),
-        f"{MODULE}.get_emitter": MagicMock(
-            return_value=MagicMock(generate_causation_id=MagicMock(return_value="test-id")),
-        ),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),
@@ -355,6 +350,110 @@ class TestBootstrapStatsInJson:
                 continue
 
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
+
+
+def _setup_undeclared_fr_feature(tmp_path: Path, mission_slug: str) -> Path:
+    """Like :func:`_setup_feature`, but spec.md ALSO carries a "Functional
+    Requirements" section written as bare, unbulleted, unbolded sentences
+    (FR-001, FR-002) -- the #3394 review F1 declared-shape-miss scenario.
+    ``parse_requirement_ids_from_spec_md`` never counts FR-001/FR-002 (no
+    recognized declared shape), so they are invisible to the coverage gate.
+
+    A SEPARATE, properly-declared FR-100 exists (table row) and is the only
+    id both WP files reference -- reproducing the review's exact complaint:
+    finalize-tasks reaches the SUCCESS path (``unmapped_functional_requirements
+    == []``) even though the spec's own FR-001/FR-002 were never counted,
+    because ``missing_requirement_refs_wps``/``unknown_requirement_refs``
+    would otherwise hard-fail for unrelated reasons if the WPs referenced
+    nothing, or referenced the undeclared ids directly.
+    """
+    feature_dir = _setup_feature(tmp_path, mission_slug)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n"
+        "| ID | Requirement |\n|----|-------------|\n| FR-100 | The one WPs map to. |\n",
+        encoding="utf-8",
+    )
+    for wp_id in ("WP01", "WP02"):
+        wp_file = feature_dir / "tasks" / f"{wp_id}-test.md"
+        wp_file.write_text(
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n  - FR-100\ndependencies: []\n---\n\n# {wp_id}\n',
+            encoding="utf-8",
+        )
+    return feature_dir
+
+
+class TestRequirementExtractionWarningsInJson:
+    """#3394 review F1: finalize-tasks' non-blocking ``requirement_extraction_
+    warnings`` signal for a Requirements section matching none of the four
+    recognized declared shapes at all (the "reports success while measuring
+    nothing" gap the review flagged for a WHOLLY-undeclared section).
+
+    RE-PINNED (operator ruling 2026-08-14; same DIRECTIVE_041 conflict as
+    ``1b5b86e0f``'s spec-kitty-next re-pin): this class used to ALSO pin the
+    "mixed declared + bare-prose" shape (a Requirements section that
+    correctly declares SOME ids while writing OTHERS as bare prose) as
+    non-blocking. #3396 exists specifically to supersede that advisory-only
+    decision for the mixed shape -- see
+    ``test_bare_sentence_frs_now_block_finalize_tasks_per_3396`` below.
+    """
+
+    def test_bare_sentence_frs_now_block_finalize_tasks_per_3396(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """RE-PINNED (operator ruling 2026-08-14, same conflict as ``1b5b86e0f``'s
+        spec-kitty-next re-pin): the F4 finding's own repro fixture (bare-prose
+        FR-001/FR-002 alongside a properly DECLARED table-row FR-100 that both
+        WP01/WP02 map to) IS #3396's own target repro -- the mission's whole
+        reason to exist (Story 1 AC1/AC2). Under #3395's fix this shape reached
+        finalize-tasks' SUCCESS path with only the non-blocking
+        ``requirement_extraction_warnings`` entry below (formerly asserted by
+        this test under its old name,
+        ``test_bare_sentence_frs_surface_a_non_blocking_warning_on_success``).
+        #3396 (WP06) wires ``find_bare_prose_requirement_ids`` into
+        ``_validate_requirement_mapping``, so this exact shape now BLOCKS
+        (exit code 1), naming FR-001/FR-002 explicitly in the distinct
+        ``bare_prose_requirement_ids`` field -- DIRECTIVE_041: the product
+        decision this test pins deliberately changed, so the old
+        non-blocking assertion was stale, not the new wiring.
+        """
+        mission_slug = "060-test-feature"
+        _setup_undeclared_fr_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        exit_code = 0
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code if exc.exit_code is not None else 1
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 1, "#3396 (WP06) supersedes #3395: this mixed shape must now block"
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "bare_prose_requirement_ids" in data:
+                assert data["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]
+                assert data["unmapped_functional_requirements"] == []
+                return
+        pytest.fail("No JSON output carrying 'bare_prose_requirement_ids' found in captured output")
 
 
 # ---------------------------------------------------------------------------
@@ -582,13 +681,24 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Explicit WP frontmatter deps are authoritative over tasks.md prose."""
+        """Non-empty WP frontmatter deps are authoritative over tasks.md prose.
+
+        #4135 reclassified a present-but-*empty* ``dependencies: []`` as a
+        map-requirements serialization artifact (covered by
+        test_issue_4135_empty_frontmatter_deps_fallback.py), so TIER-2
+        authority here is exercised with a non-empty disagreement: frontmatter
+        declares WP02 → WP01 while tasks.md declares no dependency for WP02.
+        """
         mission_slug = "060-test-feature"
-        # WP02 frontmatter says [] but tasks.md says "Depends on WP01".
-        _setup_feature_with_existing_deps(
+        # WP02 frontmatter says [WP01] but tasks.md says nothing.
+        feature_dir = _setup_feature_with_existing_deps(
             tmp_path,
             mission_slug,
-            wp02_existing_deps=[],
+            wp02_existing_deps=["WP01"],
+        )
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nSome content, no dep line.\n",
+            encoding="utf-8",
         )
 
         patches = _common_patches(tmp_path, mission_slug)
@@ -610,18 +720,28 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             try:
                 data = json.loads(line)
                 if data.get("result") == "success":
-                    assert data["dependencies_parsed"]["WP02"] == []
+                    assert data["dependencies_parsed"]["WP02"] == ["WP01"]
                     return
             except json.JSONDecodeError:
                 continue
         pytest.fail("No JSON success payload found")
 
-    def test_explicit_empty_frontmatter_ignores_tasks_md_cycle(
+    def test_empty_frontmatter_artifact_lets_tasks_md_cycle_surface(
         self,
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Explicit dependencies: [] must not be overwritten by parsed back-edges."""
+        """A cyclic tasks.md chain is surfaced, not masked, behind empty frontmatter.
+
+        Pre-#4135, a present-but-empty ``dependencies: []`` (the map-requirements
+        serialization artifact) was treated as an authoritative dependency-free
+        declaration and silently discarded the parsed back-edges. #4135
+        reclassifies the empty list as absent, so the cyclic tasks.md chain now
+        resolves and the circular-dependency gate fires visibly instead of the
+        chain being silently dropped. An operator who genuinely wants a
+        dependency-free WP against tasks.md prose declares it in wps.yaml
+        (TIER-1, ``dependencies_are_explicit``), which still wins.
+        """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
         (feature_dir / "tasks.md").write_text(
@@ -637,23 +757,26 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
             p.start()
+        exit_code: int | None = None
         try:
             finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit) as exc:
+            exit_code = getattr(exc, "code", 1) or 1
         finally:
             for p in ctx_patches.values():
                 p.stop()
 
+        assert exit_code == 1, "A cyclic dependency chain must exit with code 1"
         captured = capsys.readouterr()
         for line in captured.out.strip().splitlines():
             try:
                 data = json.loads(line)
-                if data.get("result") == "validation_passed":
-                    assert data["would_modify"]
-                    assert "Circular dependencies detected" not in captured.out
+                if "Circular dependencies detected" in str(data.get("error", "")):
+                    assert data["cycles"]
                     return
             except json.JSONDecodeError:
                 continue
-        pytest.fail("No JSON validation payload found")
+        pytest.fail("No circular-dependency error payload found")
 
     def test_empty_parse_preserves_existing_deps(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """When parser finds no deps but frontmatter has deps, preserve existing."""
@@ -787,12 +910,29 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
                 continue
         pytest.fail("No JSON error payload found for incomplete WP coverage")
 
-    def test_finalize_commits_status_and_snapshot_artifacts(self, tmp_path: Path) -> None:
-        """Commit set must include bootstrap status artifacts and dossier snapshot.
+    def test_finalize_commits_status_but_excludes_dossier_snapshot(self, tmp_path: Path) -> None:
+        """Commit set must include bootstrap status artifacts but NEVER the dossier snapshot.
 
         WP02 (T027): commits now route through ``commit_for_mission``.  The spy
         is attached to that boundary (capturing the ``files`` kwarg tuple) rather
         than to the old ``safe_commit`` direct call.
+
+        FIX-M2-05: this test previously asserted the OPPOSITE — that
+        ``snapshot-latest.json`` WAS in the committed set. That assertion
+        directly violated the already-ratified ownership contract
+        (``contracts/dossier-snapshot-ownership.md``, D1, mission
+        ``charter-e2e-827-followups-01KQAJA0`` / #845): "save_snapshot() ...
+        No staging, no committing, no special branch interaction. The file is
+        just a file." Committing it here made the file tracked on every
+        branch/worktree the target commit touched, and every later
+        fire-and-forget dossier-sync write then left that worktree locally
+        modified/uncommitted — exactly the drift that blocked
+        ``git/ref_advance.py``'s merge-time dirty-worktree resync (#1826) on
+        a mission's coordination worktree during ``spec-kitty merge``. The
+        snapshot write itself is still exercised below to prove the fix is
+        "stop committing it", not "stop writing it". (The sync-side trigger that
+        used to perform the write retired with the sync transport, so the harness
+        writes the snapshot directly.)
         """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
@@ -811,6 +951,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             assert capability is GuardCapability.STANDARD
             (feature_path / "status.events.jsonl").write_text('{"event":"seeded"}\n', encoding="utf-8")
             (feature_path / "status.json").write_text("{}", encoding="utf-8")
+            _write_snapshot(feature_path)
             return _make_bootstrap_result()
 
         def _commit_for_mission_spy(**kwargs: object) -> CommitRouterResult:
@@ -823,11 +964,11 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
                 commit_hash="abc1234",
             )
 
-        def _write_snapshot(feature_path: Path, slug: str, repo_root: Path) -> None:
-            assert feature_path == feature_dir
-            assert slug == mission_slug
-            assert repo_root == tmp_path
-            snapshot_path = feature_path / ".kittify" / "dossiers" / slug / "snapshot-latest.json"
+
+        def _write_snapshot(feature_path: Path) -> None:
+            snapshot_path = (
+                feature_path / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json"
+            )
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             snapshot_path.write_text("{}", encoding="utf-8")
 
@@ -839,13 +980,8 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
-        extra_patch = patch(
-            "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled",
-            side_effect=_write_snapshot,
-        )
         for p in ctx_patches.values():
             p.start()
-        extra_patch.start()
 
         try:
             finalize_tasks(
@@ -856,14 +992,18 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         except (typer.Exit, SystemExit):
             pass
         finally:
-            extra_patch.stop()
             for p in ctx_patches.values():
                 p.stop()
 
         committed_paths = {path.relative_to(tmp_path).as_posix() for path in captured_files}
         assert "kitty-specs/060-test-feature/status.events.jsonl" in committed_paths
         assert "kitty-specs/060-test-feature/status.json" in committed_paths
-        assert "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json" in committed_paths
+        # FIX-M2-05 / D1: the dossier snapshot must NEVER be a commit candidate.
+        assert "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json" not in committed_paths
+        # The snapshot write itself is unaffected — it still lands on disk,
+        # just outside git's view (D1's "just a file" contract).
+        snapshot_path = tmp_path / "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json"
+        assert snapshot_path.exists(), "save_snapshot's write path must be unchanged by the commit-candidate fix"
 
 
 class TestValidateOnlyUsesInMemoryOwnership:

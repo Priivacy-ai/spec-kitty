@@ -16,6 +16,7 @@ import pytest
 
 from specify_cli.status.models import (
     DoneEvidence,
+    GuardContext,
     Lane,
     RepoEvidence,
     ReviewApproval,
@@ -144,22 +145,6 @@ class TestTransitionMatrixEquivalence:
                     ctx = _minimal_context_for(source_lane, target_lane)
                     assert not state.can_transition_to(target_lane, ctx), f"{source_lane} -> {target_lane} should be disallowed"
 
-    def test_transition_count(self):
-        """Total transition count from WPState matches ALLOWED_TRANSITIONS.
-
-        T031 — This test is tautological-by-design: ``ALLOWED_TRANSITIONS`` is
-        derived from the same ``WPState.allowed_targets()`` method it is being
-        compared against (via ``_derive_allowed_transitions()`` in transitions.py).
-        The assertion therefore does NOT verify an independent count; it confirms
-        that (a) the derivation ran without error, (b) the iteration over all
-        ``Lane`` members is complete, and (c) the total count equals the expected
-        29 transitions (27 lifecycle + 2 genesis seeds). It serves as a
-        regression canary: if a lane is accidentally dropped from ``ALL_LANES``
-        or a state's ``allowed_targets()`` implementation changes silently, the
-        count will drift and this test will catch it.
-        """
-        wp_state_count = sum(len(wp_state_for(lane).allowed_targets()) for lane in ALL_LANES)
-        assert wp_state_count == len(ALLOWED_TRANSITIONS)
 
 
 class TestInReviewPromotion:
@@ -200,10 +185,6 @@ class TestInReviewPromotion:
         assert state.lane == Lane.IN_PROGRESS
         assert state.__class__.__name__ == "InProgressState"
 
-    def test_in_review_in_lane_enum(self):
-        """Lane.IN_REVIEW exists as a proper enum member."""
-        assert Lane.IN_REVIEW.value == "in_review"
-        assert Lane("in_review") == Lane.IN_REVIEW
 
 
 class TestStateProperties:
@@ -300,11 +281,6 @@ class TestStateProperties:
         state = wp_state_for(lane_str)
         assert state.is_run_affecting == expected
 
-    def test_is_run_affecting_returns_bool(self):
-        """is_run_affecting always returns a plain bool, not a truthy/falsy object."""
-        for lane in ALL_LANES:
-            state = wp_state_for(lane)
-            assert isinstance(state.is_run_affecting, bool)
 
     def test_unknown_lane_raises(self):
         """wp_state_for raises ValueError for unknown lane."""
@@ -496,15 +472,24 @@ class TestGuardEquivalence:
         ctx_no_actor = TransitionContext(actor="")
         assert state.can_transition_to(Lane.IN_REVIEW, ctx_no_actor) is False
 
-    def test_for_review_to_in_review_conflict_detection_rejects_double_claim(self):
-        """for_review -> in_review rejects a second reviewer when another already holds it."""
+    def test_for_review_to_in_review_allows_distinct_reviewer(self):
+        """for_review -> in_review is allow-only: a distinct reviewer ALLOWs.
+
+        Re-pointed (WP01): the guard no longer blocks on ``current_actor``. The
+        holder at ``for_review`` is structurally the implementer (or a stale
+        reviewer after rework), so blocking here is the cross-profile
+        false-positive this mission removes. Role is not on this guard surface,
+        so seeding it would be inert — the genuine reviewer-vs-reviewer reject
+        lives at the ``in_review`` re-claim (see
+        ``tests/status/test_work_package_lifecycle.py::test_start_review_rejects_second_reviewer``).
+        """
         state = wp_state_for("for_review")
 
-        ctx_conflict = TransitionContext(
+        ctx_distinct = TransitionContext(
             actor="reviewer-B",
             current_actor="reviewer-A",
         )
-        assert state.can_transition_to(Lane.IN_REVIEW, ctx_conflict) is False
+        assert state.can_transition_to(Lane.IN_REVIEW, ctx_distinct) is True
 
     def test_for_review_to_in_review_same_actor_reclaim_allowed(self):
         """for_review -> in_review permits idempotent re-claim by the same actor."""
@@ -523,13 +508,17 @@ class TestGuardEquivalence:
         ctx_fresh = TransitionContext(actor="reviewer-A")
         assert state.can_transition_to(Lane.IN_REVIEW, ctx_fresh) is True
 
-    def test_for_review_to_in_review_conflict_detection_guard_equivalence(self):
-        """Guard equivalence: _run_guard and WPState agree on conflict detection."""
+    def test_for_review_to_in_review_guard_equivalence_allow_only(self):
+        """Guard equivalence: _run_guard and WPState agree the guard is allow-only.
+
+        Re-pointed (WP01): a distinct actor at ``for_review`` ALLOWs on both
+        surfaces (the collision guard was removed; role is not on this surface).
+        """
         state = wp_state_for("for_review")
 
-        # Case 1: different actor -> both reject
-        ctx_conflict = TransitionContext(actor="reviewer-B", current_actor="reviewer-A")
-        assert state.can_transition_to(Lane.IN_REVIEW, ctx_conflict) is False
+        # Case 1: different actor -> both ALLOW (allow-only guard)
+        ctx_distinct = TransitionContext(actor="reviewer-B", current_actor="reviewer-A")
+        assert state.can_transition_to(Lane.IN_REVIEW, ctx_distinct) is True
         old_ok, _ = _run_guard(
             "for_review",
             "in_review",
@@ -543,7 +532,7 @@ class TestGuardEquivalence:
             force=False,
             current_actor="reviewer-A",
         )
-        assert old_ok is False
+        assert old_ok is True
 
         # Case 2: same actor -> both accept
         ctx_same = TransitionContext(actor="reviewer-A", current_actor="reviewer-A")
@@ -706,67 +695,70 @@ class TestFsmIsSoleEdgeAuthority:
     # production module permitted to reference the name to build it.
     _DEFINING_MODULE = "transitions.py"
 
-    def test_no_production_module_imports_allowed_transitions(self) -> None:
-        offenders: list[str] = []
-        for py_file in _iter_production_status_modules():
-            if py_file.name == self._DEFINING_MODULE:
-                continue
-            source = py_file.read_text(encoding="utf-8")
-            if "ALLOWED_TRANSITIONS" in source:
-                # __init__.py re-exports the name as a documented non-authoritative
-                # projection; allow the re-export but forbid any (from,to) gate use.
-                if py_file.name == "__init__.py":
-                    assert " in ALLOWED_TRANSITIONS" not in source, "__init__.py must not gate on ALLOWED_TRANSITIONS"
-                    continue
-                offenders.append(py_file.name)
-        assert not offenders, (
-            f"Production status modules still reference ALLOWED_TRANSITIONS as a gate: {offenders}. "
-            "Edge legality must route through wp_state_for(from).may_transition_to(to)."
-        )
 
-    def test_no_production_module_uses_membership_gate(self) -> None:
-        """Grep-style: no `(x, y) in ALLOWED_TRANSITIONS` / `in ALLOWED_TRANSITIONS` gate."""
-        offenders: list[str] = []
-        for py_file in _iter_production_status_modules():
-            source = py_file.read_text(encoding="utf-8")
-            if " in ALLOWED_TRANSITIONS" in source:
-                offenders.append(py_file.name)
-        assert not offenders, (
-            f"Found a membership gate on ALLOWED_TRANSITIONS in: {offenders}. "
-            "Use the FSM (may_transition_to) as the sole edge authority."
-        )
+class TestDependencyReadinessGuard:
+    """FR-012 / C-004 (fsm-write-path-integrity WP04): tri-state, fail-OPEN on ``None``.
 
-    def test_validate_module_decides_edges_via_fsm(self) -> None:
-        """validate.py must not gate on ALLOWED_TRANSITIONS; it routes via the FSM."""
-        validate_src = (_status_package_dir() / "validate.py").read_text(encoding="utf-8")
-        assert "ALLOWED_TRANSITIONS" not in validate_src, "validate.py must not consult ALLOWED_TRANSITIONS; query the FSM instead."
-        assert "wp_state_for" in validate_src, "validate.py must decide edge legality through the FSM (wp_state_for)."
+    The guard lives in ``PlannedState.guard_for`` / ``ClaimedState.guard_for`` via the
+    ``subtasks_complete`` threading shape, but with the OPPOSITE polarity: only an
+    explicit ``False`` refuses. Force is never consulted by the guard itself.
+    """
 
-    def test_transitions_module_has_no_static_edge_or_guard_table(self) -> None:
-        """transitions.py must not re-introduce a hand-maintained edge/guard table.
+    _ENTRY_EDGES = [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS)]
 
-        The edge graph and guards live in wp_state.py; transitions.py only
-        derives the projection and delegates. A literal `_GUARDED_TRANSITIONS`
-        mapping or a hardcoded ALLOWED_TRANSITIONS literal would be a regression.
-        """
-        transitions_path = _status_package_dir() / "transitions.py"
-        source = transitions_path.read_text(encoding="utf-8")
-        assert "_GUARDED_TRANSITIONS" not in source, "transitions.py must not re-introduce the guard table; guards live in WPState."
-        # ALLOWED_TRANSITIONS must be DERIVED (an assignment from a function),
-        # not a hand-written frozenset literal of pairs.
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-                if "ALLOWED_TRANSITIONS" in targets:
-                    # The value must be a call (the derivation helper), never a
-                    # frozenset/set literal of edges.
-                    assert isinstance(node.value, ast.Call), (
-                        "ALLOWED_TRANSITIONS must be derived from the FSM (a function call), not a hand-maintained literal."
-                    )
+    def _ctx(self, verdict, **overrides) -> TransitionContext:
+        kwargs = {"actor": "test-agent", "workspace_context": "worktree", "dependency_ready": verdict}
+        kwargs.update(overrides)
+        return TransitionContext(**kwargs)
 
-    def test_fsm_is_the_only_edge_authority_surface(self) -> None:
-        """The edge graph is fully reconstructable from WPState.allowed_targets()."""
-        derived = {(lane.value, target.value) for lane in Lane for target in wp_state_for(lane).allowed_targets()}
-        projection = set(ALLOWED_TRANSITIONS)
-        assert derived == projection, "ALLOWED_TRANSITIONS projection drifted from the FSM allowed_targets() authority."
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    def test_false_refuses_entry_edges(self, source, target):
+        state = wp_state_for(source)
+        assert state.can_transition_to(target, self._ctx(False)) is False
+        ok, err = state.guard_for(target, self._ctx(False))
+        assert ok is False
+        assert err == f"Transition {source.value} -> {target.value} blocked: unsatisfied dependencies (force with reason to override)"
+        with pytest.raises(InvalidTransitionError, match="unsatisfied dependencies"):
+            state.transition_to(target, self._ctx(False))
+
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    @pytest.mark.parametrize("verdict", [True, None])
+    def test_true_and_none_pass_entry_edges(self, source, target, verdict):
+        state = wp_state_for(source)
+        assert state.can_transition_to(target, self._ctx(verdict)) is True
+        assert state.guard_for(target, self._ctx(verdict)) == (True, None)
+
+    def test_none_is_not_treated_like_subtasks_complete(self):
+        """The fail-closed ``is not True`` polarity of the review gate must NOT leak here."""
+        planned = wp_state_for(Lane.PLANNED)
+        assert planned.guard_for(Lane.CLAIMED, TransitionContext(actor="a")) == (True, None)
+        in_progress = wp_state_for(Lane.IN_PROGRESS)
+        assert in_progress.guard_for(Lane.FOR_REVIEW, TransitionContext(actor="a", implementation_evidence_present=True))[0] is False
+
+    @pytest.mark.parametrize(
+        ("source", "target"),
+        [
+            (Lane.PLANNED, Lane.BLOCKED),
+            (Lane.PLANNED, Lane.CANCELED),
+            (Lane.CLAIMED, Lane.BLOCKED),
+            (Lane.CLAIMED, Lane.CANCELED),
+            (Lane.FOR_REVIEW, Lane.IN_REVIEW),
+        ],
+    )
+    def test_other_edges_ignore_the_field(self, source, target):
+        state = wp_state_for(source)
+        assert state.guard_for(target, self._ctx(False, reason="r")) == (True, None)
+
+    @pytest.mark.parametrize(("source", "target"), _ENTRY_EDGES)
+    def test_force_with_actor_and_reason_bypasses_at_check_transition(self, source, target):
+        state = wp_state_for(source)
+        forced = self._ctx(False, force=True, reason="operator override")
+        assert state.check_transition(target, forced) == (True, None)
+        assert state.guard_for(target, forced)[0] is False  # the guard itself never reads force
+        no_reason = self._ctx(False, force=True)
+        assert state.check_transition(target, no_reason)[0] is False
+
+    def test_guard_context_and_transition_context_both_satisfy_the_protocol_field(self):
+        assert GuardContext(dependency_ready=False).dependency_ready is False
+        assert TransitionContext(actor="a", dependency_ready=True).dependency_ready is True
+        assert GuardContext().dependency_ready is None

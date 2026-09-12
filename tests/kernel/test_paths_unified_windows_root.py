@@ -3,7 +3,7 @@
 Auth session storage now resolves through the shared runtime root
 (DM-01KW1KDHVGWZ0QERDMV1CRJ15S): on Windows it lives under the platformdirs
 LocalAppData base (``%LOCALAPPDATA%\\spec-kitty\\auth``), the same base
-tracker/sync/daemon state uses, and honors ``SPEC_KITTY_HOME`` when set.
+tracker state uses, and honors ``SPEC_KITTY_HOME`` when set.
 """
 from __future__ import annotations
 
@@ -17,7 +17,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.mark.windows_ci
 def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
-    """Tracker/sync/daemon/kernel runtime state resolves under RuntimeRoot.base."""
+    """Tracker/kernel runtime state resolves under RuntimeRoot.base.
+
+    (The sync/daemon sections of this probe died with the sync transport,
+    issue #5.)
+    """
     from specify_cli.paths import get_runtime_root
 
     root = get_runtime_root()
@@ -32,20 +36,6 @@ def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
     tracker_root = credentials._tracker_root()
     assert base_str in str(tracker_root).lower(), (
         f"Tracker root {tracker_root} is not under unified root {root.base}"
-    )
-
-    # Sync
-    from specify_cli.sync import daemon
-
-    sync_root = daemon._sync_root()
-    assert base_str in str(sync_root).lower(), (
-        f"Sync root {sync_root} is not under unified root {root.base}"
-    )
-
-    # Daemon
-    daemon_root = daemon._daemon_root()
-    assert base_str in str(daemon_root).lower(), (
-        f"Daemon root {daemon_root} is not under unified root {root.base}"
     )
 
     # kernel.paths — get_kittify_home() Windows branch uses the same

@@ -1,0 +1,140 @@
+{
+  "event_count": 24,
+  "last_event_id": "01M05GJ8KWRME5NJT9YPPTW7NG",
+  "materialized_at": "2026-08-16T14:45:43.164535+00:00",
+  "mission_number": "",
+  "mission_slug": "pack-metadata-manifest-unification-01M052PT",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M05CJA3VV4YQ36GQW24NG8KX",
+      "last_transition_at": "2026-08-16T13:35:50.395323+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 on lane-a (a7ae36a): schema+charter absorption+builtin writer+counts; 35 tests + regressions green; ruff/mypy clean",
+        "APPROVE (reviewer-renata). DoD met: unified PackManifest schema + single consolidated hasher (no 2nd impl); charter absorption carries FULL field-set incl built_in_only + provenance_path; built-in manifest generated & FRESH vs real corpus (265 constituents/9 kinds, SC-002); determinism+tamper tests pass; per-kind counts derive via resolve_counts. Gates: 35/35 new tests green, ruff+mypy clean, complexity<=15, no noqa/type:ignore in new files, terminology clean. 4 decisions ADJUDICATED ACCEPT: (1) in-memory absorption bridge (FR-004 correct under NFR-005 extra=forbid readers); (2) artifact_counts retained-but-routed via resolve_counts (spec Q1 compat scope; pack_assembler.py:388 requires the key); (3) action/mission_type excluded (not ArtifactKind, fail-closed+tested); (4) pack-root-relative path (correct for portability). Out-of-map doctrine.py edit justified+minimal. SHOULD-FIX non-blocking: Constituent.path docstring says 'repo-relative' but built-in emits pack-root-relative while charter emits repo-relative — reconcile in WP02 campsite."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata). DoD met: unified PackManifest schema + single consolidated hasher (no 2nd impl); charter absorption carries FULL field-set incl built_in_only + provenance_path; built-in manifest generated & FRESH vs real corpus (265 constituents/9 kinds, SC-002); determinism+tamper tests pass; per-kind counts derive via resolve_counts. Gates: 35/35 new tests green, ruff+mypy clean, complexity<=15, no noqa/type:ignore in new files, terminology clean. 4 decisions ADJUDICATED ACCEPT: (1) in-memory absorption bridge (FR-004 correct under NFR-005 extra=forbid readers); (2) artifact_counts retained-but-routed via resolve_counts (spec Q1 compat scope; pack_assembler.py:388 requires the key); (3) action/mission_type excluded (not ArtifactKind, fail-closed+tested); (4) pack-root-relative path (correct for portability). Out-of-map doctrine.py edit justified+minimal. SHOULD-FIX non-blocking: Constituent.path docstring says 'repo-relative' but built-in emits pack-root-relative while charter emits repo-relative — reconcile in WP02 campsite.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 874823,
+      "shell_pid_created_at": "1786886886.88",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M05EAG285FX1J0TPG16ZFHCF",
+      "last_transition_at": "2026-08-16T14:06:31.496822+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 lane-b 13f75d6: pack_descriptor + DRG pack_id; 22+21 tests green, ruff/mypy clean. --force: lane-hygiene kitty-specs noise is inherited planning artifacts, not WP02 code (coord/lane friction #3454/#3466)",
+        "Review passed: pack_id C-004 immutability + idempotent deterministic backfill independently verified; DRG boundary tests green (21/21); ruff/mypy clean on src; type:ignore[call-arg] adjudicated as narrow/justified test-only suppression. Note: staged-but-uncommitted kitty-specs/ lane-hygiene cleanup left in worktree due to commit permission denial -- known cross-mission planning-artifact noise inherited via rebase, not WP02 code."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: pack_id C-004 immutability + idempotent deterministic backfill independently verified; DRG boundary tests green (21/21); ruff/mypy clean on src; type:ignore[call-arg] adjudicated as narrow/justified test-only suppression. Note: staged-but-uncommitted kitty-specs/ lane-hygiene cleanup left in worktree due to commit permission denial -- known cross-mission planning-artifact noise inherited via rebase, not WP02 code.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1130284,
+      "shell_pid_created_at": "1786888782.85",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M05G0GVKZW2KRM6938QGBSJE",
+      "last_transition_at": "2026-08-16T14:36:01.779569+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 lane-c 9956769: decoupled pack_lineage via org_extends, fail-closed, non-vacuous AST ratchet; 16 tests, ruff/mypy strict clean. --force: benign inherited kitty-specs noise",
+        "APPROVE (reviewer-renata, distinct from implementer python-pedro). [--force used ONLY to bypass a pre-existing lane-hygiene block: inherited kitty-specs/ from the feat/ planning base present on lane-c; WP03 commit 9956769 touches ZERO kitty-specs — src/+tests only. Operator: clean inherited planning artifacts off the lane before merge; not a WP03 defect.] DoD met + single-resolver invariant (NFR-001/C-002) genuinely holds. VERIFIED: (1) ONE resolver — pack_lineage.py builds a name-keyed edge dict via a plain for-loop then delegates the ENTIRE walk (cycle+missing-base+ordering) to charter.org_extends.resolve_extends_order; no while-accumulate, no self-recursion; _resolvable_key sentinel-fallback is a pure data mapping (string flows into org_extends' own missing-base detection), _original_pack_id is pure inversion — neither is a 2nd validation/traversal path. (2) RATCHET NON-VACUOUS — independently reproduced: injected while-accumulate walker into a copy => detector flagged it; real pack_lineage.py => offenders=[] and calls_resolve_extends_order=True. (3) FAIL-CLOSED — unresolvable parent_pack, unknown start, cycle, unknown accompanies_doctrine_pack all raise structured errors mirroring org_extends; FR-007 positive read-back tested; exception-mapping translates name-keys back to pack_ids (terminal id + cycle set asserted). (4) extends: UNTOUCHED — org_charter.py/org_extends.py not modified. MERGE FALSE-POSITIVE RISK: NONE — ran the ratchet detector against WP01 pack_manifest.py + WP02 pack_descriptor.py (lanes a/b) + existing pack_assembler/pack_validator: all offenders=[]. GATES: 16/16 tests pass; ruff clean; mypy --strict clean; complexity<=15; zero suppressions. SHOULD-FIX (non-blocking): UnresolvedPackParentError.chain inversion not asserted in a multi-hop case (only terminal missing_pack_id + cycle set are); code is correct — a chain-contents assertion would close the falsifiability gap the implementer flagged."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata, distinct from implementer python-pedro). [--force used ONLY to bypass a pre-existing lane-hygiene block: inherited kitty-specs/ from the feat/ planning base present on lane-c; WP03 commit 9956769 touches ZERO kitty-specs — src/+tests only. Operator: clean inherited planning artifacts off the lane before merge; not a WP03 defect.] DoD met + single-resolver invariant (NFR-001/C-002) genuinely holds. VERIFIED: (1) ONE resolver — pack_lineage.py builds a name-keyed edge dict via a plain for-loop then delegates the ENTIRE walk (cycle+missing-base+ordering) to charter.org_extends.resolve_extends_order; no while-accumulate, no self-recursion; _resolvable_key sentinel-fallback is a pure data mapping (string flows into org_extends' own missing-base detection), _original_pack_id is pure inversion — neither is a 2nd validation/traversal path. (2) RATCHET NON-VACUOUS — independently reproduced: injected while-accumulate walker into a copy => detector flagged it; real pack_lineage.py => offenders=[] and calls_resolve_extends_order=True. (3) FAIL-CLOSED — unresolvable parent_pack, unknown start, cycle, unknown accompanies_doctrine_pack all raise structured errors mirroring org_extends; FR-007 positive read-back tested; exception-mapping translates name-keys back to pack_ids (terminal id + cycle set asserted). (4) extends: UNTOUCHED — org_charter.py/org_extends.py not modified. MERGE FALSE-POSITIVE RISK: NONE — ran the ratchet detector against WP01 pack_manifest.py + WP02 pack_descriptor.py (lanes a/b) + existing pack_assembler/pack_validator: all offenders=[]. GATES: 16/16 tests pass; ruff clean; mypy --strict clean; complexity<=15; zero suppressions. SHOULD-FIX (non-blocking): UnresolvedPackParentError.chain inversion not asserted in a multi-hop case (only terminal missing_pack_id + cycle set are); code is correct — a chain-contents assertion would close the falsifiability gap the implementer flagged.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1159804,
+      "shell_pid_created_at": "1786890702.11",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M05GJ8KWRME5NJT9YPPTW7NG",
+      "last_transition_at": "2026-08-16T14:45:43.164535+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 lane-d 8d8340b+2a2f981: authored pack.yaml/md + pack_version derive-else-fallback; 24 tests + 54 regression green, ruff/mypy strict clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: derive-else-fallback confirmed non-shadowing for current scope (backfill deferred to Q2), _has_recognisable_pack_manifest split correctly scoped (other 4 required keys still hard-required, pinned by test_other_required_keys_are_still_hard_required), corpus-registry follow-up commit (2a2f981) is the right call and minimal, T016 skip is a documented cross-lane gap (needs WP01 generator), pack_version 1.0.0 is an acceptable bootstrap value. ruff/mypy --strict clean on changed files, 24 new tests pass + 1 documented skip, no regression in pack_assembler/doctrine_collect suites. --force used only to bypass a pre-existing lane kitty-specs/ hygiene gate inherited from prior lane-consolidation merges, unrelated to WP04's two owned commits (8d8340b, 2a2f981).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1171567,
+      "shell_pid_created_at": "1786891283.69",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    }
+  }
+}

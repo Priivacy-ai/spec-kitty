@@ -1,18 +1,53 @@
 ---
 title: Configuration Reference
-description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings.
+description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-16'
 related:
 - docs/api/agent-subcommands.md
 - docs/api/cli-commands.md
 - docs/api/environment-variables.md
 - docs/api/file-structure.md
 - docs/api/missions.md
+- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 ---
 # Configuration Reference
 
 This document describes all configuration files used by Spec Kitty.
+
+---
+
+## env_file Pointer
+
+`.kittify/config.yaml` carries a single top-level pointer key:
+
+```yaml
+env_file: ${SPEC_KITTY_HOME}/.kitty.env
+```
+
+This is the **one** place a project registers where its operator env-file lives. It is
+resolved **once**, at bootstrap, through the kernel's `${VAR}` expansion seam
+(`src/kernel/env_expand.py`) — the default value points at the home-tier
+`.kitty.env` (`${SPEC_KITTY_HOME}/.kitty.env`), which is then overridden by the per-repo
+tier `<repo>/.kittify/.kitty.env` if that file exists. See [Environment Variables
+Reference § The `.kitty.env` file](environment-variables.md#the-kittyenv-file) for the
+full loader mechanism (two-tier precedence, fail policy, provisioning), and [ADR: operator
+config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
+for the design rationale.
+
+**Fields**:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `env_file` | string | `${VAR}`-expandable pointer to the home-tier `.kitty.env`. Read via a targeted top-level-key scan (not a full YAML/model load), so it never collides with `doctrine.org`'s `extra="forbid"` schema in the same file. |
+
+There is no separate `CONFIG_HOME`-style variable — the pointer is always anchored on the
+existing `SPEC_KITTY_HOME` locator, which itself cannot be redefined from inside the file
+it locates.
+
+**Provisioning**: `spec-kitty upgrade` provisions this key (idempotently) for projects that
+predate the mechanism, alongside creating the per-repo `.kitty.env` scaffold and the
+matching `.gitignore` / `.claudeignore` entries.
 
 ---
 
@@ -50,7 +85,7 @@ Each feature has a `meta.json` file in its directory that stores metadata about 
 
 ---
 
-## work package Frontmatter
+## work package frontmatter
 
 Each work package file (`tasks/WP##-*.md`) contains YAML frontmatter that tracks its status.
 
@@ -343,7 +378,7 @@ agents:
 - `available` (list): Agent keys currently active in project
 
 **See**:
-- [Managing AI Agents](../guides/manage-agents.md) - Complete guide to agent management commands
+- [Managing AI Agents](../guides/how-to/collaboration/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](agent-subcommands.md#spec-kitty-agent-config) - Command syntax and options
 - [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
@@ -510,9 +545,9 @@ If you see this file in older projects, it will be ignored. The mission in each 
 
 ## Getting Started
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Non-Interactive Init](../guides/non-interactive-init.md)
-- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)
+- [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
+- [Upgrade to 0.11.0](../guides/how-to/installation/install-and-upgrade.md)

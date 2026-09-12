@@ -27,10 +27,13 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
-from specify_cli.mission_metadata import load_meta
 
 from .models import EventStream, InnerStateChanged, StatusEvent
 
@@ -240,12 +243,10 @@ class _SlugResolver:
                 return None
             if meta_path.exists():
                 try:
-                    # Canonical reader (FR-005/WP12): on_malformed="raise" folds
-                    # the JSON-syntax AND non-dict-shape checks into ONE
-                    # ValueError, replacing the two hand-rolled except/isinstance
-                    # arms this call site used to carry.
-                    data = load_meta(meta_path.parent, on_malformed="raise")
-                except (json.JSONDecodeError, OSError, ValueError) as exc:
+                    # FR-007: fail-closed reader routing. Malformed meta surfaces
+                    # typed MissionMetaReadError instead of raw ValueError.
+                    data = load_meta_fail_closed(meta_path.parent)
+                except (OSError, MissionMetaReadError) as exc:
                     logger.warning(
                         "Could not read meta.json for slug %r: %s",
                         mission_slug,
@@ -354,18 +355,27 @@ def append_primary_checkout_event_verified(feature_dir: Path, event: StatusEvent
     append_event_verified(feature_dir, event)
 
 
-def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
+def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     """Atomically append pre-serialized event dicts as sanitized JSONL lines.
 
-    Shared write core for both lane ``StatusEvent`` batches and off-axis
-    ``InnerStateChanged`` annotation batches: read existing text, append the new
+    Public, envelope-agnostic promotion of the write-ahead-then-atomic-rename
+    primitive (F2-T1, F2.md section 3.3): read existing text, append the new
     sanitized rows, and ``os.replace`` a temp file so crash recovery never
-    observes a half-written batch.
+    observes a half-written batch. Takes an explicit *path* rather than a
+    ``feature_dir`` so it can serve as the single durability mechanism for
+    BOTH ``status.events.jsonl`` (mission-scoped, inside a ``feature_dir``)
+    and ``.kittify/canonical-events.jsonl`` (project-scoped, not inside any
+    ``feature_dir``) -- F2.md section 3.1 item 3 names this as the intent a
+    ``feature_dir``-only signature cannot satisfy.
+
+    No behavior change for existing ``StatusEvent`` callers: they continue to
+    call the private :func:`_append_serialized_atomic` wrapper below, which
+    computes the identical ``feature_dir / EVENTS_FILENAME`` path and
+    delegates here.
     """
     if not rows:
         return
 
-    path = _events_path(feature_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     existing = _read_text_without_following_symlinks(path)
@@ -394,6 +404,18 @@ def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> 
     finally:
         if not replaced:
             tmp_path.unlink(missing_ok=True)
+
+
+def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
+    """Thin, behavior-preserving wrapper over :func:`append_raw_rows_atomic`.
+
+    Existing ``StatusEvent``/``InnerStateChanged`` callers keep calling this
+    private name with a ``feature_dir``; it resolves the identical
+    ``feature_dir / EVENTS_FILENAME`` path :func:`_events_path` always
+    computed and delegates to the public, path-parameterized primitive. No
+    on-disk behavior change (F2-T1, F2.md section 3.3).
+    """
+    append_raw_rows_atomic(_events_path(feature_dir), rows)
 
 
 def _fsync_directory(directory: Path) -> None:

@@ -28,14 +28,14 @@ from charter.bundle import (
     _kind_and_slug_from_artifact,
     validate_synthesis_state,
 )
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
     dump_yaml as dump_manifest,
     finalize_manifest,
 )
-from charter.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.path_guard import PathGuard
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +629,7 @@ def test_dump_manifest_uses_path_guard_write_text(tmp_path: Path) -> None:
     writing directly.  This confirms the chokepoint is in place: a caller that
     passes a restricted guard cannot bypass it.
     """
-    from charter.synthesizer.errors import PathGuardViolation
+    from charter.activation.synthesizer.errors import PathGuardViolation
 
     repo = tmp_path / "repo"
     repo.mkdir()

@@ -22,14 +22,24 @@
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KN2376K7E90C87ME73488ZKR",
-      "last_transition_at": "2026-03-31T14:02:05.777295+00:00"
+      "last_transition_at": "2026-03-31T14:02:05.777295+00:00",
+      "subtasks": {
+        "T041": "done",
+        "T042": "done"
+      }
     },
     "WP11": {
       "actor": "migration",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KN2376K7E90C87ME73488ZKW",
-      "last_transition_at": "2026-03-31T14:02:05.777295+00:00"
+      "last_transition_at": "2026-03-31T14:02:05.777295+00:00",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done"
+      }
     }
   }
 }

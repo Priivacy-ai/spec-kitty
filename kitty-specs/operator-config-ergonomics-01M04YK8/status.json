@@ -1,0 +1,212 @@
+{
+  "event_count": 48,
+  "last_event_id": "01M05D2X6TPTXQZ3TV3SA9BMQC",
+  "materialized_at": "2026-08-16T13:44:54.234710+00:00",
+  "mission_number": "",
+  "mission_slug": "operator-config-ergonomics-01M04YK8",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2DNPEEX87DMJWYJ23BHR",
+      "last_transition_at": "2026-08-16T13:44:38.326232+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 kernel seam done; C-EXP-1..5 green; org_pack fail-loud byte-preserved; ruff/mypy diff-scoped exit 0",
+        "Review passed (reviewer-renata): C-EXP-1..5 live-verified; org_pack fail-loud preserved; kernel no-upward-import; ruff+mypy clean; 41 WP + 100 org_pack tests green",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): C-EXP-1..5 live-verified; org_pack fail-loud preserved; kernel no-upward-import; ruff+mypy clean; 41 WP + 100 org_pack tests green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 617855,
+      "shell_pid_created_at": "1786876773.89",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2GRS06THTWSJSJYKWMVS",
+      "last_transition_at": "2026-08-16T13:44:41.497199+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 loader done; C-LDR-1..7 green; pre-import ordering proven; real-env>repo>home; ruff/mypy exit 0",
+        "Review passed (reviewer-renata, independent QA). All 44 tests green (test_env_file_loader.py + test_bootstrap_import_purity.py); ruff + mypy clean on WP02's new modules. C-LDR-1..7 verified: merge-then-setdefault precedence proven real-env>repo>home incl. the naive-inversion regression witness; C-LDR-2 pre-import ordering proven via real subprocess asserting sync/__init__.py:455 handler-count=0 from a .kitty.env-only var (plus control); fail policy (absent debug/continue, unreadable fail-loud naming file, malformed skip), locator recursion, single top-level env_file pointer outside doctrine extra=forbid (real load_pack_registry round-trip), state-root home on POSIX+Windows all covered by real production-path tests. Scope clean: only owned files (bootstrap/env_file.py, bootstrap/__init__.py, __init__.py, 2 tests); src/kernel/ untouched. FLAG 1 (core.env not imported) ACCEPTED with evidence: importing specify_cli.core.env forces specify_cli.core.__init__ pulling 360 modules incl. typer/rich/httpx, defeating the pre-import ordering + NFR-001 budget the loader exists to protect; loader seeds values verbatim so needs no core.env truthy grammar; arch test still allows core.env as documented exception. FLAG 2 (no pyproject version bump, C-007) ACCEPTED-WITH-NOTE, not blocking: version is 3.2.6rc2 and CHANGELOG documents the open rc2 cycle where entries accumulate without per-change bump; this 6-WP single-PR mission should bump once at rc-cut, not per-WP; the required CHANGELOG audit entry IS present and thorough. OPERATOR NOTE: since __init__.py changed, ensure ONE rc bump (->3.2.6rc3) lands before the mission PR merges to satisfy the Code-Style __init__.py->version-bump rule at mission granularity. Pre-existing mypy red at __init__.py locate_project_root (line 55 at merge-base, shifted to 70) confirmed NOT WP02's. Anti-pattern checklist all PASS/N-A.",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent QA). All 44 tests green (test_env_file_loader.py + test_bootstrap_import_purity.py); ruff + mypy clean on WP02's new modules. C-LDR-1..7 verified: merge-then-setdefault precedence proven real-env>repo>home incl. the naive-inversion regression witness; C-LDR-2 pre-import ordering proven via real subprocess asserting sync/__init__.py:455 handler-count=0 from a .kitty.env-only var (plus control); fail policy (absent debug/continue, unreadable fail-loud naming file, malformed skip), locator recursion, single top-level env_file pointer outside doctrine extra=forbid (real load_pack_registry round-trip), state-root home on POSIX+Windows all covered by real production-path tests. Scope clean: only owned files (bootstrap/env_file.py, bootstrap/__init__.py, __init__.py, 2 tests); src/kernel/ untouched. FLAG 1 (core.env not imported) ACCEPTED with evidence: importing specify_cli.core.env forces specify_cli.core.__init__ pulling 360 modules incl. typer/rich/httpx, defeating the pre-import ordering + NFR-001 budget the loader exists to protect; loader seeds values verbatim so needs no core.env truthy grammar; arch test still allows core.env as documented exception. FLAG 2 (no pyproject version bump, C-007) ACCEPTED-WITH-NOTE, not blocking: version is 3.2.6rc2 and CHANGELOG documents the open rc2 cycle where entries accumulate without per-change bump; this 6-WP single-PR mission should bump once at rc-cut, not per-WP; the required CHANGELOG audit entry IS present and thorough. OPERATOR NOTE: since __init__.py changed, ensure ONE rc bump (->3.2.6rc3) lands before the mission PR merges to satisfy the Code-Style __init__.py->version-bump rule at mission granularity. Pre-existing mypy red at __init__.py locate_project_root (line 55 at merge-base, shifted to 70) confirmed NOT WP02's. Anti-pattern checklist all PASS/N-A.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 683803,
+      "shell_pid_created_at": "1786879329.26",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2KVHV1JYV2K6ZPT8TMPX",
+      "last_transition_at": "2026-08-16T13:44:44.657453+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 done; C-PRV-1..6 impl-verified (2233 charter+2796 doctrine+528 tool_surface pass); excluded callers byte-unchanged; doctor auto-discovery live; repo self-heal. Pre-review gate skipped (300s timeout; tests verified). NOTE: heal target_version=3.2.6rc2 vs pinned 3.2.7 — reviewer adjudicate.",
+        "Review passed (reviewer-renata, independent gate re-run). 49/49 C-PRV tests green; ruff exit 0; 3-class normalizer surgical scope verified (catalog compiler.py:1447 + manifest projection.py:68 route through to_portable_source_path; _template_reference + manifest output_path byte-unchanged, proven by arch test template_set exclusion + non-vacuity). Repo self-heal correct: charter.yaml paradigms + manifest source_paths tokenized, TEMPLATE_SET mission.yaml stays absolute (excluded), no-absolute-path arch gate green, idempotent. Doctor auto-discovery seam verified by AST-guard (no hand-import/no @app.command shell). C-PRV-2 re-bake gate proven (SPEC_KITTY_PACKS_ROOT=/abs -> still token). target_version RULING: 3.2.6rc2 is CORRECT not a defect — package version is 3.2.6rc2 and test_discovered_migration_targets_do_not_exceed_package_version rejects target>package, so 3.2.7 would fail the arch gate AND never fire; established precedent m_3_2_7_review_cycle_merge_driver=3.2.6rc1; heal(3.2.6rc2)<provision(3.2.8) ordering preserved, heal independent of consent axis. Out-of-scope files (completion manifest, cli-commands.md, doctor golden) genuinely required — docs/completion/golden parity gates all green. mypy: 4 findings pre-existing (BaseMigration-subclass-Any matches existing migration; compiler.py:646 outside WP03 hunks). No src/kernel/ or bootstrap/ touched; terminology guard green.",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent gate re-run). 49/49 C-PRV tests green; ruff exit 0; 3-class normalizer surgical scope verified (catalog compiler.py:1447 + manifest projection.py:68 route through to_portable_source_path; _template_reference + manifest output_path byte-unchanged, proven by arch test template_set exclusion + non-vacuity). Repo self-heal correct: charter.yaml paradigms + manifest source_paths tokenized, TEMPLATE_SET mission.yaml stays absolute (excluded), no-absolute-path arch gate green, idempotent. Doctor auto-discovery seam verified by AST-guard (no hand-import/no @app.command shell). C-PRV-2 re-bake gate proven (SPEC_KITTY_PACKS_ROOT=/abs -> still token). target_version RULING: 3.2.6rc2 is CORRECT not a defect — package version is 3.2.6rc2 and test_discovered_migration_targets_do_not_exceed_package_version rejects target>package, so 3.2.7 would fail the arch gate AND never fire; established precedent m_3_2_7_review_cycle_merge_driver=3.2.6rc1; heal(3.2.6rc2)<provision(3.2.8) ordering preserved, heal independent of consent axis. Out-of-scope files (completion manifest, cli-commands.md, doctor golden) genuinely required — docs/completion/golden parity gates all green. mypy: 4 findings pre-existing (BaseMigration-subclass-Any matches existing migration; compiler.py:646 outside WP03 hunks). No src/kernel/ or bootstrap/ touched; terminology guard green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 734672,
+      "shell_pid_created_at": "1786881615.53",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2Q02HT9FA590WBH925F9",
+      "last_transition_at": "2026-08-16T13:44:47.874936+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 done; C-MIG/C-SEC green; never seeds PACKS_ROOT (TEMPLATE_ROOT gate regression present); doctor sibling self-registers (no doctor.py edit); ruff/mypy exit 0",
+        "Review passed (reviewer-renata, independent QA). 47/47 tests green. Diff = exactly the 6 owned files (secret_redaction.py, m_3_2_8_provision_kitty_env.py, _env_file_doctor.py + 3 tests); doctor.py NOT touched (git log base..HEAD -- doctor.py empty) — env-file self-registers via WP03's auto-discovery seam, proven by AST-guard test + registration test. C-003a: migration categorically excludes SPEC_KITTY_PACKS_ROOT (NEVER_SEED_VARS + build only iterates GOVERNED_OPERATOR_VARS); TEMPLATE_ROOT-still-governs regression calls real get_package_asset_root() and passes even with PACKS_ROOT set. C-SEC-1 redaction fail-CLOSED (allowlist; untriaged/new var -> value=None, verified by test). C-SEC-2: .kitty.env added to BOTH .gitignore and .claudeignore, idempotently. ruff clean; mypy findings (BaseMigration Any, line157 no-any-return) are narrow-invocation false positives — BaseMigration reproduces on pre-existing heal migration, line157 clears to Success when WP02 env_file.py is in scope. ORDERING RULING: implementer's replacement is CORRECT — WP-prescribed target_version=3.2.8 would exceed package 3.2.6rc2 and be silently skipped by the target<=package arch gate, so pinning to 3.2.6rc2 (matching heal precedent) is right; with both migrations tied on version, heal (charter.yaml + agent_profiles_manifest.json) and provision (.kitty.env + config.yaml env_file key + .gitignore + .claudeignore) are genuinely function-disjoint (verified: neither reads a file the other writes), so order-independence is the correct invariant and the order-independence regression is the proper test.",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent QA). 47/47 tests green. Diff = exactly the 6 owned files (secret_redaction.py, m_3_2_8_provision_kitty_env.py, _env_file_doctor.py + 3 tests); doctor.py NOT touched (git log base..HEAD -- doctor.py empty) — env-file self-registers via WP03's auto-discovery seam, proven by AST-guard test + registration test. C-003a: migration categorically excludes SPEC_KITTY_PACKS_ROOT (NEVER_SEED_VARS + build only iterates GOVERNED_OPERATOR_VARS); TEMPLATE_ROOT-still-governs regression calls real get_package_asset_root() and passes even with PACKS_ROOT set. C-SEC-1 redaction fail-CLOSED (allowlist; untriaged/new var -> value=None, verified by test). C-SEC-2: .kitty.env added to BOTH .gitignore and .claudeignore, idempotently. ruff clean; mypy findings (BaseMigration Any, line157 no-any-return) are narrow-invocation false positives — BaseMigration reproduces on pre-existing heal migration, line157 clears to Success when WP02 env_file.py is in scope. ORDERING RULING: implementer's replacement is CORRECT — WP-prescribed target_version=3.2.8 would exceed package 3.2.6rc2 and be silently skipped by the target<=package arch gate, so pinning to 3.2.6rc2 (matching heal precedent) is right; with both migrations tied on version, heal (charter.yaml + agent_profiles_manifest.json) and provision (.kitty.env + config.yaml env_file key + .gitignore + .claudeignore) are genuinely function-disjoint (verified: neither reads a file the other writes), so order-independence is the correct invariant and the order-independence regression is the proper test.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 771152,
+      "shell_pid_created_at": "1786883118.12",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2T3JHTVABJZKNTAVEP4D",
+      "last_transition_at": "2026-08-16T13:44:51.058041+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 done; C-CHN-1..3 green incl default-off stable-user guarantee; pinned ==<rc> (no --pre); channel doctor self-registers; ruff/mypy exit 0",
+        "Review passed (reviewer-renata, independent QA): DEFAULT-OFF guarantee C-CHN-1 verified at unit AND full-stack plan() level — SPEC_KITTY_PRERELEASE unset with newer rc on index yields stable latest, byte-identical to explicit prerelease=False. C-CHN-2 opt-in surfaces newest PEP 440 pre-release across provider/simple_index/upgrade_probe; install command pins spec-kitty-cli==<rc> with NO --pre (only in test assertions/comments). Channel folded into nag-cache key (_cache_version_key) — toggle forces re-probe. Legacy-provider signature-introspection shim guarded by regression test. doctor.py UNTOUCHED; channel subcommand self-registers via WP03 pkgutil seam (verified via --help); golden updated. upgrade.py not edited — target_version already flows through existing _agent_check_payload seam (not a defect). 48 WP05 tests + 816 regression tests green. ruff exit 0; 2 mypy no-any-return errors both pre-existing on unchanged lines. Anti-pattern checklist all PASS.",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent QA): DEFAULT-OFF guarantee C-CHN-1 verified at unit AND full-stack plan() level — SPEC_KITTY_PRERELEASE unset with newer rc on index yields stable latest, byte-identical to explicit prerelease=False. C-CHN-2 opt-in surfaces newest PEP 440 pre-release across provider/simple_index/upgrade_probe; install command pins spec-kitty-cli==<rc> with NO --pre (only in test assertions/comments). Channel folded into nag-cache key (_cache_version_key) — toggle forces re-probe. Legacy-provider signature-introspection shim guarded by regression test. doctor.py UNTOUCHED; channel subcommand self-registers via WP03 pkgutil seam (verified via --help); golden updated. upgrade.py not edited — target_version already flows through existing _agent_check_payload seam (not a defect). 48 WP05 tests + 816 regression tests green. ruff exit 0; 2 mypy no-any-return errors both pre-existing on unchanged lines. Anti-pattern checklist all PASS.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 785574,
+      "shell_pid_created_at": "1786884054.68",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M05D2X6TPTXQZ3TV3SA9BMQC",
+      "last_transition_at": "2026-08-16T13:44:54.234710+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 done; 2 ADRs + Team Kitty SaaS section w/ interaction diagram; consumption docs + SOURCE skills; doctor golden env-file integration fix (green); terminology guard green",
+        "Done override: Mission merged to fix/operator-config-ergonomics"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent). SC-006 met: exactly 2 Accepted ADRs (env-seam, rc-channel) following adr-template.md; team-kitty-saas.md with full-flow Mermaid sequenceDiagram (opt-in->migration->auth->admission->import-history drain->sync now->app.spec-kitty.ai), linked from architecture/index.md. Golden test genuinely fixed: env-file/provenance/channel in FROZEN_SUBCOMMANDS+EXPECTED_OPTIONS+EXPECTED_HELP, 53 passed. Terminology guard 10 passed. Version unchanged at 3.2.6rc2 (C-007 respected). SOURCE skills spk-team-{sync,auth,tracker} edited, no .claude copies. Scope clean: WP06 commit f66bc2513 touched only owned docs + 3 skills + the justified golden fix; no WP01-05 production source. RULING on CLI-count ratchet (test_real_typer_app_visible_count_within_tolerance, 273 vs 272 band): DEFER TO MERGE. Root cause is the aggregate of WP03/04/05's 3 new doctor subcommands landing together in lane-f, not WP06-authored; each WP in isolation stays in band. The test is an explicitly dated audit baseline (247 @ 2026-07-31, re-pinned at rebase points by design) -- re-pinning to the final merged surface is an orchestrator merge-time action. REQUIRED at merge: bump the baseline. RULING on REF-MISSING (doctor channel/env-file absent from cli-commands.md): NON-BLOCKING, correctly left. cli-commands.md is NOT in WP06 owned_files; the provenance section there came from WP03, and the channel/env-file omissions are WP04/WP05 gaps. A full --help regen would sweep unrelated drift, so leaving them for a merge-time hand-add is correct campsite discipline. Anti-pattern checklist: docs WP -> items 1-4,8 N/A; 5 (golden frozen surface) intended extension with coordination comment; 6 (C-007 no-bump) respected; 7 golden shared-surface edit carries an inline coordination note. Minor non-blocking nit for merge follow-up: WP03 added provenance to cli-commands.md but channel/env-file were never added there -- hand-add both (help text already exists in the golden EXPECTED_HELP).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 870200,
+      "shell_pid_created_at": "1786886746.29",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    }
+  }
+}

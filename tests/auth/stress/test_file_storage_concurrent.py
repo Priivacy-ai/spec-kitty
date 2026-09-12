@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
@@ -37,6 +37,7 @@ from specify_cli.auth.session import StoredSession, Team
 import pytest
 
 pytestmark = [pytest.mark.integration]
+
 
 class _FastFileFallbackStorage(FileFallbackStorage):
     """Production backend with reduced scrypt cost for fast stress tests.
@@ -53,7 +54,7 @@ class _FastFileFallbackStorage(FileFallbackStorage):
 
 def _make_session(i: int) -> StoredSession:
     """Return a distinct StoredSession tagged with the writer index ``i``."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id=f"u_writer_{i}",
         email=f"writer{i}@example.com",
@@ -173,15 +174,11 @@ def test_interleaved_reads_and_writes_never_see_corruption(tmp_path: Path) -> No
         for future in as_completed(futures):
             future.result()
 
-    assert not errors, (
-        f"concurrent reads/writes produced {len(errors)} exceptions: {errors[:3]}"
-    )
+    assert not errors, f"concurrent reads/writes produced {len(errors)} exceptions: {errors[:3]}"
     # Every observed read is a well-formed session from one of the writers.
     for session in read_results:
         assert session.email.startswith("writer")
-        winner = int(
-            session.email.removeprefix("writer").removesuffix("@example.com")
-        )
+        winner = int(session.email.removeprefix("writer").removesuffix("@example.com"))
         assert 0 <= winner < 10
         # Fields are consistent — no torn records.
         assert session.user_id == f"u_writer_{winner}"
@@ -197,15 +194,11 @@ def test_file_permissions_are_0600_after_concurrent_writes(tmp_path: Path) -> No
     local user reading tokens off disk.
     """
     storage = _FastFileFallbackStorage(base_dir=tmp_path)
-    # Seed salt via a serial write (matches the real CLI login lifecycle).
+    # Seed the key via a serial write (matches the real CLI login lifecycle).
     storage.write(_make_session(-1))
 
     with ThreadPoolExecutor(max_workers=10) as pool:
-        list(
-            as_completed(
-                [pool.submit(storage.write, _make_session(i)) for i in range(10)]
-            )
-        )
+        list(as_completed([pool.submit(storage.write, _make_session(i)) for i in range(10)]))
 
     cred_file = tmp_path / "session.json"
     assert cred_file.exists()
@@ -214,12 +207,10 @@ def test_file_permissions_are_0600_after_concurrent_writes(tmp_path: Path) -> No
     mode = cred_file.stat().st_mode & 0o777
     assert mode == 0o600, f"session.json has mode {oct(mode)}, expected 0o600"
 
-    # Salt file is also locked down.
-    salt_file = tmp_path / "session.salt"
-    salt_mode = salt_file.stat().st_mode & 0o777
-    assert salt_mode == 0o600, (
-        f"session.salt has mode {oct(salt_mode)}, expected 0o600"
-    )
+    # Stable key file is also locked down.
+    key_file = tmp_path / "session.key"
+    key_mode = key_file.stat().st_mode & 0o777
+    assert key_mode == 0o600, f"session.key has mode {oct(key_mode)}, expected 0o600"
 
 
 def test_sequential_login_logout_login_cycle_under_concurrent_writes(
@@ -236,7 +227,7 @@ def test_sequential_login_logout_login_cycle_under_concurrent_writes(
     consistent state — either a well-formed session or cleanly deleted.
     """
     storage = _FastFileFallbackStorage(base_dir=tmp_path)
-    # Seed salt via serial write.
+    # Seed the key via serial write.
     storage.write(_make_session(-1))
 
     errors: list[Exception] = []

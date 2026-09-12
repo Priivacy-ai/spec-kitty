@@ -1,0 +1,16 @@
+id,type,reference,relevance
+S-001,source-file,src/specify_cli/cli/commands/agent/mission_create.py,create-time topology selection (_resolve_default_topology_phase) — #2533 root cause
+S-002,source-file,src/specify_cli/core/mission_creation.py,create_mission_core + coordination-branch mint
+S-003,source-file,src/specify_cli/coordination/commit_router.py,commit-time placement/use_coord + coord worktree materialization + _resolve_mid8 fallback
+S-004,source-file,src/specify_cli/coordination/workspace.py,CoordinationWorkspace per-mission path/branch derivation
+S-005,source-file,src/specify_cli/cli/commands/agent/tasks_shared.py,_skip_target_branch_commit / _protected_branch_status_commit_error helpers
+S-006,source-file,src/specify_cli/cli/commands/agent/tasks_transition_core.py,move-task-only pure decision core (#2300 unification target)
+S-007,source-file,src/specify_cli/cli/commands/agent/tasks_move_task.py,skip-exit-0 arm
+S-008,source-file,src/specify_cli/cli/commands/agent/tasks_mark_status.py,drifted warn-exit-0 arm
+S-009,source-file,src/specify_cli/cli/commands/agent/tasks_map_requirements.py,refuse-exit-1 arm
+S-010,issue,https://github.com/Priivacy-ai/spec-kitty/issues/2533,PR-bound + start-branch redundant coord topology; stranded coord worktree
+S-011,issue,https://github.com/Priivacy-ai/spec-kitty/issues/2300,unify coord+protected skip-vs-refuse across move-task/mark-status/map-requirements
+S-012,issue,https://github.com/Priivacy-ai/spec-kitty/issues/2739,commit-boundary epic; B16-clause-2 (concurrent coord cross-contamination) tail
+S-013,issue,https://github.com/Priivacy-ai/spec-kitty/issues/2160,parent epic — unify artifact authority for task/status surfaces
+S-014,repro,scratchpad/b16repro (protected main primary),two concurrent coord missions; protected refusal evidence
+S-015,repro,scratchpad/b16repro2 (unprotected trunk primary),two concurrent coord missions; stranded-label/no-misroute evidence

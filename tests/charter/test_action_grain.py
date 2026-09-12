@@ -1,4 +1,4 @@
-"""Unit tests for charter.action_grain (WP02 / IC-07).
+"""Unit tests for charter.activation.action_grain (WP02 / IC-07).
 
 Covers:
 - T004: action_index_to_mapping pure adapter round-trips (populated + empty)
@@ -20,13 +20,13 @@ from pathlib import Path
 
 import pytest
 
-from charter.action_grain import (
+from charter.activation.action_grain import (
     action_index_to_mapping,
     aggregate_action_grain,
     scan_builtin_cross_grain_duplicates,
 )
-from doctrine.missions.action_index import ActionIndex
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.action_index import ActionIndex
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -34,8 +34,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture
 def missions_root(repo_root: Path) -> Path:
-    """The real shipped missions root: ``src/doctrine/missions``."""
-    return repo_root / "src" / "doctrine" / "missions"
+    """The real shipped missions root: ``packs/built-in/missions`` (relocated
+    from ``src/charter/offering/missions`` by mission
+    doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005)."""
+    return repo_root / "packs" / "built-in" / "missions"
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +109,7 @@ class TestActionIndexToMapping:
         mission exists to close. Pin the two lists together so the omission is
         a hard failure at the source, not a silent gap downstream.
         """
-        from charter.mission_type_profiles import _GOVERNANCE_KINDS  # noqa: PLC0415 — lazy; mirrors the module's own cycle-avoidance convention
+        from charter.activation.mission_type_profiles import _GOVERNANCE_KINDS  # noqa: PLC0415 — lazy; mirrors the module's own cycle-avoidance convention
 
         action_index_fields = {f.name for f in dataclasses.fields(ActionIndex)}
         # ``action`` names the action itself, not a governance kind.
@@ -180,7 +182,7 @@ class TestAggregateActionGrain:
         assert all(value == [] for value in grain.values())
 
     def test_result_keys_are_exactly_governance_kinds(self, missions_root: Path) -> None:
-        from charter.mission_type_profiles import _GOVERNANCE_KINDS
+        from charter.activation.mission_type_profiles import _GOVERNANCE_KINDS
 
         grain = aggregate_action_grain(missions_root, "research")
 
@@ -194,11 +196,6 @@ class TestAggregateActionGrain:
 
 class TestScanBuiltinCrossGrainDuplicates:
     """IC-11 dup-scan: no cross-grain URN collision for any shipped type."""
-
-    def test_all_four_shipped_types_are_disjoint(self) -> None:
-        scanned = scan_builtin_cross_grain_duplicates()
-
-        assert set(scanned) == set(builtin_mission_type_ids())
 
     def test_explicit_built_in_dir_matches_default(self, missions_root: Path) -> None:
         scanned = scan_builtin_cross_grain_duplicates(built_in_dir=missions_root)

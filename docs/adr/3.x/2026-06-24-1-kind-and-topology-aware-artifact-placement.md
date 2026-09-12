@@ -1,6 +1,7 @@
 ---
 title: 'ADR: Kind- and Topology-Aware Artifact Placement — One Partition, Read/Write
   Symmetry'
+description: 'Artifact placement becomes a frozenset partition over `MissionArtifactKind`: planning and identity kinds sit in the PRIMARY partition, status kinds on the coordination branch.'
 status: Accepted
 date: '2026-06-24'
 ---

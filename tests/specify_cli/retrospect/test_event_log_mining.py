@@ -186,6 +186,106 @@ class TestArbiterOverrideDetection:
         assert _is_arbiter_event(events[0]) is True
         assert _detect_arbiter_overrides(events) == {"WP04": 1}
 
+    def test_lane_hops_of_one_invocation_count_as_one_override(self) -> None:
+        """#3793: move-task emits one event per lane hop, all sharing the
+        operator's reason — a single override from for_review to approved
+        spans two hops and must count once, not twice."""
+        events = [
+            {
+                "wp_id": "WP05",
+                "actor": "user",
+                "reason": "Arbiter override: WP05 was reviewed and approved at cycle 2",
+                "from_lane": "for_review",
+                "to_lane": "in_review",
+                "event_id": "65",
+            },
+            {
+                "wp_id": "WP05",
+                "actor": "user",
+                "reason": "Arbiter override: WP05 was reviewed and approved at cycle 2",
+                "from_lane": "in_review",
+                "to_lane": "approved",
+                "event_id": "66",
+            },
+        ]
+        assert _detect_arbiter_overrides(events) == {"WP05": 1}
+
+    def test_three_hop_override_from_in_progress_counts_once(self) -> None:
+        """#3793: the same override issued from in_progress hops through
+        for_review and in_review before approved — still one decision."""
+        reason = "Arbiter override: skip review"
+        events = [
+            {
+                "wp_id": "WP06",
+                "actor": "user",
+                "reason": reason,
+                "from_lane": "in_progress",
+                "to_lane": "for_review",
+                "event_id": "b1",
+            },
+            {
+                "wp_id": "WP06",
+                "actor": "user",
+                "reason": reason,
+                "from_lane": "for_review",
+                "to_lane": "in_review",
+                "event_id": "b2",
+            },
+            {
+                "wp_id": "WP06",
+                "actor": "user",
+                "reason": reason,
+                "from_lane": "in_review",
+                "to_lane": "approved",
+                "event_id": "b3",
+            },
+        ]
+        assert _detect_arbiter_overrides(events) == {"WP06": 1}
+
+    def test_distinct_overrides_on_same_wp_count_separately(self) -> None:
+        """Two genuinely separate decisions carry different operator reasons."""
+        events = [
+            {
+                "wp_id": "WP07",
+                "actor": "user",
+                "reason": "Arbiter override: deadlock at cycle 1",
+                "from_lane": "for_review",
+                "to_lane": "approved",
+                "event_id": "c1",
+            },
+            {
+                "wp_id": "WP07",
+                "actor": "user",
+                "reason": "Arbiter override: re-approval after rework",
+                "from_lane": "in_review",
+                "to_lane": "approved",
+                "event_id": "c2",
+            },
+        ]
+        assert _detect_arbiter_overrides(events) == {"WP07": 2}
+
+    def test_same_reason_on_different_wps_counts_per_wp(self) -> None:
+        """The (wp_id, reason) group key keeps distinct WPs distinct."""
+        events = [
+            {
+                "wp_id": "WP08",
+                "actor": "user",
+                "reason": "Arbiter override: batch approval",
+                "from_lane": "for_review",
+                "to_lane": "approved",
+                "event_id": "d1",
+            },
+            {
+                "wp_id": "WP09",
+                "actor": "user",
+                "reason": "Arbiter override: batch approval",
+                "from_lane": "for_review",
+                "to_lane": "approved",
+                "event_id": "d2",
+            },
+        ]
+        assert _detect_arbiter_overrides(events) == {"WP08": 1, "WP09": 1}
+
 
 # ---------------------------------------------------------------------------
 # _detect_implementation_cycles

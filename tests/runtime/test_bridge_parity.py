@@ -131,15 +131,36 @@ def _write_spec_md(feature_dir: Path, requirement_ids: list[str]) -> None:
     )
 
 
+def _provision_mission_type_activations(repo_root: Path, mission_type: str) -> None:
+    """Provision ``.kittify/config.yaml`` with ``mission_type`` activated.
+
+    WP04 fail-closed (C-A1): composition (``_dispatch_via_composition``) calls
+    ``resolve_mission_type_context`` for real, so every scaffold's mission
+    type must be activated for that resolution to succeed.
+    """
+    kittify_dir = repo_root / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        f"mission_type_activations:\n  - {mission_type}\n", encoding="utf-8"
+    )
+
+
 def _write_block_retrospective_config(repo_root: Path) -> None:
     """Write a ``.kittify/config.yaml`` that turns the retrospective into a
     pre-completion BLOCKING gate. This is the real on-disk config surface
     (``_load_config_retrospective_block``); it makes ``decide_next`` take the
     ``block_on_retrospective`` branch (pre-state read + buffered emit) that two
-    of the error-arm fixtures characterize."""
+    of the error-arm fixtures characterize.
+
+    Both call sites invoke this AFTER ``scaffold_software_dev`` has already
+    provisioned ``mission_type_activations`` (WP04 C-A1); a full-file
+    overwrite here would silently wipe that key back to fail-closed, so
+    ``software-dev`` is re-provisioned alongside the retrospective block.
+    """
     (repo_root / ".kittify").mkdir(exist_ok=True)
     (repo_root / ".kittify" / "config.yaml").write_text(
-        "retrospective:\n  enabled: true\n  timing: before_completion\n  failure_policy: block\n",
+        "retrospective:\n  enabled: true\n  timing: before_completion\n  failure_policy: block\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -156,7 +177,7 @@ def scaffold_software_dev(
     wp_deps: bool = True,
 ) -> Path:
     _init_git_repo(repo_root)
-    (repo_root / ".kittify").mkdir(exist_ok=True)
+    _provision_mission_type_activations(repo_root, "software-dev")
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "software-dev"}), encoding="utf-8")
@@ -184,7 +205,7 @@ def scaffold_research(
     publication_approved: bool = False,
 ) -> Path:
     _init_git_repo(repo_root)
-    (repo_root / ".kittify").mkdir(exist_ok=True)
+    _provision_mission_type_activations(repo_root, "research")
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "research"}), encoding="utf-8")
@@ -225,7 +246,7 @@ def scaffold_documentation(
     with_release: bool = False,
 ) -> Path:
     _init_git_repo(repo_root)
-    (repo_root / ".kittify").mkdir(exist_ok=True)
+    _provision_mission_type_activations(repo_root, "documentation")
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "documentation"}), encoding="utf-8")
@@ -727,7 +748,11 @@ def _seed_input_mission_pending(base: Path, mission_slug: str) -> Path:
     """
     snapshot = base / "snapshot"
     _init_git_repo(snapshot)
-    (snapshot / ".kittify").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): a project-override mission definition alone
+    # does not activate a type -- mission_type_activations is the sole
+    # activation authority, so this synthetic "input-mission" custom type
+    # must be listed too.
+    _provision_mission_type_activations(snapshot, "input-mission")
     feature_dir = snapshot / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "input-mission"}), encoding="utf-8")

@@ -1,0 +1,109 @@
+{
+  "mission_slug": "charter-delivery-finish-context-degod-01KYT4BY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: fetch_stanza normalization into closed 6-verb set; RED-first test_fetch_stanza_normalization.py + per-stanza contract; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:46.744875+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: executor auto-route empty-charter pre-check, composite 5-dim predicate; test_empty_charter_fallback.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:48.500617+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: one-shot empty-charter warning in dispatch.py; test_dispatch.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:50.263967+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: software-dev + generic-agent always-available under empty charter; test_dispatch.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:52.022272+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: charter_scaffold_minimal asset resolvable+activatable, user charter untouched; test_charter_scaffold_asset.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:53.768964+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: new fallback coverage; shared gate/parity fixtures untouched+green; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:55.510397+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: retrospective decomposition note in context.py; completion test; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:35:57.362231+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/05/06: context.py 3243->570 across 16 seams; non-fakeable completion gate (manifest+LOC<=600); approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:36:00.179892+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/05/06: FR-009 preserved surface re-export shim, single-source caches (is-identity verified); approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:36:03.111884+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03: empty-charter governance-block scoping, no DIR-canon leak; RED-first test_empty_charter_governance_agreement.py; approved",
+      "pass_fail": "pass",
+      "verified_by": "planner-priti",
+      "verified_at": "2026-07-31T00:36:05.984274+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

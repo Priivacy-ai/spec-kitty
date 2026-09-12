@@ -11,13 +11,16 @@
    / ``composite_key_from_file`` from ``tests.architectural._ratchet_keys`` with
    NO behaviour change.
 
-Provides two complementary building blocks that together produce a drift-proof
+Provides two complementary building blocks that together produce a
 ``(enclosing_qualname, normalized_token_line)`` composite key for any line in a
-Python source file.  The composite survives a ``+1`` line drift caused by
-inserting a blank or comment line above a pinned site: neither the enclosing
-function name nor the content of the guarded code line changes, so the ratchet
-stays GREEN.  Only a genuine semantic change — a new offending line or a
-function rename — produces a different key.
+Python source file.  The key's **values** are content-derived, but the
+**lookup** is line-number-indexed — see :mod:`specify_cli.contracts.anchoring`
+for the narrowed drift-resistance contract (#3369): a blank/comment insertion
+is survived only when it lands *below* the guarded site, or when ``lineno`` is
+re-derived against the same tree (the ratchet-scan case).  A pinned
+``lineno`` replayed against a drifted tree with content inserted *above* the
+site reads a different line and produces a different key for a site that did
+not semantically change.
 
 Usage
 -----

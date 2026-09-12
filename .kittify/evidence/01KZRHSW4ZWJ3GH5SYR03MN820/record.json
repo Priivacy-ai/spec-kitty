@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZRHSW4ZWJ3GH5SYR03MN820",
+  "completed_at": "2026-08-11T14:03:09.576187+00:00",
+  "outcome": "abandoned",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/core-3328-wp01-implement-prompt.md"
+}

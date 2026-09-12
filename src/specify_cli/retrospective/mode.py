@@ -33,6 +33,7 @@ from typing import Literal, cast
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
+from charter.bundle import CHARTER_MD
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 
 # ---------------------------------------------------------------------------
@@ -62,9 +63,6 @@ NON_INTERACTIVE_PARENTS: frozenset[str] = frozenset(
         "agent-harness",
     }
 )
-
-#: Charter file path relative to repo root.
-_CHARTER_REL = Path(".kittify") / "charter" / "charter.md"
 
 #: Allowed values for the SPEC_KITTY_MODE environment variable.
 _ALLOWED_ENV_VALUES: frozenset[str] = frozenset({"autonomous", "human_in_command"})
@@ -108,10 +106,23 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     start of the file) that contains a ``mode:`` key.
 
     No existing charter loader exposes a programmatic API for reading the
-    mode policy field — the ``charter.context`` module is a prompt-rendering
+    mode policy field — the ``charter.activation.context`` module is a prompt-rendering
     surface, not a structured data reader.  We therefore implement a minimal
     frontmatter parser here, consistent with the approach described in the
     WP04 spec (T017).
+
+    FR-005c note (``doctrine-charter-split-unification``): the retrospective
+    **policy** now resolves yaml-first from ``charter.yaml``
+    ``governance.retrospective`` (see :func:`~specify_cli.retrospective.policy.
+    resolve_policy`).  ``mode:`` is deliberately NOT part of that flip: it is a
+    top-level frontmatter key with no counterpart in
+    :class:`~charter.activation.schemas.RetrospectiveGovernance`, whose keys mirror
+    ``policy._KNOWN_KEYS`` exactly.  Minting a ``governance`` home for ``mode:``
+    is a schema change (FR-005a scope), not a resolver change, so this reader
+    stays frontmatter-only until that block exists.  The charter path constant
+    is nevertheless imported directly from ``charter.bundle.CHARTER_MD``
+    (WP06 T003 / #3163), not redeclared or reached through a sibling
+    module's private alias.
 
     Returns:
         ``"autonomous"`` or ``"human_in_command"`` if the charter declares a
@@ -121,11 +132,22 @@ def _read_charter_mode(repo_root: Path) -> str | None:
         ModeResolutionError: if the charter file exists but its frontmatter
             is malformed (YAML parse error or structurally invalid).
     """
-    charter_path = repo_root / _CHARTER_REL
+    charter_path = repo_root / CHARTER_MD
     if not charter_path.exists():
         return None  # No charter — no signal; fall through.
 
-    raw = charter_path.read_text(encoding="utf-8")
+    try:
+        raw = charter_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of the contracted ModeResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader in
+        # retrospective/policy.py but missed this frontmatter reader).
+        raise ModeResolutionError(
+            f"Charter at {charter_path} could not be read as UTF-8: {exc}"
+        ) from exc
 
     # Attempt to extract YAML frontmatter (lines between first two ``---``).
     if not raw.startswith("---"):

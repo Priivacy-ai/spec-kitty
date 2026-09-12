@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="99.817" timestamp="2026-08-10T16:49:13.207964+02:00" hostname="Roberts-MacBook-Pro-4.local"><testcase classname="tests.sync.test_daemon_self_retirement.TestRunSyncDaemonWiring" name="test_sigterm_exits_without_deadlocking_server_shutdown" time="74.915"><failure message="AssertionError: daemon exited before health check: rc=1&#10;stdout=&#10;stderr=Traceback (most recent call last):&#10;  File &quot;&lt;string&gt;&quot;, line 2, in &lt;module&gt;&#10;  File &quot;/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp06-c3-controlled.XXXXXX.SolXEQHCIy/src/specify_cli/sync/daemon.py&quot;, line 856, in run_sync_daemon&#10;    server = create_loopback_server(port, handler_class)&#10;             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;  File &quot;/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp06-c3-controlled.XXXXXX.SolXEQHCIy/src/specify_cli/core/loopback_http.py&quot;, line 109, in create_loopback_server&#10;    return server_factory((LOOPBACK_HOST, port), handler_class)&#10;           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&#10;  File &quot;/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socketserver.py&quot;, line 456, in __init__&#10;    self.server_bind()&#10;  File &quot;/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/server.py&quot;, line 140, in server_bind&#10;    socketserver.TCPServer.server_bind(self)&#10;  File &quot;/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socketserver.py&quot;, line 472, in server_bind&#10;    self.socket.bind(self.server_address)&#10;OSError: [Errno 48] Address already in use">tests/sync/test_daemon_self_retirement.py:382: in test_sigterm_exits_without_deadlocking_server_shutdown
+    _wait_for_daemon_health(port, proc)
+tests/sync/test_daemon_self_retirement.py:74: in _wait_for_daemon_health
+    raise AssertionError(
+E   AssertionError: daemon exited before health check: rc=1
+E   stdout=
+E   stderr=Traceback (most recent call last):
+E     File "&lt;string&gt;", line 2, in &lt;module&gt;
+E     File "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp06-c3-controlled.XXXXXX.SolXEQHCIy/src/specify_cli/sync/daemon.py", line 856, in run_sync_daemon
+E       server = create_loopback_server(port, handler_class)
+E                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/wp06-c3-controlled.XXXXXX.SolXEQHCIy/src/specify_cli/core/loopback_http.py", line 109, in create_loopback_server
+E       return server_factory((LOOPBACK_HOST, port), handler_class)
+E              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socketserver.py", line 456, in __init__
+E       self.server_bind()
+E     File "/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/server.py", line 140, in server_bind
+E       socketserver.TCPServer.server_bind(self)
+E     File "/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socketserver.py", line 472, in server_bind
+E       self.socket.bind(self.server_address)
+E   OSError: [Errno 48] Address already in use</failure></testcase></testsuite></testsuites>

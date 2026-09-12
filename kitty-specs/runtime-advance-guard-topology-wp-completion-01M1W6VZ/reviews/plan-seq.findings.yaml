@@ -1,0 +1,120 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: seq
+mission: runtime-advance-guard-topology-wp-completion-01M1W6VZ
+findings:
+  - id: PLAN-SEQ-001
+    lens: Phasing
+    severity: 3
+    title: WP1 bundles the trivial US2 (#3884) red-first reproduction with the genuinely-risky US1 (#3883) empirical spike, serializing an independent fix behind unrelated unknowns
+    evidence:
+      - artifact: "plan.md § Work package ordering (lines 678-692), § Design decision: gather_artifact_presence needs ONE new parameter (lines 304-319)"
+      - artifact: "plan.md § Test Strategy, reproduction #3 (lines 571-577)"
+      - code: "src/runtime/next/runtime_bridge.py:781-810 (_wp_blocks_step, WP2's sole target)"
+    claim: >
+      WP1 is scoped to build the coord-topology fixture, resolve two empirical
+      unknowns specific to Seam 1/#3883 (whether `feature_dir.name` reliably
+      equals the `mission_slug` `placement_seam` expects for a real coord
+      worktree; which concrete exception `placement_seam(...).read_dir(...)`
+      raises for a corrupt `meta.json`), AND write all three C-008
+      reproductions -- including reproduction #3, the US2/#3884 red test.
+      Plan.md states explicitly (line 319): "either way, WP1 produces a
+      passing fixture before WP2/WP3 touch production code." But reproduction
+      #3 (a WP file under `tasks/` with zero events, calling
+      `_wp_blocks_step`/`_should_advance_wp_step` directly) has zero
+      dependency on either empirical unknown, on `placement_seam`, on
+      `mission_slug`, or on the coord-topology fixture WP1 builds for US1 --
+      it is a self-contained fixture entirely inside `runtime_bridge.py`. The
+      plan's own Phasing section even frames WP2 as "small, fully isolated ...
+      Landed early for an independent, low-risk confidence signal" -- yet WP2
+      is still gated behind ALL of WP1's US1-specific spike work, which is the
+      one part of the mission the plan itself flags as carrying real unknown
+      risk. This couples an independent, zero-unknown fix to unrelated
+      investigative work for no dependency reason, and forecloses the tasks
+      phase's option to schedule the #3884 fix in a parallel lane or land it
+      first.
+    remediation: >
+      Split WP1 into two smaller units: WP1a -- write reproduction #3 (US2's
+      red test) standalone (no coord-topology fixture, no placement_seam/
+      mission_slug work needed) and land the FR-004/005 `_wp_blocks_step` fix
+      against it (today's WP2, promoted to run independently/first). WP1b --
+      build the coord-topology fixture, resolve the two Seam-1 empirical
+      unknowns, and write reproductions #1/#2 (US1 dual-path + FR-006),
+      feeding what is currently WP3 (renumbered WP2). This preserves
+      risky/unknown-work-first sequencing for Seam 1 while letting the
+      genuinely independent #3884 fix ship (or run in a parallel tasks-phase
+      lane) without waiting on unrelated spike work.
+
+  - id: PLAN-SEQ-002
+    lens: Write scopes / Chokepoints
+    severity: 3
+    title: WP2 and WP3 both touch runtime_bridge.py (disjoint line ranges, same file) with no flag for the tasks phase to serialize or coordinate the lanes
+    evidence:
+      - artifact: "plan.md § Project Structure > Source Code (lines 123-137)"
+      - artifact: "plan.md § FR-003 call-site threading table (lines 359-368)"
+      - code: "src/runtime/next/runtime_bridge.py:781-810 (_wp_blocks_step, WP2)"
+      - code: "src/runtime/next/runtime_bridge.py:823-859,1138-1187,1659-1830,1888-2003 (six WP3 call-site edits, same file)"
+    claim: >
+      The plan's own Project Structure table lists `runtime_bridge.py` once,
+      annotated with BOTH "FR-004/005: _wp_blocks_step" (WP2's target) and
+      "FR-003/006: _check_cli_guards signature + _dn_dependency_gate's two
+      call sites ... + _check_composed_action_guard compat delegate +
+      _dispatch_via_composition compat delegate + _dn_composition_dispatch
+      call site" (WP3's targets) -- i.e. it already knows both WPs land in
+      the same file, but never states this as a write-scope/lane-assignment
+      concern anywhere in the document. No `dependencies:` edge between WP2
+      and WP3 is declared or even discussed in the Phasing section (the
+      ordering is narrative "WP2, then WP3", not a stated dependency). If the
+      tasks phase's `finalize-tasks` dependency-graph builder does not see an
+      explicit dependency between WP2 and WP3 (both are logically
+      independent per the plan's own Summary: "land in disjoint functions...
+      independently testable"), it may assign them to parallel lanes/
+      worktrees per spec-kitty's default behavior for undeclared-dependency
+      WPs -- producing a same-file merge conflict at `spec-kitty merge` time
+      even though the line ranges themselves never overlap.
+    remediation: >
+      Add an explicit note (a short "Write scopes" or "Lane coordination"
+      subsection, mirroring the existing "Explicitly not touched" section's
+      style) stating that WP2 and WP3 both touch `runtime_bridge.py` and
+      instructing the tasks phase to either (a) declare an explicit
+      `dependencies:` edge (WP3 depends on WP2, matching the plan's own
+      stated order) so `finalize-tasks` serializes them into one lane, or (b)
+      if parallel lanes are used anyway, name `runtime_bridge.py` explicitly
+      in both WP prompts as a shared-file rebase/merge risk so implementers
+      coordinate before the lane-consolidation merge.
+
+  - id: PLAN-SEQ-003
+    lens: Chokepoints
+    severity: 2
+    title: Plan never makes an explicit "no chokepoint applies" statement, despite acknowledging a real shared resource (the test-venv lock) in its own Technical Context
+    evidence:
+      - artifact: "plan.md § Technical Context, NFR-003 (line 65)"
+      - artifact: "plan.md § Campsite-clean scope (lines 638-657, contrast: this section IS explicit)"
+      - artifact: "plan.md (repo-wide grep for 'chokepoint'/'serializ' inside this file returns zero hits)"
+    claim: >
+      The plan explicitly and deliberately states "no campsite-clean opening
+      step applies" (Standing Order #2) with reasoning, and explicitly states
+      "no research.md/data-model.md/contracts/ are warranted" -- but it never
+      makes the analogous explicit statement for CI-gate/migration-chain/
+      schema serialization points, even though NFR-003 already names a real
+      shared resource in this mission's own blast radius: "shared test-venv
+      lock contention is environmental, not attributable" (#3283). That NFR
+      frames the lock purely as a pass/fail-classification concern (is a red
+      test mine or not), never as a WP-scheduling concern -- it does not say
+      whether the tasks phase should avoid running multiple WPs' test suites
+      concurrently in separate lanes because of this exact lock. Given three
+      of this mission's own explicit-scope-statement patterns exist elsewhere
+      in the document (campsite-clean, docs generation, "explicitly not
+      touched"), the absence of a parallel one-line statement here reads as
+      an oversight rather than a considered "none apply."
+    remediation: >
+      Add a short explicit statement (e.g. adjacent to the Campsite-clean
+      scope section) confirming no CI gate, migration chain, or runtime-state
+      schema is a serialization point for this mission's WPs, and separately
+      note that the one shared resource in scope -- the test-venv lock
+      (#3283, NFR-003) -- means the tasks phase should avoid scheduling
+      multiple WPs' pytest invocations to run concurrently in separate lanes
+      if it can be avoided, and that any lock-contention timeout observed
+      during concurrent WP execution must be classified per the baseline-red
+      gotcha, not folded into this mission's own accounting.

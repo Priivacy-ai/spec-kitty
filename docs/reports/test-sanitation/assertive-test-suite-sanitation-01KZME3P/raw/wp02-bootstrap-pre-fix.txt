@@ -1,0 +1,14 @@
+WP02 #3283 CONTROLLED PRE-FIX BEHAVIOR PROBE
+captured_at=2026-08-10T10:55:00Z
+working_tree=WP02 lane-b at cycle-2 implementation
+command=.venv/bin/python docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py
+exit_code=0 (the controlled fault reproduced its expected broken oracle)
+
+immutable_base=28ae75ea998c898aba57364db7a06d2088bd2af2
+base_topology_verified=fixed lock encloses complete direct-to-final build
+fault=compress fixed lock timeout/build duration from 60s/>90s to 0.25s/1.0s; heartbeat absent
+worker_topology=2 spawned OS processes; waiter starts after live builder enters Act
+partial_final_observed=true
+outcomes=[('published', 56987), ('timeout', 56988)]
+intended_oracle=live owner completes while waiter never errors and no partial final is visible
+oracle_failed=true

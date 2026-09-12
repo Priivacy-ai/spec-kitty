@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.retrospective.schema import (
     GenActor,
     GenEvidenceRef,
@@ -93,11 +94,12 @@ _ACTOR_KINDS = frozenset({"human", "agent", "runtime"})
 _PROVENANCE_KINDS = frozenset({
     "runtime_post_completion",
     "runtime_strict_gate",
+    "runtime_abandoned",
     "explicit_create",
     "backfill",
     "synthesize_fabricate",
 })
-_FINDING_CATEGORIES = frozenset({
+FINDING_CATEGORIES = frozenset({
     "process",
     "tooling",
     "spec_quality",
@@ -107,7 +109,7 @@ _FINDING_CATEGORIES = frozenset({
     "doc",
     "other",
 })
-_PROPOSAL_CATEGORIES = frozenset({"glossary", "drg", "doctrine", "tooling", "process", "other"})
+PROPOSAL_CATEGORIES = frozenset({"glossary", "drg", "doctrine", "tooling", "process", "other"})
 _EVIDENCE_KINDS = frozenset({"file", "event_range", "external"})
 _FINDINGS_STATUSES = frozenset({"has_findings", "ran_no_findings"})
 
@@ -194,7 +196,7 @@ def _validate_gen_evidence_ref(raw: object, *, label: str) -> None:
 def _validate_gen_finding(raw: object, *, label: str) -> None:
     finding = _validate_mapping(raw, label=label)
     _validate_keys(finding, _FINDING_KEYS, label=label)
-    if finding.get("category") not in _FINDING_CATEGORIES:
+    if finding.get("category") not in FINDING_CATEGORIES:
         raise ValueError(f"{label}.category is invalid")
     _validate_string_list(finding.get("evidence_refs", []), label=f"{label}.evidence_refs")
 
@@ -202,7 +204,7 @@ def _validate_gen_finding(raw: object, *, label: str) -> None:
 def _validate_gen_proposal(raw: object, *, label: str) -> None:
     proposal = _validate_mapping(raw, label=label)
     _validate_keys(proposal, _PROPOSAL_KEYS, label=label)
-    if proposal.get("category") not in _PROPOSAL_CATEGORIES:
+    if proposal.get("category") not in PROPOSAL_CATEGORIES:
         raise ValueError(f"{label}.category is invalid")
     if proposal.get("risk_class") not in {"low", "structural"}:
         raise ValueError(f"{label}.risk_class is invalid")
@@ -309,7 +311,7 @@ def _gen_record_from_mapping(data: YamlMapping) -> GenRetrospectiveRecord:
         mission_slug=data.get("mission_slug", ""),
         mission_number=data.get("mission_number"),
         friendly_name=data.get("friendly_name", ""),
-        mission_type=data.get("mission_type", ""),
+        mission_type=read_mission_type(data) or "",  # rc3 M5 (FR-001): shared reader parity
         target_branch=data.get("target_branch", ""),
         created_at=data.get("created_at", ""),
         created_by=_actor(data.get("created_by")),

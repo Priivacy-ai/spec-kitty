@@ -1,0 +1,255 @@
+# Work Package manifest — up-mission-type-seam-01KZY1JB
+#
+# Authored against the PASSED plan.md (Implementation Concern Map IC-01..IC-07) and the two
+# binding operator rulings recorded in reviews/plan.ruling.md (sequencing correction: only IC-02
+# depends on IC-01; IC-03/IC-06 are independently sequenced; IC-06 is the mission's first commit)
+# and reviews/tasks.ruling.md (spec.md:77 bracketed elision of a foreign-mission FR citation —
+# context only, no new scope; the eliminated token is deliberately not repeated here).
+#
+# Shape: 7 WPs. WP01 = the ADR (spec CL-002/FR-012, literally first). WP02 = IC-06, the
+# campsite-clean opening CODE commit (dead-code deletions + docstring fix), depends on WP01.
+# WP03 = IC-01 (layered lookup + cache + malformed-YAML red-first test), depends on WP02.
+# WP04 = IC-02 (PackContext threading), depends on WP03. WP05 = IC-03+IC-04 combined (plan.md
+# states these are "one code change, split only for requirements traceability" — same file,
+# pack_manager.py), depends on WP02 only — independently sequenced from the WP03->WP04 chain per
+# the ruling, so it runs CONCURRENTLY with WP03/WP04 (owned_files disjoint — pack_manager.py vs
+# mission_type_repository.py/mission_type_profiles.py, confirmed against plan.md's own Affected
+# surfaces per IC). WP06 = IC-05 (the dominant-risk loud-fail, two ordered red/green commits per
+# NFR-005), depends on WP04 (transitively WP03). WP07 = IC-07 (four CLI-surface fixes), depends
+# on WP05 and WP06 (transitively WP03/WP04) — added WP06 as an explicit dependency beyond what
+# plan.md's IC-07 bullet lists (IC-01/IC-02/IC-03 only), because IC-07's own FR-009 edge-case test
+# ("a resolution failure must surface, not be silently treated as no removed steps") needs
+# MissionTypeEmptyActionSequenceError to already exist — see WP07's prompt for the citation. This
+# is a deliberate refinement over plan.md's literal text, not a contradiction of it.
+#
+# Schema conformance: this file intentionally carries ONLY the fields declared in
+# src/specify_cli/schemas/wps.schema.json (id, title, dependencies, owned_files,
+# requirement_refs, subtasks, prompt_file, plan_concern_refs, cross_cutting) — that schema sets
+# `additionalProperties: false` per work package, unlike the richer, schema-exempt authoring
+# convention used in some other missions' wps.yaml (agent_profile/role/execution_mode/etc. as
+# "binding planning content" the pydantic loader tolerates but the schema forbids). Those fields
+# live in each WP's own markdown frontmatter instead (`tasks/WPxx-*.md`), which is their
+# documented home per `task-prompt-template.md`.
+#
+# `plan_concern_refs` (IC-##) live ONLY here, never in WP markdown frontmatter, per
+# wps.schema.json's own field description.
+#
+# Note on SC-### refs (mirroring a landmine documented in another mission's own wps.yaml header):
+# `_REF_FIND_PATTERN` (src/specify_cli/requirement_mapping.py:16) matches only `(FR|NFR|C)-\d+`,
+# so an SC-### placed in `requirement_refs` would be silently dropped at the tasks-packages ->
+# WP-frontmatter boundary and contribute nothing to FR-coverage validation. Success Criteria
+# (SC-001..SC-006) are therefore referenced in each WP prompt's body prose (per-AC test strategy)
+# instead of in `requirement_refs`, where they would be inert.
+#
+# C-001..C-008 assignment is a judgment call (constraints are boundary statements, not always a
+# concrete implementation site): C-001 (mission size) and C-002 (ArtifactKind-promotion
+# out-of-scope) go to WP01 since the ADR is where that framing is stated in these exact terms per
+# CL-002. C-003 (ALLOWED_MISSION_TYPES untouched) goes to WP05 (the activation-scan WP, the
+# closest adjacent boundary). C-004 (template-resolution/FSM chains out of scope) goes to WP04
+# (the template_set-projection WP). C-005 (expected-artifacts.yaml reconciliation out of scope)
+# goes to WP07 (the CLI-display WP, closest adjacent "what's shown to the operator" boundary).
+# C-006 (action_grain.py stays built-in-only) and C-007 (provisioning/migration rosters stay
+# built-in-only) and C-008 (doctrine never imports charter) all go to WP03, the WP that both
+# introduces the new layered lookup and is the one place NFR-003/C-008 is mechanically enforced
+# (tests/architectural/test_layer_rules.py). Per the task brief, only FR-001..FR-013 coverage is a
+# hard finalize-tasks gate; NFR/C mapping here is for traceability/reviewer clarity, not a known
+# hard-fail surface.
+#
+# WARNING — lanes.json's depends_on_lanes graph is cyclic (lane-a <-> lane-b, lane-a <-> lane-c).
+# The write_scope_overlap collapse rule unions WP02+WP03+WP07 into a single lane ("lane-a")
+# because WP02 shares a file with WP03 and two files with WP07; since that merged lane spans the
+# mission's full temporal extent, the lane-level dependency projection produces both
+# lane-a -> lane-b/lane-c (via WP07's real dependency on WP05/WP06) and lane-b/lane-c -> lane-a
+# (via WP04/WP05's real dependency on WP03/WP02) simultaneously. Per-WP claim/start gating reads
+# this file's own acyclic WP-level `dependencies` graph and is unaffected — this is not a
+# scheduling deadlock. `src/specify_cli/lanes/worktree_allocator.py`'s
+# `_merge_dependency_lane_tips` DOES mechanically git-merge each dependency lane's tip into a
+# lane's worktree at allocation time, in both directions of this cycle, and it re-runs on every
+# worktree REUSE too (worktree_allocator.py:194-207) specifically to catch up a dependency lane
+# approved *after* the worktree was created (idempotent no-op once already merged) — a documented,
+# precedented self-healing mechanism (issue #1684; the WP05/WP09 double-hit on mission 01KTYGTE is
+# the cited prior incident it exists for), not an unmitigated landmine. A dependency branch that
+# does not yet resolve is handled as warn + skip, falling back to the existing base rather than
+# crashing (worktree_allocator.py:456-467) — never a merge of content that does not exist. Because
+# WP07's own WP-level `dependencies: [WP05, WP06]` already gates its claim/start until those WPs
+# are approved/done, by the time WP07 can actually be claimed lane-b's/lane-c's branches are
+# guaranteed to exist and the idempotent catch-up merge should succeed cleanly on the ordinary
+# `spec-kitty implement WP07` path. See WP07's prompt (Branch Strategy section) for a
+# verification-only check to confirm the catch-up merge ran — never a license to bypass
+# `spec-kitty implement WP##`, the only supported way to prepare a workspace (CLAUDE.md's
+# Execution Workspace Strategy) — and tracer-tooling-friction.md for the full tooling-friction
+# record. Do not "fix" this by hand-editing lanes.json — it is finalize-tasks-generated; the
+# underlying lane-graph-cycle defect is upstream in src/specify_cli/lanes/compute.py's
+# write_scope_overlap collapse rule (which does not validate for lane-graph cycles before writing
+# lanes.json), out of scope for this mission's own artifacts.
+
+work_packages:
+
+  # ==========================================================================
+  - id: WP01
+    title: "ADR: mission-type roster layering is the availability slice, not the kind-promotion slice"
+    dependencies: []
+    prompt_file: "tasks/WP01-adr-availability-slice.md"
+    owned_files:
+      - "docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md"
+    requirement_refs:
+      - FR-012
+      - C-001
+      - C-002
+    # WP01 is the mandatory ADR (spec CL-002/FR-012) that precedes and grounds every IC-tagged
+    # WP below it — it is not itself one slice of IC-01..IC-07's implementation, so it carries
+    # no single IC-## ref. cross_cutting: true (not an omission) resolves finalize-tasks'
+    # ownership_warning honestly rather than inventing a plan_concern_refs entry that doesn't exist.
+    plan_concern_refs: []
+    subtasks:
+      - T001
+    cross_cutting: true
+
+  # ==========================================================================
+  - id: WP02
+    title: "Campsite-clean opening commit: delete two dead-code clusters, fix the stale WP06 docstring"
+    dependencies:
+      - WP01
+    prompt_file: "tasks/WP02-campsite-clean-dead-code.md"
+    owned_files:
+      - "src/charter/resolver.py"
+      - "tests/charter/test_resolver.py"
+      - "src/specify_cli/cli/commands/mission_type.py"
+      - "tests/cli/test_charter_mission_type_commands.py"
+      - "src/doctrine/missions/mission_type_repository.py"
+    requirement_refs:
+      - FR-010
+      - FR-011
+      - FR-013
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T002
+      - T003
+      - T004
+    cross_cutting: false
+
+  # ==========================================================================
+  - id: WP03
+    title: "New layered mission-type lookup: module-level cache, malformed-YAML loud-fail (red-first)"
+    dependencies:
+      - WP02
+    prompt_file: "tasks/WP03-layered-lookup-cache.md"
+    owned_files:
+      - "src/doctrine/missions/mission_type_repository.py"
+      - "tests/doctrine/missions/test_mission_type_repository.py"
+      - "tests/charter/test_charter_import_time_io.py"
+    requirement_refs:
+      - FR-001
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - C-006
+      - C-007
+      - C-008
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T005
+      - T006
+      - T007
+    cross_cutting: false
+
+  # ==========================================================================
+  - id: WP04
+    title: "Thread PackContext into action-sequence and template-set projection"
+    dependencies:
+      - WP03
+    prompt_file: "tasks/WP04-pack-context-projection.md"
+    owned_files:
+      - "src/charter/mission_type_profiles.py"
+      - "tests/charter/test_mission_type_profiles.py"
+      - "tests/runtime/test_runtime_seam.py"
+    requirement_refs:
+      - FR-002
+      - NFR-002
+      - C-004
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T008
+      - T009
+      - T010
+    cross_cutting: false
+
+  # ==========================================================================
+  - id: WP05
+    title: "charter activate mission-type scans org and project layers (flat, non-recursive)"
+    dependencies:
+      - WP02
+    prompt_file: "tasks/WP05-activate-layer-scan.md"
+    owned_files:
+      - "src/charter/pack_manager.py"
+      - "tests/charter/test_pack_manager.py"
+    requirement_refs:
+      - FR-003
+      - FR-005
+      - NFR-002
+      - C-003
+    plan_concern_refs:
+      - IC-03
+      - IC-04
+    subtasks:
+      - T011
+      - T012
+    cross_cutting: false
+
+  # ==========================================================================
+  - id: WP06
+    title: "Loud failure for empty action sequence — the dominant-risk fix, two ordered red/green commits"
+    dependencies:
+      - WP04
+    prompt_file: "tasks/WP06-loud-fail-empty-action-sequence.md"
+    owned_files:
+      - "src/charter/mission_type_profiles.py"
+      - "tests/charter/test_mission_type_profiles.py"
+    requirement_refs:
+      - FR-004
+      - NFR-002
+      - NFR-005
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T013
+      - T014
+      - T015
+    cross_cutting: false
+
+  # ==========================================================================
+  - id: WP07
+    title: "Four CLI-surface fixes: charter mission-type list, mission-type show, doctrine mission-type list, activate warnings"
+    dependencies:
+      - WP05
+      - WP06
+    prompt_file: "tasks/WP07-cli-surface-fixes.md"
+    owned_files:
+      - "src/specify_cli/cli/commands/charter/mission_type.py"
+      - "src/specify_cli/cli/commands/mission_type.py"
+      - "src/specify_cli/cli/commands/doctrine.py"
+      - "src/specify_cli/cli/commands/charter/activate.py"
+      - "tests/cli/test_charter_mission_type_commands.py"
+      - "tests/specify_cli/cli/commands/test_mission_type_template_set_cli.py"
+      - "tests/cli/test_doctrine_commands.py"
+      - "tests/cli/test_charter_activate_warning.py"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-009
+      - NFR-002
+      - C-005
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+    cross_cutting: false

@@ -1,0 +1,46 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >
+      The Contextive glossary bullet now documents the exact widened command (`find . -iname
+      "*.contextive.yml" -o -path "*/.contextive/*.yml" | xargs grep -n ...`); re-running that
+      exact command confirms all 13 .contextive.yml/.contextive/*.yml files in the repo are
+      matched and the grep exits with zero hits, so the audit trail is now the exhaustive sweep
+      it claims to be and the stated conclusion still holds.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >
+      A CHANGELOG.md work item is now present in three places (Scale/Scope, Project Structure's
+      touched-file list, and IC-04's Affected surfaces), citing spec.md:539 and charter.md:401
+      verbatim — both citations verified accurate against the live files — making the changelog
+      entry an explicit, assigned deliverable of this mission's PR rather than an omission.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >
+      The fast-tests-doctrine bullet no longer claims the job is unconditional; it now correctly
+      states the job's if: condition (verified at ci-quality.yml:1141-1143) is unconditional only
+      on push, and on pull_request is gated by the doctrine dorny path filter (verified at
+      ci-quality.yml:446, tests/doctrine/** is in that filter group), which this mission's own
+      edit to tests/doctrine/test_agent_profile_model_field.py falls under — matching the finding's
+      required correction while keeping the zero-new-coverage-delta conclusion.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >
+      Step 4 no longer hedges: it now states plainly that Chokepoint commits FR-002+FR-003+FR-004
+      to one lane sequenced FR-003 -> FR-002 -> FR-004, and that the baseline procedure re-runs
+      once at Lane B's start plus once after each of the three sequenced commits (three
+      re-captures) so a regression is attributable to a specific commit; this order matches
+      IC-02 (sequenced first), IC-03 (sequenced second), and IC-04 (sequenced third/last) as
+      verified in the current plan.md, so the traceability claim is now actually true rather than
+      contradicted.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >
+      Step 1's command is now a fenced ```bash code block with explicit trailing backslash
+      line-continuations on three of the four lines, verified directly against the raw markdown
+      (cat -A) at plan.md:327-331 — both the rendered output and a literal copy-paste of the raw
+      source now agree on a single four-file pytest invocation.

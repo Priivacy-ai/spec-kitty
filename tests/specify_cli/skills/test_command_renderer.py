@@ -19,7 +19,7 @@ why the output changed — the snapshots are the regression guard.
 TODO (reconsider this test's design if it keeps causing friction):
     These snapshots pin *byte-identical* rendered ``SKILL.md`` output per agent,
     so any legitimate prose edit to a doctrine source template
-    (``src/doctrine/missions/mission-steps/**``) forces regenerating the
+    (``src/charter/offering/missions/mission-steps/**``) forces regenerating the
     committed ``__snapshots__/<agent>/<command>.SKILL.md`` copies. The snapshot
     asserts byte-identity, not semantic correctness. Paired with the 12-agent
     baseline guard (``tests/specify_cli/regression/test_twelve_agent_parity``),
@@ -31,6 +31,7 @@ TODO (reconsider this test's design if it keeps causing friction):
 """
 
 from __future__ import annotations
+
 
 import os
 import textwrap
@@ -46,6 +47,7 @@ from specify_cli.skills.command_renderer import (
     ensure_skill_frontmatter,
     render,
 )
+from specify_cli.skills.render_versions import FIXTURE_SKILL_RENDER_VERSION
 
 # ---------------------------------------------------------------------------
 # Test constants
@@ -53,8 +55,43 @@ from specify_cli.skills.command_renderer import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-# New doctrine layout: src/doctrine/missions/mission-steps/<mission_type>/
-DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps"
+
+@pytest.mark.parametrize("change", ["mission", "selector", "agents", "pointer", "unrelated", "wrong-target", "non-mapping", "null"])
+def test_mission_provisioning_render_equivalence(tmp_path: Path, change: str) -> None:
+    from specify_cli.skills.command_renderer import validate_mission_provisioning
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    before = b"agents: {available: [codex]}\nactivated_tactics: []\n"
+    config.write_bytes(before)
+    after = before + b"mission_type_activations: [software-dev]\n"
+    target = config.resolve()
+    if change == "selector":
+        after = after.replace(b"activated_tactics: []", b"activated_tactics: [reasons-canvas-fill]")
+    elif change == "agents":
+        after = after.replace(b"[codex]", b"[vibe]")
+    elif change == "pointer":
+        after += b"charter: another.yaml\n"
+    elif change == "unrelated":
+        after += b"custom: changed\n"
+    elif change == "wrong-target":
+        target = tmp_path / "foreign.yaml"
+    elif change == "non-mapping":
+        after = b"- invalid\n"
+    elif change == "null":
+        before = b"null\n"
+        after = b"mission_type_activations: []\n"
+    if change in {"mission", "null"}:
+        validate_mission_provisioning(tmp_path, before, after, target)
+    else:
+        with pytest.raises(ValueError):
+            validate_mission_provisioning(tmp_path, before, after, target)
+
+
+# New doctrine layout: packs/built-in/missions/mission-steps/<mission_type>/
+# (relocated from src/charter/offering/missions/mission-steps by mission
+# doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
+DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission-steps"
 
 # Default mission type used in most tests.
 _DEFAULT_MISSION_TYPE = "software-dev"
@@ -67,7 +104,9 @@ _LEGACY_COMMAND_TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "sr
 SNAPSHOTS_DIR = Path(__file__).parent / "__snapshots__"
 
 # Fixed version string used for all snapshot renders so the output is stable.
-_TEST_VERSION = "3.0.0"
+# Sourced from the shared pin so this suite and `spec-kitty regen` can never
+# diverge (#3447, FR-005).
+_TEST_VERSION = FIXTURE_SKILL_RENDER_VERSION
 SNAPSHOT_AGENTS: tuple[str, ...] = ("codex", "vibe")
 
 # Whether to update snapshots instead of asserting against them.
@@ -83,7 +122,7 @@ def _all_templates() -> list[Path]:
     """Return sorted list of all canonical command prompt.md paths.
 
     Under the new doctrine layout each step lives in its own sub-directory:
-    ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    ``src/charter/offering/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     """
     return sorted(TEMPLATES_DIR.glob("*/prompt.md"))
 
@@ -127,11 +166,46 @@ def _render_and_compare(template_path: Path, agent_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("template_path", _all_templates(), ids=_command_name)
-@pytest.mark.parametrize("agent_key", SNAPSHOT_AGENTS)
-def test_snapshot(template_path: Path, agent_key: str) -> None:
-    """Representative agent renders must match their committed snapshots."""
-    _render_and_compare(template_path, agent_key)
+# Narrowed gate (#3447 WP05, SC-005): the full codex/vibe x N snapshot grid is
+# replaced by ONE canonical snapshot + the structural coverage of
+# ``test_deterministic`` and the NFR path tests, so a source-prompt edit
+# regenerates at most one snapshot instead of ~2 per command.
+_CANONICAL_SKILL_AGENT = "codex"
+_CANONICAL_SKILL_COMMAND = "specify"
+
+
+def test_wp04_rendering_inputs_preserve_pointer_identity(tmp_path: Path) -> None:
+    from specify_cli.skills.command_renderer import rendering_inputs
+    from tests.upgrade.preview_support.snapshot import snapshot, assert_unchanged
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    target = tmp_path / "custom-charter.yaml"
+    target.write_text("activated_tactics: []\n", encoding="utf-8")
+    config.write_text("charter: custom-charter.yaml\nagents:\n  available: [codex]\n", encoding="utf-8")
+    before = snapshot({"project": tmp_path})
+    assert rendering_inputs(tmp_path) == (config, target)
+    assert_unchanged(before, snapshot({"project": tmp_path}))
+    target.unlink()
+    with pytest.raises(ValueError, match="unreadable"):
+        rendering_inputs(tmp_path)
+
+
+def test_canonical_skill_snapshot() -> None:
+    """The canonical (codex/specify) skill render is byte-stable.
+
+    Regenerate with ``spec-kitty regen`` (or ``PYTEST_UPDATE_SNAPSHOTS=1``) when
+    an intended template change alters it.
+    """
+    template = TEMPLATES_DIR / _CANONICAL_SKILL_COMMAND / "prompt.md"
+    assert template.exists(), f"canonical template missing: {template}"
+    _render_and_compare(template, _CANONICAL_SKILL_AGENT)
+
+
+def test_only_canonical_snapshot_is_committed() -> None:
+    """Post-narrowing, exactly one canonical skill snapshot is committed."""
+    committed = sorted(p.relative_to(SNAPSHOTS_DIR).as_posix() for p in SNAPSHOTS_DIR.rglob("*") if p.is_file() and p.name != "__init__.py")
+    assert committed == ["codex/specify.SKILL.md"], f"Expected only the canonical codex/specify.SKILL.md snapshot, found: {committed}"
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +597,7 @@ def test_nfr004_doctrine_path_exists() -> None:
 def test_nfr004_legacy_command_templates_absent() -> None:
     """NFR-004: The old command-templates/ path must NOT exist after WP02 migration.
 
-    The template source of truth is now ``src/doctrine/missions/mission-steps/``.
+    The template source of truth is now ``src/charter/offering/missions/mission-steps/``.
     If the old path still exists, the migration was incomplete.
     """
     assert not _LEGACY_COMMAND_TEMPLATES_DIR.exists(), (
@@ -568,7 +642,8 @@ def test_nfr004_all_canonical_steps_render() -> None:
             continue
         try:
             skill = render(prompt_path, "codex", _TEST_VERSION)
-            assert skill.name == f"spec-kitty.{command}", f"Wrong skill name for {command}: {skill.name}"
+            if skill.name != f"spec-kitty.{command}":
+                raise AssertionError(f"Wrong skill name for {command}: {skill.name}")
         except Exception as exc:  # noqa: BLE001
             render_errors.append(f"{command}: {exc}")
 
@@ -576,17 +651,22 @@ def test_nfr004_all_canonical_steps_render() -> None:
     assert not render_errors, f"Commands failed to render: {render_errors}"
 
 
-def test_nfr004_command_installer_resolves_doctrine_path() -> None:
-    """NFR-004: command_installer._resolve_template uses the doctrine path.
+def test_nfr004_command_installer_resolves_relocated_missions_path() -> None:
+    """NFR-004: command_installer._resolve_template resolves the relocated missions path.
 
-    Verify that the installer's path resolver points into doctrine, not into
-    the old specify_cli/missions/software-dev/command-templates/ directory.
+    FR-005 moved mission data out of the doctrine package into
+    packs/built-in/missions/. Verify the installer's path resolver follows
+    that relocation and lands on a real file under the new canonical
+    location, and that it never falls back to the old
+    specify_cli/missions/software-dev/command-templates/ directory.
     """
     from specify_cli.skills.command_installer import _resolve_template
 
     template_path = _resolve_template(Path("/unused"), "specify")
 
     assert template_path.name == "prompt.md", f"Expected template filename 'prompt.md', got '{template_path.name}'"
-    assert "doctrine" in str(template_path), f"Resolved template path does not go through 'doctrine': {template_path}"
+    assert "packs/built-in/missions" in str(template_path).replace("\\", "/"), (
+        f"Resolved template path does not go through the relocated 'packs/built-in/missions' location: {template_path}"
+    )
     assert "command-templates" not in str(template_path), f"Resolved template path still references legacy 'command-templates': {template_path}"
     assert template_path.is_file(), f"Resolved template path does not exist on disk: {template_path}"

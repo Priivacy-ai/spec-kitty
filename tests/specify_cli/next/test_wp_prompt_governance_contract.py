@@ -32,7 +32,7 @@ encode the contract that:
 6. The two directive namespaces — charter-extracted `DIR-NNN` (auto-emitted
    by `spec-kitty charter sync` into `.kittify/charter/directives.yaml`)
    and doctrine-catalog `DIRECTIVE_NNN` (hand-authored in
-   `src/doctrine/directives/built-in/*.directive.yaml`) — must be
+   `src/charter/offering/directives/built-in/*.directive.yaml`) — must be
    cross-linked when one cites the other, so the resolver can surface the
    right body regardless of which ID the citation used.
 
@@ -56,8 +56,8 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import build_charter_context
-from charter.scope import CharterScopeNotFound
+from charter.activation.context import build_charter_context
+from charter.activation.scope import CharterScopeNotFound
 from runtime.next.prompt_builder import _build_wp_prompt, _governance_context
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -124,6 +124,16 @@ def _write_minimal_kittify_charter(repo_root: Path) -> None:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_MINIMAL_CHARTER_MD, encoding="utf-8")
+    # A usable project is provisioned: the mission-type-use boundary
+    # (prompt build during implement/review) resolves ``software-dev``
+    # through the project's activation set, so the fixture must declare it.
+    # Without this, ``resolve_mission_type_context`` hard-fails with
+    # ``UnknownMissionTypeError`` (empty activation set) exactly as it would
+    # for a genuinely unprovisioned project (WP04 construction-total pivot:
+    # the fail-closed lives at the create / use boundary, not construction).
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 _WP_WITH_PYTHON_PEDRO = """\
@@ -136,15 +146,15 @@ subtasks: [T001, T002]
 agent: claude
 agent_profile: python-pedro
 role: implementer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
 # WP01 — Reconcile shipped vs built-in terminology
 
 Replace literal ``shipped`` path strings with ``built-in`` across
-``src/doctrine/`` and update tests accordingly.
+``src/charter/offering/`` and update tests accordingly.
 """
 
 
@@ -158,8 +168,8 @@ subtasks: [T003]
 agent: claude
 agent_profile: reviewer-renata
 role: reviewer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
@@ -236,6 +246,39 @@ def _contains_either_body_or_fetch_with_conditional(text: str, *body_markers: st
     if all(marker in text for marker in body_markers):
         return True
     return bool(_FETCH_CMD_RE.search(text) and _WHEN_DOING_RE.search(text))
+
+
+_RUN_CMD_SELECTOR_RE = re.compile(
+    r"Run:\s+spec-kitty\s+charter\s+context\s+--include\s+(\S+)", re.IGNORECASE
+)
+
+
+def _when_you_stanzas(prompt: str) -> list[tuple[str | None, str]]:
+    """Pair every rendered ``When you …`` stanza line with its selector.
+
+    NFR-003 / SC-003 (#3082): ``_WHEN_DOING_RE.search(prompt)`` (used
+    throughout this module above) passes if ANY single line anywhere in the
+    whole prompt matches — it says nothing about the other stanzas. This
+    per-line extraction lets a caller assert EVERY emitted stanza
+    individually, which is the real per-stanza grammaticality guarantee.
+
+    Returns ``(selector, when_you_line)`` tuples in document order. The
+    selector is read from the fetch-command line immediately preceding the
+    ``When you ...`` line (every current renderer emits the pair together);
+    it is ``None`` if no such line precedes (defensive).
+    """
+    lines = prompt.splitlines()
+    stanzas: list[tuple[str | None, str]] = []
+    for index, line in enumerate(lines):
+        if not re.match(r"^\s*When you\b", line, re.IGNORECASE):
+            continue
+        selector = None
+        if index > 0:
+            match = _RUN_CMD_SELECTOR_RE.search(lines[index - 1])
+            if match:
+                selector = match.group(1)
+        stanzas.append((selector, line.strip()))
+    return stanzas
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +478,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
     def test_python_pedro_directive_010_referenced_in_implement_prompt(
         self, project_with_implement_wp: tuple[Path, Path, str]
     ) -> None:
-        """python-pedro's profile (`src/doctrine/agent_profiles/built-in/`
+        """python-pedro's profile (`src/charter/offering/agent_profiles/built-in/`
         `python-pedro.agent.yaml`) declares directive 010 (Specification Fidelity).
         The implement WP whose frontmatter selects python-pedro MUST surface
         DIRECTIVE_010 in the prompt: either the rule body verbatim or a fetch
@@ -578,7 +621,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
         the doctrine-catalog namespace (`DIRECTIVE_NNN`), not the charter-extracted
         namespace (`DIR-NNN`). The two namespaces exist today; the contract is that
         profile-cited directives use the catalog form so the agent can locate the
-        body at `src/doctrine/directives/built-in/<id>.directive.yaml`.
+        body at `src/charter/offering/directives/built-in/<id>.directive.yaml`.
         """
         repo_root, feature_dir, mission_slug = project_with_implement_wp
         prompt = _build_wp_prompt(
@@ -680,7 +723,7 @@ class TestPromptReferencesAuthorityPaths:
 
 class TestImplementTemplateForbidClauseIsHonest:
     """The current template at
-    `src/doctrine/missions/mission-steps/software-dev/implement/prompt.md` says:
+    `packs/built-in/missions/mission-steps/software-dev/implement/prompt.md` says:
 
         > The output of `spec-kitty agent action implement ...` is the authoritative
         > work package prompt and execution context. Do **not** separately call
@@ -693,7 +736,7 @@ class TestImplementTemplateForbidClauseIsHonest:
     required to carry.
     """
 
-    template_path = Path("src/doctrine/missions/mission-steps/software-dev/implement/prompt.md")
+    template_path = Path("packs/built-in/missions/mission-steps/software-dev/implement/prompt.md")
 
     def test_template_either_drops_forbid_or_guarantees_governance_payload(self) -> None:
         text = self.template_path.read_text(encoding="utf-8")
@@ -791,7 +834,7 @@ class TestCharterContextResolverCompleteness:
         """When `build_charter_context` is called with `profile=` set, it MUST resolve
         the agent profile's `directive-references` and either embed their bodies or
         emit fetch commands. The `profile=` kwarg exists in the signature today
-        (line 73 of `src/charter/context.py`) but is unused (`_ = profile`). The
+        (line 73 of `src/charter/activation/context.py`) but is unused (`_ = profile`). The
         contract is that the kwarg becomes load-bearing.
         """
         repo_root, _feature_dir, _mission_slug = project_with_implement_wp
@@ -812,53 +855,6 @@ class TestCharterContextResolverCompleteness:
             "of the profile's directive-references (DIRECTIVE_010 / 024 / 025 / 030 / "
             "034) — either by ID, by body, or by fetch + when-doing rule. Today the "
             "`profile=` parameter is discarded (`_ = profile`)."
-        )
-
-
-# ---------------------------------------------------------------------------
-# Contract 7 — Charter directive namespace (DIR-NNN) MUST cross-link to
-#              doctrine catalog namespace (DIRECTIVE_NNN) when one cites
-#              the other.
-# ---------------------------------------------------------------------------
-
-
-class TestCharterDirectiveNamespaceCrossLink:
-    """`charter sync` produces `.kittify/charter/directives.yaml` with sequential
-    `DIR-NNN` entries. When a charter directive cites a doctrine catalog
-    DIRECTIVE_NNN by reference (e.g. "DIRECTIVE_032 — Conceptual Alignment"),
-    the generated `DIR-NNN` entry MUST carry a `references:` field linking back
-    to the catalog ID so the resolver can surface the catalog body on demand.
-    """
-
-    def test_charter_sync_emits_cross_link_when_body_cites_catalog_id(
-        self, project_with_implement_wp: tuple[Path, Path, str]
-    ) -> None:
-        repo_root, _feature_dir, _mission_slug = project_with_implement_wp
-        # The fixture charter's Code Review Checklist cites DIRECTIVE_032
-        # explicitly. After running `charter sync`, the generated directives.yaml
-        # entry MUST carry a references field pointing at the catalog ID.
-        from charter.sync import ensure_charter_bundle_fresh
-
-        ensure_charter_bundle_fresh(repo_root)
-        directives_yaml = repo_root / ".kittify" / "charter" / "directives.yaml"
-        assert directives_yaml.exists(), (
-            "charter sync MUST emit .kittify/charter/directives.yaml"
-        )
-        body = directives_yaml.read_text(encoding="utf-8")
-        # We accept either a structured `references:` field or an inline citation in
-        # the directive description that contains the catalog ID.
-        has_cross_link = (
-            "DIRECTIVE_032" in body
-            and re.search(
-                r"references?:\s*\n\s*-\s*DIRECTIVE_032|DIRECTIVE_032",
-                body,
-            )
-        )
-        assert has_cross_link, (
-            "When the charter body cites DIRECTIVE_032, the auto-generated "
-            "directives.yaml entry MUST carry a cross-link to the doctrine catalog "
-            "ID — either as a structured `references:` field or as a preserved "
-            "inline citation in the description. Today the citation is dropped."
         )
 
 
@@ -1012,10 +1008,10 @@ class TestGovernanceContextUsesMonorepoAwarePath:
         # module imports build_with_scope (after the fix it will).
         assert hasattr(_pb, "build_with_scope"), (
             "runtime.next.prompt_builder MUST import build_with_scope "
-            "from charter.scope_router to enable monorepo CharterScope "
+            "from charter.activation.scope_router to enable monorepo CharterScope "
             "resolution (HIGH-1 / FR-010). Currently build_charter_context "
             "is called directly, bypassing CharterScope.resolve. "
-            "Fix: add 'from charter.scope_router import build_with_scope' to "
+            "Fix: add 'from charter.activation.scope_router import build_with_scope' to "
             "prompt_builder.py and route _governance_context through it."
         )
 
@@ -1027,7 +1023,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             r: Path, f: Path, **kwargs  # type: ignore[no-untyped-def]
         ):
             calls.append((r, f))
-            from charter.context import build_charter_context  # noqa: PLC0415
+            from charter.activation.context import build_charter_context  # noqa: PLC0415
             return build_charter_context(r, **kwargs)
 
         with patch(
@@ -1110,3 +1106,70 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             pytest.raises(CharterScopeNotFound),
         ):
             _governance_context(repo_root, feature_dir=feature_dir, action="implement")
+
+
+# ---------------------------------------------------------------------------
+# Contract 6 — Every rendered "When you ..." stanza, individually, must match
+#              the closed _WHEN_DOING_RE lead-in set (#3082, WP01 T004).
+# ---------------------------------------------------------------------------
+
+
+class TestPerStanzaWhenDoingGrammaticality:
+    """SC-003 (#3082): the whole-prompt ``_WHEN_DOING_RE.search(prompt)``
+    check used throughout this module passes if ANY one line matches
+    anywhere in the prompt. That is not the real guarantee — every rendered
+    stanza must individually be grammatical and match the closed lead-in
+    set. This is the per-stanza authority the fetch-stanza normalization
+    fix (``charter.activation.context_renderers.fetch_stanza._normalize_when_clause``)
+    is pinned against; see also
+    ``tests/charter/test_fetch_stanza_normalization.py`` for the isolated
+    unit coverage of the normalization helper itself (gerund clauses, full
+    sentences, and the authored double-``when`` shape).
+
+    Scope note (WP01/#3082 discovery, flagged rather than silently
+    absorbed): ``section:*`` selector stanzas are rendered by a SEPARATE,
+    hand-rolled composer — ``charter.activation.context_renderers.section_bodies.
+    _render_fetch_stanza`` / ``CRITICAL_SECTION_WHEN_CLAUSES`` — that does
+    NOT go through ``fetch_stanza.fetch_stanza_lines`` and pre-dates this
+    mission. Two of its authored clauses ("prepare a WP for review",
+    "perform a terminology cutover") do not match the closed lead-in set
+    either, but fixing that duplicate choke point is outside WP01's
+    authoritative surface (``src/charter/activation/context_renderers/fetch_stanza.py``
+    only); ``section_bodies.py`` is not in WP01's owned files. This check is
+    scoped to the fetch_stanza.py-owned selector kinds (directive, tactic,
+    styleguide, toolguide, procedure, paradigm, mission_step_contract,
+    agent_profile) so it asserts what WP01 actually delivers, and the
+    ``section:`` gap is left for a follow-up rather than masked here.
+    """
+
+    def test_every_fetch_stanza_when_you_line_matches_the_closed_lead_in_set(
+        self, project_with_implement_wp: tuple[Path, Path, str]
+    ) -> None:
+        repo_root, feature_dir, mission_slug = project_with_implement_wp
+        prompt = _build_wp_prompt(
+            action="implement",
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        stanzas = _when_you_stanzas(prompt)
+        fetch_stanza_owned = [
+            (selector, line)
+            for selector, line in stanzas
+            if selector is None or not selector.startswith("section:")
+        ]
+        assert fetch_stanza_owned, (
+            "Expected at least one fetch_stanza.py-rendered 'When you ...' "
+            "stanza line in the implement WP prompt for python-pedro (whose "
+            "profile carries directive/tactic references rendered via the "
+            "fetch stanza)."
+        )
+        for selector, line in fetch_stanza_owned:
+            assert _WHEN_DOING_RE.search(line), (
+                "Rendered stanza line does not match the closed _WHEN_DOING_RE "
+                f"lead-in set (#3082 SC-003 per-stanza guarantee) for selector "
+                f"{selector!r}: {line!r}"
+            )

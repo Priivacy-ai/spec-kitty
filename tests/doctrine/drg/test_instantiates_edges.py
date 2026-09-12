@@ -1,6 +1,6 @@
 """Coverage for the ``mission_type -> step -> template`` graph-back (WP06, FR-009/FR-011).
 
-``extract_template_instantiation_edges`` (``doctrine.drg.migration.extractor``)
+``extract_template_instantiation_edges`` (``charter.offering.drg.migration.extractor``)
 mints a mission-qualified ``template:<mission>/<file>`` node per step-carried
 ``MissionStepTemplateRef`` and one ``action:<mission>/<step> --instantiates-->
 template:<mission>/<file>`` edge per pair, consuming WP01's
@@ -31,15 +31,17 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.migration.extractor import (
     extract_template_instantiation_edges,
     generate_graph,
 )
-from doctrine.drg.models import NodeKind, Relation
+from charter.offering.drg.models import NodeKind, Relation
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "doctrine"
+# Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+# the shipped ``*.graph.yaml`` fragments now live under ``packs/built-in/``.
+DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 #: The expected ``(mission_type, step_id, template_file)`` triples, hand-pinned
 #: against the shipped ``step.yaml`` authoring (independent of the extractor

@@ -1,0 +1,40 @@
+# Occurrence map (DIRECTIVE_035) for the domains/ migration bulk edit.
+# change_mode: bulk_edit is set in meta.json so the runtime gate fires.
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+#
+# Scope: relocating the four domain plans into docs/plans/domains/ and updating
+# every reference to their paths. The `durable` doc_status addition (IC-01) is an
+# ADDITIVE frontmatter value, not a same-string rename, so it is out of this map.
+
+target:
+  term: docs/plans/saas-hosted-sync-domain-plan.md
+  replacement: docs/plans/domains/saas-hosted-sync-domain-plan.md
+  operation: rename
+
+# NOTE (post-tasks squad): the `target` block above names only saas-hosted-sync as the
+# descriptive term, but BOTH relocations (saas + doctrine-charter) are driven by the
+# `moves:` block below — doctrine-charter's reference-rename rides `moves:` +
+# `user_facing_strings`, it is not a second `target`. The LARGEST reference class is
+# **body inline Markdown links**, which no category action rewrites — they are healed by
+# `scripts/docs/relative_link_fixer.py` off this `moves:` spine (run in WP07 T028/T032).
+categories:
+  code_symbols:         { action: do_not_change }          # no code symbols reference these doc paths
+  import_paths:         { action: do_not_change }          # Markdown pages, not importable modules
+  filesystem_paths:     { action: manual_review }          # frontmatter `related:` path entries (repo-root-relative — rewrite sibling-plan paths only); docs lockfile path rows (regenerated); body inline links healed by relative_link_fixer
+  serialized_keys:      { action: do_not_change }          # frontmatter KEYS are unchanged (only path VALUES move)
+  cli_commands:         { action: do_not_change }
+  user_facing_strings:  { action: rename_if_user_visible } # Markdown links in index.md + the 3-2-x-* release docs + §6 cross-refs
+  tests_fixtures:       { action: manual_review }          # docs tests keyed on the paths (lockfile-driven regeneration)
+  logs_telemetry:       { action: do_not_change }
+
+moves:
+  - from:
+      - docs/plans/saas-hosted-sync-domain-plan.md
+      - docs/plans/doctrine-charter-domain-plan.md
+    to: docs/plans/domains/
+
+exceptions:
+  - path: "docs/plans/domains/*-domain-plan.md"
+    field_path: "related"
+    action: manual_review
+    reason: "Each plan's own related: list references sibling plans by path; those entries move with the plan and need per-entry review, not a blanket rename."

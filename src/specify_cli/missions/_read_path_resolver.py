@@ -461,7 +461,7 @@ def _canonicalize_bare_modern_handle(
         MissionSelectorAmbiguous: When the handle matches more than one mission
             (propagated from :func:`_canonicalize_handle` — no silent pick).
     """
-    literal_primary = primary_feature_dir_for_mission(repo_root, handle)
+    literal_primary = _compose_primary_feature_dir(repo_root, handle)
     if (literal_primary / "meta.json").exists():
         return handle
     # The identity resolver runs FIRST: it RAISES MissionSelectorAmbiguous for an
@@ -840,10 +840,14 @@ def read_primary_meta(
     (≈:251) so the seam and the orchestrator share ONE primitive (NFR-004) rather
     than two parallel cascades.
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import load_meta_fail_closed
 
-    primary_dir = primary_feature_dir_for_mission(repo_root, handle)
-    meta = load_meta(primary_dir) or {}
+    primary_dir = _compose_primary_feature_dir(repo_root, handle)
+    # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
+    # primary meta still reads as the empty mapping (the legacy/coord-only
+    # arm below); a corrupt or non-object one raises the typed
+    # MissionMetaReadError instead of a raw ValueError.
+    meta = load_meta_fail_closed(primary_dir) or {}
     if not meta:
         # Non-composed handle (bare ``mid8``, full ULID, numeric prefix): the raw
         # handle does NOT name the on-disk ``<slug>-<mid8>`` directory, so the
@@ -859,7 +863,7 @@ def read_primary_meta(
         canonical = _canonicalize_handle(repo_root, handle)
         if canonical is not None:
             _, _, canonical_dir = canonical
-            meta = load_meta(canonical_dir) or {}
+            meta = load_meta_fail_closed(canonical_dir) or {}
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
     return meta, declares_coordination
@@ -979,7 +983,7 @@ def resolve_handle_to_read_path(
     # missions). C-004 boundary discipline: only the absent FIELD is absorbed here;
     # the corrupt/unreadable-meta arm stays the callers' separate typed path.
     stored_topology = classify_from_meta(
-        primary_meta, primary_feature_dir_for_mission(repo_root, handle)
+        primary_meta, _compose_primary_feature_dir(repo_root, handle)
     )
     # A concrete coord-routing topology consults the coord husk; an absorbed
     # coord-less topology resolves PRIMARY (the #2062 close). ``None`` is the
@@ -1001,7 +1005,7 @@ def resolve_handle_to_read_path(
     #    ``coordination_branch`` husk does not fail it closed (the husk is
     #    structurally not consulted — #2062 cannot re-open).
     if not mid8 and declares_coordination and consults_coord_husk:
-        primary_candidate = primary_feature_dir_for_mission(repo_root, handle)
+        primary_candidate = _compose_primary_feature_dir(repo_root, handle)
         raise StatusReadPathNotFound(
             repo_root=repo_root,
             mission_slug=handle,
@@ -1052,7 +1056,7 @@ def resolve_handle_to_read_path(
                 mid8=mid8,
                 coordination_branch=coordination_branch,
                 coord_candidate=composed_coord,
-                primary_candidate=primary_feature_dir_for_mission(repo_root, handle),
+                primary_candidate=_compose_primary_feature_dir(repo_root, handle),
             )
 
     # 5. Existence-gated topology resolver — NEVER resolve_status_surface_with_anchor
@@ -1178,9 +1182,15 @@ def candidate_feature_dir_for_mission(
     legacy mission, ``topology is None``) keeps its historical husk-consulting
     behaviour (C-006), so a genuine coord mission still reads the coord worktree.
 
-    Like the historical implementation it never raises ``StatusReadPathNotFound``
-    on a missing directory — it returns the best-known primary candidate so the
-    caller can render its own diagnostic. It DOES propagate
+    In the ordinary missing-directory case it does not raise — it returns the
+    best-known primary candidate so the caller can render its own diagnostic.
+    The one exception is the corrupt-meta fail-closed window (``topology is
+    None`` and ``primary_candidate.exists()`` and ``mid8`` set and
+    ``coord_state is EMPTY`` and ``_declares_coordination_branch(...)`` all
+    true): that arm still raises ``StatusReadPathNotFound``, deliberately, even
+    though ``require_exists=False`` here. See :func:`_resolve_not_found`, whose
+    ``if fail_closed or require_exists`` guard triggers on ``fail_closed``
+    independently of ``require_exists``. It DOES propagate
     :class:`MissionSelectorAmbiguous` (C-CTX-4 / C-009 — an ambiguous selector is
     a structured error, never a silent wrong-but-plausible directory).
 
@@ -1236,39 +1246,60 @@ def _stored_topology_best_effort(
     mapped to ``None`` (the C-004 corrupt-meta path — the historical probe-based husk
     derivation runs once), NOT a raise: this primitive must preserve its historical
     contract of never raising on a bad meta, leaving the malformed-meta diagnostic to
-    each caller. ``ValueError`` is the malformed-JSON signal
-    :func:`mission_metadata.load_meta` emits; ``OSError`` covers an unreadable file.
-    The absent FIELD (classify) and the corrupt META (degrade to ``None``) stay
+    each caller. Since the #3162 routing, ``read_primary_meta`` emits the typed
+    :class:`~specify_cli.core.paths.MissionMetaReadError` (a ``RuntimeError``, NOT a
+    ``ValueError``) for a corrupt/non-object meta — caught here alongside the
+    canonicalizer's own path-guard ``ValueError`` and ``OSError`` for an unreadable
+    file. The absent FIELD (classify) and the corrupt META (degrade to ``None``) stay
     DISTINCT paths (C-004). :class:`MissionSelectorAmbiguous` is NOT caught — an
     ambiguous handle must propagate as the structured no-silent-fallback error
     (C-CTX-4 / C-009).
     """
+    from specify_cli.core.paths import MissionMetaReadError
+
     try:
         canonical_handle = _canonicalize_bare_modern_handle(
             repo_root, mission_slug, resolver=resolver
         )
         primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
-    except (ValueError, OSError):
+    except (ValueError, OSError, MissionMetaReadError):
         return None
-    primary_dir = primary_feature_dir_for_mission(repo_root, canonical_handle)
+    primary_dir = _compose_primary_feature_dir(repo_root, canonical_handle)
     return classify_from_meta(primary_meta, primary_dir)
 
 
-def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
-    """Return the PRIMARY-checkout mission dir, deliberately topology-blind.
+def _compose_primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Module-private leaf: the pure ``KITTY_SPECS_DIR``-rooted primary-dir join.
 
-    The inverse companion of :func:`candidate_feature_dir_for_mission`: it does
-    **NOT** route through :func:`_resolve_mission_read_path`, because the
-    topology-aware resolver selects the coordination worktree once one exists —
-    which is exactly the surface that lacks ``meta.json`` (it lives on the
-    primary checkout). Callers that must read primary-anchored metadata
-    (e.g. ``finalize-tasks`` resolving the merge target, mission 01KTRC04
-    FR-003) use this so the read is CWD/topology-invariant — the SAME anchoring
-    ``mission_runtime.resolve_placement_only`` uses.
+    read-side-seam-primary-primitive-closure-01KYKMMT WP03 (T015): the terminal
+    assembler extracted out of the (now-deleted, WP08 T035) public wrapper
+    ``primary_feature_dir_for_mission`` so :func:`resolve_planning_read_dir`'s
+    PRIMARY leg and the resolver-internal callers (this module +
+    :mod:`mission_runtime.resolution`) can reach the assembly WITHOUT going
+    through the wrapper's seam delegation. That distinction is load-bearing,
+    not stylistic: the (former) wrapper delegated to the placement seam
+    (T019), whose PRIMARY leg calls back into :func:`resolve_planning_read_dir`
+    — and *that* is exactly what calls this assembler, so a caller routed
+    through the wrapper would have recursed forever (Ledger M16). Every caller
+    re-pointed at this leaf breaks that cycle before it can exist.
 
-    Lives here (a sanctioned path-constructor module) so the construction stays
-    inside the blessed owners of ``KITTY_SPECS_DIR`` path assembly enforced by
-    ``tests/architectural/test_no_raw_mission_spec_paths.py``.
+    Pure: no coordination probing, no topology awareness, no seam import — an
+    L3 leaf. Permanent (C-004): never delete it, even now the public wrapper
+    is gone — this stays the sanctioned owner of the ``KITTY_SPECS_DIR`` join
+    enforced by ``tests/architectural/test_single_mission_surface_resolver.py``.
+
+    Private by convention, not unreachable (SC-001): kept out of ``__all__``
+    (module-private), but WP08 (T035) re-pointed the cross-module callers at
+    this leaf once the public wrapper they used to import was deleted — so it
+    stays importable for exactly those named-sanctioned callers. The
+    authoritative, machine-checked census of who may import this leaf lives in
+    ``tests/architectural/test_no_read_side_bypass.py`` — its
+    ``_FOUNDATION_SANCTION_SEED`` (per-site foundation sanctions:
+    ``core/paths.py`` x2, ``core/git_ops.py``, ``retrospective/writer.py``,
+    ``status/aggregate.py``) plus ``_READ_SANCTIONED_MODULES`` (whole-module
+    sanctions: ``coordination/surface_resolver.py``,
+    ``mission_runtime/resolution.py`` — 4 internal call sites) — rather than a
+    hand count here, which drifts every time a new site is sanctioned.
 
     Raises:
         ValueError: When ``mission_slug`` is not a safe path segment
@@ -1373,8 +1404,10 @@ def resolve_planning_read_dir(
 
     * a **PRIMARY-partition** kind (``is_primary_artifact_kind`` True) resolves
       PRIMARY regardless of topology, via the topology-blind
-      :func:`primary_feature_dir_for_mission` primitive — mirroring the write-side
-      INV-5 symmetry, so a stale ``-coord`` husk can never shadow it (#2062 close);
+      :func:`_compose_primary_feature_dir` leaf (called directly below, never
+      the public :func:`primary_feature_dir_for_mission` wrapper — see that
+      function's body for why) — mirroring the write-side INV-5 symmetry, so a
+      stale ``-coord`` husk can never shadow it (#2062 close);
     * every other (STATUS-partition) kind keeps the topology-aware seam
       (:func:`candidate_feature_dir_for_mission`) and ALL its C-005 KEEP transients
       (#1718 create-window, #1848 coord-deleted) — the append-only event log stays
@@ -1424,15 +1457,29 @@ def resolve_planning_read_dir(
         # canonicalization into ITS body recurses forever (the shared canonicalizers
         # call the primitive). An ambiguous handle propagates ``MissionSelectorAmbiguous``
         # unchanged from :func:`_canonicalize_handle` — no silent pick (C-006 / C-009).
+        #
+        # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
+        # module-private leaf DIRECTLY, never the public wrapper
+        # ``primary_feature_dir_for_mission``. Once T019 makes that wrapper
+        # delegate to ``placement_seam(...).read_dir(...)``, the seam routes a
+        # PRIMARY-partition kind back through THIS function — so calling the
+        # wrapper here would recurse forever (Ledger M16 — the exact cliff this
+        # WP's Half A/Half B split exists to cross safely).
         canonical = _canonicalize_primary_read_handle(
             repo_root, mission_slug, resolver=resolver
         )
-        return primary_feature_dir_for_mission(repo_root, canonical)
+        return _compose_primary_feature_dir(repo_root, canonical)
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
 
-def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission_slug: str) -> Path:
+def resolve_subtasks_gate_dir(
+    feature_dir: Path,
+    repo_root: Path | None,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+) -> Path:
     """Resolve the PRIMARY mission dir the subtask-completeness gate reads ``tasks.md`` from.
 
     The single canonical seam (closes #2574) for the "resolve PRIMARY
@@ -1466,6 +1513,12 @@ def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission
             primary_root = resolve_canonical_root(feature_dir)
         except WorkspaceRootNotFound:
             return feature_dir
+    if effective_root is not None:
+        from mission_runtime import placement_seam
+
+        return placement_seam(
+            primary_root, mission_slug, effective_root=effective_root
+        ).read_dir(MissionArtifactKind.TASKS_INDEX)
     # resolve_planning_read_dir is defined in this same module, so its
     # declared `-> Path` return type is visible to mypy directly (no
     # follow_imports=skip boundary crossed here) — a cast was redundant
@@ -1545,7 +1598,7 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     coord-aware primitive (dozens of tests call it directly to prove the
     coord-vs-primary split — see ``tests/retrospective/``,
     ``tests/integration/test_coord_loop_*``,
-    ``tests/architectural/test_gate_read_literal_ban.py``), so it is NOT
+    ``tests/architectural/_gate_read_callshape.py``), so it is NOT
     deleted — only dropped from ``__all__`` (below) since it no longer has a
     cross-module ``src/`` importer (the symbol-level dead-code gate,
     ``tests/architectural/test_no_dead_symbols.py``, requires one for an
@@ -1612,13 +1665,28 @@ def resolve_feature_dir_for_mission(
 # ``__all__`` member. The function itself is kept (not deleted): it remains a
 # genuine coord-aware primitive that many tests import directly by qualified
 # name (unaffected by ``__all__``) to exercise the coord-vs-primary split.
+# ``primary_feature_dir_for_mission`` is DELETED (read-side-seam-primary-
+# primitive-closure-01KYKMMT WP08, T035, SC-001): the public wrapper is not
+# merely dropped from this list, it no longer exists in the module at all --
+# ``from ...missions._read_path_resolver import primary_feature_dir_for_mission``
+# now raises ``ImportError``. The transitional shim is gone (C-004); the
+# terminal ``_compose_primary_feature_dir`` leaf is the PERMANENT, module-
+# private assembler every PRIMARY read ultimately funnels through, importable
+# only by the seam's own PRIMARY leg and the named-sanctioned cross-module
+# callers. The authoritative census of those callers lives in
+# ``tests/architectural/test_no_read_side_bypass.py``'s
+# ``_FOUNDATION_SANCTION_SEED`` (per-site: ``core/paths.py`` x2,
+# ``core/git_ops.py``, ``retrospective/writer.py``, ``status/aggregate.py``)
+# and ``_READ_SANCTIONED_MODULES`` (whole-module: ``coordination/
+# surface_resolver.py``, ``mission_runtime/resolution.py`` — 4 internal call
+# sites) — consult that machine-checked table rather than re-typing a hand
+# count here.
 __all__ = [
     "CoordState",
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "coord_feature_dir",
-    "primary_feature_dir_for_mission",
     "probe_coord_state",
     "resolve_bare_modern_mission_dir_name",
     "resolve_planning_read_dir",

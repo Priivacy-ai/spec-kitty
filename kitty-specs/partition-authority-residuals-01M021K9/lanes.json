@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "mission_slug": "partition-authority-residuals-01M021K9",
+  "mission_id": "01M021K9TK5BYMZAKK2TZMVCY5",
+  "mission_branch": "kitty/mission-partition-authority-residuals-01M021K9",
+  "target_branch": "fix/partition-authority-residuals",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_materialization.py",
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/cli/commands/merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_dependency_graph.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/policy/merge_gates.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/worktree_topology.py",
+        "src/specify_cli/status/lane_reader.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/safe_commit_cmd.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/worktree.py",
+        "tests/git_ops/test_worktree.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/audit/shape_registry.py",
+        "src/specify_cli/cli/commands/doctor.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/retrospect.py",
+        "src/specify_cli/retrospective/summary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/doctor.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/reducer.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-15T07:46:26.545424+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "745a03c0f4faa0d5330ed6e7b7d32a968292c5d0"
+}

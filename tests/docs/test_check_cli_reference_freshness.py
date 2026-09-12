@@ -14,7 +14,8 @@ from pathlib import Path
 import pytest
 import typer
 
-os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+# SPEC_KITTY_ENABLE_SAAS_SYNC is set collection-wide in tests/conftest.py
+# pytest_configure (#3213), not per-module.
 os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 
 from scripts.docs import check_cli_reference_freshness as freshness
@@ -129,6 +130,40 @@ class TestExtractReferencedPaths:
         text = "## spec-kitty foo\n\n_Run the foo command_\n\n```\nUsage\n```\n"
         paths = freshness.extract_referenced_paths(text)
         assert paths[("foo",)]["summary"] == "Run the foo command"
+
+    def test_extracts_full_help_body_from_generated_block(self) -> None:
+        text = (
+            "## spec-kitty foo\n\n"
+            "```\n"
+            " Usage: spec-kitty foo [OPTIONS]\n\n"
+            " Stable summary.\n\n"
+            " Body text wrapped across\n"
+            " terminal lines.\n\n"
+            "╭─ Options ─╮\n"
+            "│ --help   │\n"
+            "╰──────────╯\n"
+            "```\n"
+        )
+
+        paths = freshness.extract_referenced_paths(text)
+
+        assert paths[("foo",)]["help_body"] == (
+            "Stable summary. Body text wrapped across terminal lines."
+        )
+
+    def test_extracts_click_deprecated_label_as_presentation_only(self) -> None:
+        text = (
+            "## spec-kitty old\n\n"
+            "```\n"
+            "Usage: spec-kitty old [OPTIONS]\n\n"
+            "(Deprecated) The command's actual help.\n\n"
+            "Options:\n"
+            "```\n"
+        )
+
+        paths = freshness.extract_referenced_paths(text)
+
+        assert paths[("old",)]["help_body"] == "The command's actual help."
 
     def test_extracts_nothing_from_empty(self) -> None:
         assert freshness.extract_referenced_paths("") == {}
@@ -328,6 +363,92 @@ class TestRules:
         )
         drift = [f for f in findings if f.rule_id == "HELP-DRIFT"]
         assert drift[0].severity == "error"
+
+    def test_help_drift_detects_body_only_change(self) -> None:
+        entries = [
+            CommandPathEntry(
+                path=("foo",),
+                kind="command",
+                hidden=False,
+                deprecated=False,
+                help_summary="Stable summary",
+                source_file=None,
+                source_function=None,
+                requires_saas_sync=False,
+                help_body="Stable summary. The corrected second paragraph.",
+            )
+        ]
+        ref = (
+            "## spec-kitty foo\n\n"
+            "_Stable summary_\n\n"
+            "```\n"
+            "Usage: spec-kitty foo [OPTIONS]\n\n"
+            "Stable summary. The stale second paragraph.\n\n"
+            "Options:\n"
+            "  --help\n"
+            "```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=entries,
+            main_reference_text=ref,
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        drift = [f for f in findings if f.rule_id == "HELP-DRIFT"]
+        assert [f.path for f in drift] == [("foo",)]
+        assert "recorded help body" in drift[0].detail
+
+    def test_help_drift_detects_missing_generated_body(self) -> None:
+        entry = CommandPathEntry(
+            path=("foo",),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Live full help body.",
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text="## spec-kitty foo\n",
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        assert any(f.rule_id == "HELP-DRIFT" for f in findings)
+
+    def test_help_drift_uses_canonical_file_when_other_reference_mentions_path(
+        self,
+    ) -> None:
+        entry = CommandPathEntry(
+            path=("foo",),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Canonical help body.",
+        )
+        main_ref = (
+            "## spec-kitty foo\n\n"
+            "```\nUsage: spec-kitty foo\n\nCanonical help body.\n\nOptions:\n```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text=main_ref,
+            agent_reference_text="See `spec-kitty foo` for context.\n",
+            saas_sync_enabled=True,
+        )
+
+        assert not any(f.rule_id == "HELP-DRIFT" for f in findings)
 
     def test_agent_subtree_uses_agent_reference(self) -> None:
         entries = [
@@ -531,7 +652,7 @@ class TestCli:
     ) -> None:
         # Force the SAAS check off via the internal flag.
         monkeypatch.setattr(freshness, "_SAAS_SYNC_PRESET", False)
-        monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
         ref = tmp_path / "ref.md"
         ref.write_text(
@@ -621,16 +742,19 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-07-04 at 236 visible (was 214 from
-    ``cli-audit-3-2.md``; the surface grew to 235 through legitimate
-    post-audit additions and ``orchestrator-api resolve-workspace`` (#2337)
-    crossed the stale band). Tolerance: ±10% on the visible count (212..259)
-    to allow natural growth.
+    Baseline re-pinned 2026-09-05 at 281 visible after converging the 11
+    orchestrator-api design-phase verbs onto the experimental tree while
+    preserving its retired-surface removals.
+    Tolerance: ±10% on the visible count (253..309) to allow natural growth.
     """
-    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
-    os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
-
     import sys
+
+    env_overrides = {
+        "SPEC_KITTY_ENABLE_SAAS_SYNC": "1",
+        "SPEC_KITTY_NO_UPGRADE_CHECK": "1",
+    }
+    saved_env = {key: os.environ.get(key) for key in env_overrides}
+    os.environ.update(env_overrides)
 
     saved = sys.argv[:]
     sys.argv = ["spec-kitty", "--help"]
@@ -641,14 +765,45 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
         register_commands(app)
     finally:
         sys.argv = saved
+        for key, value in saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
     from scripts.docs._typer_walker import walk
 
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 212 <= len(visible) <= 259, (
+    assert 253 <= len(visible) <= 309, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-07-04 audit baseline of 236"
+        "around the 2026-09-05 convergence audit baseline of 281"
     )
     assert len(deprecated) >= 1
+
+
+def test_visible_count_smoke_does_not_clobber_ambient_env_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T032 red-first (FR-015 fix-before-wiring): env-leak proof.
+
+    The smoke test above force-assigns ``SPEC_KITTY_ENABLE_SAAS_SYNC`` /
+    ``SPEC_KITTY_NO_UPGRADE_CHECK`` via plain ``os.environ[...] =`` with no
+    restore, clobbering (and never restoring) whatever value a
+    differently-ordered predecessor test deliberately set -- an
+    order-dependent leak invisible to ``make test-fast``'s own directory
+    order, exposed under a different CI shard split.
+
+    Pin a sentinel that does not match either forced literal (``"1"``)
+    before invoking the smoke test and prove it survives: RED on base (the
+    smoke test's direct assignment permanently overwrites it), GREEN once
+    the smoke test snapshots + restores instead.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "sentinel-ambient-value")
+    monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", "sentinel-ambient-value")
+
+    test_real_typer_app_visible_count_within_tolerance()
+
+    assert os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] == "sentinel-ambient-value"
+    assert os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] == "sentinel-ambient-value"

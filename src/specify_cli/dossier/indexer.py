@@ -16,16 +16,63 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/tasks/WP03-in
 
 import fnmatch
 import logging
+import re
 import uuid
-from datetime import datetime, UTC
 from pathlib import Path
 from collections.abc import Iterator
 
-from specify_cli.dossier.hasher import hash_file_with_validation
-from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
+from kernel.clock import now_utc
+from charter.missions import ExpectedArtifactManifest
+from specify_cli.dossier.hasher import hash_file_with_validation, hash_wp_static_projection
+from specify_cli.dossier.manifest import ManifestRegistry
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 logger = logging.getLogger(__name__)
+
+# A WP artifact is a ``WP##``-prefixed markdown file (e.g. ``tasks/WP01-foo.md``).
+# Its content hash is computed from the normalized WPMetadata static projection
+# rather than raw bytes (FR-002, C-004) so runtime-mutable frontmatter churn
+# (lane, agent, shell_pid, history, review_* …) does not move the dossier hash.
+_WP_FILENAME_RE = re.compile(r"^WP\d{2,}", re.IGNORECASE)
+
+
+def _is_wp_artifact(file_path: Path) -> bool:
+    """True if *file_path* is a ``WP##`` markdown work-package file."""
+    return file_path.suffix.lower() == ".md" and bool(_WP_FILENAME_RE.match(file_path.stem))
+
+
+def _hash_wp_projection(file_path: Path) -> tuple[str | None, str | None]:
+    """Hash a WP file's normalized static projection: ``(hash, error_reason)``.
+
+    Two failure modes, deliberately treated differently (#2883 items 3/4):
+
+    * **Present-but-schema-invalid frontmatter** (``ValidationError``): the
+      frontmatter parsed to a mapping but failed the ``WPMetadata`` schema, so it
+      carries runtime-mutable fields (lane / agent / history). Raw-byte hashing it
+      would fold those into the recorded hash, so a routine lane transition would
+      move the hash and manufacture a false DIVERGENCE (breaking AS-4). **Fail
+      closed** — return ``(None, reason)`` so the caller marks it non-present.
+    * **No parseable frontmatter** (``FrontmatterError`` / ``ValueError``: a stub
+      ``WP##.md``, malformed YAML, or a non-mapping list/scalar doc): there is no
+      runtime-field mapping to churn, so a raw-byte hash is stable — keep the
+      artifact present via the raw-byte fallback. Crucially this no longer aborts
+      the whole scan: a list/scalar doc now surfaces as ``FrontmatterError`` from
+      ``read`` rather than a ``TypeError`` (#2883 item 4).
+    """
+    from pydantic import ValidationError
+
+    from specify_cli.frontmatter import FrontmatterError
+    from specify_cli.status import read_wp_frontmatter
+
+    try:
+        meta, _ = read_wp_frontmatter(file_path)
+    except ValidationError as exc:
+        logger.warning("WP %s frontmatter fails schema (%s); marking non-present (fail-closed)", file_path, exc)
+        return None, f"wp frontmatter invalid: {exc}"
+    except (FrontmatterError, ValueError) as exc:
+        logger.debug("WP projection unavailable for %s (%s); using stable raw-byte hash", file_path, exc)
+        return hash_file_with_validation(file_path)
+    return hash_wp_static_projection(meta), None
 
 
 class Indexer:
@@ -40,13 +87,22 @@ class Indexer:
         errors: List of errors encountered during scanning
     """
 
-    def __init__(self, manifest_registry: ManifestRegistry):
+    def __init__(self, manifest_registry: ManifestRegistry, repo_root: Path | None = None):
         """Initialize Indexer with manifest registry.
 
         Args:
             manifest_registry: ManifestRegistry instance for loading manifests
+            repo_root: Project root, threaded through every
+                ``manifest_registry.load_manifest(mission_type, repo_root=...)``
+                call so a configured org-pack ``expected-artifacts.yaml``
+                override (#3525 Fold C) is honored by the dossier
+                completeness index, not just the governance gate. Optional
+                and defaults to ``None`` -- the pre-fold behavior (no org
+                lookup, built-in manifest tree only) for every caller that
+                does not supply it.
         """
         self.manifest_registry = manifest_registry
+        self._repo_root = repo_root
         self.artifacts: list[ArtifactRef] = []
         self.errors: list[dict] = []
 
@@ -74,7 +130,7 @@ class Indexer:
                 self.artifacts.append(artifact)
 
         # Load manifest
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         # Build MissionDossier
         dossier = MissionDossier(
@@ -91,7 +147,7 @@ class Indexer:
         dossier.artifacts.extend(missing)
 
         # Update timestamp
-        dossier.dossier_updated_at = datetime.now(UTC)
+        dossier.dossier_updated_at = now_utc()
 
         return dossier
 
@@ -127,7 +183,7 @@ class Indexer:
         """
         relative_path = str(file_path.relative_to(feature_dir))
         artifact_key = self._derive_artifact_key(file_path, mission_type)
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         # Try to classify (with fallback for unreadable files)
         try:
@@ -137,8 +193,12 @@ class Indexer:
             artifact_class = "output"
 
         try:
-            # Try to read and hash
-            file_hash, error_reason = hash_file_with_validation(file_path)
+            # Try to read and hash. WP artifacts hash their normalized static
+            # projection (FR-002, C-004); everything else hashes raw bytes.
+            if _is_wp_artifact(file_path):
+                file_hash, error_reason = _hash_wp_projection(file_path)
+            else:
+                file_hash, error_reason = hash_file_with_validation(file_path)
 
             if error_reason:
                 # UTF-8 validation failed or I/O error
@@ -223,9 +283,7 @@ class Indexer:
         """
         # Strategy 1: Check manifest definitions (if manifest exists)
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                     return specs.artifact_class.value
 
@@ -304,7 +362,7 @@ class Indexer:
             return []  # No manifest, can't detect missing
 
         # Load manifest to access ExpectedArtifactSpec objects
-        manifest = self.manifest_registry.load_manifest(dossier.mission_type)
+        manifest = self.manifest_registry.load_manifest(dossier.mission_type, repo_root=self._repo_root)
         if not manifest:
             return []
 
@@ -336,7 +394,7 @@ class Indexer:
                     required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
-                    indexed_at=datetime.now(UTC),
+                    indexed_at=now_utc(),
                 )
                 missing.append(ghost)
 
@@ -356,12 +414,10 @@ class Indexer:
             Stable artifact key (e.g., 'input.spec.main')
         """
         # Load manifest to check if file matches any known spec
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         if manifest:
-            for specs in (
-                manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always
-            ):
+            for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:
                 if self._matches_pattern(file_path, specs.path_pattern):
                     return specs.artifact_key
 

@@ -1,0 +1,191 @@
+"""Regression (M5, adversarial squad on PR #3156): the approval artifact must
+not survive a lane transition that never actually completed.
+
+``_mt_finalize_plan`` used to write AND git-commit a ``verdict: approved``
+review-cycle artifact BEFORE ``_mt_execute`` performed the real lane
+transition. ``_mt_execute`` holds the status lock and calls
+``_mt_emit_transitions``, which has dedicated ``EventPersistenceError``
+diagnostics in ``_do_move_task`` -- an ANTICIPATED failure mode, not a
+theoretical one. There was no compensating action for the already-committed
+artifact: on failure, the WP stayed ``in_review`` (rejected) while its
+authoritative review record already said ``approved`` -- the exact inverse
+of the defect ``review-verdict-write-integrity-01KZ1CGF`` exists to close.
+
+This test forces ``_mt_emit_transitions`` (the function ``_mt_execute`` calls
+under the status lock) to raise, then asserts:
+
+* no NEW review-cycle artifact was written at all (not merely "not
+  committed" -- the write itself must not race ahead of the transition it
+  depends on), and
+* the WP's latest on-disk review-cycle verdict is still ``rejected``.
+
+Drives the REAL ``_do_move_task`` orchestrator (Fake ports, no real git) so
+this is a genuine end-to-end reproduction, not a unit test of the helper in
+isolation.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+import typer
+
+from specify_cli.agent_tasks_ports import CommitStatusResult, TasksPorts
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
+from tests.mocked_env import setup_mocked_env
+from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
+    FakeCoordCommitRouter,
+    FakeFsReader,
+    FakeGitOps,
+    FakeRender,
+)
+
+pytestmark = pytest.mark.fast
+
+_MISSION = "approval-not-durable-on-failure"
+_WP_ID = "WP01"
+
+
+def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path, Path]:
+    """Minimal WP + feature structure (mirrors the M1 collision test's helper)."""
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    wp_file = tasks_dir / f"{wp_id}-test.md"
+    wp_file.write_text(
+        f"---\n"
+        f"work_package_id: {wp_id}\n"
+        f"title: Test {wp_id}\n"
+        f"execution_mode: code_change\n"
+        f"agent: testbot\n"
+        f"subtasks: [T001, T002, T003]\n"
+        f"owned_files:\n  - src/{wp_id.lower()}/**\n"
+        f"authoritative_surface: src/{wp_id.lower()}/\n"
+        f"---\n\n# {wp_id}\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    return feature_dir, wp_file
+
+
+def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-{to_lane}-{len(list(feature_dir.glob('status.events*')))}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane(to_lane),
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+
+def _fake_ports(feature_dir: Path) -> TasksPorts:
+    coord = FakeCoordCommitRouter(
+        write_dir=feature_dir,
+        status_result=CommitStatusResult(event=None, skipped=False),
+    )
+    return TasksPorts(
+        fs=FakeFsReader(default_planning_dir=feature_dir),
+        coord=coord,
+        git=FakeGitOps(),
+        render=FakeRender(),
+    )
+
+
+def _run_move(
+    tmp_path: Path,
+    *,
+    to: str,
+    ports: TasksPorts,
+    note: str | None = None,
+    review_feedback_file: Path | None = None,
+) -> None:
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=_MISSION,
+        target_branch="wip-lane",
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        _do_move_task(
+            _MoveTaskArgs(
+                task_id=_WP_ID,
+                to=to,
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=note,
+                review_feedback_file=review_feedback_file,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=True,
+                json_output=True,
+            ),
+            ports=ports,
+        )
+
+
+def test_failed_transition_leaves_no_approved_artifact_and_verdict_stays_rejected(
+    tmp_path: Path,
+) -> None:
+    """Force the lane transition to fail after a rejected WP is re-approved.
+
+    Before the fix: the approved review-cycle artifact is written (and
+    "committed" via the Fake router) BEFORE the transition is attempted, so
+    it survives even though the transition itself never completed. After the
+    fix: the write is deferred until AFTER the transition succeeds, so a
+    forced transition failure leaves zero trace of the approval.
+    """
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    ports = _fake_ports(feature_dir)
+    wp_dir = feature_dir / "tasks" / wp_file.stem
+
+    # Cycle 1: reject.
+    _seed_wp_event(feature_dir, _WP_ID, "in_review")
+    feedback1 = tmp_path / "feedback1.md"
+    feedback1.write_text("**Issue**: needs work.\n", encoding="utf-8")
+    _run_move(tmp_path, to="planned", ports=ports, review_feedback_file=feedback1)
+    assert (wp_dir / "review-cycle-1.md").exists()
+
+    # Re-open for review, then attempt to approve while the lane-transition
+    # emit is forced to fail.
+    _seed_wp_event(feature_dir, _WP_ID, "in_review")
+    with (
+        patch(
+            "specify_cli.cli.commands.agent.tasks_move_task._mt_emit_transitions",
+            side_effect=RuntimeError("forced transition failure"),
+        ),
+        pytest.raises(typer.Exit),
+    ):
+        _run_move(tmp_path, to="approved", ports=ports, note="Review passed")
+
+    assert not (wp_dir / "review-cycle-2.md").exists(), (
+        "an approved review-cycle artifact was written even though the lane "
+        "transition failed -- the approval record and the actual WP state "
+        "have diverged (M5)"
+    )
+    cycle1_text = (wp_dir / "review-cycle-1.md").read_text(encoding="utf-8")
+    assert "verdict: rejected" in cycle1_text, (
+        "the WP's latest review-cycle artifact must still report rejected "
+        "after a failed approval transition"
+    )
