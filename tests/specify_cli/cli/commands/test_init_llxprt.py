@@ -30,14 +30,7 @@ from specify_cli.template.asset_generator import render_command_template
 
 pytestmark = pytest.mark.integration
 
-TEMPLATES_DIR = (
-    Path(__file__).resolve().parents[4]
-    / "packs"
-    / "built-in"
-    / "missions"
-    / "mission-steps"
-    / "software-dev"
-)
+TEMPLATES_DIR = Path(__file__).resolve().parents[4] / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
 
 
 def _make_app() -> tuple[Typer, io.StringIO]:
@@ -77,9 +70,7 @@ def _render_llxprt(command: str) -> str:
     )
 
 
-def test_init_llxprt_registers_agent_and_gitignores_directory(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_init_llxprt_registers_agent_and_gitignores_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     app, output = _make_app()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
