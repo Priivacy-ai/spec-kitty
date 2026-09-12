@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-09-12T09:41:22.126689+00:00",
+  "flattened": false,
+  "friendly_name": "Owned checkout charter operations and hosted binding governance",
+  "mission_id": "01M2AFWCGXP2R9DKC2WAYQ34KY",
+  "mission_number": null,
+  "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
+  "mission_type": "software-dev",
+  "purpose_context": "Child of SaaS 1713 and recovery 1711. User authorized cross-project governance and the canonical routing defect discovered during lane activation. Root owns source routing WP; curator owns doctrine WP; no deployment or merge.",
+  "purpose_tldr": "Resolve and author the actual owned charter without corrupting another checkout; activate hosted binding recovery authority.",
+  "slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
+  "target_branch": "codex/issue-4250-charter-owned-checkout",
+  "topology": "single_branch"
+}
