@@ -288,6 +288,15 @@ The prompt contains all context, acceptance criteria, and review feedback
      (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
 - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
+8b. **Compiler typecheck (MANDATORY when the WP touches typed sources)**:
+    A test runner does not replace compiler diagnostics. If the diff includes
+    typed sources (including tests), select the project's configured compiler
+    or typecheck command before execution, matching the repository's CI.
+    If no command is configured, select an available compiler appropriate to
+    the project's language. A failed compiler command fails the gate; never
+    try another command to turn that failure into success.
+    The command MUST exit 0. Paste command + exit code into the handoff note.
+    Reviewers reject the WP if typecheck was skipped or is red.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"
 10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
 11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
