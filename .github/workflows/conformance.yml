@@ -66,7 +66,7 @@ jobs:
         with:
           command: 'skills run'
           args: 'conformance/skills/manifest.yaml'
-          version: '1.1.0'
+          version: '1.2.2'
 
       # FR-007: manifest completeness — every src/doctrine/skills/* directory
       # has exactly one manifest case (plus the one control case), and vice

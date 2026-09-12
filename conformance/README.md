@@ -3,7 +3,7 @@
 This directory is the spec-kitty fork's side of the muster ⇄ Spec Kitty
 agent-conformance programme, wave 1 (mission `sk-skills-static-conformance`,
 seed `MOES-Media/spec-kitty#22`). It statically conformance-checks all 53
-built-in `SKILL.md` files under `src/doctrine/skills/*` against
+built-in `SKILL.md` files under `src/charter/offering/skills/*` against
 [`@garrison-hq/muster`](https://github.com/garrison-hq/muster)'s skills
 adapter, gates every PR and push to `main` on the result via
 `.github/workflows/conformance.yml`, and records the programme's design
@@ -16,7 +16,7 @@ direction (C-001).
 
 ## Pinned version
 
-**`@garrison-hq/muster@1.1.0`** — exact, never a range. This is the version
+**`@garrison-hq/muster@1.2.2`** — exact, never a range. This is the version
 `.github/workflows/conformance.yml` pins (`version: '1.1.0'`, C-003, NFR-002)
 and the version every command below uses. Do not substitute `latest`,
 `^1.1.0`, or `~1.1.0` anywhere in this suite; a floating range would make
@@ -28,7 +28,7 @@ runs against.
 Run this before opening a pull request:
 
 ```sh
-npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml \
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/manifest.yaml \
   && node conformance/scripts/check-manifest-completeness.mjs \
   && echo "conformance: both checks green"
 ```
@@ -44,7 +44,7 @@ This runs, in order:
    `expectations.ok`.
 2. **The manifest completeness check**
    (`conformance/scripts/check-manifest-completeness.mjs`) — a Node script
-   that verifies every directory under `src/doctrine/skills/*` has exactly
+   that verifies every directory under `src/charter/offering/skills/*` has exactly
    one manifest case, and vice versa, **and** that the FR-005 discrimination
    control still discriminates (see "Proving the suite discriminates"
    below). The completeness half is Node-stdlib-only; the discrimination
@@ -60,10 +60,10 @@ This runs, in order:
 Both must exit `0` for the suite to be considered green.
 
 **Local prerequisite.** `check-manifest-completeness.mjs` now shells out to
-`npx --offline @garrison-hq/muster@1.1.0 skills run <manifest> --json`
+`npx --offline @garrison-hq/muster@1.2.2 skills run <manifest> --json`
 internally (see "Proving the suite discriminates" below) — it is no longer
 a pure-stdlib, no-process-exec script. Running it standalone (not preceded
-by the `npx --offline @garrison-hq/muster@1.1.0 skills run ...` command
+by the `npx --offline @garrison-hq/muster@1.2.2 skills run ...` command
 above in the same session) still requires the pinned package to be warm in
 the local npm cache first, exactly per the two-step procedure in the next
 section. If the CLI is not available, the script prints an actionable
@@ -73,28 +73,28 @@ trace.
 ## The two-step cache-warm-then-offline procedure
 
 The pre-PR command above runs with `npx --offline`, which requires the
-pinned `@garrison-hq/muster@1.1.0` package to already be present in npm's
+pinned `@garrison-hq/muster@1.2.2` package to already be present in npm's
 local cache — a cold runner (or a cold local machine) has nothing to be
 offline *with* yet. The suite is therefore always a two-step procedure:
 
 **Step 1 — cache-warm (network enabled, one-time).** Either of:
 
-- `npm install --no-save @garrison-hq/muster@1.1.0` — installs the exact
+- `npm install --no-save @garrison-hq/muster@1.2.2` — installs the exact
   pinned version into the local npm cache without touching this
   repository's own `package.json`/lockfile, **or**
-- a pinned `devDependency` on `@garrison-hq/muster@1.1.0` restored via
+- a pinned `devDependency` on `@garrison-hq/muster@1.2.2` restored via
   `npm ci` — if a project already carries the pin as a `devDependency`, a
   normal `npm ci` cache-restores it with no extra step.
 
 **Step 2 — run fully offline (network disabled).**
 
 ```sh
-npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/manifest.yaml
 ```
 
 `npx --offline` reaches into the cache step 1 warmed and never touches the
 network. This two-step shape is what actually reaches `npm`'s registry
-before the offline gate closes — a bare `npx @garrison-hq/muster@1.1.0 ...`
+before the offline gate closes — a bare `npx @garrison-hq/muster@1.2.2 ...`
 with no prior cache-warm step, run on a genuinely cold runner with no
 network, would fail to resolve the package at all. `.github/workflows/conformance.yml`
 (this suite's CI gate) performs the equivalent of step 1 implicitly via
@@ -164,11 +164,11 @@ fixture's text for discrimination. It runs the pinned muster CLI once, in
 `--json` mode —
 
 ```sh
-npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml --json
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/manifest.yaml --json
 ```
 
 — and asserts directly on what muster itself reported, confirmed against
-`@garrison-hq/muster@1.1.0`'s pinned source
+`@garrison-hq/muster@1.2.2`'s pinned source
 (`src/adapters/skills/validate.ts`'s `validateName()`, `src/cli/index.ts`'s
 `doSkillsRun()`) and against a live run:
 
@@ -210,7 +210,7 @@ muster-based check).
 ### The new coupling, disclosed
 
 This is a real, new coupling: `check-manifest-completeness.mjs` now depends
-on `@garrison-hq/muster@1.1.0`'s `--json` output *shape*
+on `@garrison-hq/muster@1.2.2`'s `--json` output *shape*
 (`{ ok, total, passed, failed, skipped, results: [{ id, type, passed,
 violations: [{ path, message, severity, section }] }] }`) at the exact
 pinned version, not just its `ok`/exit-code contract. Unlike the coupling
@@ -244,13 +244,13 @@ manifest):
 
 ```sh
 # Baseline: exits 0 today.
-npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/manifest.yaml
 echo "baseline exit code: $?"        # 0
 
 # Flip the control case's declared expectation (only that one line):
 sed -i.bak 's/ok: false/ok: true/' conformance/skills/manifest.yaml
 
-npx --offline @garrison-hq/muster@1.1.0 skills run conformance/skills/manifest.yaml
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/manifest.yaml
 echo "flipped exit code: $?"         # non-zero
 
 # Restore:
@@ -266,14 +266,14 @@ node conformance/scripts/check-manifest-completeness.mjs
 echo "exit code: $?"   # 0
 
 # Induce a mismatch (add an untracked skill directory), re-run, then clean up:
-mkdir -p src/doctrine/skills/__temp-probe
+mkdir -p src/charter/offering/skills/__temp-probe
 echo '---
 name: __temp-probe
 description: temporary fixture, deleted immediately after use.
 ---
-' > src/doctrine/skills/__temp-probe/SKILL.md
+' > src/charter/offering/skills/__temp-probe/SKILL.md
 node conformance/scripts/check-manifest-completeness.mjs   # exit 1, names __temp-probe
-rm -rf src/doctrine/skills/__temp-probe
+rm -rf src/charter/offering/skills/__temp-probe
 node conformance/scripts/check-manifest-completeness.mjs   # exit 0 again
 ```
 
@@ -333,7 +333,7 @@ meet.
 
 ## Known muster gaps this suite runs on top of
 
-This suite is built against `@garrison-hq/muster@1.1.0` as shipped. Two
+This suite is built against `@garrison-hq/muster@1.2.2` as shipped. Two
 latent behaviors of muster's own `skills run` implementation affect what
 this suite can and cannot prove, and are not fixed here (out of this
 mission's scope guard, C-001 — no muster change):

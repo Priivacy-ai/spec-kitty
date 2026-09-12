@@ -6,25 +6,8 @@
 # (lane-c, merged) -- the SAME fixturePath values WP02's own
 # architect-run-skill.yaml already uses.
 #
-# KNOWN, OUT-OF-WP05-SCOPE BLOCKING DEFECT (found during T027, offline-
-# reproducible -- see tests/cross_cutting/test_crosslayer_wp05_rule_survival_cases.py):
-# WP01's committed personas/architect-alphonso.Soul.md begins with a
-# "# generated: true, source-hash: ..." provenance comment BEFORE its
-# opening "---" delimiter (profile2soul.py's _render_front_matter, by
-# design). muster@1.1.0's RFC-1 Section 3.1.1 parser
-# (parseSoulDocumentFromText, composition.js) requires the document's
-# literal first line to be "---" with no tolerance for a leading comment --
-# so ANY composition using this persona (this case, WP02's own two FR-004
-# static cases, and a live T027 run of this very case) throws
-# `Persona fixture "..." is missing the YAML front-matter opening
-# delimiter "---" (Section 3.1.1).` before any grading occurs. This is a
-# WP01-owned defect (conformance/tools/profile2soul.py and
-# conformance/crosslayer/personas/*.Soul.md are WP01's owned_files, not
-# WP05's) -- reported here plainly, not silently patched around (mirrors
-# WP02's own two documented spec-vs-reality discrepancies, T014). The
-# healthy-direction ("survived") verdict below is therefore designed, not
-# independently observed as of this WP's implementation -- see the WP05
-# task file's Activity Log for the exact command and error transcript.
+# Persona formatting is now validated by the static RFC-1 regression suite.
+# A live survived verdict is not claimed by that static validation.
 id: rule-survival-045
 testClass: behavioral
 layers:

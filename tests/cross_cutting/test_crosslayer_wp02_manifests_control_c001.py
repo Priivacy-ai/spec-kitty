@@ -12,7 +12,7 @@ invocations below ENOENT against paths that do not exist yet) and GREEN only
 once WP02's fixtures are authored. See the WP02 task file's Activity Log for
 the exact RED/GREEN transcript.
 
-Every case below invokes the REAL, offline-cached ``@garrison-hq/muster@1.2.1``
+Every case below invokes the REAL, offline-cached ``@garrison-hq/muster@1.2.2``
 CLI via subprocess (``npx``) — never a mock of ``contradiction-lint.ts`` or
 ``composition.ts``. ``_run_muster`` tries ``--offline`` first (matching this
 mission's cache-warm-then-offline convention) and falls back to a live
@@ -125,7 +125,7 @@ from tests.utils import REPO_ROOT
 
 pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
-_MUSTER_PKG = "@garrison-hq/muster@1.2.1"
+_MUSTER_PKG = "@garrison-hq/muster@1.2.2"
 _CROSSLAYER_DIR = REPO_ROOT / "conformance" / "crosslayer"
 
 

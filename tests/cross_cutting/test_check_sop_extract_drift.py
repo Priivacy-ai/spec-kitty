@@ -138,8 +138,8 @@ def test_mutated_agents_md_exits_one(tmp_path: Path) -> None:
 
     original = agents_path.read_text(encoding="utf-8")
     mutated = original.replace(
-        "Direct pushes are prohibited.",
-        "Direct pushes are prohibited (MUTATED-BY-TEST).",
+        "**Never push to `main`.**",
+        "**Never push to `main` (MUTATED-BY-TEST).**",
         1,
     )
     assert mutated != original, "fixture AGENTS.md did not contain the expected anchor text"
@@ -192,8 +192,8 @@ def test_write_flag_regenerates_and_default_is_then_clean(tmp_path: Path) -> Non
     assert mode_before == 0o644
 
     mutated = extract_path.read_text(encoding="utf-8").replace(
-        "## Branch Protection and CI",
-        "## Branch Protection and CI MUTATED-BY-TEST",
+        "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges",
+        "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges MUTATED-BY-TEST",
         1,
     )
     extract_path.write_text(mutated, encoding="utf-8")
@@ -283,11 +283,11 @@ def test_write_on_renamed_heading_fails_and_extract_is_untouched(tmp_path: Path)
 
     original_agents = agents_path.read_text(encoding="utf-8")
     renamed = original_agents.replace(
-        "## Branch Protection and CI",
-        "## Branch Protection and CI Policy",
+        "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges",
+        "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges Policy",
         1,
     )
-    assert renamed != original_agents, "fixture AGENTS.md did not contain the expected pinned heading '## Branch Protection and CI'"
+    assert renamed != original_agents, "fixture AGENTS.md did not contain the expected pinned heading '## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges'"
     agents_path.write_text(renamed, encoding="utf-8")
 
     extract_hash_before = _sha256(extract_path)
@@ -297,7 +297,7 @@ def test_write_on_renamed_heading_fails_and_extract_is_untouched(tmp_path: Path)
 
     assert write_result.returncode != 0, "--write must fail when a pinned heading is missing from AGENTS.md, not silently regenerate an empty section and exit 0"
     assert "heading not found" in write_result.stderr, write_result.stdout + write_result.stderr
-    assert "Branch Protection and CI" in write_result.stderr, write_result.stdout + write_result.stderr
+    assert "⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges" in write_result.stderr, write_result.stdout + write_result.stderr
     assert _sha256(extract_path) == extract_hash_before, (
         "a failed --write must leave the committed sop-extract.md completely untouched, not half-overwritten or emptied"
     )

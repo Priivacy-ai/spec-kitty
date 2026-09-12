@@ -12,7 +12,7 @@ task files). This file was committed BEFORE any of WP05's three
 implementation files existed, in true red-first order — the tests that
 assert their presence AssertionError on the lane's base commit.
 
-Every case below invokes the REAL, offline-cached ``@garrison-hq/muster@1.2.1``
+Every case below invokes the REAL, offline-cached ``@garrison-hq/muster@1.2.2``
 CLI via subprocess (``npx``) — never a mock of ``manifest-runner.ts`` or
 ``composition.ts``. No test in this module requires network egress or a real
 model endpoint: behavioral-case dispatch is exercised either via the
@@ -88,7 +88,7 @@ from tests.utils import REPO_ROOT
 
 pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
-_MUSTER_PKG = "@garrison-hq/muster@1.2.1"
+_MUSTER_PKG = "@garrison-hq/muster@1.2.2"
 _CROSSLAYER_DIR = REPO_ROOT / "conformance" / "crosslayer"
 _MANIFEST = _CROSSLAYER_DIR / "manifest.yaml"
 _M3_045_RULE_ID = "045-r1"

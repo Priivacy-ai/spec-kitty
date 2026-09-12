@@ -80,8 +80,7 @@ EXTRACT_FILE="${REPO_ROOT}/conformance/crosslayer/sop-extract.md"
 # Ordered list of AGENTS.md "## " headings this extract covers. Order here
 # is the order sections appear in the regenerated sop-extract.md.
 HEADINGS=(
-  "## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main"
-  "## Branch Protection and CI"
+  "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges"
 )
 
 if [[ ! -r "${AGENTS_FILE}" ]]; then
@@ -141,8 +140,7 @@ next line that is exactly "---" (AGENTS.md's own section-separator
 convention) is extracted verbatim, excluding that "---" line itself.
 
 Sections extracted (in AGENTS.md heading order):
-  1. "## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main"
-  2. "## Branch Protection and CI"
+  1. "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges"
 
 Regenerate with: bash conformance/scripts/check-sop-extract-drift.sh --write
 -->
@@ -179,7 +177,7 @@ if [[ "${WRITE_MODE}" -eq 1 ]]; then
   # cross-device copy-then-unlink. A cross-device `mv` is not atomic: a
   # process killed mid-copy can leave EXTRACT_FILE truncated or partially
   # written, which the scratch-file approach above is specifically meant to
-  # prevent. `chmod --reference` restores EXTRACT_FILE's existing mode onto
+  # prevent. `shutil.copymode` restores EXTRACT_FILE's existing mode onto
   # the scratch file before the move regardless of filesystem: `mktemp`
   # always creates its file `0600`, and since `mv`/`rename(2)` never changes
   # the mode of the inode being moved, that `0600` would otherwise carry
@@ -190,7 +188,7 @@ if [[ "${WRITE_MODE}" -eq 1 ]]; then
   WRITE_TMP_FILE="$(mktemp "${EXTRACT_FILE}.XXXXXX")"
   trap 'rm -f "${WRITE_TMP_FILE}"' EXIT
   regenerate > "${WRITE_TMP_FILE}"
-  chmod --reference="${EXTRACT_FILE}" "${WRITE_TMP_FILE}"
+  python3 -c 'import shutil, sys; shutil.copymode(sys.argv[1], sys.argv[2])' "${EXTRACT_FILE}" "${WRITE_TMP_FILE}"
   mv "${WRITE_TMP_FILE}" "${EXTRACT_FILE}"
   echo "check-sop-extract-drift: regenerated ${EXTRACT_FILE} from AGENTS.md" >&2
   exit 0

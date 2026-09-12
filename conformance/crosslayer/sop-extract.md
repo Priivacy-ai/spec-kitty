@@ -16,33 +16,28 @@ next line that is exactly "---" (AGENTS.md's own section-separator
 convention) is extracted verbatim, excluding that "---" line itself.
 
 Sections extracted (in AGENTS.md heading order):
-  1. "## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main"
-  2. "## Branch Protection and CI"
+  1. "## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges"
 
 Regenerate with: bash conformance/scripts/check-sop-extract-drift.sh --write
 -->
 
-## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main
+## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-**All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
+This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here: the reinstated lean, modular CI (`#3995`) runs on public `main` — a path router (`ci-router.yml`) feeding the single `gate_selection.py` authority, a per-module test matrix (`module-tests.yml` / `ci-modules.yml`), coverage/xunit aggregation with a diff-cover ≥90% gate (`ci-aggregate.yml`), a packs lane (`packs.yml`), a nightly full/performance/interpreter run (`ci-nightly.yml`), and a fork-safe SonarCloud workflow (`sonar.yml`). These replaced the archived EXPERIMENTAL Blacksmith producer.
 
-- `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
-- After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
-- Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
-- Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
+- **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
+- `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
+- If your GitHub CLI installation cannot use issue or pull-request commands in a restricted environment, use the GitHub web interface or an authenticated GitHub API client.
 
-**Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
+### Convergence ports
 
-**Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
+- Port commits from the pre-fork line with `git cherry-pick -x` so authorship and provenance are preserved.
+- Before applying a commit, classify it with `git show --stat <sha> -- <retired paths>`.
+- If every touched path is retired, record the commit as `DROP` in the convergence map and do not port it.
+- For a mixed commit, drop the retired hunks and cite the omitted hunks under `Dropped hunks:`.
+- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the canonical regex in [planning `PROGRAM.md` §5](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md#5-the-pr-protocol).
+- Never add `# noqa: TID251` for a retired module.
+- Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
 
-
-## Branch Protection and CI
-
-`main` has a **Protect Main Branch** CI workflow that enforces the no-direct-push policy. A "Protect Main Branch" failure on CI means code bypassed the PR workflow and must be addressed by revert + re-submit.
-
-- `spec-kitty merge` merges lane branches into **local main** only — do NOT use `spec-kitty merge --push` or `git push origin main`.
-- After `spec-kitty merge` completes locally, create a PR branch: `git checkout -b pr/<slug> && git push origin pr/<slug>` and open a PR with `gh pr create`.
-- The only CI result relevant to code health is **CI Quality**. The protect-main failure indicates a workflow violation.
-
-**Recovery if origin/main is accidentally pushed:** Do NOT force-push (branch protection blocks it). Create a `revert/<slug>` branch from origin/main, commit a single revert, open a PR to merge it, then open the real PR from the mission branch.
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Run `tests/architectural/` in full only for cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) — see "Test policy — what you must run for a change" below for the calibrated blast-radius rule. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
 

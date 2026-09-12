@@ -14,7 +14,7 @@ layers:
     fixturePath: sop-extract.md
   - layerType: skill
     # SECURITY NOTE: fixtures/spk-run-next.SKILL.md is a git-tracked symlink
-    # (mode 120000) -> ../../../src/doctrine/skills/spk-run-next/SKILL.md,
+    # (mode 120000) -> ../../../src/charter/offering/skills/spk-run-next/SKILL.md,
     # a real repo file living OUTSIDE this manifest's directory tree. This
     # was necessary to reference that file without duplicating its content
     # (a literal relative path there is correctly rejected by the guard

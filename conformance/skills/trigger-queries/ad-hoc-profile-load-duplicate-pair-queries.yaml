@@ -2,7 +2,7 @@ id: ad-hoc-profile-load
 source: "docs/rubric/skills-trigger-taxonomy.md"
 threshold: 0.5
 shouldTrigger:
-  # Verbatim from src/doctrine/skills/ad-hoc-profile-load/SKILL.md description Triggers list.
+  # Verbatim from src/charter/offering/skills/ad-hoc-profile-load/SKILL.md description Triggers list.
   - "act as the architect"
   - "load the reviewer profile"
   - "switch to implementer"

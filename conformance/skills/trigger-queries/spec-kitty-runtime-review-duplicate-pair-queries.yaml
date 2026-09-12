@@ -2,7 +2,7 @@ id: spec-kitty-runtime-review
 source: "docs/rubric/skills-trigger-taxonomy.md"
 threshold: 0.5
 shouldTrigger:
-  # First six verbatim from src/doctrine/skills/spec-kitty-runtime-review/SKILL.md
+  # First six verbatim from src/charter/offering/skills/spec-kitty-runtime-review/SKILL.md
   # description Triggers list; two more consistent with the same purpose.
   - "review this work package"
   - "check runtime output"

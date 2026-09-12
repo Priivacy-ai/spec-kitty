@@ -1,5 +1,11 @@
 # Behavioral Conformance Suite (M4)
 
+> Evidence status: the historical `2026-08-02-01KYW5XK.json` aggregate was removed
+> because its live attribution contradicted mock raw inputs. No conclusive live
+> profile aggregate is currently committed. Historical results below are not
+> acceptance evidence; see [provenance](evidence/README.md).
+
+
 Mission `doctrine-behavioral-suite-01KYW5XK`. This suite grades a real
 model, over a real bring-your-own-model (BYOM) endpoint, against the
 deployed system prompts spec-kitty's built-in agent profiles actually

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Verifies that conformance/skills/manifest.yaml's type:static case count
-// and name set exactly match the real src/doctrine/skills/* directory tree,
+// and name set exactly match the real src/charter/offering/skills/* directory tree,
 // offset by the one deliberately-broken FR-005 control case (see
 // conformance/skills/manifest.yaml's control-name-mismatch entry) -- AND
 // that the control case actually discriminates a real name-mismatch failure,
@@ -130,18 +130,18 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..");
-const SKILLS_DIR = join(REPO_ROOT, "src", "doctrine", "skills");
+const SKILLS_DIR = join(REPO_ROOT, "src", "charter", "offering", "skills");
 const MANIFEST_PATH = join(REPO_ROOT, "conformance", "skills", "manifest.yaml");
 
 // Must match conformance/README.md's pinned version exactly (C-003,
 // NFR-002) -- never a range. Keep these two in sync by hand; there is no
 // single source of truth to derive both from without adding a package.json
 // dependency this suite deliberately does not carry.
-const MUSTER_VERSION = "1.1.0";
+const MUSTER_VERSION = "1.2.2";
 
 // The manifest carries exactly one non-skill-tree case: the FR-005
 // discrimination control (control-name-mismatch, skillDir: control/...).
-// It is deliberately excluded from the src/doctrine/skills/* comparison
+// It is deliberately excluded from the src/charter/offering/skills/* comparison
 // below and accounted for here as a named constant, never an inline magic
 // number, per WP01's hard rule 5 / data-model.md's CompletenessCheckResult
 // invariant.
@@ -157,7 +157,7 @@ const NAME_MISMATCH_PATH = "name";
 const NAME_MISMATCH_MESSAGE_PATTERN = /must equal the parent directory name/;
 
 // Step 1: read the real skill set. Filter by directory-entry TYPE, never by
-// excluding a literal filename -- src/doctrine/skills/ also contains a
+// excluding a literal filename -- src/charter/offering/skills/ also contains a
 // plain README.md file, and excluding it by name (instead of by type) would
 // silently regress if a second stray non-skill file ever landed there. A
 // directory only counts as a skill if it also contains a SKILL.md
@@ -273,7 +273,7 @@ function checkSkillCaseIdsMatchBasename(skillCases) {
 }
 
 // Structural count check only: exactly one case must be classified as a
-// control case (skillDir outside src/doctrine/skills/). This is unrelated
+// control case (skillDir outside src/charter/offering/skills/). This is unrelated
 // to whether that control *discriminates* anything -- that question is
 // answered by checkControlDiscriminatesInMuster(), below, from muster's own
 // --json output.
@@ -281,7 +281,7 @@ function checkControlCaseCount(controlCases) {
   const errors = [];
   if (controlCases.length !== CONTROL_CASE_COUNT) {
     errors.push(
-      `expected exactly ${CONTROL_CASE_COUNT} control case(s) (skillDir outside src/doctrine/skills/), found ${controlCases.length}: ` +
+      `expected exactly ${CONTROL_CASE_COUNT} control case(s) (skillDir outside src/charter/offering/skills/), found ${controlCases.length}: ` +
         `${controlCases.map((c) => c.id).join(", ") || "(none)"}`,
     );
   }
@@ -513,10 +513,10 @@ function main() {
 
   console.log("manifest completeness: MISMATCH");
   console.log(
-    `  missing from manifest (present under src/doctrine/skills/, no case found): ${missing.length ? missing.join(", ") : "(none)"}`,
+    `  missing from manifest (present under src/charter/offering/skills/, no case found): ${missing.length ? missing.join(", ") : "(none)"}`,
   );
   console.log(
-    `  extra in manifest (case present, no matching src/doctrine/skills/<name> directory): ${extra.length ? extra.join(", ") : "(none)"}`,
+    `  extra in manifest (case present, no matching src/charter/offering/skills/<name> directory): ${extra.length ? extra.join(", ") : "(none)"}`,
   );
   if (missing.length === 0 && extra.length === 0 && !countMatches) {
     console.log(

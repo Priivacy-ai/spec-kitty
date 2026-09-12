@@ -1,1 +1,1 @@
-../../../src/doctrine/skills/spk-run-next/SKILL.md
+../../../src/charter/offering/skills/spk-run-next/SKILL.md

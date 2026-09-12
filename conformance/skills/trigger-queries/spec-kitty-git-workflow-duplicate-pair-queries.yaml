@@ -2,7 +2,7 @@ id: spec-kitty-git-workflow
 source: "docs/rubric/skills-trigger-taxonomy.md"
 threshold: 0.5
 shouldTrigger:
-  # Verbatim from src/doctrine/skills/spec-kitty-git-workflow/SKILL.md
+  # Verbatim from src/charter/offering/skills/spec-kitty-git-workflow/SKILL.md
   # description Triggers list (nine phrases).
   - "how does spec-kitty use git"
   - "worktree management"

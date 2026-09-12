@@ -46,7 +46,7 @@ conformance/crosslayer/
 │   ├── invalid-persona-missing-key.Soul.md   # WP02 — C-001 fixture
 │   └── spk-run-next.SKILL.md                 # WP02 — FR-004 case fixture,
 │                                              # a symlink into
-│                                              # src/doctrine/skills/
+│                                              # src/charter/offering/skills/
 └── cases/
     ├── architect-run-skill.yaml     # WP02 — FR-004 case 1
     ├── reviewer-run-skill.yaml      # WP02 — FR-004 case 2

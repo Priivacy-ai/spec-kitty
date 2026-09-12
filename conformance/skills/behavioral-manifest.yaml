@@ -36,7 +36,7 @@ cases:
   # ─── Pair 1: ad-hoc-profile-load <-> spk-doctrine-profile-load ──────────
   - id: ad-hoc-profile-load
     type: behavioral
-    skillDir: "../../src/doctrine/skills/ad-hoc-profile-load"
+    skillDir: "../../src/charter/offering/skills/ad-hoc-profile-load"
     profile: base
     querySetPath: "trigger-queries/ad-hoc-profile-load-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -45,7 +45,7 @@ cases:
 
   - id: spk-doctrine-profile-load
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-doctrine-profile-load"
+    skillDir: "../../src/charter/offering/skills/spk-doctrine-profile-load"
     profile: base
     querySetPath: "trigger-queries/spk-doctrine-profile-load-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -55,7 +55,7 @@ cases:
   # ─── Pair 2: spec-kitty-runtime-next <-> spk-run-next (+ run-family) ────
   - id: spec-kitty-runtime-next
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spec-kitty-runtime-next"
+    skillDir: "../../src/charter/offering/skills/spec-kitty-runtime-next"
     profile: base
     querySetPath: "trigger-queries/spec-kitty-runtime-next-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -64,7 +64,7 @@ cases:
 
   - id: spk-run-next
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-next"
+    skillDir: "../../src/charter/offering/skills/spk-run-next"
     profile: base
     querySetPath: "trigger-queries/spk-run-next-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -73,7 +73,7 @@ cases:
 
   - id: spk-run-next-run-family
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-next"
+    skillDir: "../../src/charter/offering/skills/spk-run-next"
     profile: base
     querySetPath: "trigger-queries/spk-run-next-run-family-queries.yaml"
     runsPerQuery: 3
@@ -83,7 +83,7 @@ cases:
   # ─── Pair 3: spec-kitty-runtime-review <-> spk-run-review-wp (+ run-family) ──
   - id: spec-kitty-runtime-review
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spec-kitty-runtime-review"
+    skillDir: "../../src/charter/offering/skills/spec-kitty-runtime-review"
     profile: base
     querySetPath: "trigger-queries/spec-kitty-runtime-review-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -92,7 +92,7 @@ cases:
 
   - id: spk-run-review-wp
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-review-wp"
+    skillDir: "../../src/charter/offering/skills/spk-run-review-wp"
     profile: base
     querySetPath: "trigger-queries/spk-run-review-wp-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -101,7 +101,7 @@ cases:
 
   - id: spk-run-review-wp-run-family
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-review-wp"
+    skillDir: "../../src/charter/offering/skills/spk-run-review-wp"
     profile: base
     querySetPath: "trigger-queries/spk-run-review-wp-run-family-queries.yaml"
     runsPerQuery: 3
@@ -111,7 +111,7 @@ cases:
   # ─── Pair 4: spec-kitty-implement-review <-> spk-run-implement-review (+ run-family) ──
   - id: spec-kitty-implement-review
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spec-kitty-implement-review"
+    skillDir: "../../src/charter/offering/skills/spec-kitty-implement-review"
     profile: base
     querySetPath: "trigger-queries/spec-kitty-implement-review-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -120,7 +120,7 @@ cases:
 
   - id: spk-run-implement-review
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-implement-review"
+    skillDir: "../../src/charter/offering/skills/spk-run-implement-review"
     profile: base
     querySetPath: "trigger-queries/spk-run-implement-review-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -129,7 +129,7 @@ cases:
 
   - id: spk-run-implement-review-run-family
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-run-implement-review"
+    skillDir: "../../src/charter/offering/skills/spk-run-implement-review"
     profile: base
     querySetPath: "trigger-queries/spk-run-implement-review-run-family-queries.yaml"
     runsPerQuery: 3
@@ -139,7 +139,7 @@ cases:
   # ─── Pair 5: spec-kitty-git-workflow <-> spk-admin-git-workflow ─────────
   - id: spec-kitty-git-workflow
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spec-kitty-git-workflow"
+    skillDir: "../../src/charter/offering/skills/spec-kitty-git-workflow"
     profile: base
     querySetPath: "trigger-queries/spec-kitty-git-workflow-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -148,7 +148,7 @@ cases:
 
   - id: spk-admin-git-workflow
     type: behavioral
-    skillDir: "../../src/doctrine/skills/spk-admin-git-workflow"
+    skillDir: "../../src/charter/offering/skills/spk-admin-git-workflow"
     profile: base
     querySetPath: "trigger-queries/spk-admin-git-workflow-duplicate-pair-queries.yaml"
     runsPerQuery: 3
@@ -165,7 +165,7 @@ cases:
   # manifest.
   - id: rigged-impossible-control
     type: behavioral
-    skillDir: "../../src/doctrine/skills/ad-hoc-profile-load"
+    skillDir: "../../src/charter/offering/skills/ad-hoc-profile-load"
     profile: base
     querySetPath: "trigger-queries/rigged-impossible-control-queries.yaml"
     runsPerQuery: 3

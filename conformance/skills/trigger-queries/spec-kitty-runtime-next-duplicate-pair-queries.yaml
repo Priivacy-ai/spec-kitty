@@ -2,7 +2,7 @@ id: spec-kitty-runtime-next
 source: "docs/rubric/skills-trigger-taxonomy.md"
 threshold: 0.5
 shouldTrigger:
-  # First six verbatim from src/doctrine/skills/spec-kitty-runtime-next/SKILL.md
+  # First six verbatim from src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md
   # description Triggers list; two more consistent with the same purpose.
   - "run the next step"
   - "what should runtime do next"

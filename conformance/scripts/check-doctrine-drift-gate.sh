@@ -127,7 +127,7 @@ set -uo pipefail
 # (reproduced against gpt-4o-mini: 5/5 runs graded PASS, verdict passCount 0),
 # and this gate correctly refuses to excuse that. Export credentials only with
 # a >=1.2.2 pin, or not at all. The live cadence workflow already pins 1.2.2.
-MUSTER_PKG="@garrison-hq/muster@1.1.0"
+MUSTER_PKG="@garrison-hq/muster@1.2.2"
 CONTROL_MANIFEST="conformance/doctrine/control/045-drifted.yaml"
 DISALLOWED_KINDS='.kind=="RULE_DRIFT" or .kind=="MISSING_SOURCE" or .kind=="MANIFEST_ERROR" or .kind=="STRUCTURAL_ABSENCE"'
 # Substring of muster's no-endpoint error. Matched, never assumed: see (c).

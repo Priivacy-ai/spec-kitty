@@ -94,9 +94,9 @@ def test_pull_request_trigger_covers_both_required_path_scopes() -> None:
     assert not missing, f"crosslayer.yml pull_request trigger misses required path scope(s): {sorted(missing)}"
 
 
-def test_cadence_scaffold_has_schedule_and_workflow_dispatch() -> None:
+def test_paid_cadence_requires_explicit_workflow_dispatch() -> None:
     on_section = _on_section(_workflow())
-    assert "schedule" in on_section, "FR-005 cadence job needs a schedule: trigger"
+    assert "schedule" not in on_section, "Paid evaluation requires explicit dispatch"
     assert "workflow_dispatch" in on_section, "FR-005 cadence job needs workflow_dispatch: for on-demand manual runs"
 
 
@@ -158,7 +158,7 @@ def test_static_job_invokes_muster_action_with_reused_pin_and_correct_inputs() -
     assert with_block["command"] == "crosslayer run"
     assert "conformance/crosslayer/manifest.yaml" in with_block["args"]
     assert "--static-only" in with_block["args"]
-    assert with_block["version"] == "1.2.1"
+    assert with_block["version"] == "1.2.2"
 
 
 def test_static_job_wires_persona_drift_call_site_bare() -> None:
@@ -204,36 +204,13 @@ def test_cadence_job_sources_secrets_from_repository_secrets_only() -> None:
         assert "secrets.MUSTER_API_KEY" not in args
 
 
-def test_cadence_job_carries_explicit_zero_real_cases_comment() -> None:
-    # YAML comments are stripped by yaml.safe_load, so this must inspect
-    # the raw source text, not the parsed structure. This is the guard
-    # against the "unexercised detector read as passing" failure mode
-    # (spec.md Risks / plan.md IC-04 risk note): a green cadence job before
-    # WP05/lane-c lands must never be mistaken for FR-005 being satisfied.
-    raw = _WORKFLOW_PATH.read_text(encoding="utf-8")
-    marker = "ZERO REAL CASES EXIST YET"
-    assert marker in raw, (
-        "crosslayer.yml's cadence job must carry an explicit inline comment stating plainly that zero real rule-survival cases exist until WP05/lane-c lands."
-    )
-
-    # The comment must actually sit ahead of the cadence run step it
-    # documents, not merely appear somewhere else in the file (e.g. only in
-    # the top-of-file header comment).
-    #
-    # M7 WP04 review LOW-5: the marker used to previously read
-    # "crosslayer run --static-only" -- a literal that never appears in the
-    # raw source, because the workflow splits the static job's muster-action
-    # invocation across a `command: 'crosslayer run'` field and a separate
-    # `args: '...--static-only'` field. That made `static_step_index` always
-    # -1, so the positional assertion below never ran (silently skipped by
-    # the `if static_step_index != -1:` guard). The static job's `args`
-    # value IS one single YAML scalar, so "manifest.yaml --static-only"
-    # (both halves) does appear verbatim, on one line, in the raw text --
-    # use that instead.
-    static_step_marker = "manifest.yaml --static-only"
-    static_step_index = raw.index(static_step_marker)
-    comment_index = raw.index(marker)
-    assert comment_index > static_step_index, "the zero-real-cases comment must be positioned near the cadence job's own run step, after the static job's step"
+def test_cadence_has_real_behavioral_and_adversarial_cases() -> None:
+    root = _WORKFLOW_PATH.parents[2] / "conformance/crosslayer"
+    manifest = yaml.safe_load((root / "manifest.yaml").read_text())
+    cases = [yaml.safe_load((root / entry["$ref"]).read_text()) for entry in manifest["cases"]]
+    behavioral = {case["id"] for case in cases if case.get("testClass") == "behavioral"}
+    assert {"rule-survival-045", "erosion-control-045"} <= behavioral
+    assert "ZERO REAL CASES EXIST YET" not in _WORKFLOW_PATH.read_text()
 
 
 def test_workflow_never_touches_shared_conformance_yml() -> None:

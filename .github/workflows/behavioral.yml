@@ -7,6 +7,9 @@ name: Behavioral Conformance Cadence
 on:
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   # Pin @garrison-hq/muster@1.2.2 everywhere -- @1.2.1 has a live pass-k/
   # k-of-n judge-threshold defect (garrison-hq/muster#88, fixed by commit
@@ -258,7 +261,7 @@ jobs:
           MUSTER_VERSION: ${{ steps.muster_version.outputs.version }}
         run: |
           set -euo pipefail
-          mkdir -p conformance/behavioral/evidence
+          mkdir -p /tmp/behavioral-gate-evidence
           evidence_file="conformance/behavioral/evidence/$(date -u +%Y-%m-%d)-01KYW5XK-main-suite.json"
           # Host-only extraction (F5's `endpointHost` field): strip scheme,
           # any userinfo (credentials embedded in the URL), and everything
@@ -568,7 +571,7 @@ jobs:
           MUSTER_VERSION: ${{ steps.muster_version.outputs.version }}
         run: |
           set -euo pipefail
-          mkdir -p conformance/behavioral/evidence
+          mkdir -p /tmp/behavioral-gate-evidence
           evidence_file="conformance/behavioral/evidence/$(date -u +%Y-%m-%d)-01KYW5XK-control-suite.json"
           endpoint_host="$(printf '%s\n' "${MUSTER_ENDPOINT:-}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#^[^/@]*@##; s#[/:].*##')"
           # >>> control evidence reshape (extracted verbatim by control-discrimination-guard.test.sh)
@@ -676,7 +679,7 @@ jobs:
             exit 1
           fi
 
-          mkdir -p conformance/behavioral/evidence
+          mkdir -p /tmp/behavioral-gate-evidence
 
           # --require-axes 4 lives at the call site, not in the script: four
           # behavioral axes is spec.md's design (FR-001..004), so a profile
@@ -686,12 +689,20 @@ jobs:
             --main "${main_files[0]}" \
             --control "${control_files[0]}" \
             --mission 01KYW5XK \
-            --out-dir conformance/behavioral/evidence \
+            --out-dir /tmp/behavioral-gate-evidence \
             --require-axes 4)"
 
           echo "Wrote ${artifact}"
           echo "artifact=${artifact}" >> "${GITHUB_OUTPUT}"
           jq '{model, endpointHost, ranAt, profiles: (.perProfile | keys)}' "${artifact}"
+
+      - name: Classify evidence publication
+        id: publication
+        env:
+          ARTIFACT: ${{ steps.merge.outputs.artifact }}
+        run: |
+          conclusive="$(node conformance/scripts/evidence-publication.mjs "$ARTIFACT")"
+          echo "conclusive=$conclusive" >> "$GITHUB_OUTPUT"
 
       # Uploaded BEFORE the commit-back is attempted: branch protection or a
       # push race must never be the reason a gate reviewer cannot find the
@@ -711,13 +722,17 @@ jobs:
       # worked: an unpushable branch produces a red job with the artifact
       # still uploaded above, never a green job with nothing committed.
       - name: Commit the gate artifact back to the branch
-        if: steps.merge.outputs.artifact != ''
+        if: steps.merge.outputs.artifact != '' && steps.publication.outputs.conclusive == 'true'
         env:
           ARTIFACT: ${{ steps.merge.outputs.artifact }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          source_artifact="$ARTIFACT"
+          ARTIFACT="conformance/behavioral/evidence/${source_artifact##*/}"
+          mkdir -p conformance/behavioral/evidence
+          cp -- "$source_artifact" "$ARTIFACT"
           git add -- "${ARTIFACT}"
 
           if git diff --cached --quiet -- "${ARTIFACT}"; then

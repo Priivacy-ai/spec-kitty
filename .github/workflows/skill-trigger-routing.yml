@@ -56,23 +56,23 @@ jobs:
       # populates it, and none should: caching an *installed* copy across
       # runs would silently let a stale, unpinned muster version outlive a
       # `package.json` bump). Verified against a genuinely empty
-      # `~/.npm/_cacache`: `npx --offline @garrison-hq/muster@1.2.1 --version`
+      # `~/.npm/_cacache`: `npx --offline @garrison-hq/muster@1.2.2 --version`
       # fails there with `npm error code ENOTCACHED ... cache mode is
       # 'only-if-cached'`, exit 1 -- so this step must warm the cache first,
       # online, every run. This mirrors this suite's own README quickstart
       # (`npm install --no-save` before `npx --offline`), just wired into CI
       # rather than only documented for local use.
       - name: Warm npm cache for pinned muster CLI (C-003)
-        run: npm install --no-save @garrison-hq/muster@1.2.1
+        run: npm install --no-save @garrison-hq/muster@1.2.2
 
-      # C-003: muster pinned exactly 1.2.1, never a range. This step is the
+      # C-003: muster pinned exactly 1.2.2, never a range. This step is the
       # only one in this workflow that requires the live MUSTER_ENDPOINT/
       # MUSTER_API_KEY secrets; it always runs against a real,
       # intentionally-healthy endpoint -- the dead-endpoint half of FR-004's
       # proof is a one-time, by-hand step (never a CI step), recorded in the
       # mission work log.
       #
-      # `npx --offline @garrison-hq/muster@1.2.1 skills run --help` documents
+      # `npx --offline @garrison-hq/muster@1.2.2 skills run --help` documents
       # muster's real exit-code contract for this command:
       #   0  all non-skipped cases passed (or all cases were skipped)
       #   1  at least one non-skipped case failed
@@ -96,7 +96,7 @@ jobs:
       - name: Run behavioral trigger-routing manifest (FR-003/FR-004)
         run: |
           set +e
-          npx --offline @garrison-hq/muster@1.2.1 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json
+          npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json
           rc=$?
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
             echo "muster skills run exited $rc (expected 0 or 1 here -- 2 means the manifest could not be read or was structurally invalid; see garrison-hq/muster#77 for why a healthy run legitimately exits 1)"

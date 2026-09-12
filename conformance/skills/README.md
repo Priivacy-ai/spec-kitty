@@ -29,12 +29,12 @@ real chat model, `runsPerQuery` times each, and aggregated into a
 
 ## Local invocation
 
-Requires Node 22+ and the pinned muster CLI (`@garrison-hq/muster@1.2.1` —
+Requires Node 22+ and the pinned muster CLI (`@garrison-hq/muster@1.2.2` —
 **never** a floating range, C-003):
 
 ```sh
-npm install --no-save @garrison-hq/muster@1.2.1
-npx --offline @garrison-hq/muster@1.2.1 --version   # confirm the exact pin resolved
+npm install --no-save @garrison-hq/muster@1.2.2
+npx --offline @garrison-hq/muster@1.2.2 --version   # confirm the exact pin resolved
 ```
 
 **Offline structural checks** (no `MUSTER_ENDPOINT` required):
@@ -53,7 +53,7 @@ mistaken for evidence):
 export MUSTER_ENDPOINT=<your endpoint>
 export MUSTER_API_KEY=<your key, env only, never committed>
 export MUSTER_MODEL=gpt-4o-mini   # optional override; the manifest's own default matches this
-npx --offline @garrison-hq/muster@1.2.1 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json
+npx --offline @garrison-hq/muster@1.2.2 skills run conformance/skills/behavioral-manifest.yaml --json > /tmp/report.json
 ```
 
 **Discrimination-control check** (FR-004 — always run with an explicit

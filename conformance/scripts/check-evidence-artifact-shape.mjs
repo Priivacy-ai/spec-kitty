@@ -46,6 +46,17 @@ const CASE_ALLOWED = new Set(CASE_REQUIRED);
 const AXIS_REQUIRED = ["triggerRate", "threshold", "passed"];
 const AXIS_ALLOWED = new Set(AXIS_REQUIRED);
 
+/** Reject Date.parse's normalization of impossible calendar dates. */
+function validDateTime(value) {
+  if (!DATE_TIME_PATTERN.test(value)) return false;
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  const [hour, minute, second] = value.slice(11, 19).split(":").map(Number);
+  if (hour > 23 || minute > 59 || second > 59) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1] && Number.isFinite(Date.parse(value));
+}
+
 /** Redacts a matched credential-shaped substring for safe display in error output. */
 function redact(match) {
   const visible = match.slice(0, 6);
@@ -62,13 +73,16 @@ function scanForCredentialLeak(rawText) {
 /** Checks top-level required fields, extra-field rejection, and each field's basic type. */
 function validateTopLevel(doc) {
   const errors = [];
+  for (const field of ["timestamp", "model", "endpointHost"]) {
+    if (typeof doc[field] !== "string") errors.push(`'${field}' must be a string`);
+  }
   for (const field of TOP_LEVEL_REQUIRED) {
     if (doc[field] === undefined) errors.push(`missing required top-level field '${field}'`);
   }
   for (const key of Object.keys(doc)) {
     if (!TOP_LEVEL_ALLOWED.has(key)) errors.push(`unexpected top-level field '${key}'`);
   }
-  if (typeof doc.timestamp === "string" && !DATE_TIME_PATTERN.test(doc.timestamp)) {
+  if (typeof doc.timestamp === "string" && !validDateTime(doc.timestamp)) {
     errors.push(`'timestamp' is not a valid ISO-8601 date-time: ${JSON.stringify(doc.timestamp)}`);
   }
   if (typeof doc.model === "string" && doc.model.length === 0) {
@@ -92,7 +106,7 @@ function validateTopLevel(doc) {
 function validateAxis(caseId, axisName, axis) {
   const errors = [];
   const label = `case '${caseId}'.${axisName}`;
-  if (typeof axis !== "object" || axis === null) {
+  if (typeof axis !== "object" || axis === null || Array.isArray(axis)) {
     return [`${label}: missing or not an object`];
   }
   for (const field of AXIS_REQUIRED) {
@@ -101,9 +115,10 @@ function validateAxis(caseId, axisName, axis) {
   for (const key of Object.keys(axis)) {
     if (!AXIS_ALLOWED.has(key)) errors.push(`${label}: unexpected field '${key}'`);
   }
+  if (typeof axis.passed !== "boolean") errors.push(`${label}.passed must be a boolean`);
   for (const field of ["triggerRate", "threshold"]) {
     const value = axis[field];
-    if (typeof value === "number" && (value < 0 || value > 1)) {
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
       errors.push(`${label}.${field} must be within [0, 1], got ${value}`);
     }
   }
@@ -112,11 +127,15 @@ function validateAxis(caseId, axisName, axis) {
 
 /** Checks one caseEvidence object. */
 function validateCase(index, kase) {
-  if (typeof kase !== "object" || kase === null) {
+  if (typeof kase !== "object" || kase === null || Array.isArray(kase)) {
     return [`cases[${index}]: not an object`];
   }
   const caseId = typeof kase.id === "string" ? kase.id : `cases[${index}]`;
   const errors = [];
+  if (typeof kase.id !== "string" || kase.id.length === 0) errors.push(`case '${caseId}'.id must be a non-empty string`);
+  for (const field of ["isControl", "passed"]) {
+    if (typeof kase[field] !== "boolean") errors.push(`case '${caseId}'.${field} must be a boolean`);
+  }
   for (const field of CASE_REQUIRED) {
     if (kase[field] === undefined) errors.push(`case '${caseId}': missing required field '${field}'`);
   }
@@ -136,6 +155,7 @@ function validateCase(index, kase) {
 
 /** Validates the parsed document against the full evidence-artifact schema. */
 function validateSchema(doc) {
+  if (typeof doc !== "object" || doc === null || Array.isArray(doc)) return ["evidence must be an object"];
   const errors = validateTopLevel(doc);
   if (Array.isArray(doc.cases)) {
     doc.cases.forEach((kase, index) => errors.push(...validateCase(index, kase)));

@@ -24,13 +24,10 @@ on:
     paths:
       - 'conformance/**'
       - 'packs/built-in/agent_profiles/**'
-  # FR-005 cadence: scheduled weekly run (Monday 06:00 UTC) plus an
-  # on-demand manual trigger. Case CONTENT is authored by WP05/lane-c,
-  # blocked on M3 and on this WP + WP02 merging first -- see the inline
-  # comment on the cadence job's own step below before treating a green
-  # run here as evidence FR-005 works.
-  schedule:
-    - cron: '0 6 * * 1'
+      - 'src/charter/offering/skills/**'
+      - 'AGENTS.md'
+      - '.github/workflows/crosslayer.yml'
+  # Paid rule-survival evaluation requires an explicit operator dispatch.
   workflow_dispatch:
 
 # Read-only token scope, no write access needed by either job -- mirrors
@@ -62,7 +59,7 @@ jobs:
         with:
           command: 'crosslayer run'
           args: 'conformance/crosslayer/manifest.yaml --static-only'
-          version: '1.2.1'
+          version: '1.2.2'
 
       # landing fold: check-persona-drift.sh shells out to a bare `python3
       # conformance/tools/profile2soul.py`, which imports ruamel.yaml
@@ -86,6 +83,15 @@ jobs:
           uv sync --frozen --all-extras
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
+      - name: Test conformance evidence and projection guards
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          SPEC_KITTY_ENABLE_SAAS_SYNC: "0"
+        run: python3 -m pytest --noconftest tests/conformance -q -o addopts=''
+
+      - name: Check behavioral profile body and source-hash drift
+        run: python3 conformance/behavioral/tools/check-projection-drift.py
+
       # WP01's committed script, invoked bare (one-liner, no arguments) --
       # see spec.md Dependencies & Assumptions, coupling #3 (WP04 <-> WP01).
       # check-persona-drift.sh has no --write mode at all.
@@ -103,29 +109,16 @@ jobs:
         run: bash conformance/scripts/check-sop-extract-drift.sh
 
   cadence-rule-survival:
-    name: Crosslayer cadence rule-survival (FR-005 scaffold)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Crosslayer cadence rule-survival (FR-005)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      # -----------------------------------------------------------------
-      # ZERO REAL CASES EXIST YET. WP05/lane-c (FR-005's actual
-      # rule-survival case content -- 045 no-direct-push, 029 signing, plus
-      # the engineered erosion-control-045 adversarial case) is blocked on
-      # M3 (MOES-Media/spec-kitty#30) merging AND on this WP plus WP02
-      # merging first (spec.md IC-05 / plan.md IC-05). Until WP05 lands,
-      # the composition manifest this step runs against carries no
-      # rule-survival cases at all -- `muster crosslayer run` may exit 0
-      # TRIVIALLY (no cases = no failures). A green run of this job before
-      # WP05 lands is NOT evidence FR-005 is satisfied; it only proves the
-      # scaffold itself is wired. Do not read a green cadence run here as
-      # FR-005 acceptance evidence (spec.md Risks; plan.md IC-04 risk
-      # note) -- this is the guard against a specific, previously-seen
-      # failure mode: an unexercised detector read as a passing one.
-      # -----------------------------------------------------------------
-      - name: Run muster crosslayer cadence rule-survival (FR-005 scaffold)
+      # Both rule-survival and adversarial erosion cases are committed;
+      # static checks do not claim a live behavioral verdict.
+      - name: Run muster crosslayer cadence rule-survival (FR-005)
         # MUSTER_ENDPOINT/MUSTER_API_KEY are sourced from GitHub Actions
         # repository secrets: never a manifest value, never argv, never a
         # log line (FR-005 / NFR-005-equivalent).
@@ -136,4 +129,4 @@ jobs:
         with:
           command: 'crosslayer run'
           args: 'conformance/crosslayer/manifest.yaml'
-          version: '1.2.1'
+          version: '1.2.2'

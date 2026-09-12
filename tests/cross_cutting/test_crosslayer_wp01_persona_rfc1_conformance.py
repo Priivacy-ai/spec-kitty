@@ -65,7 +65,7 @@ from tests.utils import REPO_ROOT
 
 pytestmark = [pytest.mark.integration, pytest.mark.e2e]
 
-_MUSTER_PKG = "@garrison-hq/muster@1.1.0"
+_MUSTER_PKG = "@garrison-hq/muster@1.2.2"
 _PERSONAS_DIR = REPO_ROOT / "conformance" / "crosslayer" / "personas"
 _COMMITTED_PERSONAS: tuple[str, ...] = (
     "architect-alphonso.Soul.md",
