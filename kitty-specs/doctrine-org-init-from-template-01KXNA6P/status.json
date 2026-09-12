@@ -22,7 +22,8 @@
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KXNGGE5FNA4YN35TAV842PXZ",
-      "last_transition_at": "2026-07-16T13:05:28.751664+00:00"
+      "last_transition_at": "2026-07-16T13:05:28.751664+00:00",
+      "review_result": null
     },
     "WP02": {
       "actor": "user",
