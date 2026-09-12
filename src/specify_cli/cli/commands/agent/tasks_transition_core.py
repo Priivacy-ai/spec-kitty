@@ -82,6 +82,7 @@ from specify_cli.status import (
     Lane,
     resolve_lane_alias,
     validate_transition,
+    wp_state_for,
 )
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
@@ -558,8 +559,47 @@ def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
+def _source_rolls_back_to_planned(old_lane: str) -> bool:
+    """True when a move to ``planned`` from ``old_lane`` is a genuine review /
+    rework rollback that legitimately requires review feedback (C-002 / #3937
+    F-51) — i.e. ``old_lane`` is a RUN-AFFECTING lane (``claimed`` through
+    ``approved``), sourced from the canonical ``WPState.is_run_affecting``.
+
+    ``blocked``, the terminal lanes (``done``/``canceled``) and the ``genesis``
+    seed are NOT run-affecting: a ``-> planned`` from them is not a review
+    rollback at all, so it must fall through to FSM legality and be refused as an
+    honest illegal transition, never coerced behind a fabricated feedback file.
+
+    ``allowed_targets()`` is the WRONG proxy here: ``for_review`` and ``claimed``
+    apply ``-> planned`` via the move-task rollback path even though ``planned``
+    is not among their forward ``allowed_targets()`` (their forward edge is via
+    ``in_review`` / ``in_progress``). ``is_run_affecting`` captures exactly the
+    active review-family and matches the pre-#3937 feedback-gated set. An unknown
+    lane returns ``False`` so it falls through to an honest illegal-transition
+    refusal.
+    """
+    try:
+        state = wp_state_for(resolve_lane_alias(old_lane))
+    except ValueError:
+        return False
+    return bool(state.is_run_affecting) and state.lane != Lane.PLANNED
+
+
 def _guard_planned_rollback(req: MoveTaskRequest) -> RefuseExit1 | None:
     if req.target_lane != Lane.PLANNED:
+        return None
+    # C-002 (#3937 F-51): the review-feedback demand is a review-REJECTION
+    # rollback gate — it applies ONLY to run-affecting source lanes for which a
+    # move to ``planned`` is a genuine rework/rejection (see
+    # ``_source_rolls_back_to_planned``, keyed on ``WPState.is_run_affecting`` —
+    # NOT ``allowed_targets()``, which under-includes ``for_review``/``claimed``).
+    # For any other source (e.g. ``blocked``) the move is not a review rejection
+    # at all; it must fall through to FSM legality and be refused as an honest
+    # illegal transition that enumerates the legal targets, NOT coerced behind a
+    # fabricated ``--review-feedback-file`` before legality is even checked. This
+    # is a SOURCE-scoped early-return — deliberately NOT a ``_GUARDS`` reorder
+    # (which would shift the persist-signal prefixes).
+    if not _source_rolls_back_to_planned(req.old_lane):
         return None
     if not (req.feedback_provided and req.feedback_exists and req.feedback_is_file):
         return RefuseExit1(

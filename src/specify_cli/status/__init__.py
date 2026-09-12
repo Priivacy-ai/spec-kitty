@@ -79,6 +79,7 @@ from .transitions import (
     LANE_ALIASES,
     TERMINAL_LANES,
     is_terminal,
+    legal_targets_from,
     resolve_lane_alias,
     validate_transition,
 )
@@ -549,6 +550,7 @@ __all__ = [
     "git_operation_in_progress",
     "has_event_log",
     "is_terminal",
+    "legal_targets_from",
     "materialize",
     "materialize_to_json",
     "fire_lifecycle_saas_fanout",

@@ -158,6 +158,7 @@ from specify_cli.status import (
     TransitionRequest,
     WPInnerStateDelta,
     emission_event_verdict,
+    legal_targets_from,
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
@@ -3024,6 +3025,40 @@ class _MoveTaskArgs:
     owned_checkout: Path | None = None
 
 
+def _invalid_transition_diagnostic(current_lane: Lane, requested: str, error_text: str) -> tuple[dict[str, object], str]:
+    """Build the ``invalid_transition`` diagnostic + operator message (#3937 F-51).
+
+    On a STRUCTURALLY illegal edge (the ``requested`` target is not among the
+    source state's authoritative ``allowed_targets``), the diagnostic and the
+    human message enumerate the legal targets — so the refusal is honest and
+    actionable (the operator sees where the WP CAN go) instead of a bare "Illegal
+    transition". The targets are sourced from the per-state object via the status
+    facade; the FSM-core illegal string is left untouched (NFR-002), and this
+    enrichment lives ONLY on this CLI/emit refusal path. Returns the
+    ``(diagnostic, error_text)`` pair the caller renders.
+    """
+    diagnostic: dict[str, object] = {
+        "result": "error",
+        "code": "invalid_transition",
+        "error": error_text,
+        "current_lane": current_lane.value,
+        "requested_lane": requested,
+        "verdict_durably_persisted": False,
+        "evidence_ref": None,
+        "destination_ref": None,
+    }
+    legal_targets = legal_targets_from(current_lane.value)
+    if requested in legal_targets:
+        # A guard failure on a structurally-legal edge (e.g. a missing reason),
+        # not an illegal edge — do not enumerate a "where it can go" hint.
+        return diagnostic, error_text
+    diagnostic["allowed_targets"] = list(legal_targets)
+    if legal_targets:
+        error_text = f"{error_text}\nLegal transitions from '{current_lane.value}': {', '.join(legal_targets)}."
+        diagnostic["error"] = error_text
+    return diagnostic, error_text
+
+
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
     """Orchestrate ``move-task`` over the WP03 core + WP02 ports (C-005 seam).
 
@@ -3128,6 +3163,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
             else:
                 _tasks.console.print(f"[red]{e.code}: {e}[/red]")
             raise typer.Exit(1) from e
+        error_text = str(e)
         if isinstance(e, _PostTransitionSideEffectFailure):
             diagnostic: dict[str, object] | None = _mt_post_transition_diagnostic(e)
         elif isinstance(e, VerdictPersistenceFailure):
@@ -3162,23 +3198,15 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
             }
         elif isinstance(e, TransitionError):
             current_lane = st.authoritative_lane_at_emit or st.old_lane
-            diagnostic = {
-                "result": "error",
-                "code": "invalid_transition",
-                "error": str(e),
-                "current_lane": current_lane.value,
-                "requested_lane": (st.canonical_lane or resolve_lane_alias(str(st.target_lane))),
-                "verdict_durably_persisted": False,
-                "evidence_ref": None,
-                "destination_ref": None,
-            }
+            requested = st.canonical_lane or resolve_lane_alias(str(st.target_lane))
+            diagnostic, error_text = _invalid_transition_diagnostic(current_lane, requested, error_text)
         else:
             diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
         if diagnostic is not None and st.canonical_lane is not None and not isinstance(e, TransitionError):
             diagnostic["failed_event_to_lane"] = diagnostic.get("to_lane")
             diagnostic["to_lane"] = st.canonical_lane
             diagnostic["requested_lane"] = st.canonical_lane
-        _tasks._output_error(args.json_output, str(e), diagnostic=diagnostic)
+        _tasks._output_error(args.json_output, error_text, diagnostic=diagnostic)
         raise typer.Exit(1) from None
 
 

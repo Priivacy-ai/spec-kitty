@@ -797,3 +797,42 @@ class TestHasOperatorProvenance:
         # a snapshot shape predating the slot): the accessor never guesses.
         assert has_operator_provenance({"lane": "done"}) is False
         assert has_operator_provenance({}) is False
+
+
+class TestLegalTargetEnumeration:
+    """F-51 (#3937): the CLI/emit refusal path enumerates a lane's legal targets.
+
+    Sourced from the authoritative per-state ``allowed_targets()`` (never the
+    non-authoritative ``ALLOWED_TRANSITIONS`` projection, never a second matrix).
+    The FSM-core illegal string in ``wp_state.py`` is deliberately NOT enriched
+    (NFR-002) — the enumeration is a refusal-path augmentation only.
+    """
+
+    def test_legal_targets_from_blocked_are_the_recovery_lanes(self) -> None:
+        from specify_cli.status.transitions import legal_targets_from
+
+        # BlockedState.allowed_targets() == {in_progress, canceled}, sorted.
+        assert legal_targets_from("blocked") == ("canceled", "in_progress")
+
+    def test_legal_targets_from_resolves_aliases(self) -> None:
+        from specify_cli.status.transitions import legal_targets_from
+
+        # ``doing`` -> ``in_progress``; enumeration is alias-stable.
+        assert legal_targets_from("doing") == legal_targets_from("in_progress")
+
+    def test_legal_targets_from_terminal_lane_is_empty(self) -> None:
+        from specify_cli.status.transitions import legal_targets_from
+
+        assert legal_targets_from("done") == ()
+
+    def test_legal_targets_from_unknown_lane_is_empty(self) -> None:
+        from specify_cli.status.transitions import legal_targets_from
+
+        assert legal_targets_from("not-a-lane") == ()
+
+    def test_fsm_core_illegal_string_for_blocked_planned_is_unchanged(self) -> None:
+        # NFR-002 guard: the enumeration must NOT bleed into the FSM-core string
+        # that ~1500 fsm_parity_baseline.jsonl rows assert verbatim.
+        ok, error = validate_transition("blocked", "planned", GuardContext())
+        assert ok is False
+        assert error == "Illegal transition: blocked -> planned"

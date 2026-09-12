@@ -475,6 +475,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # derivation joins the family surface like every other native move-task
     # def (the compat guard's superset invariant requires it).
     _mt_resolve_reviewer_identity as _mt_resolve_reviewer_identity,
+    _invalid_transition_diagnostic as _invalid_transition_diagnostic,
     _mt_resolve_targets as _mt_resolve_targets,
     _mt_require_owned_implementation as _mt_require_owned_implementation,
     _mt_review_config_section as _mt_review_config_section,

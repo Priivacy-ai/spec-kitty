@@ -1851,9 +1851,10 @@ def test_invalid_transition_is_structured_refusal_without_event_or_evidence(
     assert payload == {
         "result": "error",
         "code": "invalid_transition",
-        "error": "opaque concurrent state refusal",
+        "error": ("opaque concurrent state refusal\nLegal transitions from 'planned': blocked, canceled, claimed."),
         "current_lane": "planned",
         "requested_lane": "planned",
+        "allowed_targets": ["blocked", "canceled", "claimed"],
         "verdict_durably_persisted": False,
         "evidence_ref": None,
         "destination_ref": None,

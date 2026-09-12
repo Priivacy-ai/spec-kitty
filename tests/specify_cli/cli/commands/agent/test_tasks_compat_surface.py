@@ -301,6 +301,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     # ReviewResult derivation is a native move-task seam def and therefore
     # joins the compat surface like every other one (77 -> 78).
     "_mt_resolve_reviewer_identity",
+    "_invalid_transition_diagnostic",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
@@ -570,7 +571,8 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     diff) and ``_recovery_commit_sha`` (the cycle-safe cause-chain walk)
     (tasks_mark_status 15 -> 17; golden count 177 -> 179 — the docstring's
     running total above is already stale against the golden, so this entry
-    pins the actual delta)."""
+    pins the actual delta). Blocked-recovery diagnostics (#4245) add
+    ``_invalid_transition_diagnostic`` (179 -> 180)."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -578,4 +580,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 179  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 180  # golden-count: cardinality-is-contract
