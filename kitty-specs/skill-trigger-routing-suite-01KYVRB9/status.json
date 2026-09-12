@@ -31,6 +31,11 @@
         "T001-T008 complete: 10 duplicate-pair query-set files authored under conformance/skills/trigger-queries/, each >=8/axis, FR-002 twin-phrasing verified both directions for all 5 pairs. ATDD RED (961245751943722b92fe1d9192fe7723d155f5b1) -> GREEN (748e088503a7b9f92ff56ce421c845eccabc753d) proven inline; canonical WP03 scripts pending per task-file note."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "out-of-band review: 10 ordered twin-phrasing directions byte-identical; MIN_QUERIES_PER_AXIS citation exact at v1.2.1; RED 961245751 / GREEN 748e08850 reproduced in detached worktrees; no canonical spec-kitty review event exists",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T001": "done",
@@ -49,6 +54,11 @@
       "lane": "approved",
       "last_event_id": "01KYZXS3A2CBB10KD9YP56XCGH",
       "last_transition_at": "2026-08-02T00:25:30.178897+00:00",
+      "review_result": {
+        "reference": "out-of-band review APPROVE: 4 owned files 8/8 per axis distinct+non-blank; 16/16 twin directions; control has zero ZZZCONTROL (D-3 examples pattern, not the defective fixtures copy); RED 380beab8c / GREEN 56eb74618",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
       "subtasks": {
         "T009": "done",
         "T010": "done",
@@ -73,6 +83,11 @@
         "T015-T020 complete: behavioral-manifest.yaml (14 cases, 1 control) + all 4 canonical verification scripts authored, each proven RED/GREEN against real WP01/WP02 files and against constructed rejection cases; check-control-discrimination.mjs's 5-proof mode sequence proven against synthetic fixtures (0,0,1,1,2), live-endpoint re-proof still owed to WP04. FR-001/FR-002 acceptance recorded pass; FR-004 kept pending naming the live-proof remainder. Found and flagged for WP04: spec.md/quickstart.md/this task file's own FR-003 one-liner reads r.cases but muster's real --json shape is r.results."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "out-of-band review APPROVE: all four scripts exit correctly against real and rejection input; zero-file case exits 1 (WP01 F1 closed, verified 3 ways); r.cases->.results fully discharged; byte-stable",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T015": "done",
@@ -94,6 +109,11 @@
       "last_transition_at": "2026-08-02T00:25:38.524979+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "out-of-band review APPROVE-WITH-FOLLOWUPS, all closed at 607fa32d1: live both-condition proof 0/1/0/1/2, runsErrored 0 vs 48; F1-F6 remediated; F8/F9/WP03-LOW recorded in Activity Log; live dispatch tracked in PRE-MERGE-ACTIONS.md",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T021": "done",

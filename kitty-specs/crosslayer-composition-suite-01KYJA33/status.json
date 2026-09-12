@@ -31,6 +31,11 @@
         "T001-T007 complete: FR-001/002/003 implemented, all T006 real-CLI checks + falsifications observed (six exit codes recorded), T007 per-lane C-002 clean, five owned_files committed, primary checkout untouched."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "lane-a@9bb0df3be (clean HEAD, kitty-specs/ contamination reverted; T006 six exit codes + FABRICATED_SAFETY mutation coverage per e26ec2b46/4aa3a3ab7)",
+        "reviewer": "claude-opus",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 95062,
       "shell_pid_created_at": "1785184293.53",
@@ -59,6 +64,11 @@
         "Third-round review APPROVED (1 MEDIUM, 2 LOW, none blocking): C-001 amendment verified present and correct, both exit codes reproduced, muster#70 corrected, issue #71 filed, SECURITY NOTE present in lane-b owned files, 6 tests passing, FR-006 control discriminates both directions."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "3rd-round-review-APPROVED",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1223751,
       "shell_pid_created_at": "1785188351.49",
@@ -86,6 +96,11 @@
         "Fifth-round review APPROVED. Across five rounds fixed: regenerate-in-place design, --write path deleting a policy section on heading rename, redirect truncating destination on mid-run failure, cross-device mv silently changing file mode. Final round verified all four --write states preserve mode 644, chmod/mv ordering leaves no 600 window, signal handling clean on SIGTERM/SIGINT/SIGHUP (disclosed SIGKILL leftover only), 8 tests pass."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "5th-round-review-APPROVED",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 234699,
       "shell_pid_created_at": "1785184767.56",
@@ -111,6 +126,11 @@
         "Re-review confirmed MEDIUM-1 resolved, status.json regeneration byte-identical to canonical reducer output, LOW-5 assertion firing both ways, all three README claims verified against lane-b, MEDIUM-2 inner-filter gap closed at cfddb951b (e2e group false->true, e2e-cross-cutting if false->true)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP04-re-review-APPROVED",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1304066,
       "shell_pid_created_at": "1785188824.54",
@@ -136,6 +156,11 @@
         "Accept-gate pass 2026-07-31: issue-matrix false positives (#22/#26/#33/#70) cleared at source by disambiguating incidental citations (commit c380917); no verdict invented."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Accept-gate pass 2026-07-31: issue-matrix false positives (#22/#26/#33/#70) cleared at source by disambiguating incidental citations (commit c380917); no verdict invented.",
+        "reviewer": "Review Rig",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2864671,
       "shell_pid_created_at": "1785451163.92",

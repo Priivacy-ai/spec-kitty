@@ -20,32 +20,79 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYGFQJ5BXM8T0WXX20D6N3KM",
       "last_transition_at": "2026-07-27T00:31:23.307768+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T006 complete; real-CLI verification done (see work log): offline muster CLI 54/54 exit 0, control flip proven both directions with mid-flip git diff captured, FR-007 completeness check proven both directions with literal transcripts. Ready for review."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260727",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "shell_pid": 364250,
-      "shell_pid_created_at": "1785109538.12"
+      "shell_pid_created_at": "1785109538.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYGFQQS5D0CKE8MAQF4NSHCE",
       "last_transition_at": "2026-07-27T00:31:29.061895+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "DECISIONS.md + README.md authored; T007/T008/T009 done. T010 intentionally left unchecked (--force used to move past the tool's all-subtasks-checked gate): the WP file's own Definition of Done requires T010's hold-open (real CI run_id/minutes from WP03) to remain OPEN, not asserted, until a real green conformance.yml run exists. WP03's own work log records T013 as blocked (no PR, no pushed branch, gh run list empty for this workflow) -- so T010 is genuinely unmet, not an oversight. README's timing table carries an explicit TBD row. Reviewer: verify T010 before approving; do not treat --force here as T010 being satisfied."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 522519,
-      "shell_pid_created_at": "1785110531.56"
+      "shell_pid_created_at": "1785110531.56",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYGFQN0M6751RJDCZJH0E4FD",
       "last_transition_at": "2026-07-27T00:31:26.229068+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Workflow authored, T011/T012/T014 done. T013 (real CI run) intentionally left unchecked/blocked pending lane integration: conformance/ (WP01's files) not yet present on any branch that also carries this workflow file, and no branch for this mission has been pushed to origin yet. Forced transition per explicit instruction to leave WP03 in for_review with an honest blocked gate rather than fabricate a run. See WP03's Activity Log for the full trail."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 501192,
-      "shell_pid_created_at": "1785110381.44"
+      "shell_pid_created_at": "1785110381.44",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T014": "done"
+      }
     }
   }
 }
