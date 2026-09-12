@@ -13,6 +13,7 @@ from kernel.paths import get_runtime_state_root
 
 MAX_RECEIPTS = 100_000
 MAX_PENDING = 4096
+MAX_ACKNOWLEDGED = MAX_RECEIPTS
 PENDING_TTL_S = 86_400
 
 
@@ -72,7 +73,7 @@ class ReceiptStore:
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute("DELETE FROM pending WHERE created < ?", (now - PENDING_TTL_S,))
-                if db.execute("SELECT count(*) FROM pending").fetchone()[0] >= MAX_PENDING:
+                if db.execute("SELECT count(*) FROM pending WHERE identities != '[]'").fetchone()[0] >= MAX_PENDING:
                     raise ValueError("Zeitgeist batch receipt capacity reached; wait for receipt-token expiry (one day).")
                 if db.execute("SELECT count(*) FROM receipts").fetchone()[0] + len(identities) > MAX_RECEIPTS:
                     raise ValueError("Zeitgeist receipt capacity reached; use explicit replay to inspect retained activity.")
@@ -98,6 +99,11 @@ class ReceiptStore:
                 if row is None or row[1] < now - PENDING_TTL_S:
                     raise ValueError("Unknown or expired Zeitgeist receipt for this consumer and scope.")
                 identities: list[Any] = json.loads(row[0])
+                if identities:
+                    db.execute("DELETE FROM pending WHERE created < ?", (now - PENDING_TTL_S,))
+                    acknowledged = db.execute("SELECT count(*) FROM pending WHERE identities = '[]'").fetchone()[0]
+                    if acknowledged >= MAX_ACKNOWLEDGED:
+                        raise ValueError("Zeitgeist acknowledgement token capacity reached; wait for token expiry (one day).")
                 if db.execute("SELECT count(*) FROM receipts").fetchone()[0] + len(identities) > MAX_RECEIPTS:
                     raise ValueError("Zeitgeist receipt capacity reached; acknowledgement was not recorded.")
                 db.executemany("INSERT OR IGNORE INTO receipts VALUES (?, ?, ?, ?)", [(context, identity, now, int(event)) for identity, event in identities])

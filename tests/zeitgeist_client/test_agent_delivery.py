@@ -314,3 +314,40 @@ def test_pending_token_expiry_and_capacity_are_explicit(policy, monkeypatch: pyt
     with pytest.raises(ValueError, match="expired"):
         policy.receipts.acknowledge(policy.context, token, now=receipts.PENDING_TTL_S + 1)
     assert policy.receipts.prepare(policy.context, [("two", True)], now=receipts.PENDING_TTL_S + 1)
+
+
+def test_successful_batches_do_not_exhaust_outstanding_receipt_quota(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.zeitgeist_client import receipts
+
+    monkeypatch.setattr(receipts, "MAX_PENDING", 2)
+    tokens = []
+    for number in range(7):
+        token = policy.receipts.prepare(policy.context, [(f"event-{number}", True)], now=0)
+        assert token is not None
+        policy.receipts.acknowledge(policy.context, token, now=0)
+        tokens.append(token)
+    # Successful tokens remain idempotent after more than MAX_PENDING batches.
+    for token in tokens:
+        policy.receipts.acknowledge(policy.context, token, now=10)
+    assert policy.receipts.known(policy.context) == {f"event-{number}" for number in range(7)}
+    policy.receipts.prepare(policy.context, [("outstanding-a", True)], now=10)
+    policy.receipts.prepare(policy.context, [("outstanding-b", True)], now=10)
+    with pytest.raises(ValueError, match="receipt capacity"):
+        policy.receipts.prepare(policy.context, [("outstanding-c", True)], now=10)
+
+
+def test_acknowledgement_tombstone_capacity_is_explicit_and_retry_is_idempotent(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.zeitgeist_client import receipts
+
+    monkeypatch.setattr(receipts, "MAX_ACKNOWLEDGED", 1, raising=False)
+    first = policy.receipts.prepare(policy.context, [("first", True)], now=0)
+    policy.receipts.acknowledge(policy.context, first, now=1)
+    policy.receipts.acknowledge(policy.context, first, now=2)
+    second = policy.receipts.prepare(policy.context, [("second", True)], now=2)
+    with pytest.raises(ValueError, match="acknowledgement token capacity"):
+        policy.receipts.acknowledge(policy.context, second, now=3)
+    assert policy.receipts.known(policy.context) == {"first"}
+    # Expiration releases tombstones without erasing delivered identities.
+    third = policy.receipts.prepare(policy.context, [("third", True)], now=receipts.PENDING_TTL_S + 3)
+    policy.receipts.acknowledge(policy.context, third, now=receipts.PENDING_TTL_S + 3)
+    assert policy.receipts.known(policy.context) == {"first", "third"}
