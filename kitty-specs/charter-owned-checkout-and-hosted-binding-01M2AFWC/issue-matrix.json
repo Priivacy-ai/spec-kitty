@@ -1,7 +1,7 @@
 {
   "rows": {
     "#1711": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Owned checkout source and hosted binding doctrine are implemented in this child mission; independent review and integration remain pending. Parent operational recovery and deployed activation are separate unfinished scope.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     },
     "#1713": {
