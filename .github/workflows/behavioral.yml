@@ -91,32 +91,9 @@ jobs:
 
           mkdir -p /tmp/behavioral-reports
 
-          # C-002: glob-driven for the profiles (WP01's output, unknown at
-          # authoring time), literal for the three FR-005-edited doctrine
-          # files T006-T008 actually touched -- never a hardcoded profile
-          # list.
-          profile_manifests=(conformance/behavioral/profiles/*.yaml)
-
-          # F6: `shopt -s nullglob` (above) means a glob that matches zero
-          # files silently expands to nothing rather than staying a literal
-          # unmatched pattern -- so a misconfigured checkout, a rename, or a
-          # WP01 regression that leaves this directory empty would make the
-          # loop below iterate over only the three doctrine manifests and
-          # exit 0, a fully green run having exercised none of FR-001..004.
-          # Assert the glob actually matched spec.md's five target profiles
-          # (architect-alphonso, reviewer-renata, implementer-ivan,
-          # planner-priti, debugger-debbie) before proceeding.
-          if [ "${#profile_manifests[@]}" -lt 5 ]; then
-            echo "::error::conformance/behavioral/profiles/*.yaml matched ${#profile_manifests[@]} file(s), expected >=5 -- refusing to report a green run having exercised zero or too few profile manifests (nullglob would otherwise make this pass silently)"
-            exit 1
-          fi
-
-          manifests=(
-            "${profile_manifests[@]}"
-            conformance/doctrine/010-specification-fidelity-requirement.yaml
-            conformance/doctrine/039-lynn-cole-engineering-culture.yaml
-            conformance/doctrine/044-canonical-sources-and-unification.yaml
-          )
+          # Runner and publication validator share one canonical suite catalog.
+          python3 conformance/behavioral/tools/evidence_inventory.py --paths > /tmp/behavioral-manifests || exit 1
+          mapfile -t manifests < /tmp/behavioral-manifests
 
           overall_status=0
           cases_json="[]"
@@ -696,12 +673,18 @@ jobs:
           echo "artifact=${artifact}" >> "${GITHUB_OUTPUT}"
           jq '{model, endpointHost, ranAt, profiles: (.perProfile | keys)}' "${artifact}"
 
+      - name: Resolve expected evidence inventory from canonical manifests
+        run: |
+          python3 -m venv /tmp/evidence-python
+          /tmp/evidence-python/bin/pip install --disable-pip-version-check --only-binary=:all: 'ruamel.yaml==0.19.1'
+          /tmp/evidence-python/bin/python conformance/behavioral/tools/evidence_inventory.py > /tmp/expected-evidence.json
+
       - name: Classify evidence publication
         id: publication
         env:
           ARTIFACT: ${{ steps.merge.outputs.artifact }}
         run: |
-          conclusive="$(node conformance/scripts/evidence-publication.mjs "$ARTIFACT")"
+          conclusive="$(node conformance/scripts/evidence-publication.mjs "$ARTIFACT" /tmp/expected-evidence.json)"
           echo "conclusive=$conclusive" >> "$GITHUB_OUTPUT"
 
       # Uploaded BEFORE the commit-back is attempted: branch protection or a

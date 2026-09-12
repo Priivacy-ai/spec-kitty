@@ -1,0 +1,9 @@
+{
+  "profileGlob": "conformance/behavioral/profiles/*.yaml",
+  "minimumProfiles": 5,
+  "doctrineManifests": [
+    "conformance/doctrine/010-specification-fidelity-requirement.yaml",
+    "conformance/doctrine/039-lynn-cole-engineering-culture.yaml",
+    "conformance/doctrine/044-canonical-sources-and-unification.yaml"
+  ]
+}

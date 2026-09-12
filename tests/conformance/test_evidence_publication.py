@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 from pathlib import Path
 import subprocess
 
@@ -13,11 +14,22 @@ ROOT = Path(__file__).resolve().parents[2]
 pytestmark = [pytest.mark.fast]
 
 
+def expected_inventory():
+    path = ROOT / "conformance/behavioral/tools/evidence_inventory.py"
+    spec = importlib.util.spec_from_file_location("evidence_inventory", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.inventory(ROOT)
+
+
 def document():
     counts = {"passCount": 0, "totalRuns": 5, "runsErrored": 0}
+    expected = expected_inventory()
     return {
-        "perProfile": {"profile": {"axis": counts.copy()}},
-        "doctrineManifests": [],
+        "perProfile": {profile: {axis: counts.copy() for axis in axes} for profile, axes in expected["perProfile"].items()},
+        "doctrineManifests": [
+            {"manifest": path, "runsErrored": 0, "perCase": [dict(counts, ruleId=rule) for rule in rules]} for path, rules in expected["doctrineManifests"].items()
+        ],
         "controlManifest": {
             name: dict(counts, passed=passed) for name, passed in [("judgeControl", False), ("behavioralControl", False), ("judgePositiveControl", True)]
         },
@@ -35,12 +47,34 @@ def document():
         ("empty_axes", "false"),
         ("malformed_count", "false"),
         ("doctrine_error", "false"),
+        ("missing_profile", "false"),
+        ("missing_axis", "false"),
+        ("missing_doctrine", "false"),
+        ("missing_case", "false"),
+        ("duplicate_case", "false"),
+        ("renamed_axis", "false"),
     ],
 )
 def test_publication_discriminates_health(tmp_path, mutation, expected):
     doc = document()
+    profile = next(iter(doc["perProfile"]))
+    axes = doc["perProfile"][profile]
+    axis = next(iter(axes))
     if mutation == "endpoint_error":
-        doc["perProfile"]["profile"]["axis"]["runsErrored"] = 1
+        axes[axis]["runsErrored"] = 1
+    if mutation == "missing_profile":
+        del doc["perProfile"][profile]
+    if mutation == "missing_axis":
+        del axes[axis]
+    if mutation == "renamed_axis":
+        axes["wrong"] = axes.pop(axis)
+    if mutation == "missing_doctrine":
+        doc["doctrineManifests"].pop()
+    if mutation == "missing_case":
+        doc["doctrineManifests"][0]["perCase"].pop()
+    if mutation == "duplicate_case":
+        cases = doc["doctrineManifests"][0]["perCase"]
+        cases[-1] = cases[0].copy()
     if mutation == "positive_fail":
         doc["controlManifest"]["judgePositiveControl"]["passed"] = False
     if mutation == "negative_pass":
@@ -55,7 +89,9 @@ def test_publication_discriminates_health(tmp_path, mutation, expected):
         doc["doctrineManifests"] = [{"runsErrored": 1, "perCase": []}]
     path = tmp_path / "evidence.json"
     path.write_text(json.dumps(doc))
-    result = subprocess.run(["node", str(ROOT / "conformance/scripts/evidence-publication.mjs"), str(path)], capture_output=True, text=True)
+    inventory = tmp_path / "expected.json"
+    inventory.write_text(json.dumps(expected_inventory()))
+    result = subprocess.run(["node", str(ROOT / "conformance/scripts/evidence-publication.mjs"), str(path), str(inventory)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == expected
 
@@ -84,3 +120,33 @@ def test_workflows_use_current_muster_pin():
                 run = step.get("run", "")
                 assert "@garrison-hq/muster@1.2.1" not in run
                 assert "@garrison-hq/muster@1.1.0" not in run
+
+
+def test_runner_and_publication_share_nonvacuous_manifest_catalog():
+    workflow = YAML(typ="safe").load((ROOT / ".github/workflows/behavioral.yml").read_text())
+    main = workflow["jobs"]["main-suite"]["steps"]
+    run = next(step["run"] for step in main if step.get("name", "").startswith("Run main-suite manifests"))
+    assert "evidence_inventory.py --paths" in run
+    assert "profile_manifests=(" not in run
+    expected = expected_inventory()
+    paths = subprocess.run(
+        ["python3", str(ROOT / "conformance/behavioral/tools/evidence_inventory.py"), "--paths"], capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+    assert len(paths) == len(expected["perProfile"]) + len(expected["doctrineManifests"])
+    assert len(expected["perProfile"]) >= 5
+    assert set(expected["doctrineManifests"]).issubset(paths)
+
+
+def test_inventory_refuses_missing_profile_before_running(tmp_path):
+    import shutil
+
+    for path in [ROOT / "conformance/behavioral/suite.json", *(ROOT / "conformance/behavioral/profiles").glob("*.yaml")]:
+        target = tmp_path / path.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+    next((tmp_path / "conformance/behavioral/profiles").glob("*.yaml")).unlink()
+    spec = importlib.util.spec_from_file_location("missing_inventory", ROOT / "conformance/behavioral/tools/evidence_inventory.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with pytest.raises(ValueError, match="floor"):
+        module.inventory(tmp_path)
