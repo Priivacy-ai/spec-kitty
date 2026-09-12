@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: codex/issue-4250-charter-owned-checkout
 merge_target_branch: codex/issue-4250-charter-owned-checkout
 branch_strategy: Planning artifacts for this mission were generated on codex/issue-4250-charter-owned-checkout. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/issue-4250-charter-owned-checkout unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-charter-owned-checkout-and-hosted-binding-01M2AFWC
+base_commit: 669e7ead4ffb20a960a75a7ba5e3e16023931ee3
+created_at: '2026-09-12T09:48:47.006937+00:00'
 subtasks:
 - T003
 - T004
