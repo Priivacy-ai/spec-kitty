@@ -1,11 +1,27 @@
 ---
 work_package_id: WP01
+title: Owned checkout source propagation
+dependencies: []
+requirement_refs:
+- C-001
+- C-002
+- FR-001
+- FR-002
+- NFR-001
+planning_base_branch: codex/issue-4250-charter-owned-checkout
+merge_target_branch: codex/issue-4250-charter-owned-checkout
+branch_strategy: Planning artifacts for this mission were generated on codex/issue-4250-charter-owned-checkout. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/issue-4250-charter-owned-checkout unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
-title: Owned checkout source propagation
-task_type: implement
 phase: Implementation
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: src/specify_cli/
+create_intent:
+- tests/specify_cli/cli/commands/test_charter_owned_checkout.py
+- tests/charter/test_context_owned_checkout.py
+- docs/how-to/charter-owned-checkout.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/doctrine.py
@@ -18,23 +34,11 @@ owned_files:
 - tests/specify_cli/cli/commands/test_charter_owned_checkout.py
 - tests/charter/test_context_owned_checkout.py
 - docs/how-to/charter-owned-checkout.md
-authoritative_surface: src/specify_cli/
-create_intent:
-- tests/specify_cli/cli/commands/test_charter_owned_checkout.py
-- tests/charter/test_context_owned_checkout.py
-- docs/how-to/charter-owned-checkout.md
-agent_profile: implementer-ivan
 role: implementer
-agent: codex
-requirement_refs:
-- FR-001
-- FR-002
-- NFR-001
-- C-001
-- C-002
+tags: []
+task_type: implement
 tracker_refs:
 - spec-kitty/spec-kitty#4250
-dependencies: []
 ---
 
 # Work Package Prompt: WP01 – Owned checkout source propagation

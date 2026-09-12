@@ -1,11 +1,28 @@
 ---
 work_package_id: WP02
+title: Hosted binding doctrine and activation
+dependencies: []
+requirement_refs:
+- C-001
+- C-002
+- FR-003
+- FR-004
+- NFR-002
+planning_base_branch: codex/issue-4250-charter-owned-checkout
+merge_target_branch: codex/issue-4250-charter-owned-checkout
+branch_strategy: Planning artifacts for this mission were generated on codex/issue-4250-charter-owned-checkout. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/issue-4250-charter-owned-checkout unless the human explicitly redirects the landing branch.
 subtasks:
 - T003
 - T004
-title: Hosted binding doctrine and activation
-task_type: implement
 phase: Implementation
+history: []
+agent_profile: implementer-ivan
+authoritative_surface: .kittify/
+create_intent:
+- .kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml
+- .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
+- .kittify/doctrine/graph.yaml
+- tests/charter/test_hosted_binding_governance.py
 execution_mode: code_change
 owned_files:
 - .kittify/config.yaml
@@ -14,24 +31,11 @@ owned_files:
 - .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
 - .kittify/doctrine/graph.yaml
 - tests/charter/test_hosted_binding_governance.py
-authoritative_surface: .kittify/
-create_intent:
-- .kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml
-- .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
-- .kittify/doctrine/graph.yaml
-- tests/charter/test_hosted_binding_governance.py
-agent_profile: implementer-ivan
 role: implementer
-agent: codex
-requirement_refs:
-- FR-003
-- FR-004
-- NFR-002
-- C-001
-- C-002
+tags: []
+task_type: implement
 tracker_refs:
 - spec-kitty/spec-kitty#4250
-dependencies: []
 ---
 
 # Work Package Prompt: WP02 – Hosted binding doctrine and activation
