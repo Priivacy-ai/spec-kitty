@@ -555,10 +555,9 @@ def _emit_on_coord_then_commit(
 def _captured_tail_event_ids(stream: EventStream | None) -> list[str] | None:
     """The event ids this operation's captured tail holds, for rollback verification.
 
-    ``None`` when the emit failed before a tail was captured (the rollback then
-    falls back to structural tail verification -- sound here because this arm
-    holds L1 across emit, commit AND rollback, so no other locked writer can
-    have appended in between). Order-insensitive by contract: the helper
+    ``None`` when the emit failed before a tail was captured. Rollback refuses
+    to truncate a nonempty tail without captured ownership, even while this arm
+    holds L1 across emit, commit and rollback. Order-insensitive by contract: the helper
     compares multisets, so the transition/annotation partition of
     :class:`EventStream` need not reconstruct the file's interleaving.
     """
