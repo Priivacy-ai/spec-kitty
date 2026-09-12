@@ -2,47 +2,87 @@
   "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Explicit doctrine authoring writes only the validated owned checkout",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tasks/WP01-owned-checkout-source/independent-review.md; tests/specify_cli/cli/commands/test_charter_owned_checkout.py::test_owned_new_writes_only_selected_checkout",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Text, JSON and include context retain selected authority without primary writes; default and error/concurrent scope reset remain compatible",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tasks/WP01-owned-checkout-source/independent-review.md; test_owned_context_reads_selected_policy_without_primary_writes; test_default_context_after_owned_call_retains_primary_policy; test_concurrent_checkout_scopes_are_isolated",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Required native-ID and supported hosted-contract doctrine and procedure resolve through canonical owned context",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tasks/WP02-hosted-binding-doctrine/independent-review-1.md; tests/charter/test_hosted_binding_governance.py: 5 passed against approved WP01 source",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Active policy distinguishes release, installation, observed deployment and all-team repair; source does not claim installed protection",
+      "proof_type": "code_review",
+      "evidence": "tasks/WP02-hosted-binding-doctrine/independent-review-1.md; CLI_HOSTED_BINDING_COMPATIBILITY integrity rules; cli-hosted-binding-verification procedure",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Foreign, missing and symlink-escaping ownership requests refuse before unowned writes",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tasks/WP01-owned-checkout-source/independent-review.md; test_invalid_owned_checkout_refuses_without_writes; test_owned_new_refuses_symlink_escape",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Removing required directive activation, procedure activation or source fails the actual governance witness",
+      "proof_type": "automated_test",
+      "evidence": "tasks/WP02-hosted-binding-doctrine/independent-review-1.md; test_actual_activation_consumer_rejects_removed_authority: three real mutations",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "Implementation reuses canonical checkout classification and activation-aware resolution; installed tool remains untouched",
+      "proof_type": "code_review",
+      "evidence": "tasks/WP01-owned-checkout-source/independent-review.md; tasks/WP02-hosted-binding-doctrine/independent-review-1.md",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "Package source implementation makes no production, release or remote-main merge claim",
+      "proof_type": "code_review",
+      "evidence": "tasks/WP02-hosted-binding-doctrine/independent-review-1.md; contracts/owned-checkout-and-governance.md; parent recovery remains open",
+      "pass_fail": "pass",
+      "verified_by": "codex independent WP reviews",
+      "verified_at": "2026-09-12T11:03:36.408493+00:00",
+      "notes": "Approved source scope. Final same-tree integration test and installed adoption remain separately required."
     }
   ],
   "negative_invariants": []
