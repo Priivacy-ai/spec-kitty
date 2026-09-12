@@ -91,7 +91,7 @@ sequenceDiagram
         Z->>S: GET /api/v1/sync/repo-admission/?repo_slug=…
         S-->>Z: admitted + team, or 403 / not admitted (negative cached 5 min)
         Z->>S: POST /api/v1/live/capability/cli/ {repo_slug, kind: presence}
-        S-->>Z: relay_url, relay_token, capability_credential, expires_at
+        S-->>Z: relay_url, relay_token, capability_credential, expires_at, session_ref, logical_session_id
     end
     Z->>R: POST /managed/control op=event.publish (one request, 750 ms budget)
     R-->>Z: 202 / 429 / 4xx (logged, never retried)
@@ -104,6 +104,9 @@ Alt text: the CLI persists locally first, resolves a capability from the
 SaaS only when it has none cached, publishes the moment directly to the
 team's relay once without retry, and the SaaS learns about it by polling the
 relay.
+
+Publisher identity, lease generations, cache isolation, and the reader contract are
+explained in [Zeitgeist publisher and lease identity](../architecture/zeitgeist-session-identity.md).
 
 ## Where the code lives (CLI)
 
