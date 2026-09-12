@@ -40,7 +40,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 3d437f143eac5062673f67cd5b2f0e1ff61114cab12af342f5a26127b9b36c70
+- content_hash: f1cf832d9892e842c6cfbe63602ac7b9a453dbb1d80c7ed1a53670fb9c505ebf
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -75,7 +75,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/minutes-maker-mahad.agent.yaml
   provenance_path:
-- content_hash: 8bc673d323d963598b30e46d941d4cbe3151de4d509445d945b63e2a9c9cf674
+- content_hash: 229cb5e3554388808f3c5260cfb59f3480b38ee41e8b73ddf1b69959fe191f98
   id: node-norris
   kind: agent_profile
   path: agent_profiles/node-norris.agent.yaml
@@ -195,7 +195,7 @@ constituents:
   kind: directive
   path: directives/029-agent-commit-signing-policy.directive.yaml
   provenance_path:
-- content_hash: 3d1bc2ca6b40ec438fe921d094872bcd1fdfc6090f809ca7b51b99a804f2756a
+- content_hash: 67723c0e9e5a23668beb7fe752bd0c0d10cc4f9eff1b57105dba3c398111cba2
   id: DIRECTIVE_030
   kind: directive
   path: directives/030-test-and-typecheck-quality-gate.directive.yaml
@@ -981,7 +981,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/problem-decomposition.tactic.yaml
   provenance_path:
-- content_hash: 7b89c4f6b573d57128f8dbdff2e68f934457191a547b1bb4cb4df67e81c9781e
+- content_hash: ca4a035ccc4f9190fc6e646be939e43a0876d44f14831d6b58b7f415069a50df
   id: quality-gate-verification
   kind: tactic
   path: tactics/testing/quality-gate-verification.tactic.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: eed21181f32e88193d61953ee2946b401f7b47c51415ccfce03a680c100096c2
+manifest_hash: 810cda4a91747ce79f0d5324bad867e653428b9fa87662e367347e30d793bba1
 schema_version: '1'
 source_type: built-in
 source_url:
