@@ -270,6 +270,8 @@ nor `validation_criteria`) or the advisory, non-numbered
 | FR-005 | One control manifest under `conformance/doctrine/control/` with deliberately drifted `ruleText`; CI asserts its `--json` output **does** contain `RULE_DRIFT` (discrimination for the drift detector itself). | Proposed |
 | FR-006 | `conformance/doctrine/README.md` records the directive→class mapping table (mirroring the M2 (`garrison-hq/muster#58`) appendix) and the coverage roadmap for the remaining directives. | Proposed |
 
+### Non-normative source context
+
 No Non-Functional Requirements beyond the issue's FR/C set are added by this
 spec. The issue (`MOES-Media/spec-kitty#23`) defines none, and this project's
 measured-not-asserted policy rejects invented, unmeasured thresholds (an
