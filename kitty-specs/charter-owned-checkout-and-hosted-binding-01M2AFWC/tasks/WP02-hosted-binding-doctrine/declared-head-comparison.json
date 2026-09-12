@@ -1,0 +1,28 @@
+{
+  "outcome": "no_new_failures",
+  "scope": {
+    "test_targets": [],
+    "matched_shard_groups": [],
+    "matched_composite_dirs": [],
+    "empty_cone_composite_dirs": [],
+    "excluded_scope_files": []
+  },
+  "reason": null,
+  "new_failures": [],
+  "pre_existing_failures": [],
+  "run_state": "completed",
+  "budget_assessment": {
+    "classification": "unknown",
+    "scope_identity": {
+      "normalized_targets": [],
+      "policy_namespace": "spec-kitty.pre-review-budget/v1",
+      "value": "budget-v1:sha256:9e7dd2415b61b9fceb1d40f67f6359d3cf4895920d1facc716150e5b38db9b00"
+    },
+    "effective_budget_seconds": 300.0,
+    "matched_rule_id": null,
+    "evidence": null,
+    "guidance": "No reviewed budget metadata matches this scope; run it under the configured timeout and treat any timeout as a retrospective classification candidate."
+  },
+  "classification_candidate": false,
+  "observed_elapsed_seconds": null
+}
