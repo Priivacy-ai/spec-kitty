@@ -28,6 +28,7 @@ from typing import Any
 from charter.activation._io import load_charter_file
 from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.checkout_scope import selected_charter_checkout
 from charter.hasher import is_stale
 from charter.resolution import resolve_canonical_repo_root
 from charter.activation.schemas import (
@@ -98,7 +99,7 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
     Returns ``None`` when ``charter.md`` is absent under the canonical
     root — there is no charter to refresh.
     """
-    canonical_root = resolve_canonical_repo_root(repo_root)
+    canonical_root = selected_charter_checkout(repo_root) or resolve_canonical_repo_root(repo_root)
     charter_dir = canonical_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
     charter_path = charter_dir / _CHARTER_FILENAME
     if not charter_path.exists():
@@ -225,7 +226,7 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     caller's "use an empty config" signal, logged at different verbosity by
     the two public loaders below.
     """
-    canonical_root = resolve_canonical_repo_root(repo_root)
+    canonical_root = selected_charter_checkout(repo_root) or resolve_canonical_repo_root(repo_root)
     charter_yaml_path = canonical_root / CHARTER_YAML
     if not charter_yaml_path.exists():
         return None

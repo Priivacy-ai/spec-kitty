@@ -1,0 +1,11 @@
+edges: []
+generated_at: '2026-09-12T09:58:57+00:00'
+generated_by: spec-kitty project registration
+nodes:
+- kind: directive
+  label: Hosted binding identity and truthful completion
+  urn: directive:CLI_HOSTED_BINDING_COMPATIBILITY
+- kind: procedure
+  label: Verify hosted binding compatibility
+  urn: procedure:cli-hosted-binding-verification
+schema_version: '1.0'

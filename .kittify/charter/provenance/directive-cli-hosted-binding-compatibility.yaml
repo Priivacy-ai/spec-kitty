@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash:
+  17bfb06912c27763548c1e181e9d684cfa948fdcdc41af3418012643b0f8ac2a
+artifact_kind: directive
+artifact_slug: cli-hosted-binding-compatibility
+artifact_urn: directive:CLI_HOSTED_BINDING_COMPATIBILITY
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-09-12T09:58:57+00:00'
+inputs_hash: 17bfb06912c27763548c1e181e9d684cfa948fdcdc41af3418012643b0f8ac2a
+produced_at: '2026-09-12T09:58:57+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml
+source_section:
+  .kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml
+source_urns: []
+synthesis_run_id: 01M2AGWJWT359J9X32RDVKGWCM
+synthesizer_version: 3.2.7

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
+  "mission_id": "01M2AFWCGXP2R9DKC2WAYQ34KY",
+  "mission_branch": "kitty/mission-charter-owned-checkout-and-hosted-binding-01M2AFWC",
+  "target_branch": "codex/issue-4250-charter-owned-checkout",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/how-to/charter-owned-checkout.md",
+        "src/charter/activation/context.py",
+        "src/charter/activation/context_json.py",
+        "src/charter/activation/sync.py",
+        "src/specify_cli/cli/commands/charter/context.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "src/specify_cli/core/checkout_ownership.py",
+        "tests/charter/test_context_owned_checkout.py",
+        "tests/specify_cli/cli/commands/test_charter_owned_checkout.py",
+        "tests/specify_cli/cli/commands/test_doctrine_new.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".kittify/charter/**",
+        ".kittify/config.yaml",
+        ".kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml",
+        ".kittify/doctrine/graph.yaml",
+        ".kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml",
+        "tests/charter/test_hosted_binding_governance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-12T09:44:25.834840+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c218083c7340b8f874e3b614c64daa5e2b549204"
+}

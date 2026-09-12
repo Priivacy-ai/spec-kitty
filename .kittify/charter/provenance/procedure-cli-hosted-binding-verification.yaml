@@ -1,0 +1,22 @@
+adapter_id: project-direct-write
+adapter_notes: Registered authored project content; no generation or source
+  rewrite performed.
+adapter_version: '1'
+artifact_content_hash:
+  03e3f0259b56632b6ed09c809b968ff472574ada8249a77fbde92784c93a1bdf
+artifact_kind: procedure
+artifact_slug: cli-hosted-binding-verification
+artifact_urn: procedure:cli-hosted-binding-verification
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-09-12T09:58:57+00:00'
+inputs_hash: 03e3f0259b56632b6ed09c809b968ff472574ada8249a77fbde92784c93a1bdf
+produced_at: '2026-09-12T09:58:57+00:00'
+schema_version: '2'
+source_input_ids:
+- .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
+source_section:
+  .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
+source_urns: []
+synthesis_run_id: 01M2AGWJWT359J9X32RDVKGWCM
+synthesizer_version: 3.2.7

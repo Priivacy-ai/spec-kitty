@@ -1,7 +1,11 @@
 """``spec-kitty charter context`` command (WP06 per-subcommand split)."""
+
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
+from pathlib import Path
+from typing import cast
 
 import typer
 
@@ -19,8 +23,11 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["context"]
 
 
-@charter_app.command()
+@cast(typer.Typer, charter_app).command()
 def context(
+    owned_checkout: Path | None = typer.Option(
+        None, "--owned-checkout", help="Read policy from this explicitly owned linked checkout instead of the primary checkout."
+    ),
     action: str | None = typer.Option(
         None,
         "--action",
@@ -29,10 +36,7 @@ def context(
     include: str | None = typer.Option(
         None,
         "--include",
-        help=(
-            "Fetch selector, e.g. agent-profile:<id>, "
-            "template:<mission>/<name>, directive:<id>, section:<slug>."
-        ),
+        help=("Fetch selector, e.g. agent-profile:<id>, template:<mission>/<name>, directive:<id>, section:<slug>."),
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     mission_type: str | None = typer.Option(
@@ -78,8 +82,19 @@ def context(
     from charter.drg import resolve_org_roots
     from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
+    checkout_scope = ExitStack()
     try:
         repo_root = _charter_pkg.find_repo_root()
+        if owned_checkout is not None:
+            from charter.activation.checkout_scope import charter_checkout_scope
+            from specify_cli.core.checkout_ownership import error_for_claim, resolve_ownership_claim
+
+            claim = resolve_ownership_claim(owned_checkout, resolved_primary=repo_root)
+            ownership_error = error_for_claim(claim)
+            if ownership_error is not None:
+                raise TaskCliError(str(ownership_error))
+            repo_root = claim.claimed_checkout
+            checkout_scope.enter_context(charter_checkout_scope(repo_root))
         # WP07 T034: resolve the configured org doctrine snapshot in the
         # specify_cli layer and pass it as data into the charter layer.
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
@@ -157,9 +172,7 @@ def context(
                     {
                         "result": "success",
                         "success": True,
-                        "context_schema_version": structured.get(
-                            "context_schema_version", CONTEXT_SCHEMA_VERSION
-                        ),
+                        "context_schema_version": structured.get("context_schema_version", CONTEXT_SCHEMA_VERSION),
                         "action": result.action,
                         "mode": result.mode,
                         "first_load": result.first_load,
@@ -172,9 +185,7 @@ def context(
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
                         "references": structured.get("references", []),
-                        "governance_references": structured.get(
-                            "governance_references", []
-                        ),
+                        "governance_references": structured.get("governance_references", []),
                         "project_charter": structured.get(
                             "project_charter",
                             # FR-006: kept consistent with the producer
@@ -189,9 +200,7 @@ def context(
                                 "charter_md_path": ".kittify/charter/charter.md",
                             },
                         ),
-                        "org_charter": structured.get(
-                            "org_charter", {"present": False, "packs": []}
-                        ),
+                        "org_charter": structured.get("org_charter", {"present": False, "packs": []}),
                     },
                     indent=2,
                 )
@@ -227,3 +236,5 @@ def context(
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e
+    finally:
+        checkout_scope.close()

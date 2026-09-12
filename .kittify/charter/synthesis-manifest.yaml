@@ -1,10 +1,24 @@
 adapter_id: fresh-seed
 adapter_version: 3.2.6
-artifacts: []
-built_in_only: true
+artifacts:
+- content_hash: 17bfb06912c27763548c1e181e9d684cfa948fdcdc41af3418012643b0f8ac2a
+  kind: directive
+  path:
+    .kittify/doctrine/directive/CLI_HOSTED_BINDING_COMPATIBILITY.directive.yaml
+  provenance_path:
+    .kittify/charter/provenance/directive-cli-hosted-binding-compatibility.yaml
+  slug: cli-hosted-binding-compatibility
+- content_hash: 03e3f0259b56632b6ed09c809b968ff472574ada8249a77fbde92784c93a1bdf
+  kind: procedure
+  path:
+    .kittify/doctrine/procedure/cli-hosted-binding-verification.procedure.yaml
+  provenance_path:
+    .kittify/charter/provenance/procedure-cli-hosted-binding-verification.yaml
+  slug: cli-hosted-binding-verification
+built_in_only: false
 bundle_content_hash:
 created_at: '1970-01-01T00:00:00+00:00'
-manifest_hash: 01aeb31d458fdf2b4993e460a9a0f811cbf27a0145d5f962f01b603c85c5158e
+manifest_hash: 3c447237dd9081bb97bdb8e1ee642209cb145438af94495d107af3543d85b188
 mission_id:
 run_id: fresh-project-seed
 schema_version: '2'

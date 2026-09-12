@@ -1,0 +1,83 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M2AMYZ9RQ2ZJ933JHFS9JMHS",
+  "materialized_at": "2026-09-12T11:10:09.720737+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "governance-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2AMYXGYXCX5RZSC8WWNE84B",
+      "last_transition_at": "2026-09-12T11:10:07.902900+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "6136d4ce8 sourcecomplete; implementation-evidence.md records red-first tests, required suite passes and typed checks. Primary-only supportedreviewconfig temporary; genuineJUnitbaseline zero failures. Approved checkout_scope.py ownership extension.",
+        "Independent review passed on6136d4ce8:15 real checkout tests; all8 anti-pattern checks PASS; canonical identity unchanged, scope restoration/foreign refusal verified. Source-only installed state pending. Detailed report /tmp/cli-wp01-independent-review.md."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Independent review passed on6136d4ce8:15 real checkout tests; all8 anti-pattern checks PASS; canonical identity unchanged, scope restoration/foreign refusal verified. Source-only installed state pending. Detailed report /tmp/cli-wp01-independent-review.md.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#4250"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2AMYZ9RQ2ZJ933JHFS9JMHS",
+      "last_transition_at": "2026-09-12T11:10:09.720737+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "393e43497; required hosted doctrine and actual canonical owned context; five positive/mutation tests passed, source-only installed state remains pending.",
+        "Independent review393e43497 passed:5 real activation/removal/owned-context tests using approved WP01 source; genuine declared baseline/head comparison no_new_failures. See independent-review-1.md. Final integrated test and installed adoption remain separate."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Independent review393e43497 passed:5 real activation/removal/owned-context tests using approved WP01 source; genuine declared baseline/head comparison no_new_failures. See independent-review-1.md. Final integrated test and installed adoption remain separate.",
+        "reviewer": "Robert Douglass",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464",
+      "subtasks": {
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#4250"
+      ]
+    }
+  }
+}

@@ -638,24 +638,18 @@ def _resolve_scaffold_root(
 def new(
     kind: str = typer.Argument(
         ...,
-        help=(
-            "Artifact kind (singular): one of "
-            + ", ".join(sorted(member.value for member in _STUB_TEMPLATES))
-            + "."
-        ),
+        help=("Artifact kind (singular): one of " + ", ".join(sorted(member.value for member in _STUB_TEMPLATES)) + "."),
     ),
     artifact_id: str = typer.Argument(
         ...,
         metavar="ID",
         help="Artifact identifier (kebab-case for most kinds; SCREAMING_SNAKE for directives).",
     ),
+    owned_checkout: Path | None = typer.Option(None, "--owned-checkout", help="Write project doctrine only in this explicitly owned linked checkout."),
     pack: Path | None = typer.Option(
         None,
         "--pack",
-        help=(
-            "Scaffold inside a doctrine pack directory instead of the project layer. "
-            "When omitted, the stub lands under .kittify/doctrine/."
-        ),
+        help=("Scaffold inside a doctrine pack directory instead of the project layer. When omitted, the stub lands under .kittify/doctrine/."),
     ),
 ) -> None:
     """Scaffold a stub doctrine artifact YAML (FR-016).
@@ -670,6 +664,16 @@ def new(
     from specify_cli.core.paths import locate_project_root
 
     repo_root = locate_project_root()
+    if owned_checkout is not None:
+        from specify_cli.core.checkout_ownership import error_for_claim, resolve_ownership_claim
+
+        if repo_root is None:
+            raise typer.BadParameter("Invoke --owned-checkout from its repository.")
+        claim = resolve_ownership_claim(owned_checkout, resolved_primary=repo_root)
+        ownership_error = error_for_claim(claim)
+        if ownership_error is not None:
+            raise typer.BadParameter(str(ownership_error))
+        repo_root = claim.claimed_checkout
     try:
         doctrine_root = _resolve_scaffold_root(repo_root, pack)
     except typer.BadParameter as exc:
@@ -682,17 +686,15 @@ def new(
     # here via the charter.activation.kind_vocabulary facade per the runtime -> charter
     # -> doctrine boundary), so the stub lands exactly where the loader will
     # look for it.
-    target_dir_name = (
-        plural if pack is not None else PROJECT_KIND_DIRS[artifact_kind]
-    )
+    target_dir_name = plural if pack is not None else PROJECT_KIND_DIRS[artifact_kind]
     target_dir = doctrine_root / target_dir_name
+    if owned_checkout is not None and repo_root is not None and not target_dir.resolve().is_relative_to(repo_root):
+        raise typer.BadParameter("Doctrine target escapes the explicitly owned checkout.")
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / _artifact_filename(artifact_kind, artifact_id)
 
     if target_path.exists():
-        console.print(
-            f"[red]Refusing to overwrite existing file:[/red] {target_path}"
-        )
+        console.print(f"[red]Refusing to overwrite existing file:[/red] {target_path}")
         raise typer.Exit(1)
 
     stub_text = _stub_template(artifact_kind, artifact_id)
@@ -709,17 +711,11 @@ def new(
     try:
         schema_cls.model_validate(parsed)
     except Exception as exc:  # noqa: BLE001 — surface to operator verbatim
-        console.print(
-            f"[red]Internal error:[/red] stub for kind '{artifact_kind.value}' failed "
-            f"schema validation: {exc}"
-        )
+        console.print(f"[red]Internal error:[/red] stub for kind '{artifact_kind.value}' failed schema validation: {exc}")
         raise typer.Exit(1) from exc
 
     target_path.write_text(stub_text, encoding="utf-8")
-    console.print(
-        f"[green]Created stub artifact:[/green] {target_path}\n"
-        f"Run [bold]spec-kitty doctrine validate {target_path}[/bold] to confirm."
-    )
+    console.print(f"[green]Created stub artifact:[/green] {target_path}\nRun [bold]spec-kitty doctrine validate {target_path}[/bold] to confirm.")
 
 
 # ----------------------------------------------------------------------
