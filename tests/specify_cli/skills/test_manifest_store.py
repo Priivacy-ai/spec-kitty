@@ -226,6 +226,27 @@ def test_round_trip_identity(tmp_path: Path) -> None:
     assert original_by_path == loaded_by_path
 
 
+def test_save_windows_fchmod_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulated Windows (no ``os.fchmod``): ``save()`` still writes and applies mode.
+
+    Before the fix, ``_save_bytes`` raised ``AttributeError: module 'os' has
+    no attribute 'fchmod'`` on a platform without the syscall.
+    """
+    import stat
+
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    m = SkillsManifest()
+    m.upsert(_make_entry(_VALID_PATH_1))
+
+    save(tmp_path, m)
+
+    manifest_path = tmp_path / ".kittify" / "command-skills-manifest.json"
+    assert manifest_path.is_file()
+    assert stat.S_IMODE(manifest_path.stat().st_mode) == 0o644
+    loaded = load(tmp_path)
+    assert {e.path for e in loaded.entries} == {_VALID_PATH_1}
+
+
 def test_round_trip_empty(tmp_path: Path) -> None:
     """An empty manifest round-trips cleanly."""
     m = SkillsManifest()

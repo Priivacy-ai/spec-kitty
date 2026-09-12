@@ -38,8 +38,8 @@ def _disable_saas_sync_for_planning_workflow_tests(
     ``os.environ.copy()``) so these tests exercise the
     SAAS-sync-disabled planning path.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    isolated_env.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    isolated_env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
     isolated_env["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
 
 SUBSTANTIVE_PLAN_TEMPLATE = """# Implementation Plan

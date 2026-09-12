@@ -1047,7 +1047,11 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
 #: Help text for the dispatch→claim resolved-binding options (FR-014). Shared by
 #: ``implement()`` and ``review()`` so the wording stays canonical in both.
 _MODEL_OPT_HELP = "Dispatch-resolved model asserted against the correlated Op record (requires --invocation-id; never the frontmatter recommendation)"
-_PROFILE_OPT_HELP = "Dispatch-resolved agent profile (registry.resolve / Op record — never the frontmatter agent_profile string)"
+_PROFILE_OPT_HELP = (
+    "Agent profile id — a dispatch registry / Op record profile or a local "
+    "charter profile (the same ids `agent profile show` resolves). When "
+    "omitted, the work package's frontmatter agent_profile is used."
+)
 _INVOCATION_ID_OPT_HELP = "Correlated Op record ULID whose mission, WP, action, profile, and model are authoritative"
 
 
@@ -1122,16 +1126,30 @@ def _validate_op_claim_correlation(
 
 
 def _resolved_profile_version(profile_id: str | None, repo_root: Path) -> str | None:
-    """Read the resolved profile schema version from the canonical registry."""
+    """Read the resolved profile schema version from the canonical registry.
+
+    #4120: resolves through ``ProfileRegistry.resolve_local`` — every local
+    layer, same activation gate — not the dispatch routing catalog
+    (``resolve``), which excludes the doctrine project layer by design and
+    therefore rejected every project-local charter-activated profile id with
+    an empty ``Available: []``. An operator-supplied ``--profile <id>`` names
+    the same ids ``agent profile show`` resolves and ``finalize-tasks``
+    records in WP ``agent_profile`` frontmatter; those must resolve here even
+    with no hosted registry / dispatch Op in play.
+    """
     if profile_id is None:
         return None
     try:
         from specify_cli.invocation.registry import ProfileRegistry
 
-        return str(ProfileRegistry(repo_root).resolve(profile_id).schema_version)
+        return str(
+            ProfileRegistry(repo_root).resolve_local(profile_id).schema_version
+        )
     except Exception as exc:
         raise ValueError(
-            f"Could not resolve dispatched profile {profile_id!r}: {exc}"
+            f"Could not resolve --profile {profile_id!r}: {exc}. "
+            "Omit --profile to use the work package's own frontmatter "
+            "agent_profile instead."
         ) from exc
 
 

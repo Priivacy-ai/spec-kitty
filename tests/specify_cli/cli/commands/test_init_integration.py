@@ -625,3 +625,62 @@ def test_selection_key_landmine_disposition_is_documented_accurately() -> None:
         "already landed and no active marker exists -- update the stale "
         "comment/docstring instead of leaving landmine language"
     )
+
+
+# ---------------------------------------------------------------------------
+# #4166 — first init must not import a removed private installer function
+# ---------------------------------------------------------------------------
+
+
+def test_init_source_has_no_removed_private_installer_import() -> None:
+    """#4166: init never imports the removed private ``_sync_global_skill``.
+
+    The candidate installer no longer exports that function; the old
+    standalone global-skill phase imported it and failed with an ImportError
+    on every first run while still reporting ``Project ready``. Global skill
+    installation is owned by the CLI root callback's retained
+    ``ensure_global_agent_skills()`` owner, and selected-agent skills by the
+    per-agent installer seams below — a static guard keeps the removed
+    private writer from being reintroduced here.
+    """
+    source = Path(inspect.getsourcefile(init_module)).read_text(encoding="utf-8")
+    # Import or call forms only: prose comments may still name the removed
+    # symbol for provenance (#4166).
+    assert "import _sync_global_skill" not in source
+    assert "_sync_global_skill(" not in source
+    assert "Skill installation incomplete" not in source
+
+
+def test_command_skill_failure_is_truthfully_signaled(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#4166: a failed selected-agent installation is reported, never masked.
+
+    ``init --ai codex`` delivers command skills after config is saved. When
+    that required installation cannot complete, init must say so and keep the
+    pending delivery record for resume — it must not print a clean success
+    summary over a failed phase.
+    """
+    app, console = cli_app
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    from specify_cli.skills import command_installer
+
+    def _boom(repo_root: Path, agent_key: str) -> object:
+        raise RuntimeError("command-skill disk unavailable")
+
+    monkeypatch.setattr(command_installer, "install", _boom)
+
+    result = _run(app, ["init", ".", "--ai", "codex", "--non-interactive"])
+
+    output = " ".join(console.file.getvalue().split())
+    assert result.exit_code == 0, result.output
+    assert "Could not install skills for Codex CLI" in output
+    assert "command-skill disk unavailable" in output
+    assert "Command delivery is incomplete; retry init after resolving the reported error." in output
+    # Delivery is honestly recorded as unfinished so a retry can resume it.
+    assert (tmp_path / ".kittify" / "init-command-skills.pending.json").is_file()

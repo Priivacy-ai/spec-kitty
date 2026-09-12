@@ -155,7 +155,8 @@ def _run_research(repo_root: Path, mission_handle: str = SLUG_WITH_MID8):  # typ
     app.command(name="research")(research_mod.research)
     runner = CliRunner()
 
-    _prev_saas = os.environ.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+    _prev_saas = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
+    os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
     try:
         with (
             patch.object(research_mod, "find_repo_root", return_value=repo_root),

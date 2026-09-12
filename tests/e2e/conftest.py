@@ -61,7 +61,7 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     projects without hosted credentials, so the preflight would otherwise
     fail before the behavior under test runs.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 # ---------------------------------------------------------------------------

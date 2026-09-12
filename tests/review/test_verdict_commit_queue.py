@@ -23,6 +23,7 @@ from specify_cli.review.verdict_commit_queue import (
     verdict_save_queue_is_held,
     verdict_save_queue_path,
 )
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.git_repo]  # exercises real repos, worktrees, and processes
 
@@ -169,18 +170,38 @@ def test_queue_releases_after_normal_and_exceptional_exit(repository: Path) -> N
 
 
 def test_nested_acquisition_is_explicitly_refused_without_waiting(repository: Path) -> None:
-    """Same-context nesting never relies on a hidden recursive lock contract."""
+    """Same-context nesting never relies on a hidden recursive lock contract.
+
+    Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_nested_acquisition_refusal_stays_fast`` (nightly-only).
+    """
+    with (
+        acquire_verdict_save_queue(repository, timeout_seconds=0.5),
+        pytest.raises(VerdictSaveReentrant) as raised,
+        acquire_verdict_save_queue(repository),
+    ):
+        pytest.fail("nested acquisition must not enter")
+
+    assert raised.value.lock_path == verdict_save_queue_path(repository)
+
+
+@pytest.mark.performance
+def test_nested_acquisition_refusal_stays_fast(repository: Path) -> None:
+    """Nested acquisition is refused promptly, without waiting (nightly).
+
+    Split from ``test_nested_acquisition_is_explicitly_refused_without_waiting``
+    (#4015); budget preserved.
+    """
     with acquire_verdict_save_queue(repository, timeout_seconds=0.5):
         started = time.perf_counter()
         with (
-            pytest.raises(VerdictSaveReentrant) as raised,
+            pytest.raises(VerdictSaveReentrant),
             acquire_verdict_save_queue(repository),
         ):
             pytest.fail("nested acquisition must not enter")
         elapsed = time.perf_counter() - started
 
-    assert raised.value.lock_path == verdict_save_queue_path(repository)
-    assert elapsed < 0.5
+    assert_timing_budget(elapsed, 0.5, name="nested_acquisition_refusal")
 
 
 def test_process_death_releases_queue_ownership(repository: Path) -> None:
@@ -210,7 +231,11 @@ def test_process_death_releases_queue_ownership(repository: Path) -> None:
 
 
 def test_live_holder_causes_real_bounded_busy_refusal(repository: Path) -> None:
-    """A live owner excludes a real contender until its finite budget expires."""
+    """A live owner excludes a real contender until its finite budget expires.
+
+    Functional half of the #4015 split; the wall-clock window now lives in
+    ``test_live_holder_busy_refusal_stays_bounded`` (nightly-only).
+    """
     context = multiprocessing.get_context("spawn")
     parent, child = context.Pipe(duplex=False)
     release = context.Event()
@@ -224,21 +249,59 @@ def test_live_holder_causes_real_bounded_busy_refusal(repository: Path) -> None:
         assert parent.poll(10), "spawned owner never acquired the queue"
         assert parent.recv() is True
 
-        started = time.perf_counter()
         with (
             pytest.raises(VerdictSaveBusy) as raised,
             acquire_verdict_save_queue(repository, timeout_seconds=0.2),
         ):
             pytest.fail("live owner must exclude the contender")
-        elapsed = time.perf_counter() - started
 
         assert raised.value.timeout_seconds == 0.2
-        assert 0.15 <= elapsed < 2.0
         assert owner.is_alive()
         release.set()
         owner.join(timeout=10)
         assert not owner.is_alive()
         assert owner.exitcode == 0
+    finally:
+        release.set()
+        if owner.is_alive():
+            owner.terminate()
+            owner.join(timeout=10)
+        parent.close()
+
+
+@pytest.mark.performance
+def test_live_holder_busy_refusal_stays_bounded(repository: Path) -> None:
+    """A live owner's busy refusal happens within its finite budget window (nightly).
+
+    Split from ``test_live_holder_causes_real_bounded_busy_refusal`` (#4015);
+    budget preserved (the original two-sided ``0.15 <= elapsed < 2.0`` window:
+    long enough to prove the contender genuinely waited, short enough to
+    prove it never blocked past its own timeout).
+    """
+    context = multiprocessing.get_context("spawn")
+    parent, child = context.Pipe(duplex=False)
+    release = context.Event()
+    owner = context.Process(
+        target=_hold_queue_until_released,
+        args=(str(repository), child, release),
+    )
+    owner.start()
+    child.close()
+    try:
+        parent.poll(10)
+        parent.recv()
+
+        started = time.perf_counter()
+        with (
+            pytest.raises(VerdictSaveBusy),
+            acquire_verdict_save_queue(repository, timeout_seconds=0.2),
+        ):
+            pytest.fail("live owner must exclude the contender")
+        elapsed = time.perf_counter() - started
+
+        assert 0.15 <= elapsed < 2.0
+        release.set()
+        owner.join(timeout=10)
     finally:
         release.set()
         if owner.is_alive():

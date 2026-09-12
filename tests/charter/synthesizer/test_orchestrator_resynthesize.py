@@ -400,6 +400,37 @@ class TestUs3KindSlug:
 # US-2: DRG URN → multiple artifacts affected, unrelated unchanged
 # ---------------------------------------------------------------------------
 
+    def test_resynthesis_reference_warnings_ride_on_result(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """#4121 (MAJOR 2): unresolved-reference warnings from the callback's
+        overlay re-emission ride on ``ResynthesisResult.reference_warnings``
+        so the CLI can surface them."""
+        from charter.activation.synthesizer import project_drg
+
+        real_emit = project_drg.emit_project_layer
+
+        def _emit_with_warning(*args: object, **kwargs: object) -> object:
+            sink = kwargs.get("warnings_out")
+            if isinstance(sink, list):
+                sink.append("agent_profile:ops-responder references unresolved procedure:gone")
+            return real_emit(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(project_drg, "emit_project_layer", _emit_with_warning)
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="tactic:how-we-apply-directive-003",
+            repo_root=repo_with_prior_synthesis,
+        )
+        assert result.reference_warnings == (
+            "agent_profile:ops-responder references unresolved procedure:gone",
+        )
+
 
 class TestUs2DrgUrn:
     def test_resynthesize_drg_urn_directive_003(
@@ -627,7 +658,13 @@ class TestResynthesizeValidationWiring:
         manifest_before = manifest_path.read_text(encoding="utf-8")
         graph_before = graph_path.read_text(encoding="utf-8")
 
-        def fail_validate(_staging_dir: Path, _shipped_drg: object) -> None:
+        def fail_validate(
+            _staging_dir: Path, _shipped_drg: object, conflicts: object = (), org_drg: object = None
+        ) -> None:
+            # #4121 (MAJOR 2) added the org-chain ``org_drg`` kwarg to
+            # validate(); accept (and ignore) it plus ``conflicts`` so this
+            # forced-failure stub keeps matching the real call signature.
+            del conflicts, org_drg
             raise ProjectDRGValidationError(
                 errors=("forced resynthesis validation failure",),
                 merged_graph_summary="forced by test",

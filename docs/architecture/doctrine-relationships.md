@@ -2,7 +2,7 @@
 title: 'Doctrine relationships: lineage, delegation, augmentation, and action resolution'
 description: "How Spec Kitty models each DRG relation type — lineage, delegation, augmentation, obligation, scope, and the tension edges — as a typed graph edge, not as artifact fields."
 doc_status: active
-updated: '2026-08-12'
+updated: '2026-09-08'
 ---
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 
@@ -13,16 +13,18 @@ profile-integrity work (FR-001/FR-003/FR-004, NFR-007), every relationship is a
 authored as fields on the artifacts themselves.
 
 > **One authoring surface.** Author relationships as DRG **fragment edges** in
-> `graph.yaml` (built-in / project tier) or `drg/fragment.yaml` (org-pack tier).
+> the project's `graph.yaml` (project tier), the per-kind `*.graph.yaml`
+> fragments under `packs/built-in/` (built-in tier), or `drg/fragment.yaml`
+> (org-pack tier).
 > The deprecated `enhances:` / `overrides:` / `specializes-from:` *artifact
 > fields* are being retired (they become a hard error). The canonical relation
 > tokens live on the `Relation` enum in
-> [`src/doctrine/drg/models.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/drg/models.py).
+> [`src/charter/offering/drg/models.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/drg/models.py).
 
 Every one of the 15 `Relation` members below has a dedicated section whose
 body is copied **verbatim** from the canonical `RELATION_DESCRIPTIONS`
 registry in
-[`src/doctrine/drg/models.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/drg/models.py)
+[`src/charter/offering/drg/models.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/drg/models.py)
 — that registry is the single source of truth; these sections mirror it for
 human readers, and the two are kept in parity by
 `tests/doctrine/test_relation_doc_parity.py` (FR-006/FR-012/NFR-003/NFR-004),
@@ -32,7 +34,7 @@ which now scopes **all 15 relations**, not a subset.
 
 The graph itself is two small records — a **node** and a typed **edge** — over two
 closed vocabularies. The schema diagram below is **generated from the frozen code
-models** (`src/doctrine/drg/models.py`) and kept honest by the drift guard
+models** (`src/charter/offering/drg/models.py`) and kept honest by the drift guard
 (`tests/docs/diagram_drift/`, FR-004): every field and every enum member is
 introspected from the live model (`list(NodeKind)`, `list(Relation)`), never
 hand-copied, so this picture cannot silently drift from the code.
@@ -207,7 +209,7 @@ embedded inside a parity-enforced section body would break verbatim equality).
 ### Lineage edge
 
 ```yaml
-# graph.yaml (built-in tier) — lineage authored as an edge
+# packs/built-in/<kind>.graph.yaml (built-in tier) — lineage authored as an edge
 edges:
   - source: agent_profile:python-pedro
     target: agent_profile:implementer-ivan
@@ -277,7 +279,7 @@ Per `DIRECTIVE_037` (living-documentation sync), this page is kept in step with
 the `Relation` enum and the migration tests. When a relation type is added,
 removed, or its semantics change, update:
 
-1. the `Relation` enum docstring in `src/doctrine/drg/models.py`,
+1. the `Relation` enum docstring in `src/charter/offering/drg/models.py`,
 2. the `RELATION_DESCRIPTIONS` entry for that relation,
 3. this explanation page, and
 4. the relationship-migration tests and fixtures
@@ -286,7 +288,7 @@ removed, or its semantics change, update:
 
 Every one of the 15 `Relation` members has its own dedicated `### …` section
 above, and each section must stay byte-identical (whitespace aside) to
-`RELATION_DESCRIPTIONS` in `src/doctrine/drg/models.py` —
+`RELATION_DESCRIPTIONS` in `src/charter/offering/drg/models.py` —
 `tests/doctrine/test_relation_doc_parity.py` enforces this for all 15 and
 fails red, naming the relation, on any drift. There is no remaining subset of
 relations excluded from this parity check: the doc-parity restructure

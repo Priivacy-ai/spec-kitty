@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from charter.profiles import AgentProfile, AgentProfileRepository
 
 from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 from specify_cli.invocation.errors import ProfileNotFoundError
+
+if TYPE_CHECKING:
+    from charter.activation.resolver import DoctrineService
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
 _LAYER_BUILTIN = "builtin"
@@ -15,11 +19,14 @@ _LAYER_ORG = "org"
 _LAYER_PROJECT = "project"
 
 # Doctrine layers that the dispatch routing catalog draws from the
-# activation-aware service. The doctrine *project* layer
-# (``.kittify/agent_profiles``) is intentionally excluded: routing has never
-# carried it, and the legacy ``.kittify/profiles`` invocation project layer is
-# overlaid separately (and ungated) below.
-_DOCTRINE_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG})
+# activation-aware service. All three provenance layers are admitted (#4114):
+# a project-layer profile authored under ``.kittify/doctrine/agent_profiles``
+# is routable exactly when the ``activated_agent_profiles`` gate admits it,
+# so ``charter activate agent-profile <id>`` is sufficient to make a project
+# profile dispatchable — routing and governance context agree on every
+# doctrine layer. The legacy ``.kittify/profiles`` invocation project layer
+# is still overlaid separately (and ungated) below.
+_DOCTRINE_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG, _LAYER_PROJECT})
 
 
 class ProfileRegistry:
@@ -27,18 +34,20 @@ class ProfileRegistry:
 
     When ``.kittify/profiles/`` does not exist, ``project_dir=None`` causes
     the repo to fall back to built-in profiles gracefully (no exception).
-    If built-in profiles also produce an empty list, ``has_profiles()``
-    returns False — the executor uses this to produce the
-    "run charter synthesize" error message.
+    If the merged catalog still produces an empty list, ``has_profiles()``
+    returns False — the router surfaces that as a ``ROUTER_NO_MATCH`` whose
+    suggestion names charter activation, not synthesis (#4114).
 
-    Routing parity with the governance-context seam (R3): the **doctrine**
-    layers (built-in + org) are drawn from the same charter-activation-aware
-    service that ``build_charter_context`` and ``charter/resolver.py`` use, so
-    a built-in (or org) profile the charter de-activated is absent from the
-    routing catalog exactly as it is from the governance context. The legacy
-    ``.kittify/profiles`` invocation project layer is OUTSIDE the doctrine
-    activation model: it is overlaid ungated and always wins on id collision
-    (C-002/FR-007). The raw ``org_dirs`` are never spliced here (C-008).
+    Routing parity with the governance-context seam (R3, extended to the
+    project layer by #4114): the **doctrine** layers (built-in + org +
+    project) are drawn from the same charter-activation-aware service that
+    ``build_charter_context`` and ``charter/resolver.py`` use, so a profile
+    the charter de-activated is absent from the routing catalog exactly as it
+    is from the governance context, and a project-layer profile the charter
+    activated is present in both. The legacy ``.kittify/profiles`` invocation
+    project layer is OUTSIDE the doctrine activation model: it is overlaid
+    ungated and always wins on id collision (C-002/FR-007). The raw
+    ``org_dirs`` are never spliced here (C-008).
 
     Two independent gates apply to the doctrine layers, and both must be
     inert for the catalog to be byte-identical to the pre-mission output
@@ -80,18 +89,25 @@ class ProfileRegistry:
         self._repo = AgentProfileRepository(
             project_dir=project_profiles_dir if project_profiles_dir.exists() else None,
         )
-        self._merged = self._build_merged_profiles(repo_root)
+        # One service build feeds both catalogs (routing + local) — the
+        # activation-aware builder walks the doctrine tree, so building it
+        # twice per registry would double the filesystem reads for no gain.
+        service = build_activation_aware_doctrine_service(repo_root)
+        self._merged = self._build_merged_profiles(service)
+        self._local = self._build_local_profiles(service)
 
-    def _build_merged_profiles(self, repo_root: Path) -> dict[str, AgentProfile]:
+    def _build_merged_profiles(
+        self, service: DoctrineService
+    ) -> dict[str, AgentProfile]:
         """Build the routing catalog: activation-gated doctrine + legacy project.
 
-        The doctrine layers (built-in + org) come from the activation-aware
-        service so they pass the same ``activated_agent_profiles`` three-state
-        gate the governance-context seam applies (R3 parity). The legacy
-        ``.kittify/profiles`` project layer is then overlaid ungated and always
-        wins on id collision (it is outside the doctrine activation model).
+        The doctrine layers (built-in + org + project) come from the
+        activation-aware service so they pass the same
+        ``activated_agent_profiles`` three-state gate the governance-context
+        seam applies (R3 parity, #4114). The legacy ``.kittify/profiles``
+        project layer is then overlaid ungated and always wins on id collision
+        (it is outside the doctrine activation model).
         """
-        service = build_activation_aware_doctrine_service(repo_root)
         gated = service.agent_profiles
         inner_repo = service.agent_profile_repository
         merged: dict[str, AgentProfile] = {
@@ -103,6 +119,35 @@ class ProfileRegistry:
             if self._repo.get_provenance(profile.profile_id) == _LAYER_PROJECT:
                 merged[profile.profile_id] = profile
         return merged
+
+    def _build_local_profiles(
+        self, service: DoctrineService
+    ) -> dict[str, AgentProfile]:
+        """Build the local-resolution catalog (#4120): every layer, same gate.
+
+        The routing catalog above deliberately excludes the doctrine *project*
+        layer — dispatch routing has never carried it (R3 parity with the
+        governance-context seam). But a project-local charter-activated profile
+        is exactly what ``agent profile show`` resolves, what the
+        charter-activation gate in ``finalize-tasks`` requires WP
+        ``agent_profile`` frontmatter values to be, and therefore exactly what
+        an operator can reasonably pass to ``agent action implement/review
+        --profile <id>``. Resolving that flag against the routing catalog made
+        every locally-authored profile unresolvable ("Available: []").
+
+        This catalog keeps the SAME ``activated_agent_profiles`` gate (and the
+        same language-scope filter — both come with ``service.agent_profiles``)
+        but admits every doctrine layer (built-in + org + project), plus the
+        legacy ``.kittify/profiles`` invocation project overlay ungated on top
+        (same collision semantics as the routing catalog). It is the
+        operator-facing resolution surface behind ``resolve_local`` — NOT a
+        routing catalog, and never consumed by the dispatch router.
+        """
+        local: dict[str, AgentProfile] = dict(service.agent_profiles)
+        for profile in self._repo.list_all():
+            if self._repo.get_provenance(profile.profile_id) == _LAYER_PROJECT:
+                local[profile.profile_id] = profile
+        return local
 
     def list_all(self) -> list[AgentProfile]:
         """Return all loaded profiles (project + activated org) sorted by profile_id."""
@@ -118,6 +163,26 @@ class ProfileRegistry:
         if profile is None:
             available = sorted(self._merged)
             raise ProfileNotFoundError(profile_id, available)
+        return profile
+
+    def resolve_local(self, profile_id: str) -> AgentProfile:
+        """Resolve a profile id across every local layer (#4120).
+
+        Unlike :meth:`resolve` (the dispatch *routing* catalog, which excludes
+        the doctrine project layer by design — R3 parity), this resolves
+        against the local catalog built by ``_build_local_profiles``: the same
+        activation gate, but every doctrine layer admitted. This is the seam
+        for an operator-supplied ``--profile <id>`` on ``agent action
+        implement/review`` — the ids ``agent profile show`` resolves and
+        ``finalize-tasks`` records in WP ``agent_profile`` frontmatter must be
+        acceptable here even when no hosted registry / dispatch Op exists.
+
+        Raises:
+            ProfileNotFoundError: if the id is in no local layer.
+        """
+        profile = self._local.get(profile_id)
+        if profile is None:
+            raise ProfileNotFoundError(profile_id, sorted(self._local))
         return profile
 
     def has_profiles(self) -> bool:

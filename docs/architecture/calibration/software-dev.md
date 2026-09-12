@@ -2,7 +2,7 @@
 title: 'Calibration Report: software-dev'
 description: 'Calibration report for the software-dev mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-04-27'
+updated: '2026-09-08'
 ---
 # Calibration Report: software-dev
 
@@ -15,7 +15,7 @@ updated: '2026-04-27'
 
 ## Summary
 
-All 6 steps pass the §4.5.1 inequality after the overlay is applied (overlay is empty — no mutations required).  The shipped `src/doctrine/graph.yaml` already provides complete required context for every step.  Transitive extras surfaced by `requires`/`suggests` traversal are classified as `known_irrelevant` (benign).
+All 6 steps pass the §4.5.1 inequality after the overlay is applied (overlay is empty — no mutations required).  The shipped built-in DRG fragments (`packs/built-in/*.graph.yaml`) already provide complete required context for every step.  Transitive extras surfaced by `requires`/`suggests` traversal are classified as `known_irrelevant` (benign).
 
 ---
 

@@ -80,7 +80,7 @@ def _disable_saas_sync_for_finalize_lint_tests(
     collaborators in-process and are not testing the SaaS boundary preflight;
     leaving the flag enabled makes finalize refuse before the lint phase runs.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 def _make_bootstrap_result() -> BootstrapResult:

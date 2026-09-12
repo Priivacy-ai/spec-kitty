@@ -82,19 +82,33 @@ def test_n2_offer_with_nested_forbidden_field_makes_zero_network_attempts(team_k
 
 
 def test_n3_slow_double_drops_at_budget_with_exactly_one_attempt(team_kitty_double):
+    """Functional half of the #4015 split; the wall-clock window now lives in
+    ``test_n3_slow_double_drops_within_the_offer_budget_window`` (nightly-only)."""
+    team_kitty_double.configure(delay_s=2.0)
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    result = client.offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.outcome == transport.OfferOutcome.DROPPED_BUDGET
+    assert team_kitty_double.connection_count == 1
+    assert len(team_kitty_double.requests) == 1
+
+
+@pytest.mark.performance
+def test_n3_slow_double_drops_within_the_offer_budget_window(team_kitty_double):
+    """Split from ``test_n3_slow_double_drops_at_budget_with_exactly_one_attempt``
+    (#4015); budget preserved (nightly).
+
+    Generous bound vs. the draft's +/-50ms: http.server + urllib overhead on
+    a loaded CI box makes a razor-thin window flaky without changing the
+    underlying behaviour under test (a hard total bound, not a per-op one).
+    """
     team_kitty_double.configure(delay_s=2.0)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     start = time.monotonic()
-    result = client.offer("presence.publish", {"activity": "file_edit"})
+    client.offer("presence.publish", {"activity": "file_edit"})
     wall = time.monotonic() - start
 
-    assert result.outcome == transport.OfferOutcome.DROPPED_BUDGET
-    # Generous bound vs. the draft's +/-50ms: http.server + urllib overhead on
-    # a loaded CI box makes a razor-thin window flaky without changing the
-    # underlying behaviour under test (a hard total bound, not a per-op one).
     assert budget.OFFER_BUDGET_S <= wall < 1.5
-    assert team_kitty_double.connection_count == 1
-    assert len(team_kitty_double.requests) == 1
 
 
 @pytest.mark.timing

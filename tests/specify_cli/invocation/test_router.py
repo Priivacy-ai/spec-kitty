@@ -318,6 +318,26 @@ def test_router_no_match_vague_request() -> None:
     assert exc_info.value.error_code == "ROUTER_NO_MATCH"
 
 
+def test_router_no_match_empty_catalog_suggestion_names_activation() -> None:
+    """#4114: an empty catalog suggests charter activation, not synthesis.
+
+    Built-ins always ship, so an empty catalog means the activation gate
+    admitted nothing — the remedy is ``charter activate agent-profile``, and
+    the suggestion must say so (the pre-#4114 "Run 'spec-kitty charter
+    synthesize'" text pointed at a repair that does not address activation).
+    """
+    registry = _make_mock_registry([])
+
+    router = ActionRouter(registry)
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route("Implement the tax module")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_NO_MATCH"
+    assert "charter activate agent-profile" in err.suggestion
+    assert "charter synthesize" not in err.suggestion
+
+
 # ---------------------------------------------------------------------------
 # Missing profile hint → PROFILE_NOT_FOUND
 # ---------------------------------------------------------------------------

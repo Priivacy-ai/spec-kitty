@@ -2,7 +2,7 @@
 title: Internal Hosted-Readiness Mode (Pre-Launch)
 description: 'How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch).'
 doc_status: active
-updated: '2026-08-16'
+updated: '2026-09-08'
 type: how-to
 related:
 - docs/guides/how-to/installation/upgrade-cli.md
@@ -19,10 +19,14 @@ audience: internal / pre-launch operators
 
 ## When this page applies
 
+> **Historical note (#3980):** the opt-in gate this page describes is gone —
+> hosted readiness is on by default and `SPEC_KITTY_ENABLE_SAAS_SYNC=0` is
+> the opt-out. This page remains as the pre-launch operator walkthrough.
+
 Read on if all of the following hold:
 
 - You are running a build of `spec-kitty-cli` that includes the SaaS
-  rollout gate (`src/specify_cli/saas/rollout.py`).
+  rollout gate (`src/specify_cli/core/saas_sync_config.py`).
 - You want the CLI to surface Teamspace-aware readiness output —
   hosted auth status, sync compatibility, tracker reachability — from
   any `spec-kitty` command.
@@ -41,7 +45,7 @@ output, no hosted auth probe, no tracker calls. With the variable set
 to a truthy value (`1`, `true`, `yes`, `on`, case-insensitive), the
 coordinator wakes up and the hosted readiness states become observable.
 The byte-stable disabled-state message and the truthy-value contract are
-defined in [`src/specify_cli/saas/rollout.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/specify_cli/saas/rollout.py)
+defined in [`src/specify_cli/core/saas_sync_config.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/core/saas_sync_config.py)
 and asserted by tests; do not paraphrase that message in your own
 tooling.
 

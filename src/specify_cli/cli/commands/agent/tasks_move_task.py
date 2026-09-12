@@ -118,7 +118,7 @@ from specify_cli.coordination.atomic_write import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.env import first_set_sync_disable_env
+from specify_cli.core.env import pre_review_gate_skip_reason
 from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
 from specify_cli.core.owned_mission import (
     OwnedMission,
@@ -357,16 +357,17 @@ def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
 
 
 def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
-    """Reject unsupported owned-checkout modes before any mission write."""
-    from specify_cli.core.saas_sync_config import sync_active
+    """Reject unsupported owned-checkout modes before any mission write.
 
+    #3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal died with the launch
+    flip — owned checkouts publish moments like any checkout. The fan-out
+    handlers registered on the status emit seam are individually bounded and
+    non-raising (``status/adapters.py``), and the Zeitgeist moment handler
+    no-ops without a session/team, so an owned transition under active sync
+    completes with at worst a skipped fan-out warning.
+    """
     assert st.owned is not None
     require_unstaged_index(st.owned)
-    if sync_active():
-        raise ActionContextError(
-            "OWNED_SYNC_UNSUPPORTED",
-            "Owned move-task does not yet support active synchronization.",
-        )
     if st.target_lane not in (
         Lane.PLANNED,
         Lane.CLAIMED,
@@ -1202,21 +1203,22 @@ def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
 
 
 def _mt_pre_review_gate_env_disable_reason() -> str | None:
-    """#2573 FR-002: the first honored disable env var, or ``None`` if none set.
+    """#3980: the gate's own opt-out env, or ``None`` if not set.
 
-    The gate honors the SAME sync-disable vocabulary as the daemon (``core.env.
-    SYNC_DISABLE_ENV_VARS``) rather than inventing a third env var.
+    The gate reads ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` — its own name — and
+    no longer the sync-disable vocabulary: disarming sync must not silently
+    skip a review gate. See ``core.env.pre_review_gate_skip_reason``.
     """
-    env_var = first_set_sync_disable_env()
-    return f"{env_var} is set" if env_var else None
+    return pre_review_gate_skip_reason()
 
 
 def _mt_pre_review_gate_skip_reason(st: _MoveTaskState) -> str | None:
     """#2573 FR-002: why the gate should be skipped this move, or ``None`` to run it.
 
     The ``--skip-pre-review-gate`` flag is checked first (an explicit, per-
-    invocation opt-out); the disable env vars are checked second (a
-    process-wide opt-out already used by the sync layer). Either one skips
+    invocation opt-out); ``SPEC_KITTY_SKIP_PRE_REVIEW_GATE`` is checked
+    second (the gate's own process-wide opt-out, #3980 — it no longer reads
+    the sync-disable vocabulary). Either one skips
     the gate WITHOUT ever resolving a workspace or spawning the scoped
     pytest subprocess — the default (neither set) still runs/enforces the
     gate exactly as before this fix.

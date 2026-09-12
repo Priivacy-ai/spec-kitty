@@ -652,7 +652,7 @@ class TestCli:
     ) -> None:
         # Force the SAAS check off via the internal flag.
         monkeypatch.setattr(freshness, "_SAAS_SYNC_PRESET", False)
-        monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
         ref = tmp_path / "ref.md"
         ref.write_text(

@@ -25,7 +25,7 @@ def _disable_saas_sync_for_tasks_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     in scope. The preflight is not what these tests are testing — they
     test the planning workflow logic — so we disable the gate here.
     """
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
 @pytest.fixture(autouse=True)

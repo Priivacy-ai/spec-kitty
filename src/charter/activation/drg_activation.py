@@ -108,8 +108,10 @@ def load_org_drg(
         (DRG read-path bridge, mission ``drg-read-path-bridge-01M0CHVZ``, D3).
     degrade_malformed:
         Only meaningful when ``strict=False``. When ``True``, a pack whose
-        ``drg/fragment.yaml`` is present but **malformed** (a parse or schema
-        fault — :class:`OrgPackParseError` / :class:`OrgPackSchemaError`) is
+        ``drg/fragment.yaml`` is present but **unloadable** — malformed (a
+        parse or schema fault — :class:`OrgPackParseError` /
+        :class:`OrgPackSchemaError`) or unreadable (an ``OSError``:
+        permission-denied, or the path is a directory) — is
         **skipped per-pack** with an operator-visible ``WARNING`` naming the
         offending pack, and the remaining healthy packs' fragments are still
         returned. The default ``False`` preserves the byte-identical fail-loud
@@ -123,7 +125,12 @@ def load_org_drg(
         *optional* fragment degrades — exactly the class the mission-step
         executor already tolerated, but per-pack instead of whole-chain, so a
         single bad optional pack no longer evicts its healthy siblings'
-        fragments. Config faults (``NotImplementedError`` for an unsupported
+        fragments. The read-fault class (``OSError`` — an unreadable optional
+        fragment) degrades identically (#4200 defect 2: the loader presents it
+        as the I/O fault it is, never masked as a parse error, and this
+        per-pack degrade keeps the mission-step composition path tolerant of
+        exactly the condition it tolerated before that seam). Config faults
+        (``NotImplementedError`` for an unsupported
         ``source:``, env-var / subdir-escape errors) are raised before the
         per-pack loop and still fail loud; endpoint / dangling-governance faults
         are surfaced downstream by ``load_validated_graph`` and are unaffected.
@@ -138,6 +145,12 @@ def load_org_drg(
         When a configured pack's ``drg/fragment.yaml`` is malformed — unless
         ``strict=False`` and ``degrade_malformed=True``, in which case only that
         pack is skipped (with a ``WARNING``) and its siblings still load.
+    OSError:
+        When a configured pack's ``drg/fragment.yaml`` exists but cannot be
+        read (permissions, or the path is a directory) — unless
+        ``strict=False`` and ``degrade_malformed=True``, in which case only
+        that pack is skipped (with a ``WARNING``). Never masked as a parse
+        error (#4200 defect 2).
     NotImplementedError:
         When a pack declares ``source: url`` or ``source: package`` —
         only ``local_path`` is shipped in this mission (NEW-1). Raised before
@@ -154,12 +167,12 @@ def load_org_drg(
             continue
         try:
             fragments.append(load_org_pack(pack.name, pack_root, layer_index))
-        except (OrgPackParseError, OrgPackSchemaError) as exc:
+        except (OrgPackParseError, OrgPackSchemaError, OSError) as exc:
             logger.warning(
-                "Org pack %r at %s ships a malformed drg/fragment.yaml "
-                "(%s: %s); dropping ONLY this pack's fragment and composing "
-                "with the remaining org packs. Fix or remove this pack in "
-                ".kittify/config.yaml.",
+                "Org pack %r at %s ships a malformed or unreadable "
+                "drg/fragment.yaml (%s: %s); dropping ONLY this pack's "
+                "fragment and composing with the remaining org packs. "
+                "Fix or remove this pack in .kittify/config.yaml.",
                 pack.name,
                 pack_root,
                 type(exc).__name__,
@@ -295,6 +308,7 @@ def _resolve_activated_urns_for_kind(
     *,
     doctrine_root: Path,
     org_roots: list[Path],
+    layer_roots: dict[str, Path] | None = None,
 ) -> frozenset[str] | None:
     """Resolve one kind's config-stem activation set to canonical URNs.
 
@@ -330,7 +344,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots))
+            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
@@ -356,6 +370,7 @@ def _resolve_activated_urns_by_kind(
             getattr(pack_context, per_kind_field, None),
             doctrine_root=doctrine_root,
             org_roots=org_roots,
+            layer_roots={"project": pack_context.repo_root / ".kittify"},
         )
         for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
     }

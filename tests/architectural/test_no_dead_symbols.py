@@ -88,7 +88,11 @@ are covered instead by the T013 structural auto-exempt categories
 (``_is_registered_migration_class`` / ``_is_typer_subapp_definition`` /
 ``_is_reexport_shim_symbol``) -- see ``test_auto_exempt_disjoint_from_hand_allowlist``
 for the disjointness proof. Future entries MUST cite a rationale and a
-follow-up tracker ticket per FR-303.
+follow-up tracker ticket per FR-303, and MUST consult :func:`owning_category`
+first -- the queryable membership index -- so a symbol that is already
+allowlisted is never re-listed under a second category; the cross-category
+duplicate gate (``test_no_dead_symbol_key_is_listed_in_more_than_one_category``,
+#3562) reds on any such re-add.
 """
 
 from __future__ import annotations
@@ -556,7 +560,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "05844901b4d14fd4a0f92e8576b848d0144108abedaeb567855364fae5fe5817", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
             "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
@@ -955,12 +959,12 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
         ),  # charter.offering.missions.mission_step_repository::StepKey
-        SymbolKey(
-            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
-        SymbolKey(
-            "Mission", "36ecefcd078e89a856885fef32b1690315ca257cdf4cb90ff03ee2994e275fa8", source_module="charter.offering.missions.models"
-        ),  # charter.offering.missions.models::Mission
+        # DEDUPED (#3562): ``IDENTIFIER_PATTERN`` / ``Mission`` were re-added
+        # here as exact duplicates (same bare_name + body_hash) of their
+        # ``_CATEGORY_B_GRANDFATHERED_LEGACY`` entries -- the frozenset union
+        # silently deduped them, so the category-B copies are the ones kept
+        # (they own the burn-down rationale). The cross-category duplicate
+        # gate below now reds on any such re-add.
         SymbolKey(
             "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="charter.offering.missions.step_contracts"
         ),  # charter.offering.missions.step_contracts::DelegatesTo
@@ -981,9 +985,13 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.activation.pack_manager"
         ),  # charter.activation.pack_manager::MergeResult
-        SymbolKey(
-            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
-        ),  # charter.offering.missions.mission_step_repository::StepKey
+        # DEDUPED (#3562): ``StepKey`` was re-added here as an exact duplicate
+        # (same bare_name + body_hash) of its
+        # ``_CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP`` entry -- the copy
+        # kept, since the symbol's owning surface
+        # (``charter.offering.missions.mission_step_repository``) is that
+        # mission's model. The cross-category duplicate gate below now reds on
+        # any such re-add.
         SymbolKey(
             "AffectedMission", "aca1c4d1ccf40c858667a7ca7fc09a28197e3b7ed559beffd1c72e4ed91f5a1f", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::AffectedMission
@@ -991,9 +999,9 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
             "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::StepRemovalWarning
         # specify_cli.doctrine.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.doctrine.org_charter"),
+        SymbolKey("OrgCharterCycleError", "0aa1191f64d7e16ef01d734a5923234235803540c3bef47f38a0f53bb25027b4", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.doctrine.org_charter"),
+        SymbolKey("OrgCharterExtensionError", "95d36f60ef3daa34a22466c687aff504694a7b82bee2621d7f42f7a7d9bd5425", source_module="specify_cli.doctrine.org_charter"),
     }
 )
 
@@ -1906,6 +1914,55 @@ _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozens
 )
 
 
+# ---------- C. team-kitty-launch-defaults 3980 forward API ----------
+# The #3980 launch-defaults flip introduced the canonical env-name constants
+# in ``specify_cli.core.env`` and kept ``sync_active()`` as the contract-pinned
+# armed predicate (``kitty-specs/team-kitty-launch-defaults-01M1XJ4Y/
+# contracts/saas_rollout.md`` v3). None
+# has a cross-file ``src/`` caller yet:
+#
+# * the three ``core.env`` constants are consumed by their own module's gate
+#   functions (``sync_kill_switch_active`` / ``pre_review_gate_skip_reason`` /
+#   ``moment_handlers_disabled_reason``) and imported by tests
+#   (``tests/specify_cli/core/test_env.py``, the agent-command conftest), but
+#   the parallel literal name lists in ``core/secret_redaction.py`` and
+#   ``upgrade/migrations/m_3_2_8_provision_kitty_env.py`` predate the
+#   constants and still hardcode the strings.
+# * ``sync_active()``'s last runtime caller (the owned-checkout
+#   ``OWNED_SYNC_UNSUPPORTED`` refusal) was removed by #3980 itself; the
+#   contract still requires its kill-switch/disarm test coverage, and the
+#   launch table names it as the ``SPEC_KITTY_SYNC_DISABLE`` consumer.
+#
+# TODO(triage): #3980 post-launch — wire the literal-list sites to the
+# constants, and either wire a ``sync_active()`` consumer (the kill-switch
+# fold into readiness/tracker gating) or retire it with the next contract
+# version bump, then drop these entries.
+_CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "SYNC_KILL_SWITCH_ENV_VAR",
+            "6479687cac1de60595e0be63142ebfc2bd27d92674a2632b2b28ce97079e452d",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "MOMENT_HANDLER_DISABLE_ENV_VARS",
+            "0374ae9a0aa99f632c537396a59c5a111471ff7cc161316bb814277259b96e06",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "PRE_REVIEW_GATE_SKIP_ENV_VAR",
+            "3cabc812bbdd0e37a010ef534f86a0855482ed4c7037dbd1c87a73228ae88bff",
+            source_module="specify_cli.core.env",
+        ),
+        SymbolKey(
+            "sync_active",
+            "c21b2cddf0f28b99c6e029bcd1f4bbb8fb099055257142e143ed45bf64987195",
+            source_module="specify_cli.core.saas_sync_config",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1947,6 +2004,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
+    | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
 )
 
 
@@ -2058,6 +2116,109 @@ def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
             violations.append(f"{source_module}::{bare_name}")
 
     assert not violations, "content-tier `source_module` names a module that does not declare the symbol in the live corpus (FR-007): " + ", ".join(violations)
+
+
+# ---------------------------------------------------------------------------
+# Cross-category duplicate gate (#3562)
+# ---------------------------------------------------------------------------
+#
+# ``_SYMBOL_ALLOWLIST`` aggregates the per-category frozensets by union, and a
+# frozenset union silently dedupes: a successive mission re-discovering an
+# already-allowlisted symbol and re-adding it under its own category was
+# invisible at runtime and -- before this gate -- invisible, period, unless
+# someone eyeballed ~3000 lines of allowlist (exactly how the three #3562
+# duplicates sat unnoticed). Two structures close that: a queryable membership
+# index (:func:`owning_category` -- consult it BEFORE adding an entry) and a
+# red gate on any key identity listed in more than one category, plus an
+# aggregate check that every discovered category actually reaches
+# ``_SYMBOL_ALLOWLIST``.
+
+
+def _category_frozensets() -> dict[str, frozenset[SymbolKey]]:
+    """Every module-level ``_CATEGORY_*`` frozenset, by name.
+
+    Discovered live from this module's namespace rather than restated by
+    hand, so a category frozenset added to this file is automatically in
+    scope for the guards below -- the same live-recompute doctrine
+    ``key_tier`` follows (never frozen at authoring time). A ``_CATEGORY_*``
+    frozenset carrying a non-:class:`SymbolKey` entry fails loudly instead of
+    being silently skipped.
+    """
+    categories: dict[str, frozenset[SymbolKey]] = {}
+    for name, value in sorted(globals().items()):
+        if not name.startswith("_CATEGORY_") or not isinstance(value, frozenset):
+            continue
+        for entry in value:
+            if not isinstance(entry, SymbolKey):
+                raise TypeError(f"{name} carries a non-SymbolKey entry {entry!r} -- not an allowlist category")
+        categories[name] = value
+    return categories
+
+
+def owning_category(key: SymbolKey) -> str | None:
+    """The one ``_CATEGORY_*`` frozenset already carrying *key*, or ``None``.
+
+    The pre-add membership check the allowlist lacked (#3562): consult this
+    before adding a new entry. A non-``None`` answer means the symbol is
+    already allowlisted -- the right move is to extend that category's
+    rationale (or add nothing at all), never to re-list the same key under a
+    new mission's category. Raises ``ValueError`` if the key is somehow
+    listed in more than one category -- the state the gate below exists to
+    make red.
+    """
+    owners = [name for name, entries in _category_frozensets().items() if key in entries]
+    if len(owners) > 1:
+        raise ValueError(f"{key.bare_name} is already allowlisted in more than one category: {', '.join(owners)}")
+    return owners[0] if owners else None
+
+
+def test_no_dead_symbol_key_is_listed_in_more_than_one_category() -> None:
+    """#3562: no SymbolKey identity may appear in more than one ``_CATEGORY_*`` frozenset.
+
+    Non-vacuous by construction: fails if no categories are discovered (an
+    introspection regression), fails if the aggregate union is empty, and
+    reds on any key whose identity (``bare_name`` + ``body_hash`` +
+    ``module_path`` -- exactly the fields ``SymbolKey`` hashes on;
+    ``source_module`` is ``compare=False`` provenance and never counts) is
+    listed under two or more categories, naming the duplicate and every
+    category that carries it.
+    """
+    categories = _category_frozensets()
+    assert categories, "no _CATEGORY_* frozensets discovered -- introspection regression"
+
+    owners: dict[SymbolKey, list[str]] = {}
+    for name, entries in categories.items():
+        for key in entries:
+            owners.setdefault(key, []).append(name)
+    assert owners, "the discovered allowlist union is empty -- introspection regression"
+
+    duplicates = {key: names for key, names in owners.items() if len(names) > 1}
+    assert not duplicates, (
+        "the same SymbolKey identity is allowlisted in more than one _CATEGORY_* frozenset "
+        "(#3562 -- extend the existing category's rationale instead of re-adding the key): "
+        + "; ".join(
+            f"{key.bare_name} (body_hash={key.body_hash[:12]}, module_path={key.module_path}) in {', '.join(names)}"
+            for key, names in sorted(duplicates.items(), key=lambda item: item[0].bare_name)
+        )
+    )
+
+
+def test_symbol_allowlist_aggregates_every_discovered_category() -> None:
+    """#3562: ``_SYMBOL_ALLOWLIST`` is exactly the union of the discovered categories.
+
+    A ``_CATEGORY_*`` frozenset added to this file but forgotten in the
+    ``_SYMBOL_ALLOWLIST`` union chain would silently stop applying -- its
+    entries would be dead weight no gate consults, and its exclusion from the
+    duplicate gate above would be equally silent. Holds the aggregate and
+    the live discovery to each other, in both directions.
+    """
+    categories = _category_frozensets()
+    union = frozenset().union(*categories.values())
+    assert union == _SYMBOL_ALLOWLIST, (
+        "_SYMBOL_ALLOWLIST disagrees with the union of the discovered _CATEGORY_* frozensets "
+        "(#3562): a category is either missing from the union chain or the aggregate was "
+        "hand-edited -- reconcile them"
+    )
 
 
 def _is_asset_blob(path: Path) -> bool:

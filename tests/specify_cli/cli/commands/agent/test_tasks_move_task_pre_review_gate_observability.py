@@ -531,7 +531,6 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
     assert len(router.status_calls) == 1
     assert constructed_observers == [constructed_observer]
     assert evaluate_scope_spy.call_args.kwargs["status_observer"] is constructed_observer
-    assert monotonic() > 60.0, result.output
     names = [name for name, _at in timeline]
     assert names[0] == "start"
     assert names.index("assessment") < names.index("launch")
@@ -543,6 +542,190 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
     assert callback_after_terminal == []
     assert "scope assessment: unknown" in result.output.lower()
     assert result.output.count("still running") >= 2
+
+
+@pytest.mark.performance
+@pytest.mark.parametrize("scope_route", ["explicit_override", "registered_binding"])
+def test_exact_entry_wires_typed_observer_with_ordered_human_progress_timing(
+    tmp_path: Path,
+    scope_route: str,
+) -> None:
+    """#4015 timing counterpart of ``..._ordered_human_progress`` (per-PR sibling).
+
+    The heartbeat cadence here is driven entirely by a controlled fake clock
+    (``clock``/``controlled_wait``), never real wall time, so this carries no
+    genuine CI-noise flakiness risk -- it is split out purely because its
+    assertion text trips the #3665 guard's ``TIMING_ASSERTION_VOCABULARY``
+    (``monotonic``, ``elapsed``). The relocated asserts are kept verbatim
+    (not routed through ``assert_timing_budget``, which models an upper-bound
+    duration-vs-budget comparison): ``monotonic() > 60.0`` is a lower-bound
+    completion check and the two ``"elapsed=Xs" in result.output`` /
+    ordering assertions are text-membership/ordering checks, none of which
+    fit that shape. Their literal text already carries a vocabulary token,
+    so the guard accepts them unchanged.
+    """
+    ports, router = _build_command_fixture(tmp_path)
+    timeline: list[tuple[str, float]] = []
+    callback_after_terminal: list[pre_review_gate.GateStatusEvent] = []
+    constructed_observers: list[pre_review_gate.GateStatusObserver] = []
+    clock = SimpleNamespace(now=0.0)
+    wait_calls = 0
+    terminal_rendered = False
+
+    def monotonic() -> float:
+        return float(clock.now)
+
+    def controlled_wait(process: Any, timeout: float) -> tuple[str, str]:
+        """Drive two real observer timeouts, then complete after 61 seconds."""
+        nonlocal wait_calls
+        del process
+        wait_calls += 1
+        if wait_calls <= 2:
+            clock.now += timeout
+            raise subprocess.TimeoutExpired(cmd="controlled gate", timeout=timeout)
+        clock.now += 1.0
+        return "", ""
+
+    def controlled_launch(
+        command: Any,
+        *,
+        repo_root: Path,
+        env: Any,
+        platform: str | None = None,
+    ) -> Any:
+        del repo_root, env, platform
+        timeline.append(("launch", monotonic()))
+        junit_arg = next((str(arg) for arg in command if str(arg).startswith("--junitxml=")), None)
+        if junit_arg is not None:
+            Path(junit_arg.split("=", 1)[1]).write_text(
+                '<testsuites tests="0" failures="0" errors="0" skipped="0"></testsuites>',
+                encoding="utf-8",
+            )
+        return SimpleNamespace(returncode=0)
+
+    real_observer_factory = tasks_move_task._mt_human_gate_status_observer
+    constructed_observer: pre_review_gate.GateStatusObserver | None = None
+
+    def recording_observer_factory(_tasks: Any) -> pre_review_gate.GateStatusObserver:
+        nonlocal constructed_observer
+        renderer = real_observer_factory(_tasks)
+
+        def observe(event: pre_review_gate.GateStatusEvent) -> None:
+            if terminal_rendered:
+                callback_after_terminal.append(event)
+            name = "assessment" if isinstance(event, pre_review_gate.ScopeAssessed) else "heartbeat"
+            timeline.append((name, monotonic()))
+            renderer(event)
+
+        constructed_observer = observe
+        constructed_observers.append(observe)
+        return observe
+
+    real_terminal_renderer = tasks_move_task._mt_pre_review_gate_console_warning
+
+    def recording_terminal_renderer(
+        verdict: pre_review_gate.GateVerdict,
+        *,
+        block_enabled: bool,
+    ) -> str:
+        nonlocal terminal_rendered
+        terminal_rendered = True
+        timeline.append(("terminal", monotonic()))
+        return str(real_terminal_renderer(verdict, block_enabled=block_enabled))
+
+    real_console_print = tasks_command.console.print
+
+    def recording_console_print(*args: Any, **kwargs: Any) -> None:
+        if args and "running scoped tests at head" in str(args[0]):
+            timeline.append(("start", monotonic()))
+        real_console_print(*args, **kwargs)
+
+    route_patches: list[Any] = []
+    if scope_route == "registered_binding":
+        route_patches.extend(
+            [
+                patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
+                patch.object(
+                    tasks_move_task,
+                    "_mt_resolve_active_gate_bindings",
+                    return_value=SimpleNamespace(
+                        active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
+                        reason="active",
+                    ),
+                ),
+            ]
+        )
+
+    with ExitStack() as stack:
+        stack.enter_context(
+            setup_mocked_env(
+                tmp_path,
+                mission_slug=_MISSION,
+                extra_patches={
+                    "_validate_ready_for_review": (True, []),
+                    "_check_unchecked_subtasks": [],
+                },
+            )
+        )
+        stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
+        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
+        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
+        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
+        stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()))
+        stack.enter_context(
+            patch.object(
+                pre_review_gate,
+                "evaluate_with_scope",
+                wraps=partial(
+                    pre_review_gate.evaluate_with_scope,
+                    monotonic=monotonic,
+                    wait=controlled_wait,
+                ),
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                gate_registry,
+                "evaluate_pre_review_gate",
+                wraps=partial(
+                    gate_registry.evaluate_pre_review_gate,
+                    monotonic=monotonic,
+                    wait=controlled_wait,
+                ),
+            )
+        )
+        stack.enter_context(patch.object(pre_review_gate, "_launch_scoped_process", side_effect=controlled_launch))
+        stack.enter_context(
+            patch.object(
+                tasks_move_task,
+                "_mt_human_gate_status_observer",
+                side_effect=recording_observer_factory,
+            )
+        )
+        stack.enter_context(
+            patch.object(
+                tasks_move_task,
+                "_mt_pre_review_gate_console_warning",
+                side_effect=recording_terminal_renderer,
+            )
+        )
+        stack.enter_context(patch.object(tasks_command.console, "print", side_effect=recording_console_print))
+        for route_patch in route_patches:
+            stack.enter_context(route_patch)
+        result = CliRunner().invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                _MISSION,
+                "--no-auto-commit",
+            ],
+        )
+
+    assert monotonic() > 60.0, result.output
     assert "elapsed=30s" in result.output
     assert "elapsed=60s" in result.output
     assert result.output.index("scope assessment") < result.output.index("elapsed=30s")
@@ -809,21 +992,15 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
     ("use_flag", "env", "expected_reason"),
     [
         (True, {}, "--skip-pre-review-gate flag"),
-        (False, {"SPEC_KITTY_SYNC_DISABLE": "1"}, "SPEC_KITTY_SYNC_DISABLE is set"),
         (
             False,
-            {"SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
-            "SPEC_KITTY_SYNC_MINIMAL_IMPORT is set",
+            {"SPEC_KITTY_SKIP_PRE_REVIEW_GATE": "1"},
+            "SPEC_KITTY_SKIP_PRE_REVIEW_GATE is set",
         ),
         (
             True,
-            {"SPEC_KITTY_SYNC_DISABLE": "1", "SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
+            {"SPEC_KITTY_SKIP_PRE_REVIEW_GATE": "1"},
             "--skip-pre-review-gate flag",
-        ),
-        (
-            False,
-            {"SPEC_KITTY_SYNC_DISABLE": "1", "SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
-            "SPEC_KITTY_SYNC_DISABLE is set",
         ),
     ],
 )

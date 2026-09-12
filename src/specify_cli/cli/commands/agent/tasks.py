@@ -723,9 +723,8 @@ def move_task(
             "--skip-pre-review-gate",
             help=(
                 "Skip the pre-review regression gate on a --to for_review move "
-                "(also honored via the SPEC_KITTY_SYNC_DISABLE / "
-                "SPEC_KITTY_SYNC_MINIMAL_IMPORT env vars). The gate still runs "
-                "and enforces by default."
+                "(also honored via the SPEC_KITTY_SKIP_PRE_REVIEW_GATE env "
+                "var). The gate still runs and enforces by default."
             ),
         ),
     ] = False,
@@ -735,7 +734,7 @@ def move_task(
             "--owned-checkout",
             help=(
                 "Use an owned single_branch checkout for the local review lifecycle "
-                "(active sync, force/skip, done, and arbiter modes unsupported)."
+                "(force/skip, done, and arbiter modes unsupported)."
             ),
         ),
     ] = None,
@@ -836,6 +835,12 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     # block is invisible to the guard that exists to notice exactly that.
     _resolve_authored_roster as _resolve_authored_roster,
     owning_wp_from_authored_roster as owning_wp_from_authored_roster,
+    # #3865: the owned-mode error recovery was extracted out of
+    # ``_do_mark_status``'s inline ``except`` into two testable helpers. Same
+    # consolidated-compat-guard rule as the two rows above — every native
+    # def of the seam module appears in ``tasks``' key-set.
+    _reconstruct_applied_events as _reconstruct_applied_events,
+    _recovery_commit_sha as _recovery_commit_sha,
 )
 
 

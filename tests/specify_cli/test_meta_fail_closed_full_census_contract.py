@@ -182,12 +182,17 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 #       through ``load_meta_fail_closed`` and removed from this ledger --
 #       being colocated with the parser was never a real routing obstacle,
 #       just an unrouted site with an overbroad exemption.)
-#   ``pending-batch-a``    — a real routing target that is genuinely UNROUTED.
-#       Verified absent from BOTH ``tasks/WP08-meta-fail-closed-route-batch-a.md``
+#   ``pending-batch-a``    — (historical) the bucket of routing targets that
+#       were verified absent from BOTH ``tasks/WP08-meta-fail-closed-route-batch-a.md``
 #       and ``tasks/WP09-meta-fail-closed-route-batch-b.md``'s ``owned_files``
-#       lists — neither WP claimed these files, so #3140's closure does not
-#       cover this bucket. Tracked as follow-up issue #3162, not yet routed.
-#       Enumerated here so it is ACCOUNTED FOR rather than invisible.
+#       lists — neither WP claimed those files, so #3140's closure did not
+#       cover them. Every row in this bucket (13 functions / 14 call sites —
+#       issue #3162's 13 bullets name 12 of the functions, ``read_primary_meta``
+#       twice, and the bucket's one row beyond that list is
+#       ``_resolve_status_surface_dir``) was routed through
+#       ``load_meta_fail_closed`` by the #3162 pass and its row DELETED — the
+#       bucket is empty now, and any site that reappears here is a regression,
+#       not a leftover.
 #
 # MAINTENANCE: this ledger is checked for exact equality against the live scan.
 # If you ROUTE a site, DELETE its row. If you ADD a legitimate new reader,
@@ -195,14 +200,6 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 # purpose — that is the anti-rot mechanic, mirroring the allow-list staleness
 # detection in ``tests/architectural/test_inline_meta_read_gate.py``.
 _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
-    ("src/mission_runtime/resolution.py", "_mid8_from_primary_meta"): (1, "pending-batch-a"),
-    ("src/mission_runtime/resolution.py", "_resolve_coordination_branch"): (1, "pending-batch-a"),
-    ("src/mission_runtime/resolution.py", "_resolve_mission_id"): (1, "pending-batch-a"),
-    ("src/mission_runtime/resolution.py", "_resolve_status_surface_dir"): (1, "pending-batch-a"),
-    ("src/runtime/next/_internal_runtime/planner.py", "_resolve_workflow_for_mission"): (1, "pending-batch-a"),
-    ("src/runtime/next/runtime_bridge_io.py", "_workflow_runtime_template"): (1, "pending-batch-a"),
-    ("src/specify_cli/bulk_edit/gate.py", "_is_bulk_edit_mission"): (1, "pending-batch-a"),
-    ("src/specify_cli/bulk_edit/gate.py", "ensure_occurrence_classification_ready"): (1, "pending-batch-a"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_apply_coord_staleness_fixes"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_collect_coordination_findings"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "check_and_warn_coord_staleness"): (1, "silent-by-contract"),
@@ -230,7 +227,6 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "_build_index"): (1, "silent-by-contract"),
-    ("src/specify_cli/context/resolver.py", "_read_meta_json"): (1, "pending-batch-a"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
     # ``load_meta_fail_closed`` is the canonical fail-closed authority; it calls
@@ -246,7 +242,6 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_dashboard_feature_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_mission_identity"): (1, "silent-by-contract"),
-    ("src/specify_cli/decisions/service.py", "_resolve_mission_id"): (1, "pending-batch-a"),
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
@@ -254,6 +249,14 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
+    # #3212: the pre-flip authority probe is a read-only verdict input on the
+    # shared dry-run/live path — `on_malformed="none"` is deliberate so the
+    # probe can never turn a verdict-bearing dry-run (the `doctor cutover`
+    # audit behind it) into a crash on a malformed meta a live run would
+    # classify through its own fail-closed seams (`_flip_phase` ->
+    # `load_meta_fail_closed`). Missing/malformed reads as "not yet
+    # migrated", the truthful pre-write answer.
+    ("src/specify_cli/migration/runtime_state_cutover.py", "_already_at_snapshot_authority"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/runtime_state_cutover.py", "stamp_accept_cutover"): (1, "silent-by-contract"),
     # PR #3209 landing pass (2026-08-08): mission 191
     # (verdict-seam-write-unification-01KZ9Q35) added this backfill reader but
@@ -278,13 +281,10 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/mission_metadata.py", "load_meta_or_empty"): (1, "silent-by-contract"),
     ("src/specify_cli/mission_metadata.py", "load_meta_strict"): (1, "silent-by-contract"),
     ("src/specify_cli/missions/_read_path_resolver.py", "_declares_coordination_branch"): (1, "silent-by-contract"),
-    ("src/specify_cli/missions/_read_path_resolver.py", "read_primary_meta"): (2, "pending-batch-a"),
-    ("src/specify_cli/missions/_resolve_planning_branch.py", "load_mission_target_branch"): (1, "pending-batch-a"),
     ("src/specify_cli/status/cutover_eligibility.py", "_read_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_load_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_read_status_phase"): (1, "silent-by-contract"),
     ("src/specify_cli/task_utils/support.py", "load_meta"): (1, "authority"),
-    ("src/specify_cli/upgrade/feature_meta.py", "load_feature_meta"): (1, "pending-batch-a"),
     ("src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py", "_mission_needs_cutover"): (1, "silent-by-contract"),
 }
 

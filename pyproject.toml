@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.7rc1"
+version = "3.2.8rc1"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -49,7 +49,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "typer>=0.24.1",
+    # Upper bound #3794: every typer in [0.24.1, 0.28) is a surface this code
+    # is exercised against (0.24.x lock, 0.25 pre-vendoring, 0.26/0.27 vendored
+    # typer._click eras — see orchestrator_api/commands.py's shim); an
+    # unbounded range let fresh resolves pick untested future majors of the
+    # private typer._click surface and break at import time.
+    "typer>=0.24.1,<0.28",
     "click>=8.2.1",  # Used directly in cli/helpers.py, selector_resolution.py, orchestrator_api, widen/review; typer>=0.26 no longer re-exports click
     "rich>=14.3.3",
     "pygments>=2.20.0",  # CVE-2026-4539 fix; transitive dep of rich, pinned explicitly
@@ -263,6 +268,7 @@ exclude = [
     "scripts/check_patch_targets.py",
     "scripts/ci/check_dangling_deferrals.py",
     "scripts/ci/quality_gate_decision.py",
+    "scripts/ci/sonar_project_version.py",
     "scripts/docs/_inventory.py",
     "scripts/docs/_published_pages.py",
     "scripts/docs/_typer_walker.py",
@@ -334,7 +340,6 @@ exclude = [
     "src/charter/hasher.py",
     "src/charter/activation/interview.py",
     "src/charter/activation/invocation_context.py",
-    "src/charter/activation/kind_vocabulary.py",
     "src/charter/activation/language_scope.py",
     "src/charter/activation/mission_type_profiles.py",
     "src/charter/activation/neutrality/lint.py",
@@ -346,7 +351,6 @@ exclude = [
     "src/charter/activation/progressive_disclosure.py",
     "src/charter/activation/reference_resolver.py",
     "src/charter/resolution.py",
-    "src/charter/activation/resolver.py",
     "src/charter/activation/schemas.py",
     "src/charter/activation/scope.py",
     "src/charter/activation/synthesizer/adapter.py",
@@ -469,7 +473,6 @@ exclude = [
     "src/specify_cli/audit/engine.py",
     "src/specify_cli/audit/models.py",
     "src/specify_cli/audit/shape_registry.py",
-    "src/specify_cli/auth/config.py",
     "src/specify_cli/auth/device_flow/poller.py",
     "src/specify_cli/auth/errors.py",
     "src/specify_cli/auth/flows/_session_payload.py",
@@ -570,7 +573,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/context.py",
     "src/specify_cli/cli/commands/charter/deactivate.py",
     "src/specify_cli/cli/commands/charter/generate.py",
-    "src/specify_cli/cli/commands/charter/interview.py",
     "src/specify_cli/cli/commands/charter/lint.py",
     "src/specify_cli/cli/commands/charter/list_cmd.py",
     "src/specify_cli/cli/commands/charter/mission_type.py",
@@ -639,7 +641,6 @@ exclude = [
     "src/specify_cli/context/store.py",
     "src/specify_cli/contracts/anchoring.py",
     "src/specify_cli/contracts/registry.py",
-    "src/specify_cli/coordination/atomic_write.py",
     "src/specify_cli/coordination/coherence.py",
     "src/specify_cli/coordination/commit_router.py",
     "src/specify_cli/coordination/legacy_resolution.py",
@@ -677,7 +678,6 @@ exclude = [
     "src/specify_cli/dashboard/handlers/static.py",
     "src/specify_cli/dashboard/lifecycle.py",
     "src/specify_cli/dashboard/scanner.py",
-    "src/specify_cli/dashboard/server.py",
     "src/specify_cli/dashboard/templates/__init__.py",
     "src/specify_cli/decisions/ownership.py",
     "src/specify_cli/decisions/service.py",
@@ -687,7 +687,6 @@ exclude = [
     "src/specify_cli/doc_analysis/gap_analysis.py",
     "src/specify_cli/docs/index_model.py",
     "src/specify_cli/doctrine/builtin_manifest.py",
-    "src/specify_cli/doctrine/org_charter.py",
     "src/specify_cli/doctrine/org_charter_loader.py",
     "src/specify_cli/doctrine/pack_assembler.py",
     "src/specify_cli/doctrine/pack_lineage.py",
@@ -712,7 +711,6 @@ exclude = [
     "src/specify_cli/git/protection_policy.py",
     "src/specify_cli/git/sparse_checkout_remediation.py",
     "src/specify_cli/identity/project.py",
-    "src/specify_cli/intake/brief_writer.py",
     "src/specify_cli/intake/packet.py",
     "src/specify_cli/intake/provenance.py",
     "src/specify_cli/intake_sources.py",
@@ -821,12 +819,9 @@ exclude = [
     "src/specify_cli/runtime/migrate.py",
     "src/specify_cli/runtime/resolver.py",
     "src/specify_cli/runtime/show_origin.py",
-    "src/specify_cli/session_presence/upgrade_check.py",
     "src/specify_cli/session_presence/writers/registry.py",
     "src/specify_cli/shims/generator.py",
     "src/specify_cli/shims/registry.py",
-    "src/specify_cli/skills/command_installer.py",
-    "src/specify_cli/skills/installer.py",
     "src/specify_cli/skills/manifest.py",
     "src/specify_cli/skills/registry.py",
     "src/specify_cli/skills/retired.py",
@@ -864,7 +859,6 @@ exclude = [
     "src/specify_cli/template/renderer.py",
     "src/specify_cli/tool_surface/bundles/codex.py",
     "src/specify_cli/tool_surface/bundles/copilot.py",
-    "src/specify_cli/tool_surface/bundles/projection.py",
     "src/specify_cli/tool_surface/docs.py",
     "src/specify_cli/tool_surface/profiles/_render_helpers.py",
     "src/specify_cli/tool_surface/profiles/amazon_q_renderer.py",
@@ -948,12 +942,10 @@ exclude = [
     "src/specify_cli/upgrade/migrations/m_3_2_5_agents_skills_gitignore_backfill.py",
     "src/specify_cli/upgrade/migrations/m_3_2_6_retire_rtk_search_tooling.py",
     "src/specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py",
-    "src/specify_cli/upgrade/migrations/m_3_2_8_provision_kitty_env.py",
     "src/specify_cli/upgrade/migrations/m_3_2_9_migrate_lifecycle_envelope.py",
     "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py",
     "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_all_harnesses.py",
     "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_claude_code.py",
-    "src/specify_cli/upgrade/migrations/m_unify_charter_activation.py",
     "src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py",
     "src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py",
     "src/specify_cli/upgrade/migrations/m_zz_verdict_provenance_backfill.py",
@@ -1183,7 +1175,6 @@ exclude = [
     "tests/auth/secure_storage/test_from_environment_platform_split.py",
     "tests/auth/test_auth_doctor_offline.py",
     "tests/auth/test_auth_doctor_repair.py",
-    "tests/auth/test_auth_doctor_report.py",
     "tests/auth/test_auth_transport_refresh_lock.py",
     "tests/auth/test_authorization_code_flow.py",
     "tests/auth/test_browser_launcher.py",
@@ -1247,7 +1238,6 @@ exclude = [
     "tests/charter/test_activations.py",
     "tests/charter/test_active_languages_idempotency.py",
     "tests/charter/test_alias_deleted_regression.py",
-    "tests/charter/test_answers_inert_and_org_union.py",
     "tests/charter/test_builtin_reader_relocation.py",
     "tests/charter/test_bundle_contract.py",
     "tests/charter/test_bundle_manifest_model.py",
@@ -1290,7 +1280,6 @@ exclude = [
     "tests/charter/test_doctrine_service_builder_unification.py",
     "tests/charter/test_doctrine_service_lineage_accessor.py",
     "tests/charter/test_doctrine_service_unfiltered_mode.py",
-    "tests/charter/test_drg_activation_gate.py",
     "tests/charter/test_drg_filtering.py",
     "tests/charter/test_empty_charter_governance_agreement.py",
     "tests/charter/test_encoding_chokepoint.py",
@@ -1354,6 +1343,7 @@ exclude = [
     "tests/charter/test_tension_unreconciled.py",
     "tests/charter/test_unsafe_bypass.py",
     "tests/charter/test_worktree_charter_via_canonical_root.py",
+    "tests/ci/test_sonar_project_version.py",
     "tests/ci/test_sonarcloud_branch_review.py",
     "tests/cli/commands/test_agent_config_coverage.py",
     "tests/cli/commands/test_auth_login.py",
@@ -1439,9 +1429,7 @@ exclude = [
     "tests/core/test_worktree_symlink_fallback.py",
     "tests/core/test_wps_manifest.py",
     "tests/cross_cutting/dashboard/test_dashboard_bug_117_lifecycle.py",
-    "tests/cross_cutting/dashboard/test_dashboard_encoding_resilience.py",
     "tests/cross_cutting/encoding/test_encoding_validation_cli.py",
-    "tests/cross_cutting/encoding/test_encoding_validation_functional.py",
     "tests/cross_cutting/misc/test_gitignore_manager_simple.py",
     "tests/cross_cutting/misc/test_plan_validation.py",
     "tests/cross_cutting/misc/test_template_compliance.py",
@@ -1509,7 +1497,6 @@ exclude = [
     "tests/doctrine/agent_profiles/test_supply_chain_profile_bindings.py",
     "tests/doctrine/assets/test_repository.py",
     "tests/doctrine/directives/test_models.py",
-    "tests/doctrine/directives/test_repository.py",
     "tests/doctrine/directives/test_schema_compatibility.py",
     "tests/doctrine/directives/test_validation.py",
     "tests/doctrine/drg/migration/test_extractor.py",
@@ -1686,7 +1673,6 @@ exclude = [
     "tests/glossary/test_entity_pages.py",
     "tests/glossary/test_events_queue.py",
     "tests/glossary/test_gate_terms.py",
-    "tests/glossary/test_observation.py",
     "tests/glossary/test_scope.py",
     "tests/glossary/test_seed_schema.py",
     "tests/glossary/test_seed_validation.py",
@@ -1709,7 +1695,6 @@ exclude = [
     "tests/integration/retrospective/test_default_flow_generator_failure.py",
     "tests/integration/retrospective/test_default_flow_healthy.py",
     "tests/integration/retrospective/test_hic_terminus_e2e.py",
-    "tests/integration/retrospective/test_latency_budget.py",
     "tests/integration/retrospective/test_lifecycle_hook.py",
     "tests/integration/retrospective/test_next_mission_sees_change.py",
     "tests/integration/retrospective/test_opt_out.py",
@@ -2563,13 +2548,11 @@ exclude = [
     "tests/specify_cli/session_presence/test_content.py",
     "tests/specify_cli/session_presence/test_open_ops.py",
     "tests/specify_cli/session_presence/test_skills_preamble_writer.py",
-    "tests/specify_cli/session_presence/test_upgrade_checker.py",
     "tests/specify_cli/shims/test_direct_commands.py",
     "tests/specify_cli/shims/test_generator.py",
     "tests/specify_cli/shims/test_registry.py",
     "tests/specify_cli/skills/test_agent_roster.py",
     "tests/specify_cli/skills/test_e2e.py",
-    "tests/specify_cli/skills/test_installer.py",
     "tests/specify_cli/skills/test_manifest.py",
     "tests/specify_cli/skills/test_registry.py",
     "tests/specify_cli/skills/test_verifier.py",
@@ -2667,7 +2650,6 @@ exclude = [
     "tests/specify_cli/tool_surface/profiles/test_renderers.py",
     "tests/specify_cli/tool_surface/providers/test_managed_skills.py",
     "tests/specify_cli/tool_surface/providers/test_native_config.py",
-    "tests/specify_cli/tool_surface/providers/test_session_presence.py",
     "tests/specify_cli/tool_surface/test_drift_policy.py",
     "tests/specify_cli/tool_surface/test_findings.py",
     "tests/specify_cli/tool_surface/test_plugin_build_claude.py",
@@ -2687,7 +2669,6 @@ exclude = [
     "tests/specify_cli/upgrade/migrations/test_m_3_2_6_retire_rtk_search_tooling.py",
     "tests/specify_cli/upgrade/migrations/test_m_session_presence_all_harnesses.py",
     "tests/specify_cli/upgrade/migrations/test_m_session_presence_claude_code.py",
-    "tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py",
     "tests/specify_cli/upgrade/migrations/test_session_presence_upgrade_smoke.py",
     "tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py",
     "tests/specify_cli/upgrade/test_m_3_2_0rc35_codex_to_skills.py",
@@ -2731,7 +2712,6 @@ exclude = [
     "tests/status/test_reducer.py",
     "tests/status/test_reducer_recovery_integrity.py",
     "tests/status/test_release_runtime_claim_marker.py",
-    "tests/status/test_saas_fanout_timeout.py",
     "tests/status/test_status_e2e_integration.py",
     "tests/status/test_status_read_worktree_resolution.py",
     "tests/status/test_store.py",
@@ -2770,7 +2750,6 @@ exclude = [
     "tests/test_dashboard/test_lifecycle.py",
     "tests/test_dashboard/test_scanner.py",
     "tests/test_dashboard/test_scanner_mission_id.py",
-    "tests/test_dashboard/test_server.py",
     "tests/test_dashboard/test_static.py",
     "tests/test_dashboard/test_templates.py",
     "tests/test_frontmatter_dup_key.py",
@@ -2789,7 +2768,6 @@ exclude = [
     "tests/unit/intake/test_non_interactive_selection.py",
     "tests/unit/intake/test_packet.py",
     "tests/unit/intake/test_provenance_escape.py",
-    "tests/unit/intake/test_root_consistency.py",
     "tests/unit/intake/test_traversal_symlink_block.py",
     "tests/unit/migration/_backfill_fixture.py",
     "tests/unit/migration/test_backfill_runtime_state.py",
@@ -2851,7 +2829,6 @@ exclude = [
     "tests/zeitgeist_client/test_mcp_stdio.py",
     "tests/zeitgeist_client/test_outbox_approval.py",
     "tests/zeitgeist_client/test_outbox_approval_human_gesture.py",
-    "tests/zeitgeist_client/test_repo_identity.py",
     "tests/zeitgeist_client/test_sanitizer.py",
 ]
 
@@ -2965,6 +2942,28 @@ mypy_path = "src"
 # reports unrelated module errors instead of the target file's own issues.
 module = ["specify_cli.*"]
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+# protection_policy.py is strict-clean and imports nothing but the stdlib and
+# ruamel.yaml, so following it cannot drag unrelated bootstrap errors into a
+# narrow check. Re-enable it (mypy: the LAST matching override wins, so this
+# entry must stay after the ``specify_cli.*`` skip above) so the concrete
+# ``frozenset[str]`` on ``ProtectionPolicy.protected_branches`` stays visible
+# to every narrow-file check that imports it — otherwise the delegate in
+# ``git/commit_helpers.py`` returns ``Any`` under ``--strict`` (issue #3719).
+module = ["specify_cli.git.protection_policy"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# core.errors defines the StructuredError base every typed error family
+# subclasses; under the ``specify_cli.*`` skip above it resolves as ``Any`` and
+# every subclass declaration reads "Class cannot subclass StructuredError (has
+# type Any)" (e.g. dashboard/server.py's PortUnavailableError and friends).
+# It imports only ``typing``, so following it cannot drag bootstrap errors
+# into a narrow check — same shape as the protection_policy entry (issue
+# #3719), and it must likewise stay after the ``specify_cli.*`` skip.
+module = ["specify_cli.core.errors"]
+follow_imports = "normal"
 
 [[tool.mypy.overrides]]
 # When checking charter.activation.neutrality in isolation, mypy walks into other

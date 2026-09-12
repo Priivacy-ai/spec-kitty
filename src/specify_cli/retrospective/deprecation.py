@@ -133,9 +133,11 @@ def _emit_rich_stderr_notice(
     if os.environ.get("SPEC_KITTY_NO_DEPRECATION_WARNINGS") == "1":
         return
 
-    from rich.console import Console
+    # Route through the canonical console seam (#2635): stderr output belongs
+    # to the shared ``err_console`` singleton, never an ad-hoc raw Console.
+    from specify_cli.cli.console import err_console
 
-    Console(stderr=True).print(
+    err_console.print(
         f"[yellow]DEPRECATED:[/yellow] {var_name} is a test/dev override only. "
         f"Set {replacement_key} instead. See {docs_url}"
     )

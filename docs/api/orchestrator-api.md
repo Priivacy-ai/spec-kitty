@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.4.0`
+- `CONTRACT_VERSION`: `1.5.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -58,6 +58,10 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   decision resolution`) without crossing into host-CLI territory; see
   [Host Boundary Rules](../../src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md)
   for the updated Boundary Decision Matrix.
+- `1.5.0` — the `tasks` verb's pass-through `data` gained the
+  `planning_commit` object (`action` / `sha` / `previous_sha` / `branch_tip`)
+  from the delegate finalize-tasks `--json` payload (#4141, the
+  `--refresh-planning-commit` re-point affordance). Purely additive.
 
 ## Response Envelope
 

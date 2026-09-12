@@ -35,7 +35,7 @@ from specify_cli.decisions.models import (
     IndexEntry,
     OriginFlow,
 )
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
@@ -122,26 +122,30 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     # ledger itself resolves under coord topology (C-001: no over-claiming a
     # funnel beyond what each site's own contract needs).
     feature_dir = _mission_dir(repo_root, mission_slug)
-    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
-    # (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would MASK
-    # that guard and silently re-introduce the removed legacy tolerance.
+    # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
+    # meta.json (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would
+    # MASK that guard and silently re-introduce the removed legacy tolerance.
+    # Routed through the ONE fail-closed reader: a missing file returns None
+    # (same MISSION_NOT_FOUND diagnostic as before), and a corrupt/unreadable
+    # one raises the typed MissionMetaReadError, wrapped here into the same
+    # MISSION_NOT_FOUND DecisionError the pre-#2091 local try/except produced.
     try:
-        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
-        raise DecisionError(
-            code=DecisionErrorCode.MISSION_NOT_FOUND,
-            details={"mission_slug": mission_slug},
-            message=f"meta.json not found for mission {mission_slug!r}",
-        ) from exc
-    except ValueError as exc:
-        # load_meta(on_malformed="raise") wraps both a JSON syntax error and
-        # a read/decode (OSError) failure into ValueError -- the same two
-        # failure modes the pre-#2091 local try/except caught directly.
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
+        # The fail-closed reader wraps both a JSON syntax error and a
+        # read/decode (OSError) failure into MissionMetaReadError -- the same
+        # two failure modes the pre-#2091 local try/except caught as ValueError.
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
             details={"mission_slug": mission_slug},
             message=f"Failed to read meta.json for mission {mission_slug!r}: {exc}",
         ) from exc
+    if meta is None:
+        raise DecisionError(
+            code=DecisionErrorCode.MISSION_NOT_FOUND,
+            details={"mission_slug": mission_slug},
+            message=f"meta.json not found for mission {mission_slug!r}",
+        )
     mission_id = meta.get("mission_id")
     if not mission_id:
         raise DecisionError(

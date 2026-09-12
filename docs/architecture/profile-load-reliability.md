@@ -2,7 +2,7 @@
 title: Profile-Load Reliability (Squads & WP Prompts)
 description: 'Why adversarial and research squads stopped loading charter agent profiles, and the 3.2.6 fix: resolve-then-inject, fail-loud dispatch, and a /spk-load-profile primitive.'
 doc_status: active
-updated: '2026-08-30'
+updated: '2026-09-08'
 related:
 - docs/architecture/governed-profile-invocation.md
 - docs/architecture/multi-agent-orchestration.md
@@ -158,7 +158,7 @@ resolution engine (directive 044).
 If pursued, rename WP-template references `/ad-hoc-profile-load → /spk-load-profile`,
 **keeping the leading slash**, and:
 - **Exclude** the alias-*declaring* surfaces (`spk-doctrine-profile-load/SKILL.md:35`,
-  `src/doctrine/skills/README.md:116`) — they are test-locked; editing them goes red.
+  `src/charter/offering/skills/README.md:116`) — they are test-locked; editing them goes red.
 - Do it via a **new forward migration**, not by editing the shipped rc35 migration in
   place (mutating emitted text diverges already-migrated installs).
 - Gate on `pytest tests/doctrine/test_spk_skill_pack.py`.

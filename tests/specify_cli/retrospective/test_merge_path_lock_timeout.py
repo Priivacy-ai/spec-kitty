@@ -20,6 +20,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests._perf_helpers import assert_timing_budget
+
 import specify_cli.post_merge.retrospective_terminus as terminus
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.retrospective.lifecycle_events import _resolve_lock_timeout
@@ -76,6 +78,45 @@ def test_contended_lock_fails_the_retrospective_step_not_the_merge(
     holder.start()
     try:
         assert ready.wait(timeout=5)
+        with (
+            caplog.at_level(logging.WARNING),
+            _patch_resolver(feature_dir),
+            patch.object(terminus, "_invoke_capture", side_effect=RuntimeError("capture boom")),
+        ):
+            # Must return (fail-open), never raise, and never wait unboundedly.
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+    finally:
+        release.set()
+        holder.join(timeout=15)
+    assert not holder.is_alive()
+    text = caplog.text
+    assert "could not emit capture_failed event" in text
+    assert "Timed out acquiring status lock" in text
+    assert f"{feature_dir.name}.status.lock" in text
+    assert "held by pid" in text and "merge-path-holder" in text
+    # Nothing landed in the log while the holder owned the lock.
+    assert not (feature_dir / "status.events.jsonl").exists()
+
+
+@pytest.mark.performance
+def test_contended_lock_retrospective_step_returns_within_budget(
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """#4015 timing counterpart: the fail-open retrospective step must never wait unboundedly."""
+    monkeypatch.setattr(terminus, "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS", 0.3)
+    lock_root = resolve_status_lock_root(feature_dir)
+    ready = threading.Event()
+    release = threading.Event()
+
+    def _hold() -> None:
+        with feature_status_lock(lock_root, feature_dir.name, timeout=5):
+            ready.set()
+            release.wait(timeout=15)
+
+    holder = threading.Thread(target=_hold, name="merge-path-holder")
+    holder.start()
+    try:
+        ready.wait(timeout=5)
         started = time.monotonic()
         with (
             caplog.at_level(logging.WARNING),
@@ -88,12 +129,5 @@ def test_contended_lock_fails_the_retrospective_step_not_the_merge(
     finally:
         release.set()
         holder.join(timeout=15)
-    assert not holder.is_alive()
-    assert elapsed < 5.0, f"merge-path retrospective step waited {elapsed:.1f}s"
-    text = caplog.text
-    assert "could not emit capture_failed event" in text
-    assert "Timed out acquiring status lock" in text
-    assert f"{feature_dir.name}.status.lock" in text
-    assert "held by pid" in text and "merge-path-holder" in text
-    # Nothing landed in the log while the holder owned the lock.
-    assert not (feature_dir / "status.events.jsonl").exists()
+
+    assert_timing_budget(elapsed, 5.0, name="merge-path retrospective step")

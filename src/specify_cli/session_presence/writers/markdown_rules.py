@@ -26,6 +26,7 @@ from hashlib import sha256  # noqa: TID251 -- exact physical file integrity, not
 from pathlib import Path
 from uuid import uuid4
 
+from specify_cli.core.no_follow import chmod_fd, fd_relative_dir_ops_supported
 from specify_cli.tool_surface.operations import FileState, InputObservation
 
 from ..content import SECTION_CLOSE, SECTION_OPEN, SessionPresenceContent
@@ -231,8 +232,11 @@ def _atomic_write(target: Path, text: str, *, root: Path | None = None, expected
     data = text.encode("utf-8")
     if target.is_file() and read_presence_bytes(target) == data:
         return
+    mode = stat.S_IMODE(target.lstat().st_mode) if target.exists() else 0o644
+    if not fd_relative_dir_ops_supported():
+        _windows_atomic_write(root, relative, target, data, mode, initial)
+        return
     with _presence_parent(root, relative.parent, create=True) as parent_fd:
-        mode = stat.S_IMODE(target.lstat().st_mode) if target.exists() else 0o644
         temporary = f".{target.name}.{uuid4().hex}.tmp"
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode, dir_fd=parent_fd)
         try:
@@ -276,6 +280,62 @@ def _presence_parent(root: Path, relative: Path, *, create: bool) -> Iterator[in
         yield fd
     finally:
         os.close(fd)
+
+
+def _walk_confined_parent(root: Path, relative: Path, *, create: bool) -> Path:
+    """Path-based confined parent resolution for platforms without dir_fd (Windows).
+
+    Mirrors ``coordination.atomic_write._reject_symlinked_components``: walk
+    each component from *root*, rejecting a symlinked directory anywhere in
+    the chain -- the same containment guarantee :func:`_presence_parent`'s
+    O_NOFOLLOW dir_fd chaining provides, minus the atomicity a held
+    descriptor affords (unavailable on this platform). Missing directories
+    are created (mode ``0o755``) when *create* is ``True``.
+    """
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"Refusing unowned symlink: {current}")
+        if not current.exists():
+            if not create:
+                raise FileNotFoundError(current)
+            current.mkdir(mode=0o755)
+            if current.is_symlink():
+                raise ValueError(f"Refusing unowned symlink: {current}")
+        elif not current.is_dir():
+            raise ValueError(f"Expected directory: {current}")
+    return current
+
+
+def _windows_atomic_write(root: Path, relative: Path, target: Path, data: bytes, mode: int, initial: FileState) -> None:
+    """Path-based atomic write for platforms without dir_fd (Windows).
+
+    ``os.supports_dir_fd`` is empty on Windows and ``os.O_DIRECTORY`` /
+    ``os.O_NOFOLLOW`` are undefined, so :func:`_presence_parent`'s
+    fd-relative dance cannot run there. This fallback preserves the same
+    guarantees as far as the platform allows: every path component from
+    *root* is walked and rejected if it is a symlink
+    (:func:`_walk_confined_parent`), the bytes go to a uniquely named
+    sibling temp file, and ``os.replace`` (atomic on the same volume)
+    moves it into place.
+    """
+    parent = _walk_confined_parent(root, relative.parent, create=True)
+    if target.is_symlink():
+        raise ValueError(f"Refusing unowned symlink: {target}")
+    temporary = parent / f".{target.name}.{uuid4().hex}.tmp"
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            chmod_fd(stream.fileno(), temporary, mode)
+        if presence_state(observe_presence_path(root, relative.as_posix())[-1]) != initial:
+            raise ValueError("Presence destination changed before atomic replacement")
+        os.replace(temporary, target)
+    except BaseException:
+        with suppress(FileNotFoundError):
+            temporary.unlink()
+        raise
 
 
 def _section_bounds(text: str) -> tuple[int, int]:

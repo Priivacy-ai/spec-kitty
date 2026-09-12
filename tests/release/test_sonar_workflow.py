@@ -16,6 +16,14 @@ never a per-PR merge-blocking job:
 * SHA-pins every third-party action (DIR-051 / charter "Agent Push Authorization"),
   including the two Sonar actions themselves.
 
+**Sibling-surface coverage (spec-kitty#3993):** the per-PR ``sonarcloud`` job
+in ``ci-quality.yml`` analyzes the SAME SonarCloud project
+(``sonar-project.properties``' ``sonar.projectKey``) and hands ``SONAR_TOKEN``
+(and ``GITHUB_TOKEN``) to the same two SonarSource actions, so the DIR-051 pin
+discipline and the nightly-owns-``main`` trigger split are asserted for THAT
+surface here too (the guards at the bottom of this file) — the two surfaces
+must not be able to drift apart on either.
+
 **Partition note (WP01 coordination):** the `introduced`-set *membership* assertion
 (is ``sonar.yml`` registered in the frozen `introduced` disposition set?) lives in
 WP01's ``tests/release/test_release_ci_ownership.py`` — this file never duplicates
@@ -250,3 +258,80 @@ def test_sonar_derives_project_version_from_pyproject() -> None:
     text = _workflow_text()
     assert "pyproject.toml" in text, "sonar.yml must derive sonar.projectVersion from pyproject.toml"
     assert "sonar.projectVersion" in text
+
+
+# ---------------------------------------------------------------------------
+# Sibling surface: the per-PR `sonarcloud` job in ci-quality.yml
+# (spec-kitty#3993). It analyzes the SAME SonarCloud project as sonar.yml and
+# hands SONAR_TOKEN/GITHUB_TOKEN to the same two SonarSource actions, so the
+# DIR-051 pin rule and the nightly-owns-main trigger split bind it identically
+# (squad pass 2 MAJORs on PR #4013: a floating tag there was a supply-chain
+# hole, and a push-triggered fast-tier-only scan was overwriting main's
+# standing branch analysis).
+# ---------------------------------------------------------------------------
+_CI_QUALITY_PATH = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+
+_SONAR_SCAN_PIN_RE = re.compile(r"SonarSource/sonarqube-scan-action@([0-9a-f]{40})")
+_SONAR_GATE_PIN_RE = re.compile(r"SonarSource/sonarqube-quality-gate-action@([0-9a-f]{40})")
+
+
+def _ci_quality_text() -> str:
+    if not _CI_QUALITY_PATH.exists():
+        pytest.fail(f"ci-quality.yml missing: {_CI_QUALITY_PATH.relative_to(_REPO_ROOT)}")
+    return _CI_QUALITY_PATH.read_text(encoding="utf-8")
+
+
+def _ci_quality_yaml() -> dict[str, Any]:
+    if not _CI_QUALITY_PATH.exists():
+        pytest.fail(f"ci-quality.yml missing: {_CI_QUALITY_PATH.relative_to(_REPO_ROOT)}")
+    loaded = yaml.safe_load(_CI_QUALITY_PATH.read_text(encoding="utf-8"))
+    assert isinstance(loaded, dict), "ci-quality.yml did not parse to a mapping"
+    return loaded
+
+
+def test_ci_quality_sonarcloud_job_pins_both_sonar_actions() -> None:
+    """DIR-051 binds the per-PR surface too: the `sonarcloud` job in
+    ci-quality.yml passes SONAR_TOKEN (and GITHUB_TOKEN) to both SonarSource
+    actions through `env:`, so a floating tag ref there is exactly the
+    supply-chain exposure this mission's plan (``plan.md:31``) forbids and
+    sonar.yml already guards against — `continue-on-error: true` does not
+    mitigate it, and prior to this guard nothing in the suite looked at this
+    file's sonar steps."""
+    text = _ci_quality_text()
+    assert _SONAR_SCAN_PIN_RE.search(text), "ci-quality.yml must SHA-pin SonarSource/sonarqube-scan-action (DIR-051)"
+    assert _SONAR_GATE_PIN_RE.search(text), "ci-quality.yml must SHA-pin SonarSource/sonarqube-quality-gate-action (DIR-051)"
+
+
+def test_ci_quality_and_sonar_pin_the_same_sonar_action_shas() -> None:
+    """Anti-drift: both Sonar surfaces analyze the same SonarCloud project
+    (``sonar-project.properties``' ``sonar.projectKey``), so the two workflows
+    must pin the SAME full commit SHAs for the two SonarSource actions —
+    bumping one surface without the other is exactly the divergence this
+    widened guard exists to catch."""
+    ci_quality = _ci_quality_text()
+    sonar = _workflow_text()
+    for pattern in (_SONAR_SCAN_PIN_RE, _SONAR_GATE_PIN_RE):
+        action = pattern.pattern.split("@(")[0]
+        ci_quality_sha = pattern.search(ci_quality)
+        sonar_sha = pattern.search(sonar)
+        assert ci_quality_sha and sonar_sha, f"{action} is unpinned on one of the two Sonar surfaces"
+        assert ci_quality_sha.group(1) == sonar_sha.group(1), (
+            f"ci-quality.yml and sonar.yml pin different commits for {action} "
+            f"(ci-quality: {ci_quality_sha.group(1)}, sonar.yml: {sonar_sha.group(1)}) — the two surfaces must not drift"
+        )
+
+
+def test_ci_quality_sonarcloud_job_is_pull_request_only() -> None:
+    """Nightly owns ``main``: the per-PR reporter must never run on a push to
+    ``main`` (or any non-pull_request event). Both surfaces resolve the same
+    ``sonar.projectKey`` and SonarCloud holds one current analysis per branch,
+    so a push-triggered fast-tier-only scan would outpace sonar.yml's nightly
+    full-coverage aggregation and become main's standing branch analysis —
+    degrading the new-code baseline every PR is measured against."""
+    workflow = _ci_quality_yaml()
+    job = workflow["jobs"].get("sonarcloud")
+    assert isinstance(job, dict), "ci-quality.yml: the `sonarcloud` job (spec-kitty#3993) is missing"
+    condition = " ".join(str(job.get("if", "")).split())
+    assert condition == "github.event_name == 'pull_request'", (
+        f"ci-quality.yml: the `sonarcloud` job's `if:` must be exactly github.event_name == 'pull_request' (normalized), got: {condition!r}"
+    )

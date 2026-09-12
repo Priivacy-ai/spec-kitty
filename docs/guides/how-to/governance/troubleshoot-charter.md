@@ -2,7 +2,7 @@
 title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-09-08'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -128,7 +128,7 @@ and back to normal profile routing (verified directly: `empty_charter_fallback` 
 to `false`, and an unambiguous request routes to a real specialist profile).
 
 Note: `minimal` activates a curated set of directives and tactics only — it declares no
-`agent_profiles` key (see `src/charter/packs/minimal.yaml`'s own header), so this fix does not by
+`agent_profiles` key (see `src/charter/activation/packs/minimal.yaml`'s own header), so this fix does not by
 itself narrow which specialist gets picked. With no explicit `agent_profiles` activation, the
 router still considers every built-in profile (three-state "admit all" semantics) and may report
 `ROUTER_AMBIGUOUS` for underspecified requests — pass `--profile <profile-id>` to disambiguate

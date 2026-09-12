@@ -302,8 +302,11 @@ class SaaSTrackerClient:
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
         # config.toml accessor, which would silently ignore an env override.
-        # Fails closed (#179) on an unconfigured machine: no target, no client.
-        # process_wide_override=False (#117): this client sends a bearer token
+        # #3980 (D-5 revised): an unconfigured machine resolves to the
+        # packaged default target, so construction no longer fails closed on
+        # a missing target — only an ambiguous env/config split-brain still
+        # refuses. process_wide_override=False (#117): this client sends a
+        # bearer token
         # with no human confirming the target at call time, so an ambiguous
         # env/config disagreement must fail closed here rather than silently
         # letting the env value win, the way the interactive `auth login`

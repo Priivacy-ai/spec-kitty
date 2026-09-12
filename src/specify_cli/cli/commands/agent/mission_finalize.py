@@ -10,7 +10,11 @@ INV-6 (the ``--validate-only`` zero-mutation invariant) is preserved exactly:
 the bootstrap loop infers all 8 fields in memory but the disk-write phase is
 guarded by ``frontmatter_changed and not validate_only`` and the validate-only
 report path returns BEFORE any committing/seeding writer runs. An explicit
-assertion (``_assert_no_write_in_validate_only``) reinforces the guard.
+assertion (``_assert_no_write_in_validate_only``) reinforces the guard. The
+T017 tasks.md regeneration — a tracked-file write that bypassed the
+frontmatter queue (#3221) — is likewise skipped in validate-only mode, with
+its staleness reported instead of repaired, so the invariant covers every
+tracked-file write the command performs.
 
 One-way leaf (INV-8): imports lower layers + sibling Seam B/C/D leaves only at
 module scope. The cross-cutting symbols the finalize tests patch on the
@@ -34,7 +38,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated, NoReturn, cast
 
 import typer
 from specify_cli.cli.console import console
@@ -990,9 +994,22 @@ def _resolve_dependencies_and_refs(
     """Phase: TIER 1+ — 3-tier dependency + requirement-ref resolution.
 
     1. wps.yaml manifest when present
-    2. explicit WP frontmatter dependencies (including explicit [])
-    3. tasks.md text parsing as a legacy fallback only when frontmatter lacks
-       the dependencies field entirely
+    2. non-empty WP frontmatter dependencies — an *empty* ``dependencies: []``
+       is treated as absent (see below), not as an authoritative declaration
+    3. tasks.md text parsing when frontmatter lacks a usable dependencies
+       value (field absent entirely, or present-but-empty)
+
+    An empty frontmatter ``dependencies: []`` is a serialization artifact, not
+    a user declaration: ``agent tasks map-requirements`` rewrites WP frontmatter
+    for its own purposes via ``WPMetadata.model_dump(exclude_none=True)`` and
+    ``dependencies`` defaults to ``[]`` (never ``None``), so every WP that
+    command touches gains a literal ``dependencies: []`` line the user never
+    wrote. Treating that incidental empty list as TIER-2 authority silently
+    discarded the tasks.md-declared chain (#4135) — every WP came out
+    independent/parallel in lanes.json with no warning. Falling through to
+    TIER-3 on empty is also lossless for a user who *does* want a WP declared
+    dependency-free: tasks.md parsing yields ``[]`` for a WP with no
+    ``depends on`` entries, so the resolved value is the same either way.
     """
     tasks_md = planning_dir / TASKS_MD_FILENAME
     res = _DependencyResolution()
@@ -1023,9 +1040,13 @@ def _resolve_dependencies_and_refs(
             wp_id = wp_id_match.group(1)
             raw_content = wp_file.read_text(encoding="utf-8")
             wp_meta, _ = _read_wp_frontmatter(wp_file)
-            if _raw_frontmatter_has_field(raw_content, "dependencies"):
-                res.wp_dependencies[wp_id] = list(wp_meta.dependencies)
+            frontmatter_deps = list(wp_meta.dependencies) if _raw_frontmatter_has_field(raw_content, "dependencies") else []
+            if frontmatter_deps:
+                res.wp_dependencies[wp_id] = frontmatter_deps
             else:
+                # FALLBACK: tasks.md text (backward compat for pre-API projects,
+                # and for frontmatter ``dependencies: []`` — the map-requirements
+                # serialization artifact, #4135)
                 res.wp_dependencies[wp_id] = list(res.tasks_md_dependencies.get(wp_id, []))
     return res
 
@@ -1756,6 +1777,48 @@ def _record_ownership_glob_diagnostics(
             stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
 
 
+def _regenerate_or_report_tasks_md(
+    planning_dir: Path,
+    wps_manifest: WpsManifest | None,
+    mission_slug: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> bool:
+    """Phase: T017 tasks.md regeneration from wps.yaml (FR-008, FR-011) — #3221.
+
+    In the commit phase this regenerates ``tasks.md`` from the wps.yaml
+    manifest. In ``--validate-only`` mode the regeneration is a WRITE to a
+    tracked file, so it is skipped (INV-6: zero mutation on disk) and the
+    staleness it would repair is REPORTED instead — turning what used to be a
+    silent side effect into a diagnostic, so a pre-flight still gets the
+    signal without mutating the tree. Returns whether ``tasks.md`` is stale
+    relative to wps.yaml (computed from an in-memory regeneration, never from
+    a write); always ``False`` when there is no manifest or when the file was
+    just (re)written by the commit phase.
+    """
+    if wps_manifest is None:
+        return False
+    generated = generate_tasks_md_from_manifest(wps_manifest, mission_slug)
+    tasks_md = planning_dir / TASKS_MD_FILENAME
+    if validate_only:
+        try:
+            on_disk = tasks_md.read_text(encoding="utf-8") if tasks_md.exists() else None
+        except (OSError, UnicodeDecodeError):
+            # Unreadable tasks.md — the commit-phase regeneration would replace
+            # it wholesale, so report it stale rather than crashing a read-only
+            # pre-flight on a file it must not touch.
+            on_disk = None
+        stale: bool = on_disk != generated
+        if stale and not json_output:
+            console.print("[yellow]⚠[/yellow] tasks.md is stale relative to wps.yaml; run finalize-tasks without --validate-only to regenerate")
+        return stale
+    tasks_md.write_text(generated, encoding="utf-8")
+    if not json_output:
+        console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
+    return False
+
+
 def _emit_validate_only_report(
     planning_dir: Path,
     mission_slug: str,
@@ -1767,6 +1830,7 @@ def _emit_validate_only_report(
     target_branch: str,
     *,
     all_canceled: bool = False,
+    tasks_md_stale: bool = False,
     json_output: bool,
     owned: OwnedMission | None = None,
 ) -> None:
@@ -1827,6 +1891,7 @@ def _emit_validate_only_report(
                 "would_preserve": state.preserved_wps,
                 "unchanged": state.unchanged_wps,
                 "updated_wp_count": state.updated_count,
+                "tasks_md_stale": tasks_md_stale,
                 "ownership_warnings": state.ownership_warnings,
                 "requirement_extraction_warnings": state.requirement_extraction_warnings,
                 "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
@@ -1999,6 +2064,69 @@ def _execution_has_begun(
     return any(lane != Lane.PLANNED for lane in lanes.values())
 
 
+@dataclass(frozen=True)
+class PlanningCommitResolution:
+    """#4141: the outcome of this run's ``planning_commit_sha`` decision.
+
+    Carries the resolved SHA plus the provenance a refresh decision needs —
+    the previously recorded SHA and the ``target_branch`` tip it was compared
+    against — so ``_compute_and_write_lanes`` can report the decision on the
+    console and ``_emit_success_report`` can carry it in the ``--json``
+    payload without re-reading git or ``lanes.json`` a second time.
+
+    ``action`` is one of:
+
+    * ``"captured"`` — execution has not begun; the branch tip was captured
+      (the historical pre-execution behavior, unchanged by #4141).
+    * ``"preserved"`` — execution has begun and no ``--refresh-planning-commit``
+      was supplied; the previously recorded SHA is preserved (#3311).
+    * ``"refreshed"`` — execution has begun and the operator explicitly
+      re-pointed the recorded SHA with ``--refresh-planning-commit``; the
+      branch tip was captured after the advance-only ancestor check passed.
+    """
+
+    sha: str | None
+    action: str
+    previous_sha: str | None = None
+    branch_tip: str | None = None
+
+
+def _refuse_planning_sha_refresh(error_msg: str, *, json_output: bool) -> NoReturn:
+    """#4141: emit a refresh refusal diagnostic and exit before any write.
+
+    Raised from inside :func:`_preserve_or_capture_planning_commit_sha`
+    BEFORE ``write_lanes_json`` runs, so a refused refresh leaves the on-disk
+    ``lanes.json`` (and its recorded ``planning_commit_sha``) untouched.
+    Never returns — always raises ``typer.Exit(1)``.
+    """
+    if json_output:
+        _emit_json({"error": error_msg})
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+    raise typer.Exit(1)
+
+
+def _recorded_planning_sha_is_ancestor_of_tip(repo_root: Path, recorded_sha: str, branch_tip: str) -> bool:
+    """#4141 refresh safety: the recorded SHA must have ADVANCED to the tip.
+
+    A legitimate planning amendment lands on top of the recorded planning
+    commit, so ``git merge-base --is-ancestor <recorded> <tip>`` succeeds. Any
+    nonzero exit — the recorded SHA is not an ancestor (the planning history
+    was rewritten), or the SHA is unknown to this repository / not a git repo
+    — is a state a refresh must never paper over, so this helper fails closed
+    (returns ``False``) and the caller refuses the refresh.
+    """
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", recorded_sha, branch_tip],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def _preserve_or_capture_planning_commit_sha(
     planning_dir: Path,
     repo_root: Path,
@@ -2007,8 +2135,9 @@ def _preserve_or_capture_planning_commit_sha(
     *,
     json_output: bool,
     owned: OwnedMission | None = None,
-) -> str | None:
-    """#3311 T015: gate the ``planning_commit_sha`` capture on execution-begun.
+    refresh_planning_commit: bool = False,
+) -> PlanningCommitResolution:
+    """#3311 T015 / #4141: resolve this run's ``planning_commit_sha`` decision.
 
     ADR ``2026-07-29-1`` / FR-009 freezes the recorded planning-artifact SHA
     into the SAME write ``_compute_and_write_lanes`` performs — no second
@@ -2021,15 +2150,29 @@ def _preserve_or_capture_planning_commit_sha(
     historical recompute + re-capture behavior is unchanged — every
     pre-execution re-finalize keeps regenerating freely (C-005).
 
-    Preserve is the default resolution. Refuse (raise ``typer.Exit(1)`` before
-    writing any bytes) only in the one case preservation cannot be done
-    safely: execution has begun yet no on-disk ``lanes.json`` exists to read
-    the recorded SHA from — an inconsistent state finalize should never
-    reach, since bootstrapping the event log itself requires a prior
-    successful finalize run that already wrote ``lanes.json``.
+    Preserve is the default resolution. #4141 adds the one sanctioned
+    override: ``--refresh-planning-commit`` re-points the recorded SHA to the
+    current ``target_branch`` tip when the operator has deliberately landed a
+    planning amendment mid-execution, so subsequently allocated/reused lanes
+    merge the amended planning state instead of a stale snapshot. The
+    override is advance-only — if the recorded SHA is not an ANCESTOR of the
+    tip (:func:`_recorded_planning_sha_is_ancestor_of_tip`), the planning
+    history was rewritten rather than amended and the refresh is refused.
+
+    Refuse (raise ``typer.Exit(1)`` before writing any bytes) when the
+    requested resolution cannot be done safely: execution has begun yet no
+    on-disk ``lanes.json`` exists to read the recorded SHA from (an
+    inconsistent state finalize should never reach, since bootstrapping the
+    event log itself requires a prior successful finalize run that already
+    wrote ``lanes.json``); a refresh was requested but the branch tip could
+    not be captured; or a refresh was requested whose recorded SHA is not an
+    ancestor of the tip.
     """
     if not _execution_has_begun(repo_root, mission_slug, owned=owned):
-        return _capture_target_branch_tip(repo_root, target_branch)
+        return PlanningCommitResolution(
+            sha=_capture_target_branch_tip(repo_root, target_branch),
+            action="captured",
+        )
 
     from specify_cli.lanes.persistence import read_lanes_json
 
@@ -2046,17 +2189,75 @@ def _preserve_or_capture_planning_commit_sha(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    # Suppression rationale (not a real type error): this module's
-    # [[tool.mypy.overrides]] sets ``follow_imports = "skip"`` for all
-    # ``specify_cli.*`` modules (to avoid walking the CLI bootstrap graph), so
-    # a single-file mypy invocation loses ``LanesManifest``'s real field types
-    # across that import boundary and reports a spurious no-any-return here —
-    # the SAME pre-existing pattern already present at 6 other return sites in
-    # this file (e.g. lines 136, 145). ``planning_commit_sha`` is genuinely
-    # ``str | None`` (specify_cli/lanes/models.py); `mypy
+    # Type note (not a suppression): this module's [[tool.mypy.overrides]]
+    # sets ``follow_imports = "skip"`` for all ``specify_cli.*`` modules (to
+    # avoid walking the CLI bootstrap graph), so a single-file mypy invocation
+    # loses ``LanesManifest``'s real field types across that import boundary
+    # and sees ``existing.planning_commit_sha`` as ``Any`` — assigning ``Any``
+    # to ``str | None`` is not an error, so no ignore is needed (the
+    # pre-#4141 ``no-any-return`` ignore on the old ``return`` site became
+    # unused when this became an assignment). ``planning_commit_sha`` is
+    # genuinely ``str | None`` (specify_cli/lanes/models.py); `mypy
     # src/specify_cli/lanes/models.py src/specify_cli/lanes/persistence.py` in
     # isolation reports zero issues.
-    return existing.planning_commit_sha  # type: ignore[no-any-return]
+    recorded: str | None = existing.planning_commit_sha
+    if refresh_planning_commit:
+        tip = _capture_target_branch_tip(repo_root, target_branch)
+        if tip is None:
+            _refuse_planning_sha_refresh(
+                f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: "
+                f"the tip of target branch {target_branch!r} could not be captured. "
+                "Refusing to refresh rather than silently preserve or guess.",
+                json_output=json_output,
+            )
+        if recorded is not None and not _recorded_planning_sha_is_ancestor_of_tip(repo_root, recorded, tip):
+            _refuse_planning_sha_refresh(
+                f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: the recorded "
+                f"SHA {recorded} is not an ancestor of the {target_branch!r} tip {tip}. The "
+                "planning history was rewritten (or the recorded SHA does not belong to this "
+                "repository) rather than advanced by an amendment. Resolve the divergence "
+                "manually; refusing to re-point.",
+                json_output=json_output,
+            )
+        return PlanningCommitResolution(sha=tip, action="refreshed", previous_sha=recorded, branch_tip=tip)
+    return PlanningCommitResolution(
+        sha=recorded,
+        action="preserved",
+        previous_sha=recorded,
+        branch_tip=_capture_target_branch_tip(repo_root, target_branch),
+    )
+
+
+def _report_planning_sha_decision(
+    target_branch: str,
+    planning_sha: PlanningCommitResolution | None,
+    *,
+    json_output: bool,
+) -> None:
+    """#4141: surface the ``planning_commit_sha`` decision on the console.
+
+    Human-mode only: the ``--json`` success report carries the same decision
+    structurally (``planning_commit`` in the payload), and a console print
+    would corrupt the machine-readable payload (the same reason the
+    coord-staleness WARN is gated on ``not json_output``). ``None`` (the
+    historical monkeypatched test seam) reports nothing.
+    """
+    if json_output or planning_sha is None:
+        return
+    if planning_sha.action == "refreshed":
+        console.print(
+            f"[green]✓[/green] Refreshed planning_commit_sha "
+            f"{planning_sha.previous_sha or '(none)'} -> {planning_sha.sha} "
+            f"(lanes merge the {target_branch} tip at their next allocation)"
+        )
+        return
+    if planning_sha.action == "preserved" and planning_sha.sha is not None and planning_sha.branch_tip is not None and planning_sha.branch_tip != planning_sha.sha:
+        console.print(
+            f"[yellow]⚠[/yellow] Planning branch {target_branch} has advanced since "
+            f"planning_commit_sha was recorded ({planning_sha.sha} -> tip {planning_sha.branch_tip}); "
+            "lanes keep merging the recorded snapshot. If that advance is a legitimate "
+            "planning amendment, re-run finalize-tasks with --refresh-planning-commit to re-point it."
+        )
 
 
 def _compute_and_write_lanes(
@@ -2073,7 +2274,8 @@ def _compute_and_write_lanes(
     all_canceled: bool = False,
     json_output: bool,
     owned: OwnedMission | None = None,
-) -> tuple[Path | None, LanesManifest | None]:
+    refresh_planning_commit: bool = False,
+) -> tuple[Path | None, LanesManifest | None, PlanningCommitResolution | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
     _raise_lane_computation_empty_input_if_needed(
         wp_manifests,
@@ -2113,16 +2315,23 @@ def _compute_and_write_lanes(
     # into the SAME write as the rest of lanes.json — no second commit, no
     # chicken-and-egg with this invocation's own finalize commit hash.
     # #3311 T015: once execution has begun, PRESERVE the previously-recorded
-    # SHA instead of re-capturing the current branch tip (see
-    # ``_preserve_or_capture_planning_commit_sha``).
-    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(
+    # SHA instead of re-capturing the current branch tip — unless the operator
+    # explicitly re-pointed it with --refresh-planning-commit (#4141). See
+    # ``_preserve_or_capture_planning_commit_sha``.
+    planning_sha = _preserve_or_capture_planning_commit_sha(
         planning_dir,
         repo_root,
         mission_slug,
         target_branch,
         json_output=json_output,
         owned=owned,
+        refresh_planning_commit=refresh_planning_commit,
     )
+    # Tolerate a ``None`` resolution: the historical test seam in
+    # ``test_mission_finalize_phases.py`` monkeypatches this helper to return
+    # ``None``, the pre-#4141 shape's value the manifest was assigned verbatim.
+    lanes_manifest.planning_commit_sha = planning_sha.sha if planning_sha is not None else None
+    _report_planning_sha_decision(target_branch, planning_sha, json_output=json_output)
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
@@ -2132,7 +2341,7 @@ def _compute_and_write_lanes(
                 f"independent WP pair(s) collapsed into same lane. Run with --json to see details."
             )
     _report_parallelization_risk(repo_root, lanes_manifest, wp_bodies, json_output=json_output)
-    return lanes_path, lanes_manifest
+    return lanes_path, lanes_manifest, planning_sha
 
 
 def _report_parallelization_risk(repo_root: Path, lanes_manifest: LanesManifest, wp_bodies: dict[str, str], *, json_output: bool) -> None:
@@ -2386,6 +2595,7 @@ def _emit_success_report(
     target_branch_override: str | None = None,
     target_branch_persist: TargetBranchPersistOutcome | None = None,
     meta_committed_this_run: bool = False,
+    planning_sha: PlanningCommitResolution | None = None,
 ) -> None:
     """Phase: emit the terminal JSON success report.
 
@@ -2397,6 +2607,12 @@ def _emit_success_report(
     ``files_committed``, indistinguishable from any other artifact commit.
     ``target_branch_override`` is only non-``None`` when the flag was
     actually supplied this run.
+
+    ``planning_sha`` (#4141): the ``planning_commit_sha`` decision this run
+    made (captured / preserved / refreshed, the previous SHA, and the branch
+    tip it was compared against), so a ``--json`` caller can see that the
+    recorded SHA was preserved against a moved branch tip — and re-run with
+    ``--refresh-planning-commit`` — without diffing ``lanes.json`` by hand.
 
     ``meta_committed_this_run`` (SK3466-REV2-002): ``persist.persisted=True``
     only means meta.json was rewritten to disk this call — it says nothing
@@ -2412,6 +2628,10 @@ def _emit_success_report(
     re-derived, so both corrections share one source of truth.
     """
     persist = target_branch_persist or TargetBranchPersistOutcome(persisted=False)
+    # #4141: the planning_commit_sha decision. Falls back to the manifest's
+    # own SHA when no resolution was threaded through (defensive only — the
+    # commit pipeline always passes one).
+    planning_sha_final: str | None = planning_sha.sha if planning_sha is not None else (lanes_manifest.planning_commit_sha if lanes_manifest is not None else None)
     _emit_json(
         {
             "result": "success",
@@ -2454,6 +2674,12 @@ def _emit_success_report(
                 "committed": persist.persisted and meta_committed_this_run,
                 "previous_value": persist.previous_value,
                 "persist_error": persist.persist_error,
+            },
+            "planning_commit": {
+                "sha": planning_sha_final,
+                "action": planning_sha.action if planning_sha is not None else None,
+                "previous_sha": planning_sha.previous_sha if planning_sha is not None else None,
+                "branch_tip": planning_sha.branch_tip if planning_sha is not None else None,
             },
         }
     )
@@ -2510,6 +2736,7 @@ def _run_commit_pipeline(
     lane_wp_dependencies: dict[str, list[str]] | None = None,
     all_canceled: bool = False,
     owned: OwnedMission | None = None,
+    refresh_planning_commit: bool = False,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -2560,7 +2787,7 @@ def _run_commit_pipeline(
     if not json_output and bootstrap_result.newly_seeded:
         console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
 
-    lanes_path, lanes_manifest = _compute_and_write_lanes(
+    lanes_path, lanes_manifest, planning_sha = _compute_and_write_lanes(
         planning_dir,
         repo_root,
         mission_slug,
@@ -2573,6 +2800,7 @@ def _run_commit_pipeline(
         all_canceled=all_canceled,
         json_output=json_output,
         owned=owned,
+        refresh_planning_commit=refresh_planning_commit,
     )
 
     _scaffold_acceptance_matrix_if_lane_based(
@@ -2638,6 +2866,7 @@ def _run_commit_pipeline(
             target_branch_override=target_branch_override,
             target_branch_persist=target_branch_persist,
             meta_committed_this_run=meta_committed_this_run,
+            planning_sha=planning_sha,
         )
 
 
@@ -2803,6 +3032,20 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         ),
     ] = None,
     owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
+    refresh_planning_commit: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-planning-commit",
+            help=(
+                "Advance the recorded planning_commit_sha in lanes.json to the current "
+                "target-branch tip after a legitimate planning amendment, even though "
+                "execution has begun (#4141). Without it, a re-finalize after execution "
+                "has begun preserves the recorded SHA (#3311) and every lane keeps merging "
+                "the stale planning snapshot. Refused when the recorded SHA is not an "
+                "ancestor of the tip (a history rewrite, not an amendment)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -2812,6 +3055,12 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     Use --validate-only to check for issues (missing requirement mappings, ownership overlaps,
     dependency cycles) without making any changes or committing.
 
+    Use --refresh-planning-commit once execution has begun and a legitimate planning
+    amendment has landed on the target branch: it advances the recorded
+    planning_commit_sha in lanes.json to the current tip so lanes merge the amended
+    planning state instead of a stale snapshot (#4141). It is refused when the recorded
+    SHA is not an ancestor of the tip (a history rewrite, not an amendment).
+
     Bootstrap Mutation Surface (FR-003 / SC-002)
     =============================================
     The 8 frontmatter fields below may be written or overwritten by this command.
@@ -2819,7 +3068,10 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
     mutation on disk (INV-6). In validate-only mode the bootstrap loop still
     infers all 8 fields in memory so downstream validation operates against the
-    post-bootstrap state — not the stale on-disk frontmatter.
+    post-bootstrap state — not the stale on-disk frontmatter. The T017 tasks.md
+    regeneration is likewise skipped (its staleness relative to wps.yaml is
+    reported instead of repaired — #3221), so INV-6 covers every tracked-file
+    write the command performs.
 
     See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
     ``build_document() + write_text()`` — guarded the same way (T002).
@@ -2827,6 +3079,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     Examples:
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
+        spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit
     """
     # SK3466-R-001: tracked across the whole try body (not just the persist
     # call site) so the except blocks below can undo an already-applied
@@ -2988,12 +3241,17 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)
 
-        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
-        tasks_md = planning_dir / TASKS_MD_FILENAME
-        if wps_manifest is not None and not validate_only:
-            tasks_md.write_text(generate_tasks_md_from_manifest(wps_manifest, mission_slug), encoding="utf-8")
-            if not json_output:
-                console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
+        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
+        # #3221: the regeneration is a write to a tracked file, so in
+        # --validate-only mode it is skipped and staleness is reported
+        # instead (INV-6: zero mutation) — never silently repaired.
+        tasks_md_stale = _regenerate_or_report_tasks_md(
+            planning_dir,
+            wps_manifest,
+            mission_slug,
+            validate_only=validate_only,
+            json_output=json_output,
+        )
 
         wp_frontmatters, wp_bodies = _gather_validation_frontmatter(wp_files, state)
         ownership_source = FinalizeFrontmatterSource(wp_files=list(wp_files), inmemory=state.inmemory_frontmatter)
@@ -3028,6 +3286,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 lane_wp_bodies,
                 target_branch,
                 all_canceled=eligibility.all_canceled,
+                tasks_md_stale=tasks_md_stale,
                 json_output=json_output,
                 **({"owned": owned} if owned else {}),
             )
@@ -3057,6 +3316,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             target_branch_override=target_branch_override,
             target_branch_persist=target_branch_persist,
             meta_commit_progress=meta_commit_progress,
+            refresh_planning_commit=refresh_planning_commit,
             **({"owned": owned} if owned else {}),
         )
 

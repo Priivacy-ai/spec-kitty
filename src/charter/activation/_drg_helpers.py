@@ -68,6 +68,7 @@ def load_validated_graph(
     org_roots: list[Path] | None = None,
     org_fragments: list[OrgDRGFragment] | None = None,
     project_degrade: bool = False,
+    include_project: bool = True,
 ) -> DRGGraph:
     """Load the built-in + org-chain + project DRG overlay and validate the result.
 
@@ -117,6 +118,14 @@ def load_validated_graph(
         project_degrade: When ``True``, validation errors introduced only by
             the project overlay raise ``DRGProjectValidationError`` so degrading
             callers can distinguish them from built-in/org errors.
+        include_project: When ``False``, the project overlay at
+            ``<repo_root>/.kittify/doctrine`` is NOT loaded and the returned
+            graph is the validated built-in + org chain only (#4121). This is
+            the reference-resolution base the registration/re-emission lanes
+            share — callers that need "everything below the project overlay"
+            without the committed overlay's own nodes (which those lanes
+            re-derive themselves). The default ``True`` is byte-behaviourally
+            unchanged for every existing caller.
 
     Returns:
         A validated :class:`DRGGraph`.
@@ -179,12 +188,14 @@ def load_validated_graph(
                 missing_shape,
             )
 
-    project_dir = repo_root / ".kittify" / "doctrine"
-    project = (
-        load_graph_or_dir(project_dir)
-        if has_graph_files(project_dir)
-        else None
-    )
+    project = None
+    if include_project:
+        project_dir = repo_root / ".kittify" / "doctrine"
+        project = (
+            load_graph_or_dir(project_dir)
+            if has_graph_files(project_dir)
+            else None
+        )
 
     merged = _fold_final_layers(root_merged, org_fragments, project)
     try:
@@ -198,6 +209,39 @@ def load_validated_graph(
                 raise DRGProjectValidationError(exc.errors) from exc
         raise
     return merged
+
+
+def org_chain_graph(repo_root: Path) -> DRGGraph | None:
+    """Return the validated built-in + org-chain graph (no project layer), or ``None``.
+
+    The one shared org-aware base for the project-registration/re-emission
+    lanes (#4121, MAJOR 2): ``plan_project_registration`` has always resolved
+    profile references against this universe, while ``emit_project_layer``,
+    ``reconcile._classify_conflicts`` and ``validation_gate.validate`` used a
+    built-in-only one — so a project profile referencing an org-pack artifact
+    activated cleanly, then the next synthesis re-emission silently dropped
+    the edge (or hard-failed validation) as an unresolvable/dangling
+    reference. Every one of those seams now reads its base from here, so the
+    re-emission path sees exactly the universe activation validated against.
+
+    Returns ``None`` when the project has no configured org packs (no roots,
+    no fragments): the built-in-only base the callers already hold is the
+    whole universe then, and no extra ~300ms graph load is spent (#4121
+    measured ``load_built_in_graph`` + ``assert_valid`` at that order).
+    """
+    from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415 -- function-local: keeps drg_activation (a sibling that imports other activation modules) out of this module's import-time graph
+    from charter.offering.drg.org_pack_config import resolve_existing_org_roots
+
+    roots = resolve_existing_org_roots(repo_root)
+    fragments = load_org_drg(repo_root, strict=False)
+    if not roots and not fragments:
+        return None
+    return load_validated_graph(
+        repo_root,
+        org_roots=roots,
+        org_fragments=fragments,
+        include_project=False,
+    )
 
 
 def _fold_final_layers(
@@ -271,4 +315,5 @@ def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
 __all__ = [
     "DRGProjectValidationError",
     "load_validated_graph",
+    "org_chain_graph",
 ]

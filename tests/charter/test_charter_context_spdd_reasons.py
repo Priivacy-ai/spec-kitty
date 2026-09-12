@@ -21,6 +21,7 @@ from charter.offering.spdd_reasons import (
     clear_activation_cache,
     is_spdd_reasons_active,
 )
+from tests._perf_helpers import assert_timing_budget
 
 
 pytestmark = [pytest.mark.unit]
@@ -395,10 +396,7 @@ class TestCharterContextActive:
         # Legacy non-canonical names must NOT leak into the review surface.
         assert "Non-functionals" not in joined
 
-    def test_performance_under_2s_active(self, tmp_path: Path) -> None:
-        # NFR-002: one render call must complete well under 2s. The renderer
-        # is in-memory and trivially fast; this guards against accidental
-        # algorithmic regressions (e.g. someone adding a YAML round-trip).
+    def _activate_spdd_reasons(self, tmp_path: Path) -> None:
         # WP04 bucket-3 item 10 (ANALYZE-COVER-001): this fixture writes
         # ONLY charter.yaml's governance: section via _write_governance,
         # which is_spdd_reasons_active (WP01) no longer reads -- null out
@@ -415,13 +413,34 @@ class TestCharterContextActive:
         )
         clear_activation_cache()
 
-        start = time.perf_counter()
+    def test_active_render_stays_active_for_every_action(self, tmp_path: Path) -> None:
+        """Functional companion to test_performance_under_2s_active
+        (split, #4015): activation stays True across every action's render
+        call. Timing budget lives in the @performance sibling below."""
+        self._activate_spdd_reasons(tmp_path)
+
         for action in ACTIONS:
             assert is_spdd_reasons_active(tmp_path) is True
             lines: list[str] = []
             append_spdd_reasons_guidance(lines, "demo-mission", action)
+
+    @pytest.mark.performance
+    def test_performance_under_2s_active(self, tmp_path: Path) -> None:
+        """NFR-002 timing budget only (split, #4015): one render call across
+        every action must complete well under 2s. The renderer is in-memory
+        and trivially fast; this guards against accidental algorithmic
+        regressions (e.g. someone adding a YAML round-trip). Functional
+        coverage moved to test_active_render_stays_active_for_every_action,
+        above."""
+        self._activate_spdd_reasons(tmp_path)
+
+        start = time.perf_counter()
+        for action in ACTIONS:
+            is_spdd_reasons_active(tmp_path)
+            lines: list[str] = []
+            append_spdd_reasons_guidance(lines, "demo-mission", action)
         elapsed = time.perf_counter() - start
-        assert elapsed < 2.0, f"active render budget exceeded: {elapsed:.3f}s"
+        assert_timing_budget(elapsed, 2.0, name="active_render")
 
 
 # ---------------------------------------------------------------------------

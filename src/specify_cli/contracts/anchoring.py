@@ -1,6 +1,6 @@
 """Shared content-anchoring primitives for the Contract Registry (#2441 / FR-003).
 
-This module is the promoted, ``src/``-importable home of the drift-proof
+This module is the promoted, ``src/``-importable home of the
 ``(enclosing_qualname, normalized_token_line)`` composite key that used to live
 privately in ``tests/architectural/_ratchet_keys.py``. It was moved here so
 production code (the registry loader/validator + the retirement absence-sweep
@@ -11,12 +11,21 @@ now a thin re-export shim, so every existing ratchet caller keeps importing
 ``composite_key`` / ``code_tokens_by_line`` / ``enclosing_qualname`` /
 ``composite_key_from_file`` from the same name with no behaviour change.
 
-The composite survives a ``+1`` line drift caused by inserting a blank or
-comment line above a pinned site: neither the enclosing function name nor the
-content of the guarded code line changes, so the anchor stays stable. Only a
-genuine semantic change — a new offending line or a function rename — produces a
-different key. This is the anchoring discipline DIR-041 mandates: contracts are
-anchored on **content**, never on a positional ``file.py:NNN`` key.
+The composite is drift-resistant in one specific sense, and the docstrings here
+promise no more than that (#3369). The key's **values** are content-derived (an
+AST qualname, a tokenized code line), but the **lookup** is line-number-indexed:
+``composite_key`` reads whatever line ``lineno`` names in the ``source`` it is
+given. A blank/comment-line insertion is therefore survived only when (a) the
+insertion is *below* the guarded site, or (b) ``lineno`` is re-derived against
+the same tree — the ratchet-scan case, where the scan follows the content and
+the site and the lookup shift together. Content inserted *above* a pinned,
+pre-recorded ``lineno`` makes the lookup read a different line (a blank or
+comment line yields the token line ``''``), so the key changes for a site that
+did not semantically change — the exact failure that forced #3351's
+frozen-at-authoring-SHA workaround (``tests/architectural/_home_pin_anchor.py``).
+This is still the anchoring discipline DIR-041 mandates — contracts are anchored
+on **content**, never on a positional ``file.py:NNN`` key — but a recorded
+``lineno`` is only meaningful in the tree it was read from.
 
 Usage
 -----
@@ -179,8 +188,13 @@ def enclosing_qualname(source: str, lineno: int) -> str:
     (not inside any function or class) returns ``"<module>"``.
 
     The returned string is stable across blank-line / comment-line insertions
-    anywhere outside the function body boundary, making it suitable as the
-    first component of a drift-proof composite key.
+    **below** the queried line, and across insertions anywhere when ``lineno``
+    is re-derived against the same tree (the ratchet-scan case, where the
+    lookup follows the content). An insertion **above** a pinned, pre-recorded
+    ``lineno`` can push that fixed line outside the shifted span, resolving to
+    an outer scope or ``"<module>"`` (#3369) — see :func:`composite_key` for
+    the narrowed drift-resistance contract. It remains suitable as the first
+    component of the composite key for re-derived lookups.
 
     Parameters
     ----------
@@ -218,20 +232,34 @@ def enclosing_qualname(source: str, lineno: int) -> str:
 
 
 def composite_key(source: str, lineno: int) -> tuple[str, str]:
-    """Return the drift-proof ``(qualname, token_line)`` composite key.
+    """Return the ``(qualname, token_line)`` composite key for ``lineno``.
 
-    Both components are stable against blank-line / comment-line insertions
-    near the guarded site:
+    The key's **values** are content-derived:
 
     * ``qualname`` — enclosing function/class dotted name via
       :func:`enclosing_qualname`.
     * ``token_line`` — space-joined code tokens on ``lineno`` via
       :func:`code_tokens_by_line` (strings/comments stripped).
 
-    A key mismatch means a **semantic** change: the function was renamed, or
-    the guarded code line changed.  A ``+1`` drift from an inserted blank /
-    comment produces the same key because both components are content-addressed,
-    not line-number-addressed.
+    The **lookup** is line-number-indexed, not content-addressed:
+    ``token_line`` is read with ``tokens.get(lineno, "")`` and ``qualname``
+    with a span-contains-``lineno`` test — both read whatever line ``lineno``
+    names in *this* ``source``. The key is therefore stable against a
+    blank/comment-line insertion only in two cases (#3369):
+
+    * the insertion is **below** the guarded site — neither lookup moves; or
+    * ``lineno`` is **re-derived against the same tree** it indexes (the
+      ratchet-scan case) — an insertion above the site shifts the site and
+      the lookup together, and the key comes out identical.
+
+    Content inserted **above** a pinned, pre-recorded ``lineno`` makes the
+    lookup read a different line: a blank or comment line yields
+    ``token_line == ""``, and the enclosing scope may resolve outward. The key
+    then changes for a site that did not semantically change — the failure
+    #3351 hit (a recorded line resolving to a comment), which is why the
+    frozen-anchor artefact resolves once at its authoring SHA rather than
+    re-deriving against the live tree (``tests/architectural/_home_pin_anchor.py``).
+    A ``lineno`` recorded against one tree is only meaningful in that tree.
     """
     qn = enclosing_qualname(source, lineno)
     tokens = code_tokens_by_line(source)

@@ -39,7 +39,7 @@ from __future__ import annotations
 from pathlib import Path
 from collections.abc import Mapping
 
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
 __all__ = [
     "PlanningBranchResolutionFailed",
@@ -112,22 +112,24 @@ def load_mission_target_branch(feature_dir: Path) -> str:
     the CLI emits a single, consistent diagnostic.
     """
     meta_path = feature_dir / "meta.json"
+    # FR-007 / #3162: routed through the ONE fail-closed reader. A corrupt or
+    # non-object meta.json raises the typed MissionMetaReadError (wrapped into
+    # the same PlanningBranchResolutionFailed diagnostic the pre-#2091 local
+    # try/except produced for a raw ValueError); a missing file returns None
+    # and maps to the same not-found diagnostic.
     try:
-        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise")
-    except FileNotFoundError as exc:
-        raise PlanningBranchResolutionFailed(
-            f"meta.json not found at {meta_path}. "
-            "Re-run with --target-branch <ref> to override."
-        ) from exc
-    except ValueError as exc:
+        data = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
+        # The fail-closed reader wraps both a JSON syntax error and a
+        # read/decode (OSError) failure into MissionMetaReadError -- the same
+        # two failure modes the pre-#2091 local try/except caught as ValueError.
         raise PlanningBranchResolutionFailed(
             f"meta.json at {meta_path} is unreadable: {exc}. "
             "Re-run with --target-branch <ref> to override."
         ) from exc
     if data is None:
-        # Unreachable: allow_missing=False + on_malformed="raise" never
-        # returns None. Narrows the type for mypy without an assert.
         raise PlanningBranchResolutionFailed(
-            f"meta.json at {meta_path} is not a JSON object."
+            f"meta.json not found at {meta_path}. "
+            "Re-run with --target-branch <ref> to override."
         )
     return resolve_planning_branch_from_meta(data)

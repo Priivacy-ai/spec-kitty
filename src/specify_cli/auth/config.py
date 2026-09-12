@@ -1,57 +1,62 @@
 """Configuration helpers for the spec-kitty auth subsystem (feature 080).
 
-Single source of truth for the *hosted SaaS opt-in* base URL. Per
-architectural decision D-5, :func:`get_saas_base_url` never falls back to a
-default — callers must set ``SPEC_KITTY_SAAS_URL`` in the environment to opt
-a machine into hosted SaaS flows (mirrored by the "D-5 opt-in gate" in
-:func:`specify_cli.tracker.saas_readiness._probe_host_config`). Since #179 the
-canonical resolver (:func:`specify_cli.auth.server_target.resolve_server_target`)
-holds the same line: with no env value and no ``config.toml`` value it raises
-:class:`ConfigurationError` rather than resolving to a stale hardcoded host.
+Single source of truth for the *hosted SaaS target* URL. D-5 revised
+(#3980, Team Kitty launch defaults): the packaged default
+:data:`DEFAULT_HOSTED_SAAS_URL` IS the target — ``SPEC_KITTY_SAAS_URL`` is a
+dev/self-host override of it and ``config.toml [sync].server_url`` a
+per-machine configured target, with precedence resolved once by
+:func:`specify_cli.auth.server_target.resolve_server_target` (env over
+config over packaged default). The pre-launch "never fall back to a default"
+reading died with the opt-in era: an unconfigured machine now resolves to the
+packaged launch host instead of failing closed. #179's fail-closed survives
+for a genuinely ambiguous env/config split-brain, which the resolver guards
+before any network call.
 """
 
 from __future__ import annotations
 
 import os
 
-from .errors import ConfigurationError
-
 _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 
-#: Illustrative hosted-SaaS URL, used only in operator-facing *examples* (error
-#: hints, remediation notes). This is NOT a functional default: per
-#: architectural decision D-5 (see module docstring) hosted activation has no
-#: hardcoded fallback — callers must set ``SPEC_KITTY_SAAS_URL``. It is shared so
-#: the example does not drift across surfaces that cite it (#3441), and names a
-#: host that actually exists (#179). D-5 scopes the opt-in gate, not example
-#: literals like this one.
-EXAMPLE_HOSTED_SAAS_URL = "https://team.spec-kitty.ai"
+#: The packaged default hosted target — the Team Kitty launch host (#3980,
+#: D-5 revised). Promoted from the former example-only literal
+#: ``EXAMPLE_HOSTED_SAAS_URL``: it is now a functional default that
+#: :func:`specify_cli.auth.server_target.resolve_server_target` falls back to
+#: when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml [sync].server_url``
+#: names a target.
+DEFAULT_HOSTED_SAAS_URL = "https://team.spec-kitty.ai"
+
+
+def get_saas_url_env_override() -> str | None:
+    """Return the ``SPEC_KITTY_SAAS_URL`` override (normalized), or ``None``.
+
+    The env-only read the canonical resolver consumes for its
+    ``env_server_url`` field: a dev/self-host override of the packaged
+    default. An unset or blank variable is *no opinion* — never the default
+    itself — so a configured ``config.toml`` target wins without tripping the
+    split-brain guard.
+    """
+    raw = os.environ.get(_ENV_VAR)
+    if raw is None:
+        return None
+    normalized = raw.strip().rstrip("/")
+    return normalized or None
 
 
 def get_saas_base_url() -> str:
-    """Return the SaaS base URL from the ``SPEC_KITTY_SAAS_URL`` environment variable.
+    """Return the hosted target: the env override, else the packaged default.
 
-    Target authority (WP02, contract §1): this is a **low-level env accessor**
-    that the canonical resolver
-    (:func:`specify_cli.auth.server_target.resolve_server_target`) consumes for
-    its ``env_server_url`` field. It is intentionally *not* the live-target
-    surface — higher-level callers asking "what target are we hitting?" must read
-    ``ResolvedServerTarget.resolved_server_url`` (which folds in ``config.toml``
-    precedence) rather than calling this directly.
-
-    Raises:
-        ConfigurationError: If the env var is not set or is empty. There is NO
-            fallback to a hardcoded domain; callers must explicitly opt in to
-            either the hosted service or a self-hosted instance.
+    Never raises for a missing URL (D-5 revised, #3980) — the packaged default
+    is the target. This accessor deliberately answers only "env override or
+    packaged default"; callers that need ``config.toml`` precedence must read
+    ``resolve_server_target().resolved_server_url``
+    (:func:`specify_cli.auth.server_target.resolve_server_target`) instead.
 
     Returns:
-        The SaaS base URL with any trailing slashes stripped.
+        The hosted base URL with any trailing slashes stripped.
     """
-    url = os.environ.get(_ENV_VAR)
-    if not url:
-        raise ConfigurationError(
-            f"{_ENV_VAR} environment variable is not set. "
-            f"Set it to your spec-kitty-saas instance URL (e.g. "
-            f"{EXAMPLE_HOSTED_SAAS_URL}) and try again."
-        )
-    return url.rstrip("/")
+    override = get_saas_url_env_override()
+    if override is not None:
+        return override
+    return DEFAULT_HOSTED_SAAS_URL

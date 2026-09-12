@@ -246,6 +246,10 @@ def _load_action_doctrine_bundle(
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
 
+    service = _build_doctrine_service(
+        repo_root,
+        org_roots=org_roots if org_roots else ([org_root] if org_root else None),
+    )
     resolved_type = resolve_mission_type_key(
         mission_type=mission_type, feature_dir=feature_dir
     )
@@ -345,6 +349,17 @@ def _load_action_doctrine_bundle(
             selected_tactics |= set(org_required["tactics"])
             selected_paradigms |= set(org_required["paradigms"])
 
+
+            # Explicitly activated project directives govern the project even
+            # without an action edge. The filtered graph is the activation
+            # authority; repository provenance distinguishes local roots from
+            # built-ins, which retain their action-scoped delivery.
+            local_directives = {
+                node.urn.split(":", 1)[1]
+                for node in merged.nodes
+                if node.kind.value == "directive"
+                and service.directives.get_provenance(node.urn.split(":", 1)[1]) == "project"
+            } if pack_context is not None and pack_context.activated_directives is not None else set()
             action_urn = f"action:{resolved_type}/{action}"
             resolved = resolve_context(merged, action_urn, depth=effective_depth)
             ids_by_slot = _classify_artifact_urns(
@@ -354,6 +369,7 @@ def _load_action_doctrine_bundle(
                 selected_tactics,
                 selected_paradigms,
                 action_urn=action_urn,
+                additional_directives=local_directives,
             )
             # WP15: carry the graph + traversal roots for progressive disclosure.
             # Roots mirror ``_classify_artifact_urns``: the action node plus the
@@ -361,7 +377,7 @@ def _load_action_doctrine_bundle(
             merged_graph = merged
             roots = (
                 action_urn,
-                *(f"directive:{d}" for d in project_directives),
+                *(f"directive:{d}" for d in project_directives | local_directives),
                 *(f"tactic:{t}" for t in selected_tactics),
                 *(f"paradigm:{p}" for p in selected_paradigms),
             )
@@ -400,10 +416,7 @@ def _load_action_doctrine_bundle(
         procedure_ids=list(ids_by_slot.get("procedures", ())),
         asset_ids=list(ids_by_slot.get("assets", ())),
         glossary_pack_ids=list(ids_by_slot.get("glossary_packs", ())),
-        service=_build_doctrine_service(
-            repo_root,
-            org_roots=org_roots if org_roots else ([org_root] if org_root else None),
-        ),
+        service=service,
         merged=merged_graph,
         roots=roots,
         bridge_urns=bridge_urns,

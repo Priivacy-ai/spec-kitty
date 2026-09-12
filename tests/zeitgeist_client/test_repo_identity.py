@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.zeitgeist_client import budget, repo_identity, transport
+from tests._perf_helpers import assert_timing_budget
 
 # Real `git init`/`clone`/`worktree` subprocesses throughout this file.
 pytestmark = [pytest.mark.git_repo]
@@ -160,9 +161,7 @@ def test_container_directory_with_one_child_checkout_is_unverified_not_ambiguous
         repo_identity.repo_name(str(container))
 
 
-def test_container_nested_inside_a_parent_repo_with_origin_still_raises_ambiguous(
-    tmp_path, origin
-):
+def test_container_nested_inside_a_parent_repo_with_origin_still_raises_ambiguous(tmp_path, origin):
     """Reproduces the real motivating topology named in this module's own
     docstring: a session-container (this program's own `.sandboxes/`) that
     holds multiple independent checkouts, itself sitting inside ANOTHER git
@@ -187,9 +186,7 @@ def test_container_nested_inside_a_parent_repo_with_origin_still_raises_ambiguou
         repo_identity.repo_name(str(container))
 
 
-def test_container_nested_inside_a_parent_repo_without_origin_raises_ambiguous_not_unverified(
-    tmp_path, origin
-):
+def test_container_nested_inside_a_parent_repo_without_origin_raises_ambiguous_not_unverified(tmp_path, origin):
     """Same nested-container topology as above, but the parent repo has no
     `origin` (this exact repository's actual topology). Before the fix this
     accidentally failed closed too — but via the WRONG error
@@ -279,9 +276,7 @@ def test_symlinked_git_entry_at_an_ancestor_level_raises_ambiguous(tmp_path, ori
 
 
 @pytest.mark.requires_symlinks
-def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancestor(
-    tmp_path, origin
-):
+def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancestor(tmp_path, origin):
     """Reproduces the symlinked-sibling undercount: `_sibling_checkouts`
     gated on `entry.is_dir(follow_symlinks=False)`, so a SYMLINKED child
     checkout was never counted as a sibling. A session-container holding one
@@ -347,9 +342,7 @@ def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_ambiguous(tm
 
 
 @pytest.mark.requires_symlinks
-def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_even_nested(
-    tmp_path, origin
-):
+def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_even_nested(tmp_path, origin):
     """Same theft, with `cwd` several directory levels below the symlink
     jump itself — the syntactic-vs-resolved divergence must be caught
     regardless of how deep under the jump `cwd` sits, not only when `cwd`
@@ -368,9 +361,7 @@ def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_even_nested(
 
 
 @pytest.mark.requires_symlinks
-def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(
-    tmp_path, origin, monkeypatch
-):
+def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(tmp_path, origin, monkeypatch):
     """Regression guard pinning the deliberate asymmetry in the fix above:
     a symlink living INSIDE a real checkout that happens to point OUTSIDE
     any git repository must NOT raise. `real` (the resolved side) governs
@@ -475,9 +466,7 @@ def test_fabricated_gitdir_file_at_an_ancestor_level_raises_ambiguous(tmp_path, 
         repo_identity.repo_name(str(nested))
 
 
-def test_fabricated_gitdir_file_with_synthetic_worktrees_segment_raises_ambiguous(
-    tmp_path, origin
-):
+def test_fabricated_gitdir_file_with_synthetic_worktrees_segment_raises_ambiguous(tmp_path, origin):
     """A fabricated ``gitdir:`` pointer can also masquerade as a legitimate
     worktree by including a synthetic ``/worktrees/<name>`` path segment,
     hoping the marker-based fast path is trusted without checking for the
@@ -529,7 +518,13 @@ def test_real_submodule_still_resolves_to_its_own_origin(tmp_path, origin):
     parent.mkdir()
     _git("init", "-q", cwd=parent)
     _git(
-        "-c", "protocol.file.allow=always", "submodule", "-q", "add", str(sub_origin), "sub",
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "-q",
+        "add",
+        str(sub_origin),
+        "sub",
         cwd=parent,
     )
 
@@ -539,9 +534,7 @@ def test_real_submodule_still_resolves_to_its_own_origin(tmp_path, origin):
 # --- GIT_DIR / GIT_WORK_TREE env bypass -------------------------------------
 
 
-def test_git_dir_env_does_not_spoof_identity_for_an_unambiguous_checkout(
-    tmp_path, origin, monkeypatch
-):
+def test_git_dir_env_does_not_spoof_identity_for_an_unambiguous_checkout(tmp_path, origin, monkeypatch):
     """`Deadline.run` shells out to `git ...` with `cwd=<checkout>`, but
     (pre-fix) inherited the ambient environment wholesale. An ambient
     `GIT_DIR` pointing at a different, unrelated repo makes git obey the env
@@ -562,9 +555,7 @@ def test_git_dir_env_does_not_spoof_identity_for_an_unambiguous_checkout(
     assert repo_identity.repo_name(str(victim)) == "acme-widgets"
 
 
-def test_git_work_tree_env_does_not_spoof_identity_for_an_unambiguous_checkout(
-    tmp_path, origin, monkeypatch
-):
+def test_git_work_tree_env_does_not_spoof_identity_for_an_unambiguous_checkout(tmp_path, origin, monkeypatch):
     """Same spoof as above, via `GIT_WORK_TREE` instead of `GIT_DIR` —
     either identity-discovery override must be stripped from the probe's
     environment, not just one of them."""
@@ -586,9 +577,7 @@ def test_git_work_tree_env_does_not_spoof_identity_for_an_unambiguous_checkout(
 
 def test_identity_returns_repo_branch_and_commit(tmp_path, origin):
     clone = _clone(origin, tmp_path / "clone")
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=clone, check=True, capture_output=True, text=True
-    ).stdout.strip()
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=clone, check=True, capture_output=True, text=True).stdout.strip()
 
     result = repo_identity.identity(str(clone))
 
@@ -664,22 +653,29 @@ def test_filesystem_fallback_finds_origin_with_git_wedged(wedged_clone):
 def test_aggregate_deadline_shared_across_repo_branch_and_commit(wedged_clone):
     """The one wedged live-git probe (`config --get remote.origin.url`, the
     first origin candidate) spends the whole budget; branch/commit lookups
-    must not each get a fresh one."""
-    start = time.monotonic()
-    result = repo_identity.identity(str(wedged_clone))
-    elapsed = time.monotonic() - start
+    must not each get a fresh one.
 
-    assert elapsed < repo_identity.GIT_BUDGET_S + 1.0, (
-        f"repo+branch+commit took {elapsed:.2f}s against a "
-        f"{repo_identity.GIT_BUDGET_S}s aggregate budget"
-    )
-    assert elapsed >= repo_identity.GIT_BUDGET_S * 0.5, (
-        f"only {elapsed:.2f}s elapsed — git was never actually invoked"
-    )
+    Functional half of the #4015 split; the wall-clock window now lives in
+    ``test_aggregate_deadline_spends_the_shared_git_budget`` (nightly-only).
+    """
+    result = repo_identity.identity(str(wedged_clone))
+
     # Degraded (branch/commit empty — no budget left to ask), never wrong.
     assert result.repo == "acme-widgets"
     assert result.branch == ""
     assert result.commit == ""
+
+
+@pytest.mark.performance
+def test_aggregate_deadline_spends_the_shared_git_budget(wedged_clone):
+    """Split from ``test_aggregate_deadline_shared_across_repo_branch_and_commit``
+    (#4015); budget preserved (nightly)."""
+    start = time.monotonic()
+    repo_identity.identity(str(wedged_clone))
+    elapsed = time.monotonic() - start
+
+    assert_timing_budget(elapsed, repo_identity.GIT_BUDGET_S + 1.0, name="aggregate_deadline_repo_branch_commit")
+    assert elapsed >= repo_identity.GIT_BUDGET_S * 0.5, f"only {elapsed:.2f}s elapsed — git was never actually invoked"
 
 
 @pytest.fixture()
@@ -704,6 +700,27 @@ def test_not_a_git_repo_raises_even_with_git_wedged(stalled_non_repo, no_git_anc
 
 
 def test_an_exhausted_deadline_skips_further_probes(tmp_path, monkeypatch):
+    """Functional half of the #4015 split; the wall-clock ceiling now lives in
+    ``test_exhausted_deadline_probes_stay_under_two_seconds`` (nightly-only)."""
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    fake = shim / "git"
+    fake.write_text("#!/bin/sh\nexec /bin/sleep 600\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shim))
+    work = tmp_path / "work"
+    work.mkdir()
+
+    deadline = repo_identity.Deadline(0.4)
+    for _ in range(20):
+        deadline.run(["rev-parse", "HEAD"], str(work))
+    assert deadline.expired()
+
+
+@pytest.mark.performance
+def test_exhausted_deadline_probes_stay_under_two_seconds(tmp_path, monkeypatch):
+    """Split from ``test_an_exhausted_deadline_skips_further_probes`` (#4015);
+    budget preserved (nightly)."""
     shim = tmp_path / "bin"
     shim.mkdir()
     fake = shim / "git"
@@ -718,11 +735,8 @@ def test_an_exhausted_deadline_skips_further_probes(tmp_path, monkeypatch):
     for _ in range(20):
         deadline.run(["rev-parse", "HEAD"], str(work))
     elapsed = time.monotonic() - start
-    assert elapsed < 2.0, (
-        f"20 probes on a spent 0.4s budget took {elapsed:.2f}s — exhausted "
-        f"probes are still spawning git"
-    )
-    assert deadline.expired()
+
+    assert_timing_budget(elapsed, 2.0, name="exhausted_deadline_20_probes")
 
 
 @pytest.mark.performance
@@ -738,9 +752,9 @@ def test_a_healthy_repo_is_not_slowed_by_the_deadline(tmp_path, origin):
 
 
 def test_git_budget_nests_inside_the_hook_budget_with_the_offer_budget():
-    assert (
-        repo_identity.GIT_BUDGET_S + budget.OFFER_BUDGET_S < budget.HOOK_BUDGET_S
-    ), "GIT_BUDGET_S + OFFER_BUDGET_S must still land inside HOOK_BUDGET_S with margin"
+    assert repo_identity.GIT_BUDGET_S + budget.OFFER_BUDGET_S < budget.HOOK_BUDGET_S, (
+        "GIT_BUDGET_S + OFFER_BUDGET_S must still land inside HOOK_BUDGET_S with margin"
+    )
 
 
 # --- ClientConfig.for_repository(): binding presence to canonical identity -
@@ -881,9 +895,7 @@ def test_origin_url_uses_the_quarantine_record_when_the_remote_is_gone(tmp_path)
     config_path = local / ".git" / "config"
     with config_path.open("a") as f:
         f.write('\n[kitty "quarantine"]\n\torigin = https://example.invalid/org/acme-widgets.git\n')
-    assert (
-        repo_identity.origin_url(str(local)) == "https://example.invalid/org/acme-widgets.git"
-    )
+    assert repo_identity.origin_url(str(local)) == "https://example.invalid/org/acme-widgets.git"
 
 
 def test_origin_url_is_empty_when_no_source_has_one(tmp_path):

@@ -7,6 +7,9 @@ Error codes used:
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
+  INVALID_MISSION             -- #2879: --mission value is not a safe path segment
+                                 (traversal guard: '..', separators, leading dot,
+                                 non-ASCII) — JSON envelope, never a raw traceback
   MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
   STATUS_READ_PATH_NOT_FOUND  -- coord topology with a stale/unaddressable primary surface
                                  (fail-closed read-path guard fired; carries coord/primary candidates)
@@ -160,38 +163,6 @@ from typer.core import TyperGroup
 # eagerly evaluated default expression such as ``getattr(m, "Abort",
 # m.exceptions.Abort)``, which raised ``AttributeError`` at import time — and
 # typer's stable public ``typer.Abort``/``typer.Exit`` are always included.
-
-
-def _vendored_click_exception(name: str) -> type[BaseException] | None:
-    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
-
-    Looks in the vendored ``exceptions`` submodule first, then the package
-    root, and never touches an attribute it has not confirmed exists.
-    """
-    module = getattr(typer_core, "_click", None)
-    if module is None:
-        return None
-    for holder in (getattr(module, "exceptions", None), module):
-        candidate = getattr(holder, name, None) if holder is not None else None
-        if isinstance(candidate, type) and issubclass(candidate, BaseException):
-            return candidate
-    return None
-
-
-def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
-    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
-    classes: list[type[BaseException]] = []
-    for candidate in candidates:
-        if candidate is not None and candidate not in classes:
-            classes.append(candidate)
-    return tuple(classes)
-
-
-_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
-_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
-# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
-# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
-_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
 def _vendored_click_exception(name: str) -> type[BaseException] | None:
@@ -565,6 +536,26 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "coord_candidate": str(exc.coord_candidate),
                 "primary_candidate": str(exc.primary_candidate),
             },
+        )
+    except ValueError as exc:
+        # #2879 (machine contract): the read-side seam's traversal guard
+        # (``assert_safe_path_segment``, the FIRST step — before any
+        # ``KITTY_SPECS_DIR`` join or meta probe) raises ``ValueError`` for an
+        # unsafe ``--mission`` value (``..``, ``../traversal``, separators,
+        # leading dot, non-ASCII). Pre-fix that escaped to the top level and
+        # was rendered as a raw Python traceback — NOT JSON — breaking every
+        # programmatic consumer of this JSON-first surface. Fail closed with
+        # the structured ``INVALID_MISSION`` envelope instead (non-zero exit,
+        # parseable stdout), mirroring how the host CLI's ``merge`` renders the
+        # same guard (``cli/commands/merge.py:_resolve_slug_or_exit``).
+        # ``_fail`` merges the *message* param into ``data`` last-wins, so the
+        # guard's own diagnostic travels under a distinct ``reason`` key rather
+        # than being silently overwritten by the canonical message.
+        _fail(
+            command,
+            "INVALID_MISSION",
+            f"Mission slug is not a safe path segment: {mission_slug!r}",
+            data={"reason": str(exc), "mission_slug": mission_slug},
         )
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))

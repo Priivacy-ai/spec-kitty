@@ -167,6 +167,42 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
     assert json.loads(committed.splitlines()[-1])["delta"]["note"] == "owned note"
 
 
+def test_owned_move_task_completes_with_sync_active(finalized_checkouts, monkeypatch):
+    """#3980: the ``OWNED_SYNC_UNSUPPORTED`` refusal is gone — an owned
+    ``move-task --to doing`` completes with hosted sync on (the fan-out
+    handlers on the emit seam are bounded and non-raising, and the Zeitgeist
+    moment handler no-ops without a session/team)."""
+    primary, owned, sibling = finalized_checkouts
+    monkeypatch.chdir(owned)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(owned))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    before = tuple(snapshot(root) for root in finalized_checkouts)
+
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "doing",
+            "--agent",
+            "codex",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (snapshot(primary), snapshot(sibling)) == (before[0], before[2])
+    mission = owned / "kitty-specs" / SLUG
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    transitions = [row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]
+    assert transitions[-1]["to_lane"] == "in_progress"
+
+
 @pytest.mark.parametrize(
     "case,code",
     [
@@ -182,7 +218,6 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
         ("skip", "OWNED_OPTION_UNSUPPORTED"),
         ("no_commit", "OWNED_OPTION_UNSUPPORTED"),
         ("bad_pid", "OWNED_INPUT_INVALID"),
-        ("sync", "OWNED_SYNC_UNSUPPORTED"),
     ],
 )
 def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch, case, code):
@@ -215,8 +250,6 @@ def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch
         extra = [{"force": "--force", "skip": "--skip-pre-review-gate", "no_commit": "--no-auto-commit"}[case]]
     elif case == "bad_pid":
         extra = ["--shell-pid", "not-a-number"]
-    elif case == "sync":
-        monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     args = ["move-task", "WP01", "--to", target, "--owned-checkout", str(checkout), "--json", *extra]
     if case != "missing_mission":
         args += ["--mission", SLUG]

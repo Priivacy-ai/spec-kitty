@@ -17,6 +17,7 @@ from ruamel.yaml import YAML
 
 from charter.hasher import hash_content
 from charter.activation.sync import ensure_charter_bundle_fresh
+from tests._perf_helpers import assert_timing_budget
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess
@@ -64,28 +65,38 @@ def warm_bundle(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return repo
 
 
+def test_warm_invocation_returns_result_without_resync(warm_bundle: Path) -> None:
+    """Functional companion to test_warm_overhead_p95_under_10ms
+    (split, #4015): a warm invocation returns a result and does not
+    regenerate. Timing budget lives in the @performance sibling below."""
+    # Prime the resolver cache + filesystem caches with one warm-up call.
+    ensure_charter_bundle_fresh(warm_bundle)
+
+    result = ensure_charter_bundle_fresh(warm_bundle)
+
+    assert result is not None
+    assert result.synced is False, "Warm path should not regenerate"
+
+
+@pytest.mark.performance
 def test_warm_overhead_p95_under_10ms(warm_bundle: Path) -> None:
-    """100 warm invocations: p95 latency < 10 ms (NFR-002)."""
+    """NFR-002 timing budget only (split, #4015): 100 warm invocations,
+    p95 latency < 10 ms. Functional coverage moved to
+    test_warm_invocation_returns_result_without_resync, above."""
     # Prime the resolver cache + filesystem caches with one warm-up call.
     ensure_charter_bundle_fresh(warm_bundle)
 
     timings_ns: list[int] = []
     for _ in range(100):
         start = time.monotonic_ns()
-        result = ensure_charter_bundle_fresh(warm_bundle)
+        ensure_charter_bundle_fresh(warm_bundle)
         elapsed = time.monotonic_ns() - start
         timings_ns.append(elapsed)
-        assert result is not None
-        assert result.synced is False, "Warm path should not regenerate"
 
     timings_ms = sorted(t / 1_000_000 for t in timings_ns)
     # p95 = the 95th percentile (index 94 of a 0-indexed sorted list of 100).
     p95 = timings_ms[94]
-    assert p95 < 10, (
-        f"Chokepoint warm p95 = {p95:.2f}ms (budget: 10ms). "
-        f"Timings (ms): min={timings_ms[0]:.2f}, "
-        f"p50={timings_ms[49]:.2f}, p95={p95:.2f}, max={timings_ms[-1]:.2f}"
-    )
+    assert_timing_budget(p95, 10, name="chokepoint_warm_p95_ms")
 
 
 def test_warm_chokepoint_does_not_shell_out_to_git_on_cache_hit(warm_bundle: Path) -> None:

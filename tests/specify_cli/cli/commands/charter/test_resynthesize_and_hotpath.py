@@ -38,6 +38,8 @@ from textwrap import dedent
 from typing import Any
 from unittest.mock import Mock
 
+from charter.activation.interview import default_interview, write_interview_answers
+
 import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
@@ -106,6 +108,8 @@ def _minimal_project(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
+    init_git_repo(tmp_path)
+    write_interview_answers(tmp_path / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     return tmp_path
 
 
@@ -199,6 +203,7 @@ def _seed_synthesized_repo(
     it); it no longer drives freshness on its own.
     """
     init_git_repo(repo)
+    write_interview_answers(repo / ".kittify/charter/interview/answers.yaml", default_interview(mission="software-dev"))
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
     charter_dir = repo / ".kittify" / "charter"

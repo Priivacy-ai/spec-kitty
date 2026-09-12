@@ -303,7 +303,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_resolve_reviewer_identity",
 )
 
-_TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
+_TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
     "_MarkStatusState",
     "_default_mark_status_ports",
     "_ms_validate_inputs",
@@ -320,6 +320,12 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     # helper its two event-emit call sites share with it.
     "_resolve_authored_roster",
     "owning_wp_from_authored_roster",
+    # #3865: the owned-mode error-recovery extraction out of
+    # ``_do_mark_status``'s inline ``except`` — cause-chain walk + the
+    # ``git show`` event-id diff, now natively defined here and therefore
+    # enrolled like every other native def.
+    "_reconstruct_applied_events",
+    "_recovery_commit_sha",
 )
 
 #: seam-module-name -> imported module object, and -> that seam's required
@@ -557,7 +563,14 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     #3578 (M4 operator-signal sweep) then added the four rollback-to-
     ``planned`` signal symbols — ``_RollbackResetSummary``,
     ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
-    ``_mt_rollback_signal_lines`` (tasks_move_task 83 -> 87): 165 -> 169."""
+    ``_mt_rollback_signal_lines`` (tasks_move_task 83 -> 87): 165 -> 169.
+    #3865 then extracted the owned-mode mark-status error recovery out of
+    ``_do_mark_status``'s inline ``except`` into two focused, unit-tested
+    helpers — ``_reconstruct_applied_events`` (the ``git show`` event-id
+    diff) and ``_recovery_commit_sha`` (the cycle-safe cause-chain walk)
+    (tasks_mark_status 15 -> 17; golden count 177 -> 179 — the docstring's
+    running total above is already stale against the golden, so this entry
+    pins the actual delta)."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -565,4 +578,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 177  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 179  # golden-count: cardinality-is-contract

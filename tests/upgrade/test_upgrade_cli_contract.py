@@ -30,7 +30,7 @@ def _validate_full_plan(payload: dict[str, object]) -> None:
 @pytest.mark.parametrize(
     ("target", "message"),
     [
-        ("3.2.6", "Refusing to downgrade project metadata from 3.2.7rc1 to 3.2.6"),
+        ("3.2.6", "Refusing to downgrade project metadata from 3.2.8rc1 to 3.2.6"),
         ("not-a-version", "Invalid upgrade target version: not-a-version"),
     ],
     ids=["downgrade", "malformed"],

@@ -14,7 +14,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.mission_metadata import load_meta
 from specify_cli.bulk_edit.diff_check import (
     DiffCheckResult,
     check_diff_compliance,
@@ -24,6 +23,7 @@ from specify_cli.bulk_edit.occurrence_map import (
     load_occurrence_map,
     validate_occurrence_map,
 )
+from specify_cli.core.paths import load_meta_fail_closed
 
 
 @dataclass(frozen=True)
@@ -53,8 +53,13 @@ def _is_bulk_edit_mission(feature_dir: Path) -> bool:
     :func:`ensure_occurrence_classification_ready` and
     :func:`check_review_diff_compliance`, so "what counts as bulk_edit"
     cannot drift between the two gate entry points.
+
+    FR-007 / #3162: routed through the ONE fail-closed reader — a corrupt or
+    non-object ``meta.json`` raises the typed :class:`MissionMetaReadError`
+    instead of a raw ``ValueError``; a missing file still reads as ``None``
+    (not a bulk_edit mission).
     """
-    meta = load_meta(feature_dir)
+    meta = load_meta_fail_closed(feature_dir)
     return meta is not None and meta.get("change_mode") == "bulk_edit"
 
 
@@ -76,8 +81,12 @@ def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
     """Check if a bulk_edit mission has a valid occurrence map.
 
     For non-bulk-edit missions, always passes (zero cost).
+
+    FR-007 / #3162: routed through the ONE fail-closed reader — a corrupt or
+    non-object ``meta.json`` raises the typed :class:`MissionMetaReadError`
+    instead of a raw ``ValueError``; a missing file still reads as ``None``.
     """
-    meta = load_meta(feature_dir)
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         return GateResult(passed=True, change_mode=None)
 

@@ -98,6 +98,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from specify_cli.core.no_follow import chmod_fd
 from specify_cli.gitignore_manager import GitignoreManager
 
 from ..registry import MigrationRegistry
@@ -138,6 +139,8 @@ GOVERNED_OPERATOR_VARS: tuple[str, ...] = (
     "SPEC_KITTY_FORCE_INTERACTIVE",
     "SPEC_KITTY_SYNC_DISABLE",
     "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+    "SPEC_KITTY_NO_MOMENT_HANDLERS",
+    "SPEC_KITTY_SKIP_PRE_REVIEW_GATE",
     "SPEC_KITTY_ENABLE_SAAS_SYNC",
     "SPEC_KITTY_SAAS_URL",
     "SPEC_KITTY_TEAM_SLUG",
@@ -314,11 +317,7 @@ def _read_ignore_file_text(path: Path) -> str:
 
 
 def _ignore_file_entries(path: Path) -> set[str]:
-    return {
-        line.strip()
-        for line in _read_ignore_file_text(path).splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    }
+    return {line.strip() for line in _read_ignore_file_text(path).splitlines() if line.strip() and not line.lstrip().startswith("#")}
 
 
 def _gitignore_missing_entry(project_path: Path) -> bool:
@@ -328,11 +327,7 @@ def _gitignore_missing_entry(project_path: Path) -> bool:
 def _claudeignore_missing_entry(project_path: Path) -> bool:
     path = project_path / _CLAUDEIGNORE_FILENAME
     _reject_claudeignore_symlink(path)
-    entries = {
-        line.strip()
-        for line in _read_claudeignore_no_follow(path).splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    }
+    entries = {line.strip() for line in _read_claudeignore_no_follow(path).splitlines() if line.strip() and not line.lstrip().startswith("#")}
     return _ENV_FILE_IGNORE_ENTRY not in entries
 
 
@@ -355,13 +350,8 @@ def _reject_claudeignore_symlink(path: Path) -> None:
         try:
             target = os.readlink(path)
         except OSError as exc:
-            raise ClaudeignorePathError(
-                f".claudeignore is a symlink; refusing to read or write through it: {path} "
-                f"(could not resolve target: {exc})"
-            ) from exc
-        raise ClaudeignorePathError(
-            f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}"
-        )
+            raise ClaudeignorePathError(f".claudeignore is a symlink; refusing to read or write through it: {path} (could not resolve target: {exc})") from exc
+        raise ClaudeignorePathError(f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}")
 
 
 def _open_claudeignore_no_follow(path: Path, flags: int) -> int:
@@ -385,9 +375,7 @@ def _open_claudeignore_no_follow(path: Path, flags: int) -> int:
     except NonRegularIgnoreFileError as exc:
         cause = exc.__cause__
         if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
-            raise ClaudeignorePathError(
-                f".claudeignore is a symlink; refusing to read or write through it: {path}"
-            ) from cause
+            raise ClaudeignorePathError(f".claudeignore is a symlink; refusing to read or write through it: {path}") from cause
         raise
 
 
@@ -433,7 +421,7 @@ def _atomic_write_claudeignore(path: Path, content: str) -> None:
     try:
         try:
             if existing_mode is not None:
-                os.fchmod(fd, existing_mode)
+                chmod_fd(fd, tmp_path, existing_mode)
             remaining = memoryview(content.encode("utf-8"))
             while remaining:
                 written = os.write(fd, remaining)

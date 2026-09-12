@@ -48,6 +48,7 @@ from specify_cli.cli.commands._doctrine_health import (
     SkippedGlossaryPack,
 )
 from specify_cli.cli.commands.doctor import app as doctor_app
+from tests._perf_helpers import assert_timing_budget
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -325,6 +326,16 @@ class TestDoctorDoctrineGlossaryPackJson:
 # ---------------------------------------------------------------------------
 
 
+class TestDoctorDoctrineFunctional:
+    """Functional companion to TestDoctorDoctrinePerformance (split, #4015):
+    the exit-code check must run on the per-PR path, not only nightly."""
+
+    def test_doctor_doctrine_json_succeeds(self, bare_repo_root: Path) -> None:
+        exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
+
+        assert exit_code == 0
+
+
 @pytest.mark.performance
 class TestDoctorDoctrinePerformance:
     """NFR-005 wall-clock gate (T026), held out of normal PR runs.
@@ -333,14 +344,16 @@ class TestDoctorDoctrinePerformance:
     ``@pytest.mark.performance`` keeps it out of normal runs; set
     ``SPEC_KITTY_RUN_PERFORMANCE=1`` for an explicit local run. The out-of-band
     statistical harness is tracked in #3595.
+
+    NFR-005 timing budget only (split, #4015): functional coverage moved to
+    TestDoctorDoctrineFunctional, above.
     """
 
     def test_doctor_doctrine_json_completes_under_two_seconds(
         self, bare_repo_root: Path
     ) -> None:
         start = time.perf_counter()
-        exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
+        _invoke_doctrine_json(bare_repo_root)
         elapsed = time.perf_counter() - start
 
-        assert exit_code == 0
-        assert elapsed < 2.0, f"doctor doctrine --json took {elapsed:.2f}s (budget: 2.0s)"
+        assert_timing_budget(elapsed, 2.0, name="doctor_doctrine_json")

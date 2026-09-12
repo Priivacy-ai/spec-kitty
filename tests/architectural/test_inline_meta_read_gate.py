@@ -333,8 +333,18 @@ FLOOR_MARGIN = 2
 # 154 after merge-retention adds two routed reads. Explicit-owned-checkout adds
 # one canonical metadata read, raising live to 155; floor 151 is the lowest
 # permitted value within the four-site margin (``151 <= 151 < 155``).
+# RAISED 2026-09-08 (#3212): the backfill-runtime-state flip-counter fix added
+# one genuine routed site — ``load_meta`` in
+# ``runtime_state_cutover._already_at_snapshot_authority``, the read-only
+# pre-flip authority probe (``allow_missing=True, on_malformed="none"`` so the
+# probe can never crash a verdict-bearing dry-run; missing/malformed reads as
+# "not yet migrated"). Live rises 156 -> 157; floor raised 152 -> 153, the
+# lowest permitted value within the four-site margin (``153 <= 153 < 157``).
+# Measured directly via
+# ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
+# on the PR tip.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 152
+ROUTED_LOAD_META_FLOOR = 153
 
 
 # --------------------------------------------------------------------------- #

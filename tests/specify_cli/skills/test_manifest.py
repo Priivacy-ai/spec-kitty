@@ -19,6 +19,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 def _make_entry(
     skill_name: str = "test-skill",
     source_file: str = "SKILL.md",
@@ -46,6 +47,16 @@ def test_create_manifest_with_defaults() -> None:
     assert m.updated_at == ""
     assert m.spec_kitty_version == ""
     assert m.entries == []
+
+
+def test_managed_file_entry_normalizes_paths_to_posix() -> None:
+    entry = _make_entry(
+        source_file=r"references\architecture.md",
+        installed_path=r".claude\skills\test-skill\SKILL.md",
+    )
+
+    assert entry.source_file == "references/architecture.md"
+    assert entry.installed_path == ".claude/skills/test-skill/SKILL.md"
 
 
 def test_add_entry() -> None:

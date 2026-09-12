@@ -807,7 +807,7 @@ def _valid_entry(entry: NativeAgentProfile, root: Path) -> bool:
 
 
 def _write_profile_effect(effect: PhysicalEffect, content: bytes | None) -> None:
-    import os
+    from specify_cli.core.no_follow import chmod_fd
 
     path = effect.destination
     confined_path(path, effect.root.path)
@@ -828,7 +828,7 @@ def _write_profile_effect(effect: PhysicalEffect, content: bytes | None) -> None
             with path.open("xb" if effect.action == "create" else "wb") as stream:
                 stream.write(content)
                 if effect.action == "create":
-                    os.fchmod(stream.fileno(), effect.after.mode or 0o644)
+                    chmod_fd(stream.fileno(), path, effect.after.mode or 0o644)
 
 
 def _apply_profile_batch(assessment: OwnerAssessment) -> OwnerApplyResult:

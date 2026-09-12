@@ -2,7 +2,7 @@
 title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -47,7 +47,6 @@ surfaces where a coverage miss is highest-risk:
 
 ```
 src/kernel/*
-src/doctrine/*
 src/charter/*
 src/specify_cli/status/*
 src/specify_cli/lanes/branch_naming.py

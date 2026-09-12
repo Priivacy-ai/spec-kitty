@@ -2,7 +2,7 @@
 title: Create a doctrine artifact
 description: A concrete, followable walkthrough for authoring a new doctrine artifact end to end — file location, schema, activation, and the loose-contract asset kind.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-09-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -39,7 +39,7 @@ this guide.
 Every kind has its own directory under `.kittify/doctrine/`, its own file suffix, and its own
 schema. Project-tier directories use singular names for four kinds and plural names for the
 rest — this is a real, code-verified asymmetry, not a typo. The mapping has a single canonical
-home: `PROJECT_KIND_DIRS` in `src/doctrine/artifact_kinds.py` (the lowest doctrine layer, imported
+home: `PROJECT_KIND_DIRS` in `src/charter/offering/artifact_kinds.py` (the lowest doctrine layer, imported
 downward by charter and the CLI — there is no second copy to drift). The table below is that
 mapping:
 
@@ -54,7 +54,7 @@ mapping:
 | `agent_profile` | `.kittify/doctrine/agent_profiles/` | `.agent.yaml` | `agent-profile.schema.yaml` | `profile-id` |
 | `mission_step_contract` | `.kittify/doctrine/mission_step_contracts/` | `.step-contract.yaml` | (Pydantic model, no standalone JSON Schema file) | `id` |
 
-Schemas live under `src/doctrine/schemas/`. If you are working from a project that installed
+Schemas live under `src/charter/offering/schemas/`. If you are working from a project that installed
 `spec-kitty` as a package rather than from this source checkout, the fastest way to see a kind's
 required fields is to copy a real built-in file of that kind and edit it — every built-in
 artifact under `packs/built-in/<kind-plural>/` is already schema-valid.
@@ -71,7 +71,7 @@ pick something you'll type again: `example-driven-api-design`, not `Tactic For A
 ## Step 3: Write the artifact file
 
 Create `.kittify/doctrine/tactic/example-driven-api-design.tactic.yaml`. A tactic's schema
-(`src/doctrine/schemas/tactic.schema.yaml`) requires `id`, `schema_version`, `name`, and at
+(`src/charter/offering/schemas/tactic.schema.yaml`) requires `id`, `schema_version`, `name`, and at
 least one step (each step requires at least a `title`):
 
 ```yaml
@@ -111,7 +111,7 @@ for a fuller example with `references` to other tactics).
 
 For a different kind, swap the required fields per the table in Step 1 — for example an
 `agent_profile` additionally requires `purpose`, `specialization`, and either `role` or `roles`
-(see `src/doctrine/schemas/agent-profile.schema.yaml`), and its ID field is `profile-id`, not
+(see `src/charter/offering/schemas/agent-profile.schema.yaml`), and its ID field is `profile-id`, not
 `id`.
 
 ## Step 4: Confirm the artifact is discovered
@@ -138,7 +138,7 @@ spec-kitty charter activate tactic example-driven-api-design
 ```
 
 This is a fast, config-only write to `.kittify/config.yaml`'s `activated_tactics` list (see
-`plan_activation`/`commit_plan` in `src/charter/activation_engine.py`) — it does not by itself
+`plan_activation`/`commit_plan` in `src/charter/activation/activation_engine.py`) — it does not by itself
 regenerate the derived bundle. If your new tactic references other artifacts (via a `references`
 field) that are not yet activated, the command warns you and suggests `--cascade`:
 

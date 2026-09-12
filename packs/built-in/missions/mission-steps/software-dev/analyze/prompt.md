@@ -19,7 +19,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **NON-REMEDIATING**: Do **not** modify `spec.md`, `plan.md`, `tasks.md`, WP files, source code, or any remediation target. The only permitted file mutation is persisting this command's report to `kitty-specs/<mission>/analysis-report.md` via `spec-kitty agent mission record-analysis`. Offer an optional remediation plan only after the report is persisted (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-**Charter Authority**: The project charter (`/charter/charter.md`) is **non-negotiable** within this analysis scope. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
+**Charter Authority**: The project charter (`.kittify/charter/charter.md`) is **non-negotiable** within this analysis scope. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
 
 ## Execution Steps
 
@@ -62,7 +62,7 @@ Load only the minimal necessary context from each artifact:
 
 **From charter:**
 
-- Load `/charter/charter.md` for principle validation
+- Load `.kittify/charter/charter.md` for principle validation
 
 ### 3. Build Semantic Models
 
