@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M2AG1ZPV8WNH0M8TRCNHFGT9",
-  "materialized_at": "2026-09-12T09:44:25.563603+00:00",
+  "event_count": 4,
+  "last_event_id": "01M2AG43G3BKZAYDEPPYBCY2JE",
+  "materialized_at": "2026-09-12T09:45:34.979027+00:00",
   "mission_number": "",
   "mission_slug": "charter-owned-checkout-and-hosted-binding-01M2AFWC",
   "mission_type": "software-dev",
@@ -12,17 +12,20 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "codex",
+      "agent": "codex",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M2AG1Z8GC9SBGGV3AMFTKS6B",
-      "last_transition_at": "2026-09-12T09:44:25.104219+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01M2AG43G3BKZAYDEPPYBCY2JE",
+      "last_transition_at": "2026-09-12T09:45:34.979027+00:00",
+      "shell_pid": 26467,
+      "shell_pid_created_at": "1788590156.364464"
     },
     "WP02": {
       "actor": "finalize-tasks",
