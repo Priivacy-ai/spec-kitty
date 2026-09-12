@@ -28,6 +28,7 @@ __all__ = [
     "LANE_ALIASES",
     "TERMINAL_LANES",
     "is_terminal",
+    "legal_targets_from",
     "resolve_lane_alias",
     "validate_transition",
 ]
@@ -63,6 +64,25 @@ def resolve_lane_alias(lane: str) -> str:
 def is_terminal(lane: str) -> bool:
     """Check if a lane is terminal (done or canceled)."""
     return resolve_lane_alias(lane) in TERMINAL_LANES
+
+
+def legal_targets_from(lane: str) -> tuple[str, ...]:
+    """Enumerate the structurally-legal outbound targets for ``lane``, sorted.
+
+    Sourced from the authoritative per-state ``allowed_targets()`` (the single
+    edge authority) — NOT the non-authoritative ``ALLOWED_TRANSITIONS`` projection
+    and NOT any second matrix. This exists to enrich the CLI/emit
+    illegal-transition refusal path (#3937 F-51) so the operator sees where a WP
+    CAN legally go instead of only "Illegal transition"; it is NEVER an
+    edge/transition gate, and the FSM-core illegal string in ``wp_state.py`` is
+    deliberately left untouched (NFR-002). An unknown lane yields an empty tuple.
+    """
+    resolved = resolve_lane_alias(lane)
+    try:
+        state = wp_state_for(Lane(resolved))
+    except ValueError:
+        return ()
+    return tuple(sorted(target.value for target in state.allowed_targets()))
 
 
 def validate_transition(

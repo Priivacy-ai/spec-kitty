@@ -111,6 +111,25 @@ def _actors_compatible(existing: object | None, requested: object | None, *, all
     return allow_generic_existing and existing_key in GENERIC_IMPLEMENTATION_ACTORS
 
 
+def _start_recovery_hint(wp_id: str, current_lane: Lane) -> str:
+    """Name the legal recovery for a WP that cannot start implementation from
+    ``current_lane`` (#3937 FR-007).
+
+    The legal targets are sourced from the authoritative per-state
+    ``allowed_targets()`` (no second matrix); the hint names the concrete
+    ``move-task`` command so a genuinely-blocked WP is never a dead end — its
+    documented recovery (``blocked -> in_progress``) is spelled out rather than
+    left implicit.
+    """
+    from specify_cli.status.transitions import legal_targets_from
+
+    targets = legal_targets_from(current_lane.value)
+    if not targets:
+        return f"'{current_lane.value}' is terminal; use `spec-kitty agent tasks move-task {wp_id} --to <lane> --force` with a reason to override."
+    joined = ", ".join(targets)
+    return f"Recover with `spec-kitty agent tasks move-task {wp_id} --to <target>` (legal targets from '{current_lane.value}': {joined})."
+
+
 def start_implementation_status(
     *,
     feature_dir: Path,
@@ -253,7 +272,7 @@ def start_implementation_status(
                 claimed_by=actor_identity_str(actor),
             )
 
-    raise WorkPackageStartRejected(f"WP {wp_id} is in '{current_lane}', cannot start implementation")
+    raise WorkPackageStartRejected(f"WP {wp_id} is in '{current_lane}', cannot start implementation. {_start_recovery_hint(wp_id, current_lane)}")
 
 
 def start_review_status(
