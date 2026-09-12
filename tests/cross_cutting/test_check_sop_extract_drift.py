@@ -128,8 +128,7 @@ def test_mutated_extract_exits_one_and_mutation_survives(tmp_path: Path) -> None
 
     assert result.returncode == 1, result.stderr
     assert extract_path.read_text(encoding="utf-8") == mutated, (
-        "the drift gate must not overwrite the on-disk extract while merely "
-        "checking for drift — the mutation must survive the run"
+        "the drift gate must not overwrite the on-disk extract while merely checking for drift — the mutation must survive the run"
     )
 
 
@@ -165,9 +164,7 @@ def test_default_invocation_never_writes_extract_even_with_drift(tmp_path: Path)
     result = _run(script_path)
 
     assert result.returncode == 1, result.stderr
-    assert extract_path.read_text(encoding="utf-8") == mutated, (
-        "default invocation must never write conformance/crosslayer/sop-extract.md"
-    )
+    assert extract_path.read_text(encoding="utf-8") == mutated, "default invocation must never write conformance/crosslayer/sop-extract.md"
 
 
 def test_write_flag_regenerates_and_default_is_then_clean(tmp_path: Path) -> None:
@@ -205,9 +202,7 @@ def test_write_flag_regenerates_and_default_is_then_clean(tmp_path: Path) -> Non
 
     write_result = _run(script_path, "--write")
     assert write_result.returncode == 0, write_result.stderr
-    assert extract_path.read_text(encoding="utf-8") != mutated, (
-        "--write must actually overwrite the mutated extract"
-    )
+    assert extract_path.read_text(encoding="utf-8") != mutated, "--write must actually overwrite the mutated extract"
     mode_after = stat.S_IMODE(extract_path.stat().st_mode)
     assert mode_after == 0o644, (
         f"--write must preserve the extract's mode (expected 0o644, got {oct(mode_after)}) — "
@@ -263,8 +258,7 @@ def test_write_never_modifies_agents_md(tmp_path: Path) -> None:
     assert write_result.returncode == 0, write_result.stderr
 
     assert _sha256(agents_path) == agents_hash_before, (
-        "check-sop-extract-drift --write must never write conformance/../AGENTS.md "
-        "(the shared, read-only source) — only conformance/crosslayer/sop-extract.md"
+        "check-sop-extract-drift --write must never write conformance/../AGENTS.md (the shared, read-only source) — only conformance/crosslayer/sop-extract.md"
     )
     assert agents_path.read_text(encoding="utf-8") == agents_text_before
 
@@ -293,10 +287,7 @@ def test_write_on_renamed_heading_fails_and_extract_is_untouched(tmp_path: Path)
         "## Branch Protection and CI Policy",
         1,
     )
-    assert renamed != original_agents, (
-        "fixture AGENTS.md did not contain the expected pinned heading "
-        "'## Branch Protection and CI'"
-    )
+    assert renamed != original_agents, "fixture AGENTS.md did not contain the expected pinned heading '## Branch Protection and CI'"
     agents_path.write_text(renamed, encoding="utf-8")
 
     extract_hash_before = _sha256(extract_path)
@@ -304,17 +295,11 @@ def test_write_on_renamed_heading_fails_and_extract_is_untouched(tmp_path: Path)
 
     write_result = _run(script_path, "--write")
 
-    assert write_result.returncode != 0, (
-        "--write must fail when a pinned heading is missing from AGENTS.md, "
-        "not silently regenerate an empty section and exit 0"
-    )
+    assert write_result.returncode != 0, "--write must fail when a pinned heading is missing from AGENTS.md, not silently regenerate an empty section and exit 0"
     assert "heading not found" in write_result.stderr, write_result.stdout + write_result.stderr
-    assert "Branch Protection and CI" in write_result.stderr, (
-        write_result.stdout + write_result.stderr
-    )
+    assert "Branch Protection and CI" in write_result.stderr, write_result.stdout + write_result.stderr
     assert _sha256(extract_path) == extract_hash_before, (
-        "a failed --write must leave the committed sop-extract.md completely "
-        "untouched, not half-overwritten or emptied"
+        "a failed --write must leave the committed sop-extract.md completely untouched, not half-overwritten or emptied"
     )
     assert extract_path.read_text(encoding="utf-8") == extract_text_before
 
@@ -322,9 +307,7 @@ def test_write_on_renamed_heading_fails_and_extract_is_untouched(tmp_path: Path)
     # renamed heading — not just --write.
     default_result = _run(script_path)
     assert default_result.returncode != 0, default_result.stdout + default_result.stderr
-    assert "heading not found" in default_result.stderr, (
-        default_result.stdout + default_result.stderr
-    )
+    assert "heading not found" in default_result.stderr, default_result.stdout + default_result.stderr
 
 
 if __name__ == "__main__":

@@ -672,7 +672,11 @@ fi
 
 # The positive control must be a JUDGE rule. A binary one would prove nothing
 # about the judge path, which is the entire reason it exists.
-if ! grep -Pzoq 'ruleId: CONTROL-JUDGE-TRIVIAL\n(.*\n)*?    gradingClass: judge\n' "${MANIFEST}"; then
+if ! awk '
+  /^  - ruleId:/ { in_positive_control = ($3 == "CONTROL-JUDGE-TRIVIAL") }
+  in_positive_control && /^    gradingClass: judge$/ { found = 1 }
+  END { exit !found }
+' "${MANIFEST}"; then
   fail "positive control gradingClass -- CONTROL-JUDGE-TRIVIAL is not declared gradingClass: judge; a non-judge positive control cannot detect a stuck judge"
 else
   echo "PASS: CONTROL-JUDGE-TRIVIAL is declared gradingClass: judge"

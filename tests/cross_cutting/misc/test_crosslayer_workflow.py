@@ -73,10 +73,7 @@ def _existing_checkout_pin() -> str:
 
 
 def test_crosslayer_workflow_file_exists() -> None:
-    assert _WORKFLOW_PATH.is_file(), (
-        f"{_WORKFLOW_PATH} must exist as its own file, isolated from the "
-        "shared conformance.yml (M3's PR #30 modifies that file)."
-    )
+    assert _WORKFLOW_PATH.is_file(), f"{_WORKFLOW_PATH} must exist as its own file, isolated from the shared conformance.yml (M3's PR #30 modifies that file)."
 
 
 def test_crosslayer_workflow_is_not_the_shared_conformance_workflow() -> None:
@@ -94,18 +91,13 @@ def test_pull_request_trigger_covers_both_required_path_scopes() -> None:
 
     paths = set(on_section["pull_request"]["paths"])
     missing = _REQUIRED_PR_PATHS - paths
-    assert not missing, (
-        "crosslayer.yml pull_request trigger misses required path scope(s): "
-        f"{sorted(missing)}"
-    )
+    assert not missing, f"crosslayer.yml pull_request trigger misses required path scope(s): {sorted(missing)}"
 
 
 def test_cadence_scaffold_has_schedule_and_workflow_dispatch() -> None:
     on_section = _on_section(_workflow())
     assert "schedule" in on_section, "FR-005 cadence job needs a schedule: trigger"
-    assert "workflow_dispatch" in on_section, (
-        "FR-005 cadence job needs workflow_dispatch: for on-demand manual runs"
-    )
+    assert "workflow_dispatch" in on_section, "FR-005 cadence job needs workflow_dispatch: for on-demand manual runs"
 
 
 def test_workflow_permissions_are_read_only() -> None:
@@ -132,9 +124,7 @@ def _cadence_job(workflow: dict[str, Any]) -> dict[str, Any]:
     for job in workflow["jobs"].values():
         if "schedule" in str(job.get("if", "")) or "workflow_dispatch" in str(job.get("if", "")):
             return job
-    raise AssertionError(
-        "no job in crosslayer.yml is gated to run only on schedule/workflow_dispatch"
-    )
+    raise AssertionError("no job in crosslayer.yml is gated to run only on schedule/workflow_dispatch")
 
 
 def test_static_job_never_references_secrets() -> None:
@@ -152,8 +142,7 @@ def test_static_job_checks_out_with_the_reused_pin() -> None:
     steps = static_job["steps"]
     checkout_step = next(step for step in steps if "actions/checkout@" in str(step.get("uses", "")))
     assert checkout_step["uses"] == _existing_checkout_pin(), (
-        "crosslayer.yml must reuse conformance.yml's existing actions/checkout "
-        "pin (T018), not introduce a new, unreviewed pin."
+        "crosslayer.yml must reuse conformance.yml's existing actions/checkout pin (T018), not introduce a new, unreviewed pin."
     )
 
 
@@ -163,9 +152,7 @@ def test_static_job_invokes_muster_action_with_reused_pin_and_correct_inputs() -
     muster_step = next(step for step in steps if "garrison-hq/muster-action@" in str(step.get("uses", "")))
 
     assert muster_step["uses"] == _existing_muster_action_pin(), (
-        "crosslayer.yml must reuse conformance.yml's existing "
-        "garrison-hq/muster-action pin (T018), not introduce a new, "
-        "unreviewed pin."
+        "crosslayer.yml must reuse conformance.yml's existing garrison-hq/muster-action pin (T018), not introduce a new, unreviewed pin."
     )
     with_block = muster_step["with"]
     assert with_block["command"] == "crosslayer run"
@@ -176,10 +163,7 @@ def test_static_job_invokes_muster_action_with_reused_pin_and_correct_inputs() -
 
 def test_static_job_wires_persona_drift_call_site_bare() -> None:
     static_job = _static_job(_workflow())
-    run_step = next(
-        step for step in static_job["steps"]
-        if "check-persona-drift.sh" in str(step.get("run", ""))
-    )
+    run_step = next(step for step in static_job["steps"] if "check-persona-drift.sh" in str(step.get("run", "")))
     # Bare -- no arguments, no flags. WP01's script has no --write mode at
     # all, but this pins the call site's own contract regardless.
     assert run_step["run"].strip() == "bash conformance/scripts/check-persona-drift.sh"
@@ -187,10 +171,7 @@ def test_static_job_wires_persona_drift_call_site_bare() -> None:
 
 def test_static_job_wires_sop_extract_drift_call_site_bare() -> None:
     static_job = _static_job(_workflow())
-    run_step = next(
-        step for step in static_job["steps"]
-        if "check-sop-extract-drift.sh" in str(step.get("run", ""))
-    )
+    run_step = next(step for step in static_job["steps"] if "check-sop-extract-drift.sh" in str(step.get("run", "")))
     # Bare invocation only. WP03's script gates a --write mode behind an
     # explicit literal "--write" argv token (see
     # conformance/scripts/check-sop-extract-drift.sh) -- CI must never
@@ -232,9 +213,7 @@ def test_cadence_job_carries_explicit_zero_real_cases_comment() -> None:
     raw = _WORKFLOW_PATH.read_text(encoding="utf-8")
     marker = "ZERO REAL CASES EXIST YET"
     assert marker in raw, (
-        "crosslayer.yml's cadence job must carry an explicit inline comment "
-        "stating plainly that zero real rule-survival cases exist until "
-        "WP05/lane-c lands."
+        "crosslayer.yml's cadence job must carry an explicit inline comment stating plainly that zero real rule-survival cases exist until WP05/lane-c lands."
     )
 
     # The comment must actually sit ahead of the cadence run step it
@@ -254,10 +233,7 @@ def test_cadence_job_carries_explicit_zero_real_cases_comment() -> None:
     static_step_marker = "manifest.yaml --static-only"
     static_step_index = raw.index(static_step_marker)
     comment_index = raw.index(marker)
-    assert comment_index > static_step_index, (
-        "the zero-real-cases comment must be positioned near the "
-        "cadence job's own run step, after the static job's step"
-    )
+    assert comment_index > static_step_index, "the zero-real-cases comment must be positioned near the cadence job's own run step, after the static job's step"
 
 
 def test_workflow_never_touches_shared_conformance_yml() -> None:
@@ -265,6 +241,4 @@ def test_workflow_never_touches_shared_conformance_yml() -> None:
     # Assumptions, "Workflow-file collision with M3"). Confirms the two
     # files remain textually distinct -- crosslayer.yml is not a copy or a
     # symlink of the shared file.
-    assert _WORKFLOW_PATH.read_text(encoding="utf-8") != _CONFORMANCE_WORKFLOW_PATH.read_text(
-        encoding="utf-8"
-    )
+    assert _WORKFLOW_PATH.read_text(encoding="utf-8") != _CONFORMANCE_WORKFLOW_PATH.read_text(encoding="utf-8")

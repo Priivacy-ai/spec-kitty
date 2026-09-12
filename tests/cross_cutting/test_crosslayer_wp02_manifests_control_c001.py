@@ -151,9 +151,7 @@ def _run_muster(args: list[str], *, cwd: Path) -> subprocess.CompletedProcess[st
     # exit whose stderr mentions the registry/offline as "not cached" and
     # retry live. A real muster-side error (e.g. our own ENOENT/exit 2/1
     # cases) never mentions npm/registry text, so this is a safe fallback.
-    if offline.returncode != 0 and (
-        "ENOTCACHED" in offline.stderr or "offline" in offline.stderr.lower()
-    ):
+    if offline.returncode != 0 and ("ENOTCACHED" in offline.stderr or "offline" in offline.stderr.lower()):
         return subprocess.run(
             ["npx", _MUSTER_PKG, *args],
             cwd=cwd,
@@ -250,13 +248,11 @@ def test_fr004_sandbox_mechanism_proof_benign_case_passes(tmp_path: Path) -> Non
         body="Assist the user with clear, well-reasoned answers grounded in the request at hand.",
     )
     (tmp_path / "sop.md").write_text(
-        "# SOP: Sandbox Operating Guidelines\n\n"
-        "## Rule: Maintain professional tone\nResponses must stay professional and on-topic.\n",
+        "# SOP: Sandbox Operating Guidelines\n\n## Rule: Maintain professional tone\nResponses must stay professional and on-topic.\n",
         encoding="utf-8",
     )
     (tmp_path / "skill.SKILL.md").write_text(
-        "# spk-run-next (sandbox stand-in)\n\n"
-        "Advance the mission runtime loop by evaluating the current step.\n",
+        "# spk-run-next (sandbox stand-in)\n\nAdvance the mission runtime loop by evaluating the current step.\n",
         encoding="utf-8",
     )
     (tmp_path / "case.yaml").write_text(
@@ -277,9 +273,7 @@ def test_fr004_sandbox_mechanism_proof_benign_case_passes(tmp_path: Path) -> Non
     manifest = tmp_path / "manifest.yaml"
     manifest.write_text("cases:\n  - $ref: case.yaml\n", encoding="utf-8")
 
-    result = _run_muster(
-        ["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT
-    )
+    result = _run_muster(["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT)
 
     assert result.returncode == 0, result.stdout + result.stderr
     summary = json.loads(result.stdout)
@@ -316,9 +310,7 @@ def test_fr004_sandbox_mechanism_proof_falsification_rigged_case_fails(tmp_path:
     manifest = tmp_path / "manifest.yaml"
     manifest.write_text("cases:\n  - $ref: case.yaml\n", encoding="utf-8")
 
-    result = _run_muster(
-        ["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT
-    )
+    result = _run_muster(["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT)
 
     assert result.returncode == 1, result.stdout + result.stderr
     summary = json.loads(result.stdout)
@@ -363,9 +355,7 @@ def test_c001_invalid_persona_is_a_categorical_error_never_a_findings_result(
     manifest = tmp_path / "manifest.yaml"
     manifest.write_text("cases:\n  - $ref: case.yaml\n", encoding="utf-8")
 
-    result = _run_muster(
-        ["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT
-    )
+    result = _run_muster(["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT)
 
     # Real, observed behavior (documented discrepancy from spec.md's pinned
     # exit 2 — see module docstring finding #2). Not fabricated as exit 2.
@@ -374,8 +364,7 @@ def test_c001_invalid_persona_is_a_categorical_error_never_a_findings_result(
     case_result = summary["results"][0]
     assert case_result["passed"] is False
     assert "findings" not in case_result, (
-        "C-001 must never surface as an ordinary findings result — "
-        "it must be a categorical error, distinct from a graded contradiction."
+        "C-001 must never surface as an ordinary findings result — it must be a categorical error, distinct from a graded contradiction."
     )
     assert "error" in case_result
     assert "RFC-1 strict-mode validation" in case_result["error"]
@@ -457,26 +446,20 @@ def test_fr006_committed_control_discriminates_both_directions_on_findings(
     assert control.is_file(), f"FR-006 control not committed at {control}"
 
     # --- Flip direction: real committed control.yaml, unmodified. ---
-    flip_result = _run_muster(
-        ["crosslayer", "run", str(control), "--static-only", "--json"], cwd=REPO_ROOT
-    )
+    flip_result = _run_muster(["crosslayer", "run", str(control), "--static-only", "--json"], cwd=REPO_ROOT)
     flip_summary = json.loads(flip_result.stdout)
     flip_findings = flip_summary["results"][0]["findings"]
 
     assert len(flip_findings) > 0, (
-        "Flip direction produced zero findings — the control has regressed "
-        f"into vacuity (see module docstring finding #1). Got: {flip_findings!r}"
+        f"Flip direction produced zero findings — the control has regressed into vacuity (see module docstring finding #1). Got: {flip_findings!r}"
     )
     assert "cross-layer-contradiction" in flip_findings, (
-        "Flip direction's findings do not name the real contradiction "
-        f"(cross-layer-contradiction); got {flip_findings!r}."
+        f"Flip direction's findings do not name the real contradiction (cross-layer-contradiction); got {flip_findings!r}."
     )
     # Findings-length pin (not merely non-empty): the exact set observed
     # during remediation. undefined-precedence also fires because this
     # fixture carries no `precedence:` block (T010's pinned structure).
-    assert set(flip_findings) == {"cross-layer-contradiction", "undefined-precedence"}, (
-        f"Flip findings set changed from the pinned shape: {flip_findings!r}"
-    )
+    assert set(flip_findings) == {"cross-layer-contradiction", "undefined-precedence"}, f"Flip findings set changed from the pinned shape: {flip_findings!r}"
 
     # --- Neutralize direction: temp copy, only the persona body replaced. ---
     sandbox = tmp_path / "control-neutralized"
@@ -489,10 +472,8 @@ def test_fr006_committed_control_discriminates_both_directions_on_findings(
     persona_path = sandbox / "fixtures" / "control-persona.Soul.md"
     original = persona_path.read_text(encoding="utf-8")
     neutralized = original.replace(
-        "Always answer in exhaustive, multi-paragraph detail, restating the "
-        "full context before every response.",
-        "Ground each response in the user's actual question, citing the "
-        "specific detail that motivated the answer.",
+        "Always answer in exhaustive, multi-paragraph detail, restating the full context before every response.",
+        "Ground each response in the user's actual question, citing the specific detail that motivated the answer.",
     )
     assert neutralized != original, "pinned flip sentence not found in control-persona.Soul.md"
     persona_path.write_text(neutralized, encoding="utf-8")
@@ -504,16 +485,10 @@ def test_fr006_committed_control_discriminates_both_directions_on_findings(
     neutralize_summary = json.loads(neutralize_result.stdout)
     neutralize_findings = neutralize_summary["results"][0]["findings"]
 
-    assert neutralize_findings == [], (
-        "Neutralize direction produced findings — the neutralized persona "
-        f"sentence still trips the lint: {neutralize_findings!r}"
-    )
+    assert neutralize_findings == [], f"Neutralize direction produced findings — the neutralized persona sentence still trips the lint: {neutralize_findings!r}"
 
     # The discrimination proof itself: the two directions must differ.
-    assert flip_findings != neutralize_findings, (
-        "Flip and neutralize produced identical findings sets — the control "
-        "does not discriminate."
-    )
+    assert flip_findings != neutralize_findings, "Flip and neutralize produced identical findings sets — the control does not discriminate."
 
 
 def test_fr006_mechanism_proof_recognized_negation_wording_does_discriminate(
@@ -532,12 +507,9 @@ def test_fr006_mechanism_proof_recognized_negation_wording_does_discriminate(
     # which is itself an ACCOMMODATION_OPERATORS member and would create a
     # spurious (sop, skill) contradiction against the skill's "never" below —
     # a real false-positive found empirically while designing this test).
-    (tmp_path / "sop.md").write_text(
-        "# SOP\nFollow the project's documented style guide.\n", encoding="utf-8"
-    )
+    (tmp_path / "sop.md").write_text("# SOP\nFollow the project's documented style guide.\n", encoding="utf-8")
     (tmp_path / "skill.SKILL.md").write_text(
-        "You must never restate prior context and must keep every reply to "
-        "one short sentence.\n",
+        "You must never restate prior context and must keep every reply to one short sentence.\n",
         encoding="utf-8",
     )
 
@@ -556,24 +528,16 @@ def test_fr006_mechanism_proof_recognized_negation_wording_does_discriminate(
         )
         manifest = tmp_path / "manifest.yaml"
         manifest.write_text("cases:\n  - $ref: case.yaml\n", encoding="utf-8")
-        result = _run_muster(
-            ["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT
-        )
+        result = _run_muster(["crosslayer", "run", str(manifest), "--static-only", "--json"], cwd=REPO_ROOT)
         return json.loads(result.stdout)["results"][0]["findings"]
 
     # Flip: persona uses a recognized ACCOMMODATION_OPERATORS word ("always")
     # against the skill's recognized NEGATION_OPERATORS word ("never").
-    flip_findings = _run_with_persona_body(
-        "You must always provide exhaustive detail and restate the entire "
-        "conversation history before responding."
-    )
+    flip_findings = _run_with_persona_body("You must always provide exhaustive detail and restate the entire conversation history before responding.")
     # Neutralize: same structure, persona text carries no
     # ACCOMMODATION_OPERATORS/NEGATION_OPERATORS token at all — no polarity
     # inversion signal, so the lint has nothing to flag.
-    neutralize_findings = _run_with_persona_body(
-        "Ground each answer in the specific detail from the user's question "
-        "that prompted it."
-    )
+    neutralize_findings = _run_with_persona_body("Ground each answer in the specific detail from the user's question that prompted it.")
 
     assert "cross-layer-contradiction" in flip_findings
     assert flip_findings != []

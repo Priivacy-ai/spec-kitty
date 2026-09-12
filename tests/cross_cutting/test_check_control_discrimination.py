@@ -76,10 +76,7 @@ _CONTROL_ID = "rigged-impossible-control"
 
 def _control_case(report: dict[str, Any]) -> dict[str, Any]:
     controls = [c for c in report["results"] if c.get("isControl") is True]
-    assert [c["id"] for c in controls] == [_CONTROL_ID], (
-        f"fixture must carry exactly the control case {_CONTROL_ID!r}; "
-        f"got {[c.get('id') for c in controls]!r}"
-    )
+    assert [c["id"] for c in controls] == [_CONTROL_ID], f"fixture must carry exactly the control case {_CONTROL_ID!r}; got {[c.get('id') for c in controls]!r}"
     return controls[0]
 
 
