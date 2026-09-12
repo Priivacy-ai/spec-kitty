@@ -2101,8 +2101,12 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  across `/`, which is **not** full gitignore equivalence.
 
  Refuses to overwrite an existing directory unless ``--force`` is passed.
- With ``--force``, install is move-aside-then-swap so a mid-failure does not
- destroy the prior pack without a recoverable backup tree.
+ Rendering stages beside the destination, then publishes the complete tree
+ with a same-filesystem rename. Source and destination must not contain one
+ another, and the destination must not be a symlink.
+ With ``--force``, the prior pack is moved aside and restored if promotion
+ fails. Unexpected partial destination contents are preserved separately;
+ diagnostics name recovery paths if restoration cannot complete.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    pack_path      PATH  Path to the directory to initialise as an org      │
