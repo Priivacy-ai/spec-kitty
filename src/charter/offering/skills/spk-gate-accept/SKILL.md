@@ -13,9 +13,9 @@ mission, or all WPs appear complete.
 1. Run `/spec-kitty.accept` or the equivalent CLI command.
 2. Confirm all required WPs are approved or done.
 3. Verify required tests, artifacts, and mission invariants. When the mission
-   changed TypeScript, run the project's compiler typecheck (or `npm run build`
-   if that is the CI compile) in addition to the test runner. Vitest/Jest are
-   not a substitute.
+   changed typed sources, run the project's configured compiler/typecheck
+   command, matching CI, in addition to the test runner. A failed compiler
+   command fails the gate; passing behavioral tests are not a substitute.
 4. If accept fails, route to `spk-run-blocked-recovery`.
 5. If accept passes, route to `spk-gate-merge`.
 

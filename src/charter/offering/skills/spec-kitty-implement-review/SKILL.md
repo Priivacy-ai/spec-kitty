@@ -289,14 +289,12 @@ The prompt contains all context, acceptance criteria, and review feedback
 - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
 8b. **Compiler typecheck (MANDATORY when the WP touches typed sources)**:
-    A test runner is not typecheck. Vitest, Jest, Mocha, and pytest do not apply
-    TypeScript `noUnusedLocals` / `noUnusedParameters`. If the diff includes
-    `.ts` / `.tsx` (including tests), select the project's configured typecheck
-    script before execution; otherwise use an available local or global TypeScript
-    compiler. A failed compiler command fails the gate; never try another command
-    to turn that failure into success.
-    Match the command CI uses when the README or pipeline compiles as a
-    distinct step (for example `npm run build` that starts with `tsc -b`).
+    A test runner does not replace compiler diagnostics. If the diff includes
+    typed sources (including tests), select the project's configured compiler
+    or typecheck command before execution, matching the repository's CI.
+    If no command is configured, select an available compiler appropriate to
+    the project's language. A failed compiler command fails the gate; never
+    try another command to turn that failure into success.
     The command MUST exit 0. Paste command + exit code into the handoff note.
     Reviewers reject the WP if typecheck was skipped or is red.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"

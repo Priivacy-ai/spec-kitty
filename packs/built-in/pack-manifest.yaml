@@ -981,7 +981,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/problem-decomposition.tactic.yaml
   provenance_path:
-- content_hash: ca4a035ccc4f9190fc6e646be939e43a0876d44f14831d6b58b7f415069a50df
+- content_hash: 64a7697b41f2bf9cd8f8d3cd5ef81215b2ceb67caa0de9a4ac2f9f618705f963
   id: quality-gate-verification
   kind: tactic
   path: tactics/testing/quality-gate-verification.tactic.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 810cda4a91747ce79f0d5324bad867e653428b9fa87662e367347e30d793bba1
+manifest_hash: 9be303c2fcdc7ec0d2f68114be81057c4603ace1b48d94677e40e147d1a22561
 schema_version: '1'
 source_type: built-in
 source_url:
