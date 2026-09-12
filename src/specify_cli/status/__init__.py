@@ -70,6 +70,25 @@ from .store import (
     read_events_from_text,
     read_events_raw,
 )
+from .rollback import (
+    # spec-kitty #3960 (fsm-write-path-integrity-01M1TZV6 mission-review
+    # DRIFT-2): the status-owned, lock-held, tail-verified rollback truncate.
+    # Promoted onto the facade so both former lockless truncates
+    # (coordination/status_transition.py -- SR-2-exempt plumbing that imports
+    # the submodule directly -- and cli/commands/agent/workflow.py) resolve it
+    # WITHOUT a direct ``specify_cli.status.rollback`` import
+    # (test_status_module_boundary.py SR-2).
+    OwnedEmission,
+    capture_events_tail_ids,
+    owned_emission_window,
+    rollback_events_log_tail,
+    # spec-kitty #4087 (operator acceptance follow-up): the BOTH-artifacts
+    # rollback -- one lock-held window across the rollback decision, the
+    # truncation, and the derived-snapshot restore -- so a separately locked
+    # writer can never land between a successful tail cut and the snapshot
+    # restore.
+    rollback_status_artifacts,
+)
 from .transitions import (
     # Non-authoritative derived projection (NFR-002, I1): re-exported for tests
     # and graph tooling only. Never consult it as an edge/transition gate; route
@@ -562,6 +581,15 @@ __all__ = [
     "reduce",
     "resolve_lane_alias",
     "resolve_snapshot_review",
+    # spec-kitty #3960 (mission-review DRIFT-2): the lock-held, tail-verified
+    # rollback truncate pair -- mirrors the comment on the ``.rollback``
+    # import block above (test_status_module_boundary.py SR-2). #4072 fix
+    # round: the ownership window (and its record type) joined the pair.
+    "OwnedEmission",
+    "capture_events_tail_ids",
+    "owned_emission_window",
+    "rollback_events_log_tail",
+    "rollback_status_artifacts",
     # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006): promoted
     # the REST of the verdict_vocab public surface onto the facade -- mirrors
     # the comment on the ``is_changes_requested``/``to_artifact_verdict``

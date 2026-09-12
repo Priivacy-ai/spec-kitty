@@ -472,6 +472,7 @@ def test_commit_workflow_change_syncs_lane_after_coord_commit(
         wp_id="WP01",
         pre_emit_event_size=0,
         pre_emit_status_bytes=None,
+        expected_event_ids=[],
         auto_rebase_lane_after_commit=True,
     )
 
@@ -501,7 +502,13 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
         encoding="utf-8",
     )
     event_path = feature_dir / "status.events.jsonl"
-    event_path.write_text("before\n", encoding="utf-8")
+    # spec-kitty #3960 (DRIFT-2): the real order is emit-then-commit -- the
+    # transition's rows are already in the log when ``_commit_workflow_change``
+    # begins (the transaction stages pre-emitted bytes; it never appends), so
+    # the fixture writes the post-emit state up front and the fake commit only
+    # stages/commits it. The rollback must then cut exactly the emitted tail,
+    # verified by event id.
+    event_path.write_text('{"event_id":"before"}\n{"event_id":"after"}\n', encoding="utf-8")
     status_path = feature_dir / "status.json"
     status_path.write_text('{"lane":"planned"}\n', encoding="utf-8")
     receipt = CommitReceipt(
@@ -509,13 +516,12 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
         committed_at=now_utc(),
         destination_ref=coord_branch,
         worktree_root=workflow_repo / ".worktrees" / f"{mission_slug}-{mid8}-coord",
-        event_ids=("evt-1",),
+        event_ids=("after",),
     )
     calls: list[str] = []
 
     def fake_commit(**_kwargs: object) -> CommitReceipt:
         calls.append("commit")
-        event_path.write_text("before\nafter\n", encoding="utf-8")
         status_path.write_text('{"lane":"claimed"}\n', encoding="utf-8")
         workflow._record_receipt(
             coord_branch,
@@ -555,14 +561,15 @@ def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
             message="chore: Start WP01 implementation [agent]",
             operation="planned -> claimed for WP01",
             wp_id="WP01",
-            pre_emit_event_size=len("before\n"),
+            pre_emit_event_size=len('{"event_id":"before"}\n'),
             pre_emit_status_bytes=b'{"lane":"planned"}\n',
+            expected_event_ids=["after"],
             auto_rebase_lane_after_commit=True,
         )
 
     assert calls == ["commit", "sync", "revert"]
     assert workflow._WORKFLOW_COMMIT_RECEIPTS[-1]["outcome"] == "refused"
-    assert event_path.read_text(encoding="utf-8") == "before\n"
+    assert event_path.read_text(encoding="utf-8") == '{"event_id":"before"}\n'
     assert status_path.read_text(encoding="utf-8") == '{"lane":"planned"}\n'
 
 

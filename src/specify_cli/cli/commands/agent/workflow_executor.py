@@ -58,7 +58,13 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
+from specify_cli.status import (
+    Lane,
+    WorkPackageClaimConflict,
+    WorkPackageStartRejected,
+    owned_emission_window,
+    read_wp_frontmatter,
+)
 from specify_cli.task_utils import extract_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
 
@@ -137,18 +143,30 @@ def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> Wor
 class _CommitFailureContext:
     """The status-artifact rollback inputs threaded to :func:`_handle_commit_failure`.
 
-    coord-commit-integrity (campsite, Sonar S107): bundles the four rollback
-    coordinates — the event-log path + its pre-emit size and the status-snapshot
-    path + its pre-emit bytes — that ``_restore_status_artifacts`` needs to
-    truncate/restore the artifacts to their pre-emit state. Both ``except`` arms
-    in :func:`commit_workflow_change` share one identical instance, so the
-    failure handler takes this frozen bundle plus only the arm-specific fields.
+    coord-commit-integrity (campsite, Sonar S107): bundles the rollback
+    coordinates — the lock coordinates (``repo_root`` + ``feature_dir``, the
+    same L1 key the emit pipeline uses), the event-log's pre-emit size, the
+    status-snapshot's pre-emit bytes, and the tail's expected event ids —
+    that ``_restore_status_artifacts`` needs to tail-verified-restore the
+    artifacts to their pre-emit state. Both ``except`` arms in
+    :func:`commit_workflow_change` share one identical instance, so the
+    failure handler takes this frozen bundle plus only the arm-specific
+    fields.
+
+    spec-kitty #4072 (operator acceptance): *expected_event_ids* is captured
+    by the CALLER inside its ``owned_emission_window`` — the same
+    ``feature_status_lock`` hold that spans the pre-emit snapshot and the
+    emits — and handed in at ``commit_workflow_change`` entry. Ownership is
+    never re-inferred here from the current tail: a capture taken at commit
+    entry, outside that hold, can adopt a concurrent writer's just-committed
+    rows as "expected" and the rollback would then destroy them.
     """
 
-    events_path: Path
+    repo_root: Path
+    feature_dir: Path
     pre_emit_event_size: int
-    status_path: Path
     pre_emit_status_bytes: bytes | None
+    expected_event_ids: list[str] | None
 
 
 def _handle_commit_failure(
@@ -171,20 +189,24 @@ def _handle_commit_failure(
 
     When a chained ``safe_commit`` recovery already created a commit
     (``_safe_commit_recovery_commit_sha`` returns a SHA) the status artifacts
-    are NOT rolled back (the commit is real); otherwise the event log / status
-    snapshot are restored to their pre-emit bytes (from ``rollback``).
-    ``error_prefix`` is the arm-specific message head (``": {exc}"`` is always
-    appended); the legacy arm additionally appends a recovery note
-    (``include_recovery_note``).
+    are NOT rolled back (the commit is real); otherwise the event log /
+    status snapshot are tail-verified-restored to their pre-emit bytes (from
+    ``rollback``) -- and when that verification REFUSES, both artifacts stay
+    at their newer coherent state and the refusal rides the error text as the
+    recoverable diagnostic. ``error_prefix`` is the arm-specific message head
+    (``": {exc}"`` is always appended); the legacy arm additionally appends a
+    recovery note (``include_recovery_note``).
     """
     w = _wf()
     recovery_commit_sha = w._safe_commit_recovery_commit_sha(exc)
+    restored = True
     if recovery_commit_sha is None:
-        w._restore_status_artifacts(
-            events_path=rollback.events_path,
+        restored = w._restore_status_artifacts(
+            repo_root=rollback.repo_root,
+            feature_dir=rollback.feature_dir,
             pre_emit_event_size=rollback.pre_emit_event_size,
-            status_path=rollback.status_path,
             pre_emit_status_bytes=rollback.pre_emit_status_bytes,
+            expected_event_ids=rollback.expected_event_ids,
         )
     w._record_receipt(
         receipt_ref,
@@ -194,13 +216,27 @@ def _handle_commit_failure(
         wp_id=wp_id,
     )
     error_text = f"{error_prefix}: {exc}"
-    if include_recovery_note:
-        recovery_note = (
-            "Commit was created before staging recovery failed; status artifacts were not rolled back."
-            if recovery_commit_sha is not None
-            else "Event log rolled back to pre-emit state."
+    if recovery_commit_sha is not None:
+        if include_recovery_note:
+            error_text = (
+                f"{error_text}. Commit was created before staging recovery failed; "
+                "status artifacts were not rolled back."
+            )
+    elif restored:
+        if include_recovery_note:
+            error_text = f"{error_text}. Event log rolled back to pre-emit state."
+    else:
+        # spec-kitty #4072 (operator acceptance): the explicit recoverable
+        # diagnostic — the tail-verified rollback refused (a concurrent
+        # writer's rows would have been destroyed), so BOTH artifacts stay
+        # at their newer coherent state. Printed for BOTH commit arms.
+        error_text = (
+            f"{error_text}. Event-log rollback REFUSED: the tail holds rows this "
+            "operation did not emit (a concurrent writer's rows were preserved); the "
+            "event log and status.json are both left at their newer coherent state. "
+            "Recover by reconciling the surviving rows, then "
+            "'spec-kitty agent status materialize'."
         )
-        error_text = f"{error_text}. {recovery_note}"
     print(error_text)
     raise typer.Exit(1) from exc
 
@@ -217,6 +253,7 @@ def commit_workflow_change(
     wp_id: str,
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
+    expected_event_ids: list[str] | None,
     auto_rebase_lane_after_commit: bool = False,
 ) -> None:
     """Commit a workflow change with atomic event-log rollback on failure.
@@ -230,6 +267,16 @@ def commit_workflow_change(
     the bare :func:`safe_commit` path but still truncates the event log
     on commit failure to ``pre_emit_event_size``. WP08 will replace this
     fallback with a proper legacy bridge.
+
+    spec-kitty #4072 (operator acceptance): *expected_event_ids* is the
+    ownership record the CALLER captured inside its ``owned_emission_window``
+    (the same lock-held window that spans the pre-emit snapshot and the
+    emits). It is a required argument precisely so no caller can silently
+    degrade to ownership-less structural verification -- inferring ownership
+    from the current tail HERE, outside that hold, would adopt a concurrent
+    writer's just-committed rows as "expected" and the rollback would destroy
+    them. ``None`` is legitimate only when the in-window capture itself could
+    not parse the tail.
 
     Records the outcome via ``_record_receipt`` so the T029 terminal
     summary can render it.
@@ -255,13 +302,16 @@ def commit_workflow_change(
         repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
     )
     coord_branch, mission_id, mid8 = w._load_coord_branch_meta(primary_meta_dir)
-    events_path = feature_dir / w._STATUS_EVENTS_FILENAME
-    status_path = feature_dir / w._STATUS_FILENAME
     rollback_ctx = _CommitFailureContext(
-        events_path=events_path,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
         pre_emit_event_size=pre_emit_event_size,
-        status_path=status_path,
         pre_emit_status_bytes=pre_emit_status_bytes,
+        # spec-kitty #3960 (DRIFT-2) / #4072 (operator acceptance): the tail's
+        # expected ids, captured by the caller inside its owned_emission_window
+        # -- the lock-held window spanning snapshot and emits -- so a rollback
+        # only ever cuts rows this operation itself appended.
+        expected_event_ids=expected_event_ids,
     )
     # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
     # below (BookkeepingTransaction vs. the legacy safe_commit fallback) still
@@ -302,12 +352,23 @@ def commit_workflow_change(
                 wp_id=wp_id,
             )
         except typer.Exit:
-            w._restore_status_artifacts(
-                events_path=events_path,
+            if not w._restore_status_artifacts(
+                repo_root=repo_root,
+                feature_dir=feature_dir,
                 pre_emit_event_size=pre_emit_event_size,
-                status_path=status_path,
                 pre_emit_status_bytes=pre_emit_status_bytes,
-            )
+                expected_event_ids=rollback_ctx.expected_event_ids,
+            ):
+                # spec-kitty #4072 (operator acceptance): the explicit
+                # recoverable diagnostic -- the tail-verified rollback
+                # refused, so BOTH artifacts stay at their newer coherent
+                # state (never obsolete snapshot bytes over a preserved log).
+                print(
+                    "Warning: event-log rollback REFUSED after commit failure (the tail "
+                    "holds rows this operation did not emit); the event log and status.json "
+                    "are both left at their newer coherent state. Recover by reconciling "
+                    "the surviving rows, then 'spec-kitty agent status materialize'."
+                )
             raise
         except Exception as exc:  # noqa: BLE001 — surface + exit
             _handle_commit_failure(
@@ -331,12 +392,22 @@ def commit_workflow_change(
                 try:
                     w._revert_coordination_commit(receipt)
                     w._mark_receipt_refused(commit_sha=receipt.commit_sha)
-                    w._restore_status_artifacts(
-                        events_path=events_path,
+                    if not w._restore_status_artifacts(
+                        repo_root=repo_root,
+                        feature_dir=feature_dir,
                         pre_emit_event_size=pre_emit_event_size,
-                        status_path=status_path,
                         pre_emit_status_bytes=pre_emit_status_bytes,
-                    )
+                        expected_event_ids=rollback_ctx.expected_event_ids,
+                    ):
+                        # spec-kitty #4072 (operator acceptance): explicit
+                        # recoverable diagnostic on a refused rollback.
+                        print(
+                            "Warning: event-log rollback REFUSED after lane sync refusal "
+                            "(the tail holds rows this operation did not emit); the event "
+                            "log and status.json are both left at their newer coherent "
+                            "state. Recover by reconciling the surviving rows, then "
+                            "'spec-kitty agent status materialize'."
+                        )
                 except Exception as rollback_exc:  # noqa: BLE001
                     print(f"Error: Failed to rollback lifecycle state after lane sync refusal: {rollback_exc}")
                 w._render_lane_auto_rebase_failure(exc)
@@ -846,6 +917,7 @@ def _implement_write_claim_and_commit(
     target_branch: str,
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
+    expected_event_ids: list[str] | None,
 ) -> None:
     """Auto-commit the claim's event-log/status artifacts (enables instant
     status sync). The WP file is not mutated for the claim (byte-stable, SC-004);
@@ -887,6 +959,7 @@ def _implement_write_claim_and_commit(
         wp_id=normalized_wp_id,
         pre_emit_event_size=pre_emit_event_size,
         pre_emit_status_bytes=pre_emit_status_bytes,
+        expected_event_ids=expected_event_ids,
         auto_rebase_lane_after_commit=True,
     )
 
@@ -994,13 +1067,6 @@ def implement_claim_transition(
     wp_slug = wp.path.stem
     fix_mode_active = has_prior_rejection(feature_dir, wp_slug, normalized_wp_id)
 
-    events_path_pre = wf_feature_dir / w._STATUS_EVENTS_FILENAME
-    status_path_pre = wf_feature_dir / w._STATUS_FILENAME
-    # Capture before every status mutation, including the bare-resume path, so
-    # commit failure can restore both authoritative artifacts byte-for-byte.
-    pre_emit_event_size = events_path_pre.stat().st_size if events_path_pre.exists() else 0
-    pre_emit_status_bytes = status_path_pre.read_bytes() if status_path_pre.exists() else None
-
     if current_lane != Lane.IN_PROGRESS or needs_agent_assignment or agent:
         # Require --agent parameter to track who is working
         if not agent and not (current_lane == Lane.IN_PROGRESS and not needs_agent_assignment):
@@ -1012,28 +1078,39 @@ def implement_claim_transition(
             print("This tracks WHO is working on the WP (prevents abandoned tasks).")
             raise typer.Exit(1)
 
-        shell_pid = _implement_start_claim(
-            main_repo_root=main_repo_root,
-            feature_dir=wf_feature_dir,
-            mission_slug=mission_slug,
-            normalized_wp_id=normalized_wp_id,
-            agent=agent,
-            wp_agent_assignment=wp_agent_assignment,
-            current_lane=current_lane,
-            status_execution_mode=status_execution_mode,
-            workspace_path=workspace_path,
-            resolved_binding=resolved_binding,
-        )
-
-        if current_lane == Lane.IN_PROGRESS:
-            _implement_emit_resume_refresh(
+        # spec-kitty #4072 (operator acceptance): the pre-emit snapshot, the
+        # claim emits, and the tail-ownership capture run inside ONE
+        # mission-status-lock hold (re-entrant for the emit helpers' own
+        # takes). A capture taken outside this hold could adopt a concurrent
+        # writer's just-committed rows as "expected" and the commit-failure
+        # rollback would then destroy them; inside the hold no lock-honoring
+        # writer can interleave, so ``expected_event_ids`` names exactly the
+        # rows THIS claim appended. The commit itself runs after the window
+        # closes -- rows landing after the capture are caught by the
+        # rollback's multiset verification and refused, never cut.
+        with owned_emission_window(wf_feature_dir, repo_root=main_repo_root) as own:
+            shell_pid = _implement_start_claim(
+                main_repo_root=main_repo_root,
                 feature_dir=wf_feature_dir,
-                wp_id=normalized_wp_id,
                 mission_slug=mission_slug,
-                actor=agent or wp_agent_assignment.tool or "unknown",
+                normalized_wp_id=normalized_wp_id,
+                agent=agent,
+                wp_agent_assignment=wp_agent_assignment,
+                current_lane=current_lane,
+                status_execution_mode=status_execution_mode,
+                workspace_path=workspace_path,
                 resolved_binding=resolved_binding,
-                repo_root=main_repo_root,
             )
+
+            if current_lane == Lane.IN_PROGRESS:
+                _implement_emit_resume_refresh(
+                    feature_dir=wf_feature_dir,
+                    wp_id=normalized_wp_id,
+                    mission_slug=mission_slug,
+                    actor=agent or wp_agent_assignment.tool or "unknown",
+                    resolved_binding=resolved_binding,
+                    repo_root=main_repo_root,
+                )
         _implement_write_claim_and_commit(
             wp=wp,
             agent=agent,
@@ -1042,8 +1119,9 @@ def implement_claim_transition(
             mission_slug=mission_slug,
             normalized_wp_id=normalized_wp_id,
             target_branch=target_branch,
-            pre_emit_event_size=pre_emit_event_size,
-            pre_emit_status_bytes=pre_emit_status_bytes,
+            pre_emit_event_size=own.pre_emit_event_size,
+            pre_emit_status_bytes=own.pre_emit_status_bytes,
+            expected_event_ids=own.expected_event_ids,
         )
 
         print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
@@ -1052,14 +1130,18 @@ def implement_claim_transition(
         wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     else:
         print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
-        _implement_emit_resume_refresh(
-            feature_dir=wf_feature_dir,
-            wp_id=normalized_wp_id,
-            mission_slug=mission_slug,
-            actor=agent or wp_agent_assignment.tool or "unknown",
-            repo_root=main_repo_root,
-            resolved_binding=resolved_binding,
-        )
+        # spec-kitty #4072: same ownership window as the claim branch -- the
+        # bare-resume refresh emit and its capture share one lock-held
+        # snapshot->emit window (see the comment in the claim branch above).
+        with owned_emission_window(wf_feature_dir, repo_root=main_repo_root) as own:
+            _implement_emit_resume_refresh(
+                feature_dir=wf_feature_dir,
+                wp_id=normalized_wp_id,
+                mission_slug=mission_slug,
+                actor=agent or wp_agent_assignment.tool or "unknown",
+                repo_root=main_repo_root,
+                resolved_binding=resolved_binding,
+            )
         status_artifacts = [path.resolve() for path in w._collect_status_artifacts(wf_feature_dir)]
         w._commit_workflow_change(
             repo_root=main_repo_root,
@@ -1070,8 +1152,9 @@ def implement_claim_transition(
             message=f"chore: Refresh {normalized_wp_id} implementation liveness",
             operation=f"refresh implementation liveness for {normalized_wp_id}",
             wp_id=normalized_wp_id,
-            pre_emit_event_size=pre_emit_event_size,
-            pre_emit_status_bytes=pre_emit_status_bytes,
+            pre_emit_event_size=own.pre_emit_event_size,
+            pre_emit_status_bytes=own.pre_emit_status_bytes,
+            expected_event_ids=own.expected_event_ids,
             auto_rebase_lane_after_commit=True,
         )
 
@@ -1673,48 +1756,50 @@ def review_claim_transition(
     )
 
     with w.feature_status_lock(main_repo_root, feature_dir.name):
-        # WP06 T027: capture pre-emit event-log size for
-        # surgical rollback on commit failure.
-        events_path_pre_rev = feature_dir / w._STATUS_EVENTS_FILENAME
-        status_path_pre_rev = feature_dir / w._STATUS_FILENAME
-        pre_emit_event_size_rev = events_path_pre_rev.stat().st_size if events_path_pre_rev.exists() else 0
-        pre_emit_status_bytes_rev = status_path_pre_rev.read_bytes() if status_path_pre_rev.exists() else None
-        try:
-            start_review_status(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=normalized_wp_id,
-                actor=transition_actor,
-                review_ref="action-review-claim",
-                workspace_context=f"action-review:{main_repo_root}",
-                execution_mode=status_execution_mode,
-                repo_root=main_repo_root,
-                # WP07/T027 (FR-004/FR-014): mirror T026 -- carry the claim
-                # triple on the for_review -> in_review transition's
-                # policy_metadata sidecar too (provenance on the event even
-                # though WP01's reducer only special-cases the
-                # planned -> claimed fold; see the emit_inner_state_changed
-                # annotation below for the snapshot-slot write this
-                # transition alone does not perform).
-                policy_metadata=claim_policy_metadata,
-                annotation_delta=claim_delta,
-            )
-        except WorkPackageClaimConflict as exc:
-            print(f"Error: {exc}")
-            raise typer.Exit(1) from exc
-        except WorkPackageStartRejected as exc:
-            print(f"Error: {exc}")
-            raise typer.Exit(1) from exc
+        # spec-kitty #4072 (operator acceptance): the ownership window nests
+        # inside the review shell's existing L1 (same lock path and key, so
+        # its own take re-enters) -- the pre-emit snapshot, the review-claim
+        # emits, and the tail-ownership capture share the ONE hold this shell
+        # already keeps through commit and rollback, so no lock-honoring
+        # writer can interleave anywhere in the window and the capture names
+        # exactly the rows THIS claim appended.
+        with owned_emission_window(feature_dir, repo_root=main_repo_root) as own:
+            try:
+                start_review_status(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=normalized_wp_id,
+                    actor=transition_actor,
+                    review_ref="action-review-claim",
+                    workspace_context=f"action-review:{main_repo_root}",
+                    execution_mode=status_execution_mode,
+                    repo_root=main_repo_root,
+                    # WP07/T027 (FR-004/FR-014): mirror T026 -- carry the claim
+                    # triple on the for_review -> in_review transition's
+                    # policy_metadata sidecar too (provenance on the event even
+                    # though WP01's reducer only special-cases the
+                    # planned -> claimed fold; see the emit_inner_state_changed
+                    # annotation below for the snapshot-slot write this
+                    # transition alone does not perform).
+                    policy_metadata=claim_policy_metadata,
+                    annotation_delta=claim_delta,
+                )
+            except WorkPackageClaimConflict as exc:
+                print(f"Error: {exc}")
+                raise typer.Exit(1) from exc
+            except WorkPackageStartRejected as exc:
+                print(f"Error: {exc}")
+                raise typer.Exit(1) from exc
 
-        if current_lane == Lane.IN_REVIEW:
-            emit_inner_state_changed(
-                feature_dir,
-                normalized_wp_id,
-                claim_delta,
-                actor=agent,
-                mission_slug=mission_slug,
-                repo_root=main_repo_root,
-            )
+            if current_lane == Lane.IN_REVIEW:
+                emit_inner_state_changed(
+                    feature_dir,
+                    normalized_wp_id,
+                    claim_delta,
+                    actor=agent,
+                    mission_slug=mission_slug,
+                    repo_root=main_repo_root,
+                )
 
         # WP04/T015 (FR-004/NFR-003/SC-004): the review claim's shell_pid/agent
         # reach the reduced snapshot via the transaction-carried annotation (or
@@ -1737,8 +1822,9 @@ def review_claim_transition(
             message=f"chore: Start {normalized_wp_id} review [{agent}]",
             operation=f"for_review -> in_review for {normalized_wp_id}",
             wp_id=normalized_wp_id,
-            pre_emit_event_size=pre_emit_event_size_rev,
-            pre_emit_status_bytes=pre_emit_status_bytes_rev,
+            pre_emit_event_size=own.pre_emit_event_size,
+            pre_emit_status_bytes=own.pre_emit_status_bytes,
+            expected_event_ids=own.expected_event_ids,
             auto_rebase_lane_after_commit=True,
         )
 

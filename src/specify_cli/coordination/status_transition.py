@@ -70,6 +70,7 @@ from specify_cli.status.models import (
     WPInnerStateDelta,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
+from specify_cli.status.rollback import rollback_status_artifacts as _rollback_status_artifacts
 from specify_cli.status.store import EVENTS_FILENAME as _EVENTS_FILENAME
 from specify_cli.status.store import read_event_stream_from_text as _read_event_stream_from_text
 from specify_cli.status.store import read_events as _read_raw_events
@@ -369,32 +370,63 @@ def _snapshot_coord_status_artifacts(coord_feature_dir: Path) -> tuple[int, byte
 def _restore_coord_status_artifacts(
     coord_feature_dir: Path,
     *,
+    repo_root: Path | None,
     pre_emit_event_size: int,
     pre_emit_status_bytes: bytes | None,
-) -> None:
+    expected_event_ids: list[str] | None = None,
+) -> bool:
     """Truncate/restore the coord status artifacts after a failed coord commit.
 
-    Mirrors ``workflow._restore_status_artifacts`` so the FR-004 coord fallback
-    arm is transactional-symmetric with the ``BookkeepingTransaction`` True-arm: a
+    Closes mission-review DRIFT-2 (spec-kitty #3960): both halves route
+    through the status-owned, lock-held, tail-verified rollback
+    (:func:`specify_cli.status.rollback.rollback_status_artifacts`) instead
+    of a blind byte truncate -- the helper's own lock take re-enters the L1
+    this arm already holds, and a tail that is not exactly
+    *expected_event_ids* is refused rather than cut. Mirrors
+    ``workflow._restore_status_artifacts`` so the FR-004 coord fallback arm is
+    transactional-symmetric with the ``BookkeepingTransaction`` True-arm: a
     commit failure truncates the just-appended event (and restores the derived
-    snapshot) rather than stranding an emitted-but-uncommitted event on the coord
-    worktree working copy.
+    snapshot) rather than stranding an emitted-but-uncommitted event on the
+    coord worktree working copy.
+
+    Both halves share ONE lock hold AND one ownership decision (spec-kitty
+    #4072 / #4087 operator acceptance): the rollback decision, the truncation
+    (or its refusal/no-op), and the derived-snapshot restore run inside one
+    ``feature_status_lock`` window, so a separately locked writer cannot land
+    between a successful tail cut and the snapshot restore. When the
+    tail-verified rollback refuses, the newer derived snapshot is preserved
+    as-is -- restoring the pre-emit bytes over a log that still holds the
+    surviving rows would leave the coord surface incoherent -- and the
+    refusal is logged loudly as the recoverable outcome.
+
+    Returns ``True`` when the derived snapshot restore proceeded and
+    ``False`` when the rollback refused or failed.
     """
     events_path = coord_feature_dir / _EVENTS_FILENAME
     status_path = coord_feature_dir / _DERIVED_STATUS_FILENAME
+    restored: bool
     try:
-        if events_path.exists():
-            with events_path.open("ab") as fh:
-                fh.truncate(pre_emit_event_size)
+        restored = _rollback_status_artifacts(
+            coord_feature_dir,
+            repo_root=repo_root,
+            pre_emit_event_size=pre_emit_event_size,
+            pre_emit_status_bytes=pre_emit_status_bytes,
+            expected_event_ids=expected_event_ids,
+        )
     except OSError:
         _logger.exception("Could not truncate %s on coord commit failure", events_path)
-    try:
-        if pre_emit_status_bytes is None:
-            status_path.unlink(missing_ok=True)
-        else:
-            status_path.write_bytes(pre_emit_status_bytes)
-    except OSError:
-        _logger.exception("Could not restore %s on coord commit failure", status_path)
+        restored = False
+    if not restored:
+        _logger.warning(
+            "Refused rollback restore of %s (and %s): the event-log tail did not verify "
+            "against this operation's emitted rows; both coord artifacts are left at "
+            "their newer coherent state. Recover: reconcile the surviving log rows, then "
+            "run 'spec-kitty agent status materialize' to regenerate the derived snapshot",
+            events_path,
+            status_path,
+        )
+        return False
+    return True
 
 
 def _coord_feature_dir(coord_worktree: Path, mission_slug: str, mid8: str) -> Path:
@@ -481,6 +513,7 @@ def _emit_on_coord_then_commit(
         timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
     ):
         pre_size, pre_status = _snapshot_coord_status_artifacts(coord_fd)
+        stream: EventStream | None = None
         committed = False
         try:
             result = emit(coord_fd)
@@ -502,9 +535,14 @@ def _emit_on_coord_then_commit(
             if not committed:
                 _restore_coord_status_artifacts(
                     coord_fd,
+                    repo_root=identity.repo_root,
                     pre_emit_event_size=pre_size,
                     pre_emit_status_bytes=pre_status,
+                    expected_event_ids=_captured_tail_event_ids(stream),
                 )
+    # The success path alone reaches here: every failure arm raised through
+    # the ``finally`` above, so the tail capture is always bound.
+    assert stream is not None, "success path always captures the coord tail before commit"
     _fan_out_committed_coord_tail(
         stream,
         mission_slug=mission_slug,
@@ -512,6 +550,22 @@ def _emit_on_coord_then_commit(
         ensure_sync_daemon=ensure_sync_daemon,
     )
     return result, coord_fd
+
+
+def _captured_tail_event_ids(stream: EventStream | None) -> list[str] | None:
+    """The event ids this operation's captured tail holds, for rollback verification.
+
+    ``None`` when the emit failed before a tail was captured. Rollback refuses
+    to truncate a nonempty tail without captured ownership, even while this arm
+    holds L1 across emit, commit and rollback. Order-insensitive by contract: the helper
+    compares multisets, so the transition/annotation partition of
+    :class:`EventStream` need not reconstruct the file's interleaving.
+    """
+    if stream is None:
+        return None
+    return [event.event_id for event in stream.transitions] + [
+        annotation.event_id for annotation in stream.annotations
+    ]
 
 
 def _fallback_emit_single(

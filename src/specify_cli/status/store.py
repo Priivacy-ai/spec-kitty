@@ -449,6 +449,22 @@ def _read_text_without_following_symlinks(path: Path) -> str:
         return fh.read()
 
 
+def truncate_events_log(feature_dir: Path, *, pre_emit_event_size: int) -> None:
+    """Truncate a mission event log back to *pre_emit_event_size* bytes (rollback restore).
+
+    The RAW durability half of the status-owned rollback truncate (spec-kitty
+    #3960, mission-review DRIFT-2): restores ``feature_dir``'s
+    ``status.events.jsonl`` byte-for-byte to the size it had before a failed
+    operation appended to it. It deliberately carries NO policy: the
+    lock-held, tail-verified orchestration that decides whether a truncate is
+    safe lives in :mod:`specify_cli.status.rollback` -- callers must not reach
+    for this primitive directly outside a verified rollback.
+    """
+    path = _events_path(feature_dir)
+    with path.open("ab") as fh:
+        fh.truncate(pre_emit_event_size)
+
+
 def append_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
     """Atomically persist a batch of StatusEvents as JSONL lines.
 

@@ -129,6 +129,7 @@ def test_incomplete_triple_coord_topology_fails_loud_never_reaches_legacy(
             wp_id="WP01",
             pre_emit_event_size=len('{"event_id":"before"}\n'),
             pre_emit_status_bytes=b'{"before":true}\n',
+            expected_event_ids=None,
         )
 
     assert exc_info.value.exit_code == 1
@@ -191,6 +192,7 @@ def test_complete_triple_still_routes_modern_not_guarded(
         wp_id="WP01",
         pre_emit_event_size=3,
         pre_emit_status_bytes=b"{}\n",
+        expected_event_ids=None,
     )
 
     assert len(modern_calls) == 1, "a complete coord triple must route to the modern path"
