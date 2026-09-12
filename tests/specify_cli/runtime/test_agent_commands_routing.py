@@ -124,11 +124,11 @@ def test_sync_writes_parseable_llxprt_toml(tmp_path: Path, monkeypatch: pytest.M
     (``~/Library/Preferences/llxprt-code/commands/`` on macOS), not the legacy
     ``~/.llxprt/`` tree that llxprt migrates away from at startup.
     """
-    templates_dir = tmp_path / "templates"
-    templates_dir.mkdir()
+    templates_dir = _get_command_templates_dir()
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
     monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
 
