@@ -2077,15 +2077,36 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org doctrine pack skeleton (FR-006), or render from a
+ local/git TEMPLATE via --template.
 
- Creates three files under *pack-path*::
+ Without --template, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With --template, copies a template tree (honouring `.templateignore`),
+ substitutes `{{ORG_NAME}}` / `{{LOCAL_PATH}}` in file *contents*, and installs
+ into PACK_PATH. Entry *names* containing those tokens are rejected
+ (`substitute.path_token`). Symlink entries in the template are skipped (not
+ followed into the host filesystem).
+
+ Credential policy: HTTPS `--template` fetches do **not** inject `GIT_TOKEN`
+ and reject URL userinfo so credentials cannot be misparsed or exposed in
+ errors. Use SSH remotes or a credential helper when authenticated clone is
+ required. Other GitSource callers may still inject `GIT_TOKEN` by default.
+
+ `.templateignore` matching uses a documented `fnmatch` subset — `*` may match
+ across `/`, which is **not** full gitignore equivalence.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
+ Rendering stages beside the destination, then publishes the complete tree
+ with a same-filesystem rename. Source and destination must not contain one
+ another, and the destination must not be a symlink.
+ With ``--force``, the prior pack is moved aside and restored if promotion
+ fails. Unexpected partial destination contents are preserved separately;
+ diagnostics name recovery paths if restoration cannot complete.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    pack_path      PATH  Path to the directory to initialise as an org      │
@@ -2093,8 +2114,13 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --template       TEXT  Local directory or git URL (https:// / ssh / git@).   │
+│                        http:// and git:// are rejected.                      │
+│ --org-name       TEXT  Required with --template; substitutes {{ORG_NAME}}.   │
+│ --local-path     TEXT  Optional; substitutes {{LOCAL_PATH}} (default pack).  │
+│ --branch         TEXT  Git ref when TEMPLATE is a git URL.                   │
+│ --force                Overwrite an existing pack directory (atomic swap).   │
+│ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
