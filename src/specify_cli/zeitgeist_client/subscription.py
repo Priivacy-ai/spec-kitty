@@ -83,9 +83,11 @@ the same split upstream draws between its HTTP API and its MCP tools); every
 from __future__ import annotations
 
 import secrets
+import time
+import math
 
 from collections.abc import Callable, Generator, Iterator, Mapping
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from . import credentials, filtered_stream, grammar
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
@@ -95,6 +97,9 @@ from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
 # Re-declared, not imported, matching that module's own "read-side module
 # stays independent" reasoning for why it re-declares transport's constant
 # rather than importing it.
+if TYPE_CHECKING:
+    from .agent_delivery import AgentDelivery
+
 MAX_TIMEOUT_S: int = MAX_TTL_S
 
 DEFAULT_STATUS_TIMEOUT_S: float = 2.0
@@ -124,7 +129,7 @@ def _close(gen: Iterator[LiveFrame]) -> None:
 
 
 def _clamp_timeout(timeout_s: float) -> float:
-    if timeout_s <= 0:
+    if not math.isfinite(timeout_s) or timeout_s <= 0:
         raise ValueError("timeout_s must be > 0")
     return min(float(timeout_s), float(MAX_TIMEOUT_S))
 
@@ -397,3 +402,79 @@ def watch(
                 return
     finally:
         _close(gen)
+
+
+def agent_watch(
+    repo: str,
+    *,
+    timeout_s: float = DEFAULT_WATCH_TIMEOUT_S,
+    max_frames: int = MAX_WATCH_FRAMES,
+    delivery: AgentDelivery | None = None,
+    acknowledge: str | None = None,
+) -> dict[str, Any]:
+    """Agent watch with shared filters, novelty and explicit delivery receipts."""
+    from .agent_delivery import AgentDelivery
+    from . import moments
+
+    policy = delivery if delivery is not None else AgentDelivery(repo)
+    if not moments.allows_repo(policy.settings, repo):
+        return {"repo": repo, "frames": [], "withheld_by": "repos_filter", "settings": policy.settings.as_dict()}
+    timeout_s = _clamp_timeout(timeout_s)
+    max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
+    policy.acknowledge(acknowledge)
+    stream = resolve_stream(repo)
+    gen = stream.watch(idle_timeout_s=timeout_s)
+    try:
+        return policy.select((_serialize_frame(frame) for frame in gen), max_frames=max_frames)
+    finally:
+        _close(gen)
+
+
+def agent_activity(
+    repo: str,
+    *,
+    window_s: int = 900,
+    timeout_s: float = DEFAULT_STATUS_TIMEOUT_S,
+    max_frames: int = MAX_WATCH_FRAMES,
+    replay: bool = False,
+    delivery: AgentDelivery | None = None,
+    acknowledge: str | None = None,
+) -> dict[str, Any]:
+    """Bounded retained catch-up; replay intentionally retrieves seen frames."""
+    from .agent_delivery import AgentDelivery
+    from .history import read_history
+    from . import moments
+
+    policy = delivery if delivery is not None else AgentDelivery(repo)
+    if not moments.allows_repo(policy.settings, repo):
+        return {"repo": repo, "frames": [], "withheld_by": "repos_filter", "settings": policy.settings.as_dict()}
+    max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
+    policy.acknowledge(acknowledge)
+    deadline = time.monotonic() + _clamp_timeout(timeout_s)
+    coverage: dict[str, Any] = {}
+
+    def retained_frames() -> Iterator[dict[str, Any]]:
+        since = None
+        for _ in range(20):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                coverage["scan_limit_reached"] = True
+                return
+            page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since)
+            previous_gap = coverage.get("gap")
+            previous_reset = coverage.get("reset", False)
+            coverage.update(page["coverage"])
+            coverage["gap"] = coverage.get("gap") or previous_gap
+            coverage["reset"] = coverage.get("reset", False) or previous_reset
+            yield from page["frames"]
+            continuation = coverage.get("continuation")
+            if continuation is None:
+                return
+            if continuation == since:
+                raise ValueError("History continuation made no progress")
+            since = continuation
+        coverage["scan_limit_reached"] = True
+
+    result = policy.select(retained_frames(), max_frames=max_frames, replay=replay)
+    result["coverage"] = coverage
+    return result
