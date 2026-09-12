@@ -1,19 +1,13 @@
 {
   "wp_id": "WP02",
-  "captured_at": "2026-09-12T09:54:01Z",
-  "base_branch": "codex/issue-4250-charter-owned-checkout",
+  "captured_at": "2026-09-12T10:47:24Z",
+  "base_branch": "9b8befc4c09eba9fb33245a7abbbad3acb0dee69",
   "base_commit": "9b8befc4c09eba9fb33245a7abbbad3acb0dee69",
   "test_runner": "pytest",
-  "total": 1,
+  "total": 0,
   "passed": 0,
-  "failed": 1,
+  "failed": 0,
   "skipped": 0,
-  "failures": [
-    {
-      "test": "<gate-coverage-junit>",
-      "error": "no JUnit XML artifact produced by the scoped run",
-      "file": "unknown"
-    }
-  ],
-  "source_identity": "GateCoverageScopeSource/junit_xml"
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
 }
